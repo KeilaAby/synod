@@ -28,9 +28,13 @@ dernier point d'étape : [`.claude-code-history/2026-08-06_resumes-moi.md`](.cla
 2. Mettre à jour au préalable les trois documents exigés :
    `.claude-code-history/SESSION_HISTORY.md`, le dernier
    `.claude-code-history/..._resumes-moi.md`, et ce fichier.
-3. Vérifier qu'aucun secret n'entre dans l'index. `.claude-code-history/` est
-   ignoré **sauf** ces deux documents rédigés à la main : les transcripts bruts
-   contiennent des valeurs lues dans `.env.local`.
+3. `pnpm check:secrets` — le hook `pre-commit` l'exécute déjà, mais un
+   `--no-verify` le contournerait. `.claude-code-history/` est ignoré **sauf**
+   les deux documents rédigés à la main : les transcripts bruts contiennent des
+   valeurs lues dans `.env.local`.
+
+Un secret exposé ne se retire pas, il se **révoque** : voir « Rotation d'un
+secret » dans `README.md`.
 
 Ce qu'il reste à faire est décrit dans le dernier point d'étape
 `..._resumes-moi.md`, et le découpage en lots dans [`notes/plan.md`](notes/plan.md).

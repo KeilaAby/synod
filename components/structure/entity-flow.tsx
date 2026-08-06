@@ -23,21 +23,9 @@ import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { useSession } from '@/components/shared/session-provider';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { rattacherEntite, supprimerEntite } from '@/lib/actions/entities';
-import {
-  ENTITY_LABELS,
-  type EntityType,
-  validerDeplacement,
-} from '@/lib/domain/hierarchy';
+import { type EntityType, validerDeplacement } from '@/lib/domain/hierarchy';
 import { formatNombre } from '@/lib/utils/format';
 
 import { EntityCreateDialog, type ParentCible } from './entity-create-dialog';
@@ -133,11 +121,6 @@ function disposer(noeuds: Node[], aretes: Edge[]): Node[] {
   });
 }
 
-interface Deplacement {
-  enfant: EntiteFlux;
-  nouveauParent: EntiteFlux;
-}
-
 function Organigramme({ entites }: { entites: EntiteFlux[] }) {
   const router = useRouter();
   const { fitView, setCenter, getNode, getIntersectingNodes } = useReactFlow();
@@ -150,7 +133,6 @@ function Organigramme({ entites }: { entites: EntiteFlux[] }) {
   const [aConsulter, setAConsulter] = useState<EntiteFlux | null>(null);
   const [aModifier, setAModifier] = useState<EntiteFlux | null>(null);
   const [aSupprimer, setASupprimer] = useState<EntiteFlux | null>(null);
-  const [deplacement, setDeplacement] = useState<Deplacement | null>(null);
 
   const [replies, setReplies] = useState<Set<string>>(() => {
     if (entites.length <= SEUIL_REPLI_AUTO) return new Set();
@@ -314,8 +296,36 @@ function Organigramme({ entites }: { entites: EntiteFlux[] }) {
 
   // --- Rattachement ----------------------------------------------------------
 
-  /** Valide puis, si c'est recevable, ouvre la confirmation. */
-  const proposerDeplacement = useCallback(
+  /** Remet une entite sous son parent d'origine — l'action « Annuler ». */
+  const annulerDeplacement = useCallback(
+    (idEnfant: string, ancienParentId: string, nomEnfant: string) => {
+      demarrer(async () => {
+        const resultat = await rattacherEntite({
+          id: idEnfant,
+          nouveauParentId: ancienParentId,
+        });
+
+        if (!resultat.ok) {
+          toast.error(`Le retour en arriere a echoue : ${resultat.error}`);
+          return;
+        }
+        toast.success(`« ${nomEnfant} » a retrouve son rattachement d'origine.`);
+        router.refresh();
+      });
+    },
+    [router],
+  );
+
+  /**
+   * ERG-1 — le rattachement s'applique IMMEDIATEMENT, avec une action
+   * « Annuler » dans la notification.
+   *
+   * Une confirmation systematique cassait la fluidite du geste alors que
+   * l'operation est entierement reversible : rattacher en sens inverse rend
+   * l'etat initial, et les deux mouvements sont journalises. Un dialogue se
+   * justifie pour une action irreversible, pas pour celle-ci.
+   */
+  const executerDeplacement = useCallback(
     (idEnfant: string, idParent: string): boolean => {
       const enfant = parId.get(idEnfant);
       const nouveauParent = parId.get(idParent);
@@ -353,10 +363,44 @@ function Organigramme({ entites }: { entites: EntiteFlux[] }) {
         return false;
       }
 
-      setDeplacement({ enfant, nouveauParent });
+      // Retenu AVANT la mutation : apres rafraichissement, `enfant` sera
+      // remplace par une version portant deja le nouveau parent.
+      const ancienParentId = enfant.parent_id;
+
+      demarrer(async () => {
+        const resultat = await rattacherEntite({
+          id: enfant.id,
+          nouveauParentId: nouveauParent.id,
+        });
+
+        if (!resultat.ok) {
+          toast.error(resultat.error);
+          setNoeuds(graphe.noeuds);
+          return;
+        }
+
+        toast.success(
+          enfant.nbDescendants > 0
+            ? `« ${enfant.nom} » et ses ${formatNombre(enfant.nbDescendants)} sous-entites sont rattachees a « ${nouveauParent.nom} ».`
+            : `« ${enfant.nom} » est rattachee a « ${nouveauParent.nom} ».`,
+          {
+            duration: 10_000,
+            action: ancienParentId
+              ? {
+                  label: 'Annuler',
+                  onClick: () =>
+                    annulerDeplacement(enfant.id, ancienParentId, enfant.nom),
+                }
+              : undefined,
+          },
+        );
+
+        router.refresh();
+      });
+
       return true;
     },
-    [parId, peut],
+    [parId, peut, graphe.noeuds, router, annulerDeplacement],
   );
 
   /** Glisser-deposer : on lache un noeud sur un autre pour le rattacher. */
@@ -373,20 +417,20 @@ function Organigramme({ entites }: { entites: EntiteFlux[] }) {
 
       // La cible la plus proche du centre du noeud lache.
       const cible = cibles[0]!;
-      if (!proposerDeplacement(noeud.id, cible.id)) {
+      if (!executerDeplacement(noeud.id, cible.id)) {
         setNoeuds(graphe.noeuds);
       }
     },
-    [getIntersectingNodes, graphe.noeuds, proposerDeplacement],
+    [getIntersectingNodes, graphe.noeuds, executerDeplacement],
   );
 
   /** Trait tire d'une poignee de parent vers une poignee d'enfant. */
   const surConnexion = useCallback(
     (connexion: Connection) => {
       if (!connexion.source || !connexion.target) return;
-      proposerDeplacement(connexion.target, connexion.source);
+      executerDeplacement(connexion.target, connexion.source);
     },
-    [proposerDeplacement],
+    [executerDeplacement],
   );
 
   /** Ecarte les cibles invalides AVANT le relachement : le trait ne s'accroche pas. */
@@ -415,33 +459,6 @@ function Organigramme({ entites }: { entites: EntiteFlux[] }) {
     },
     [parId],
   );
-
-  function confirmerDeplacement() {
-    if (!deplacement) return;
-    const { enfant, nouveauParent } = deplacement;
-
-    demarrer(async () => {
-      const resultat = await rattacherEntite({
-        id: enfant.id,
-        nouveauParentId: nouveauParent.id,
-      });
-
-      if (!resultat.ok) {
-        toast.error(resultat.error);
-        setNoeuds(graphe.noeuds);
-        setDeplacement(null);
-        return;
-      }
-
-      toast.success(
-        enfant.nbDescendants > 0
-          ? `« ${enfant.nom} » et ses ${formatNombre(enfant.nbDescendants)} sous-entites sont rattachees a « ${nouveauParent.nom} ».`
-          : `« ${enfant.nom} » est rattachee a « ${nouveauParent.nom} ».`,
-      );
-      setDeplacement(null);
-      router.refresh();
-    });
-  }
 
   // --- Recherche -------------------------------------------------------------
 
@@ -627,56 +644,6 @@ function Organigramme({ entites }: { entites: EntiteFlux[] }) {
           onOuvertChange={(v) => !v && setAModifier(null)}
         />
       )}
-
-      {/* --- Confirmation de rattachement --- */}
-      <Dialog open={deplacement !== null} onOpenChange={(v) => !v && setDeplacement(null)}>
-        <DialogContent>
-          {deplacement && (
-            <>
-              <DialogHeader>
-                <DialogTitle>Rattacher « {deplacement.enfant.nom} » ?</DialogTitle>
-                <DialogDescription asChild>
-                  <div className="space-y-3 pt-2">
-                    <p>
-                      {ENTITY_LABELS[deplacement.enfant.type].singulier} rattachee a{' '}
-                      <strong className="text-foreground">
-                        {deplacement.nouveauParent.nom}
-                      </strong>{' '}
-                      ({ENTITY_LABELS[deplacement.nouveauParent.type].singulier.toLowerCase()}
-                      ).
-                    </p>
-                    {deplacement.enfant.nbDescendants > 0 && (
-                      <p className="rounded-md bg-amber-50 px-3 py-2 text-amber-800">
-                        {formatNombre(deplacement.enfant.nbDescendants)} sous-entite
-                        {deplacement.enfant.nbDescendants > 1 ? 's' : ''} suivront ce
-                        deplacement.
-                      </p>
-                    )}
-                  </div>
-                </DialogDescription>
-              </DialogHeader>
-
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  className="h-10"
-                  disabled={enCours}
-                  onClick={() => {
-                    setNoeuds(graphe.noeuds);
-                    setDeplacement(null);
-                  }}
-                >
-                  Annuler
-                </Button>
-                <Button className="h-10" disabled={enCours} onClick={confirmerDeplacement}>
-                  {enCours && <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />}
-                  Rattacher
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
 
       {/* --- Suppression --- */}
       {aSupprimer && (

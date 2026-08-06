@@ -1,0 +1,9 @@
+#!/bin/sh
+#
+# ENF-SEC-09 — dernier rempart avant qu'un secret n'entre dans l'historique.
+#
+# Installe par `pnpm prepare` (git config core.hooksPath .githooks).
+# Contournement en cas d'urgence : git commit --no-verify — a n'utiliser que si
+# l'on sait exactement pourquoi.
+
+exec node scripts/check-secrets.mjs

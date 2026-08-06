@@ -56,19 +56,29 @@ et une règle ESLint interdit d'importer le SDK Supabase hors des adaptateurs.
 
 ## Ce qui vous attend
 
-1. **Tester le glisser-déposer** — il ne persistait pas, c'est corrigé.
-2. **Arbitrer ERG-1** : rattachement confirmé par dialogue, ou immédiat avec annulation ?
-3. **Rotation de la clé `service_role`** (voir SEC-1 dans le backlog).
-4. **ARB-6** — reprise de données, à rappeler avant le Lot 2.
+**Une seule action de votre part : la rotation de la clé `service_role`**
+(Supabase > Project Settings > API). Elle a figuré en clair dans un transcript
+local ; celui-ci a depuis été remplacé et le dossier est exclu du dépôt, mais la
+clé a existé hors du coffre. Procédure détaillée dans `README.md`.
+
+Le reste est fait :
+
+- Le glisser-déposer persiste — la re-disposition se cale désormais sur
+  l'identité du graphe et non sur une signature d'identifiants.
+- **ERG-1 tranché** : le rattachement s'applique immédiatement, avec une action
+  « Annuler » dans la notification. Une confirmation systématique cassait la
+  fluidité pour une opération entièrement réversible et journalisée.
+- **ARB-6** ne fait plus l'objet d'un rappel : la question sera posée au moment
+  de développer un import, pas avant.
 
 ---
 
 ## Reprendre la session
 
 ```bash
-pnpm install
+pnpm install      # installe aussi le hook pre-commit de détection de secrets
 pnpm dev          # http://localhost:3000
-pnpm verify       # lint + types + 90 tests + build
+pnpm verify       # secrets + lint + types + 90 tests + build
 ```
 
 Lire avant toute tâche : `CLAUDE.md`, puis `notes/cdg.md` et `notes/plan.md`.

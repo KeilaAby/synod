@@ -123,6 +123,51 @@ Les habilitations sont des couples **(droit, portée)** : détenir `finance.crea
 ne signifie pas pouvoir saisir pour n'importe quelle paroisse. Utilisez toujours
 `can(permission, entityId)`, jamais la seule clé.
 
+### Secrets — détection et rotation
+
+**Un secret versionné ne se retire pas : il se révoque.** Une fois poussé, il vit
+dans l'historique git, dans les clones et dans les caches des forges. Le retirer
+d'un commit ultérieur ne le rend pas inaccessible.
+
+Trois barrières bloquent avant que cela n'arrive :
+
+| Barrière | Déclenchement |
+|---|---|
+| `.githooks/pre-commit` | refuse le commit — installé par `pnpm prepare` |
+| `pnpm verify` | refuse la publication locale |
+| CI | refuse la fusion |
+
+```bash
+pnpm check:secrets     # analyse tous les fichiers suivis
+```
+
+Sont détectés : les jetons JWT (clés Supabase `anon` et `service_role`), une
+`SUPABASE_SERVICE_ROLE_KEY` renseignée, les clés privées, les identifiants AWS
+et les valeurs sensibles codées en dur. Dérogation ponctuelle : `secret-scan:ignore`
+en fin de ligne.
+
+> Le hook s'installe via `git config core.hooksPath .githooks`, exécuté
+> automatiquement par `pnpm install`. Après un clone, un simple `pnpm install`
+> suffit.
+
+#### Rotation d'un secret Supabase
+
+À faire dès qu'une clé a pu être exposée — dépôt public, capture d'écran,
+sauvegarde synchronisée, transcript d'outil.
+
+1. **Supabase > Project Settings > API > Legacy API keys > Rotate**
+   (ou *JWT Settings > Generate new JWT secret*, qui invalide **toutes** les clés).
+2. Reporter les nouvelles valeurs dans `.env.local` :
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY` et `SUPABASE_SERVICE_ROLE_KEY`.
+3. Mettre à jour les mêmes variables sur l'hébergement de production.
+4. Redémarrer l'application ; les sessions ouvertes seront invalidées si le
+   secret JWT a été régénéré.
+
+La clé `service_role` **contourne intégralement la RLS** : c'est le seul secret
+du projet dont la fuite annule tout le cloisonnement par périmètre (ENF-SEC-01).
+Elle ne doit jamais être préfixée `NEXT_PUBLIC_` ni atteindre le navigateur — le
+code ne l'utilise que dans `createAdminClient()`, côté serveur.
+
 ### Portabilité (ARB-8)
 
 Le patrimoine de données doit rester transférable vers un autre hébergeur.

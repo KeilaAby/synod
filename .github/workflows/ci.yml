@@ -38,6 +38,10 @@ jobs:
       - name: Installer les dependances
         run: pnpm install --frozen-lockfile
 
+      # ENF-SEC-09 — en premier : inutile de compiler si un secret est passe.
+      - name: Detection de secrets
+        run: pnpm check:secrets
+
       - name: Lint
         run: pnpm lint
 

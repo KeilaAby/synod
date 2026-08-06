@@ -62,11 +62,34 @@ filtrable. Référentiels : registre déclaratif, un écran pour les quatre tabl
 90 tests unitaires, chacun nommé par la règle qu'il couvre (CA-02).
 `pnpm verify` = lint + typecheck + tests + build, bloquant en CI.
 
-### Sécurité
+### Sécurité — SEC-1
 
-Le transcript `.claude-code-history/…` contenait la clé `service_role` en clair.
-Exclu du dépôt **avant** le premier push — rien n'a fuité sur GitHub. Rotation de la
-clé recommandée.
+Un transcript `.claude-code-history/…` contenait la clé `service_role` en clair.
+Exclu du dépôt **avant** le premier push : rien n'a fuité sur GitHub. Les transcripts
+étant renouvelés à chaque tour, celui qui la portait a depuis été remplacé — la trace
+locale a donc disparu d'elle-même.
+
+Mais elle a existé. La parade porte donc sur la récidive, pas sur le constat :
+
+- `scripts/check-secrets.mjs` — détecte JWT, clés de service renseignées, clés
+  privées, identifiants AWS et valeurs sensibles codées en dur. Analyse la version
+  **indexée**, pas celle du disque : c'est elle qui serait commitée.
+- Trois points d'ancrage : hook `pre-commit` (installé par `pnpm prepare`),
+  `pnpm verify`, et la CI — en première étape, inutile de compiler si un secret
+  est passé.
+- Vérifié en conditions réelles : un faux jeton planté dans l'index a bien fait
+  échouer le scan **et** empêché la création du commit.
+
+La rotation de la clé reste à la charge de l'utilisateur — procédure dans `README.md`.
+Un secret exposé ne se retire pas, il se révoque.
+
+### Ergonomie — ERG-1
+
+Le rattachement par glisser-déposer s'applique **immédiatement**, avec une action
+« Annuler » dans la notification, au lieu d'un dialogue de confirmation. L'opération
+est entièrement réversible — rattacher en sens inverse rend l'état initial — et les
+deux mouvements sont journalisés. Un dialogue se justifie pour une action
+irréversible ; ici il ne faisait que casser la fluidité du geste.
 
 ### Dépôt
 

@@ -701,7 +701,7 @@ Densité d'information élevée, respiration visuelle maîtrisée : peu de coule
 | **ARB-3** | Validation des mouvements par l'entité ou par le niveau supérieur ? | ✅ **Option implémentée et activable par le SuperAdmin.** Si activée, la validation se fait **impérativement au niveau des entités**. Accompagnée d'**habilitations fines** (droits par catégorie + portée par structure), **configurables par le SuperAdmin et par un Administrateur d'entité**. → §5.6.3, §5.10, RG-16, RG-24, RG-25 |
 | **ARB-4** | Workflow d'approbation des transferts ? | ✅ **Oui, obligatoire.** → §5.3, RG-11, RG-12 |
 | **ARB-5** | Fenêtre « nouveaux baptisés » | ✅ **15 jours**, paramétrable. → RG-30 |
-| **ARB-6** | Reprise de données : volume, format, qualité des fichiers sources | ⏳ **À traiter ultérieurement.** Sans impact sur la conception : les imports Excel/CSV sont prévus (EF-STR-11, EF-CRO-11) et le format sera calé à réception des fichiers. **À rappeler avant le jalon J2.** |
+| **ARB-6** | Reprise de données : volume, format, qualité des fichiers sources | ⏳ **En attente, sans rappel périodique.** Sans impact sur la conception : les imports Excel/CSV sont prévus (EF-STR-11, EF-CRO-11) et le format sera calé à réception des fichiers. La question ne sera soulevée que lorsqu'une tâche l'exigera réellement — au moment de développer un import. |
 | **ARB-7** | Multi-devises réel ? | ✅ **Ignoré.** Devise unique paramétrable. → §2.2 |
 | **ARB-8** | Hébergement | ✅ **Supabase**, avec **exigence de portabilité** : données transférables vers un autre hébergeur, réversibilité prouvée en recette. → §7.6, CA-16 |
 

@@ -15,7 +15,9 @@
     "db:bundle": "node scripts/build-install-sql.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+    "verify": "pnpm check:secrets && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "check:secrets": "node scripts/check-secrets.mjs --all",
+    "prepare": "git config core.hooksPath .githooks || exit 0"
   },
   "dependencies": {
     "@dagrejs/dagre": "^3.1.0",
