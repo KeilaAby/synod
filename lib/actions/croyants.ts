@@ -6,7 +6,8 @@ import { chercherDoublons, getCroyant } from '@/lib/data/croyants';
 import { type NoeudEntite, getArbrePerimetre } from '@/lib/data/entities';
 import { nomComplet, validerDatesCroyant } from '@/lib/domain/croyant';
 import { type ActionResult, ko, ok } from '@/lib/domain/result';
-import { ErreurAcces, auditer, requirePermission, requireSession } from '@/lib/session';
+import { auditer, requirePermission, requireSession } from '@/lib/session';
+import { executerAction } from './executer';
 import { createClient } from '@/lib/supabase/server';
 import { sanitize } from '@/lib/utils/sanitize';
 import {
@@ -84,7 +85,7 @@ async function resoudreRattachement(
 export async function creerCroyant(
   input: unknown,
 ): Promise<ActionResult<{ id: string; matricule: string }>> {
-  try {
+  return executerAction('creerCroyant', async () => {
     const session = await requireSession();
 
     const analyse = croyantSchema.safeParse(input);
@@ -158,16 +159,13 @@ export async function creerCroyant(
     revalidatePath('/croyants');
     revalidatePath(`/structure/${data.egliseId}`);
     return ok(cree);
-  } catch (erreur) {
-    if (erreur instanceof ErreurAcces) return ko(erreur.message);
-    throw erreur;
-  }
+  });
 }
 
 // -----------------------------------------------------------------------------
 
 export async function modifierCroyant(input: unknown): Promise<ActionResult<void>> {
-  try {
+  return executerAction('modifierCroyant', async () => {
     const session = await requireSession();
 
     const analyse = modifierCroyantSchema.safeParse(input);
@@ -226,17 +224,14 @@ export async function modifierCroyant(input: unknown): Promise<ActionResult<void
     revalidatePath('/croyants');
     revalidatePath(`/croyants/${data.id}`);
     return ok();
-  } catch (erreur) {
-    if (erreur instanceof ErreurAcces) return ko(erreur.message);
-    throw erreur;
-  }
+  });
 }
 
 // -----------------------------------------------------------------------------
 
 /** RG-22 — suppression LOGIQUE : la fiche part en corbeille et reste restaurable. */
 export async function supprimerCroyant(input: unknown): Promise<ActionResult<void>> {
-  try {
+  return executerAction('supprimerCroyant', async () => {
     const session = await requireSession();
 
     const analyse = supprimerCroyantSchema.safeParse(input);
@@ -270,16 +265,13 @@ export async function supprimerCroyant(input: unknown): Promise<ActionResult<voi
 
     revalidatePath('/croyants');
     return ok();
-  } catch (erreur) {
-    if (erreur instanceof ErreurAcces) return ko(erreur.message);
-    throw erreur;
-  }
+  });
 }
 
 // -----------------------------------------------------------------------------
 
 export async function restaurerCroyant(input: unknown): Promise<ActionResult<void>> {
-  try {
+  return executerAction('restaurerCroyant', async () => {
     const session = await requireSession();
 
     const analyse = supprimerCroyantSchema.safeParse(input);
@@ -321,8 +313,5 @@ export async function restaurerCroyant(input: unknown): Promise<ActionResult<voi
     revalidatePath('/croyants');
     revalidatePath('/administration/corbeille');
     return ok();
-  } catch (erreur) {
-    if (erreur instanceof ErreurAcces) return ko(erreur.message);
-    throw erreur;
-  }
+  });
 }

@@ -9,7 +9,8 @@ import {
   type SlugReferentiel,
   estSlugReferentiel,
 } from '@/lib/domain/referentiels';
-import { ErreurAcces, auditer, requirePermission, requireSession } from '@/lib/session';
+import { auditer, requirePermission, requireSession } from '@/lib/session';
+import { executerAction } from './executer';
 import { createClient } from '@/lib/supabase/server';
 import { sanitizeAll } from '@/lib/utils/sanitize';
 import { champsEnErreur } from '@/lib/validation/zod-errors';
@@ -48,7 +49,7 @@ function messageErreurSql(erreur: { code?: string; message?: string }): string {
 export async function creerValeurReferentiel(
   input: unknown,
 ): Promise<ActionResult<{ id: string }>> {
-  try {
+  return executerAction('creerValeurReferentiel', async () => {
     const session = await requireSession();
     await requirePermission(session, 'referentiel.manage');
 
@@ -83,16 +84,13 @@ export async function creerValeurReferentiel(
     revalidatePath(`/referentiels/${slug}`);
     revalidatePath('/referentiels');
     return ok({ id: data.id });
-  } catch (erreur) {
-    if (erreur instanceof ErreurAcces) return ko(erreur.message);
-    throw erreur;
-  }
+  });
 }
 
 // -----------------------------------------------------------------------------
 
 export async function modifierValeurReferentiel(input: unknown): Promise<ActionResult<void>> {
-  try {
+  return executerAction('modifierValeurReferentiel', async () => {
     const session = await requireSession();
     await requirePermission(session, 'referentiel.manage');
 
@@ -132,10 +130,7 @@ export async function modifierValeurReferentiel(input: unknown): Promise<ActionR
 
     revalidatePath(`/referentiels/${slug}`);
     return ok();
-  } catch (erreur) {
-    if (erreur instanceof ErreurAcces) return ko(erreur.message);
-    throw erreur;
-  }
+  });
 }
 
 // -----------------------------------------------------------------------------
@@ -147,7 +142,7 @@ export async function modifierValeurReferentiel(input: unknown): Promise<ActionR
 export async function basculerActivationReferentiel(
   input: unknown,
 ): Promise<ActionResult<{ actif: boolean }>> {
-  try {
+  return executerAction('basculerActivationReferentiel', async () => {
     const session = await requireSession();
     await requirePermission(session, 'referentiel.manage');
 
@@ -186,8 +181,5 @@ export async function basculerActivationReferentiel(
     revalidatePath(`/referentiels/${slug}`);
     revalidatePath('/referentiels');
     return ok({ actif: suivant });
-  } catch (erreur) {
-    if (erreur instanceof ErreurAcces) return ko(erreur.message);
-    throw erreur;
-  }
+  });
 }

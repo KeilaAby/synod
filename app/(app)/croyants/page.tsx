@@ -1,12 +1,11 @@
 import type { Metadata } from 'next';
-import { Plus, Users } from 'lucide-react';
+import { Users } from 'lucide-react';
 import Link from 'next/link';
 
+import { NouveauCroyantDialog } from '@/components/croyants/croyant-dialog';
 import { EmptyState } from '@/components/shared/empty-state';
 import { PageHeader } from '@/components/shared/page-header';
-import { PermissionGate } from '@/components/shared/permission-gate';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Table,
@@ -61,16 +60,7 @@ export default async function CroyantsPage({
           `— ${formatNombre(compteurs.femmes)} femme${compteurs.femmes > 1 ? 's' : ''}, ` +
           `${formatNombre(compteurs.hommes)} homme${compteurs.hommes > 1 ? 's' : ''}.`
         }
-        actions={
-          <PermissionGate perm="croyant.create">
-            <Button asChild className="h-10">
-              <Link href="/croyants/nouveau">
-                <Plus className="mr-2 size-4" aria-hidden />
-                Nouveau croyant
-              </Link>
-            </Button>
-          </PermissionGate>
-        }
+        actions={<NouveauCroyantDialog options={options} />}
       />
 
       <FiltresCroyants
@@ -91,14 +81,10 @@ export default async function CroyantsPage({
           }
           action={
             !aDesFiltres ? (
-              <PermissionGate perm="croyant.create">
-                <Button asChild className="h-10">
-                  <Link href="/croyants/nouveau">
-                    <Plus className="mr-2 size-4" aria-hidden />
-                    Nouveau croyant
-                  </Link>
-                </Button>
-              </PermissionGate>
+              <NouveauCroyantDialog
+                options={options}
+                libelle="Enregistrer le premier croyant"
+              />
             ) : undefined
           }
         />

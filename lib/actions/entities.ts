@@ -10,7 +10,8 @@ import {
   validerRattachement,
 } from '@/lib/domain/hierarchy';
 import { type ActionResult, ko, ok } from '@/lib/domain/result';
-import { ErreurAcces, auditer, requirePermission, requireSession } from '@/lib/session';
+import { auditer, requirePermission, requireSession } from '@/lib/session';
+import { executerAction } from './executer';
 import { createClient } from '@/lib/supabase/server';
 import { sanitize } from '@/lib/utils/sanitize';
 import {
@@ -50,7 +51,7 @@ function messageErreurSql(erreur: { code?: string; message?: string }): string {
 // -----------------------------------------------------------------------------
 
 export async function creerEntite(input: unknown): Promise<ActionResult<{ id: string }>> {
-  try {
+  return executerAction('creerEntite', async () => {
     const session = await requireSession();
 
     const analyse = creerEntiteSchema.safeParse(input);
@@ -107,16 +108,13 @@ export async function creerEntite(input: unknown): Promise<ActionResult<{ id: st
     revalidatePath('/structure');
     revalidatePath('/structure/liste');
     return ok({ id: creee.id });
-  } catch (erreur) {
-    if (erreur instanceof ErreurAcces) return ko(erreur.message);
-    throw erreur;
-  }
+  });
 }
 
 // -----------------------------------------------------------------------------
 
 export async function modifierEntite(input: unknown): Promise<ActionResult<void>> {
-  try {
+  return executerAction('modifierEntite', async () => {
     const session = await requireSession();
 
     const analyse = modifierEntiteSchema.safeParse(input);
@@ -160,10 +158,7 @@ export async function modifierEntite(input: unknown): Promise<ActionResult<void>
     revalidatePath('/structure');
     revalidatePath(`/structure/${data.id}`);
     return ok();
-  } catch (erreur) {
-    if (erreur instanceof ErreurAcces) return ko(erreur.message);
-    throw erreur;
-  }
+  });
 }
 
 // -----------------------------------------------------------------------------
@@ -175,7 +170,7 @@ export async function modifierEntite(input: unknown): Promise<ActionResult<void>
  * SUR LES DEUX COTES du deplacement.
  */
 export async function rattacherEntite(input: unknown): Promise<ActionResult<void>> {
-  try {
+  return executerAction('rattacherEntite', async () => {
     const session = await requireSession();
 
     const analyse = rattacherEntiteSchema.safeParse(input);
@@ -237,10 +232,7 @@ export async function rattacherEntite(input: unknown): Promise<ActionResult<void
     revalidatePath('/structure');
     revalidatePath('/structure/liste');
     return ok();
-  } catch (erreur) {
-    if (erreur instanceof ErreurAcces) return ko(erreur.message);
-    throw erreur;
-  }
+  });
 }
 
 // -----------------------------------------------------------------------------
@@ -252,7 +244,7 @@ export async function rattacherEntite(input: unknown): Promise<ActionResult<void
  * desactivation a la place.
  */
 export async function supprimerEntite(input: unknown): Promise<ActionResult<void>> {
-  try {
+  return executerAction('supprimerEntite', async () => {
     const session = await requireSession();
 
     const analyse = supprimerEntiteSchema.safeParse(input);
@@ -296,17 +288,14 @@ export async function supprimerEntite(input: unknown): Promise<ActionResult<void
     revalidatePath('/structure');
     revalidatePath('/structure/liste');
     return ok();
-  } catch (erreur) {
-    if (erreur instanceof ErreurAcces) return ko(erreur.message);
-    throw erreur;
-  }
+  });
 }
 
 // -----------------------------------------------------------------------------
 
 /** EF-ADM-10 — restauration depuis la corbeille. */
 export async function restaurerEntite(input: unknown): Promise<ActionResult<void>> {
-  try {
+  return executerAction('restaurerEntite', async () => {
     const session = await requireSession();
 
     const analyse = supprimerEntiteSchema.safeParse(input);
@@ -359,10 +348,7 @@ export async function restaurerEntite(input: unknown): Promise<ActionResult<void
     revalidatePath('/structure');
     revalidatePath('/administration/corbeille');
     return ok();
-  } catch (erreur) {
-    if (erreur instanceof ErreurAcces) return ko(erreur.message);
-    throw erreur;
-  }
+  });
 }
 
 // -----------------------------------------------------------------------------
@@ -374,7 +360,7 @@ export async function restaurerEntite(input: unknown): Promise<ActionResult<void
 export async function basculerAccesApplication(
   input: unknown,
 ): Promise<ActionResult<{ sansAcces: boolean }>> {
-  try {
+  return executerAction('basculerAccesApplication', async () => {
     const session = await requireSession();
 
     const analyse = supprimerEntiteSchema.safeParse(input);
@@ -413,10 +399,7 @@ export async function basculerAccesApplication(
     revalidatePath('/structure');
     revalidatePath(`/structure/${id}`);
     return ok({ sansAcces: suivant });
-  } catch (erreur) {
-    if (erreur instanceof ErreurAcces) return ko(erreur.message);
-    throw erreur;
-  }
+  });
 }
 
 // -----------------------------------------------------------------------------

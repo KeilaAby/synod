@@ -83,9 +83,21 @@ interface CroyantExistant {
   egliseNom: string;
 }
 
-type Props =
-  | ({ mode: 'creation'; egliseImposee?: string } & Commun)
-  | ({ mode: 'modification'; croyant: CroyantExistant } & Commun);
+/**
+ * Le formulaire sert deux contextes : la page dédiée (lien profond, partage) et
+ * le pop-up. Seules la navigation de sortie et la présentation du pied changent.
+ */
+interface Presentation {
+  /** Fourni en pop-up : remplace la navigation par une fermeture. */
+  onSucces?: (id: string) => void;
+  onAnnuler?: () => void;
+}
+
+type Props = Presentation &
+  (
+    | ({ mode: 'creation'; egliseImposee?: string } & Commun)
+    | ({ mode: 'modification'; croyant: CroyantExistant } & Commun)
+  );
 
 /** `<input type="date">` attend `YYYY-MM-DD`. */
 function jour(valeur: string | Date | undefined): string {
@@ -179,13 +191,15 @@ export function CroyantForm(props: Props) {
       if (!resultat.ok) return traiterEchec(resultat, valeurs);
 
       toast.success('Fiche mise à jour.');
-      router.push(`/croyants/${existant.id}`);
+      if (props.onSucces) props.onSucces(existant.id);
+      else router.push(`/croyants/${existant.id}`);
     } else {
       const resultat = await creerCroyant(valeurs);
       if (!resultat.ok) return traiterEchec(resultat, valeurs);
 
       toast.success(`Croyant enregistré — matricule ${resultat.data.matricule}.`);
-      router.push(`/croyants/${resultat.data.id}`);
+      if (props.onSucces) props.onSucces(resultat.data.id);
+      else router.push(`/croyants/${resultat.data.id}`);
     }
 
     router.refresh();
@@ -490,9 +504,22 @@ export function CroyantForm(props: Props) {
       </Card>
 
       <div className="flex justify-end gap-2">
-        <Button asChild variant="outline" className="h-10">
-          <Link href={existant ? `/croyants/${existant.id}` : '/croyants'}>Annuler</Link>
-        </Button>
+        {props.onAnnuler ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10"
+            onClick={props.onAnnuler}
+            disabled={isSubmitting}
+          >
+            Annuler
+          </Button>
+        ) : (
+          <Button asChild variant="outline" className="h-10">
+            <Link href={existant ? `/croyants/${existant.id}` : '/croyants'}>Annuler</Link>
+          </Button>
+        )}
+
         <Button type="submit" className="h-10" disabled={isSubmitting}>
           {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />}
           {existant ? 'Enregistrer' : 'Enregistrer le croyant'}

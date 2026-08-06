@@ -1,14 +1,16 @@
 import type { Metadata } from 'next';
-import { ArrowLeftRight, Pencil, WifiOff } from 'lucide-react';
+import { ArrowLeftRight, WifiOff } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import { ModifierCroyantDialog } from '@/components/croyants/croyant-dialog';
 import { PageHeader } from '@/components/shared/page-header';
 import { PermissionGate } from '@/components/shared/permission-gate';
 import { StatusBadge, TON_CROYANT } from '@/components/shared/status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { getCroyant } from '@/lib/data/croyants';
+import { getOptionsCroyant } from '@/lib/data/croyant-options';
 import { getArbrePerimetre, cheminLisible, indexerParChemin } from '@/lib/data/entities';
 import {
   LIBELLES_SEXE,
@@ -39,7 +41,7 @@ export default async function FicheCroyantPage({ params }: Params) {
   const croyant = await getCroyant(croyantId);
   if (!croyant) notFound();
 
-  const arbre = await getArbrePerimetre();
+  const [arbre, options] = await Promise.all([getArbrePerimetre(), getOptionsCroyant()]);
   const index = indexerParChemin(arbre);
   const eglise = arbre.find((e) => e.id === croyant.eglise_id);
 
@@ -64,14 +66,29 @@ export default async function FicheCroyantPage({ params }: Params) {
                 </Button>
               </PermissionGate>
 
-              <PermissionGate perm="croyant.update" scope={eglise.path}>
-                <Button asChild className="h-10">
-                  <Link href={`/croyants/${croyant.id}/modifier`}>
-                    <Pencil className="mr-2 size-4" aria-hidden />
-                    Modifier
-                  </Link>
-                </Button>
-              </PermissionGate>
+              <ModifierCroyantDialog
+                scope={eglise.path}
+                options={options}
+                croyant={{
+                  id: croyant.id,
+                  matricule: croyant.matricule,
+                  nom: croyant.nom,
+                  prenom: croyant.prenom,
+                  sexe: croyant.sexe,
+                  statut_marital: croyant.statut_marital,
+                  email: croyant.email,
+                  telephone: croyant.telephone,
+                  date_naissance: croyant.date_naissance,
+                  date_bapteme: croyant.date_bapteme,
+                  adresse: croyant.adresse,
+                  eglise_id: croyant.eglise_id,
+                  cellule_id: croyant.cellule_id,
+                  grade_id: croyant.grade_id,
+                  nationalite_id: croyant.nationalite_id,
+                  statut: croyant.statut as StatutCroyant,
+                  egliseNom: croyant.eglise?.nom ?? '—',
+                }}
+              />
             </>
           )
         }
