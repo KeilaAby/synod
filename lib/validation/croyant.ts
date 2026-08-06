@@ -14,19 +14,36 @@ import { SEXES, STATUTS_CROYANT, STATUTS_MARITAUX } from '@/lib/domain/croyant';
 const dateJour = z.coerce.date({ message: 'Date invalide.' });
 
 /**
- * Une saisie vide arrive en chaine vide : sans cette normalisation,
- * `z.coerce.date('')` produirait une date invalide au lieu d'un champ absent.
+ * Trois valeurs signifient « pas de date » et doivent être traitées à
+ * l'identique :
+ *   - `''`        — champ laissé vide dans le formulaire
+ *   - `undefined` — champ absent de la charge utile
+ *   - `null`      — **valeur produite par ce schéma lui-même**
+ *
+ * Ce dernier cas est le piège : le client valide la saisie, obtient `null`,
+ * puis envoie ce `null` à la Server Action qui REVALIDE avec le même schéma.
+ * Sans normalisation, `z.coerce.date(null)` donne `new Date(null)`, soit le
+ * 1er janvier 1970 — une date valide, antérieure à toute naissance, qui faisait
+ * échouer le contrôle de cohérence sur un champ pourtant vide.
+ *
+ * Un schéma partagé client/serveur doit donc être IDEMPOTENT : parser sa
+ * propre sortie doit redonner la même valeur. Un test le verrouille.
  */
 const dateJourOptionnelle = z
-  .union([z.coerce.date(), z.literal('')])
-  .optional()
-  .transform((v) => (v === '' || v === undefined ? null : v));
+  .preprocess(
+    (v) => (v === '' || v === null || v === undefined ? undefined : v),
+    z.coerce.date({ message: 'Date invalide.' }).optional(),
+  )
+  .transform((v) => v ?? null);
 
+/** Même piège d'idempotence que ci-dessus, pour les chaînes facultatives. */
 const optionnel = (schema: z.ZodType<string>) =>
   z
-    .union([schema, z.literal('')])
-    .optional()
-    .transform((v) => (v === '' || v === undefined ? null : v));
+    .preprocess(
+      (v) => (v === '' || v === null || v === undefined ? undefined : v),
+      schema.optional(),
+    )
+    .transform((v) => v ?? null);
 
 export const croyantSchema = z
   .object({
