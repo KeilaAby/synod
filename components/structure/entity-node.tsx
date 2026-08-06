@@ -1,30 +1,14 @@
 'use client';
 
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import {
-  ChevronDown,
-  ChevronRight,
-  ExternalLink,
-  MoreVertical,
-  Pencil,
-  Plus,
-  Trash2,
-  Users,
-  WifiOff,
-} from 'lucide-react';
+import { ChevronDown, ChevronRight, Users, WifiOff } from 'lucide-react';
 import { memo } from 'react';
 
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { ENTITY_LABELS, type EntityType, typeEnfantDe } from '@/lib/domain/hierarchy';
+import { ENTITY_LABELS, type EntityType } from '@/lib/domain/hierarchy';
 import { formatNombre } from '@/lib/utils/format';
 import { cn } from '@/lib/utils';
 
+import { EntityMenu } from './entity-menu';
 import { COULEURS_NIVEAU } from './type-badge';
 
 /**
@@ -58,7 +42,6 @@ export interface DonneesNoeudEntite extends Record<string, unknown> {
 function NoeudEntiteBrut({ id, data, selected, dragging }: NodeProps) {
   const d = data as unknown as DonneesNoeudEntite;
   const couleurs = COULEURS_NIVEAU[d.type];
-  const typeEnfant = typeEnfantDe(d.type);
 
   return (
     <div
@@ -91,70 +74,24 @@ function NoeudEntiteBrut({ id, data, selected, dragging }: NodeProps) {
             </span>
           )}
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                // `nodrag` : sans cette classe, React Flow intercepterait le
-                // clic pour demarrer un glissement et le menu ne s'ouvrirait pas.
-                className="nodrag flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-slate-100 hover:text-foreground"
-                aria-label={`Actions sur ${d.nom}`}
-              >
-                <MoreVertical className="size-4" aria-hidden />
-              </button>
-            </DropdownMenuTrigger>
-
-            <DropdownMenuContent align="end" className="w-56">
-              {d.peutModifier && typeEnfant && (
-                <>
-                  <DropdownMenuItem onSelect={() => d.surCreerEnfant(id)}>
-                    <Plus className="mr-2 size-4" aria-hidden />
-                    Nouvelle structure
-                    <span className="ml-auto text-xs text-muted-foreground">
-                      {ENTITY_LABELS[typeEnfant].singulier}
-                    </span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                </>
-              )}
-
-              <DropdownMenuItem onSelect={() => d.surOuvrir(id)}>
-                <ExternalLink className="mr-2 size-4" aria-hidden />
-                Ouvrir la fiche
-              </DropdownMenuItem>
-
-              {d.peutModifier && (
-                <DropdownMenuItem onSelect={() => d.surModifier(id)}>
-                  <Pencil className="mr-2 size-4" aria-hidden />
-                  Modifier
-                </DropdownMenuItem>
-              )}
-
-              {d.nbEnfants > 0 && (
-                <DropdownMenuItem onSelect={() => d.surReplier(id)}>
-                  {d.replie ? (
-                    <ChevronDown className="mr-2 size-4" aria-hidden />
-                  ) : (
-                    <ChevronRight className="mr-2 size-4" aria-hidden />
-                  )}
-                  {d.replie ? 'Deployer la branche' : 'Replier la branche'}
-                </DropdownMenuItem>
-              )}
-
-              {d.peutModifier && d.type !== 'SIEGE' && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onSelect={() => d.surSupprimer(id)}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <Trash2 className="mr-2 size-4" aria-hidden />
-                    Supprimer
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* `nodrag` : sans cette classe, React Flow intercepterait le clic
+              pour demarrer un glissement et le menu ne s'ouvrirait pas. */}
+          <EntityMenu
+            id={id}
+            nom={d.nom}
+            type={d.type}
+            peutModifier={d.peutModifier}
+            onOuvrir={d.surOuvrir}
+            onCreerEnfant={d.surCreerEnfant}
+            onModifier={d.surModifier}
+            onSupprimer={d.surSupprimer}
+            repli={{
+              replie: d.replie,
+              nbEnfants: d.nbEnfants,
+              onBasculer: d.surReplier,
+            }}
+            className="nodrag"
+          />
         </div>
       </div>
 

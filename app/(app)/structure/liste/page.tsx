@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { PermissionGate } from '@/components/shared/permission-gate';
 import { Button } from '@/components/ui/button';
 import { cheminLisible, getArbrePerimetre, indexerParChemin } from '@/lib/data/entities';
-import { ENTITY_TYPES } from '@/lib/domain/hierarchy';
+import { ENTITY_TYPES, type EntityType } from '@/lib/domain/hierarchy';
 import { formatNombre } from '@/lib/utils/format';
 
 import { ListeStructureClient, type LigneStructure } from './liste-client';
@@ -30,6 +30,8 @@ export default async function ListeStructurePage({
   const arbre = await getArbrePerimetre();
   const index = indexerParChemin(arbre);
 
+  // La ligne porte l'entite COMPLETE : ouvrir la fiche en pop-up depuis la
+  // liste ne declenche alors aucune requete supplementaire.
   const lignes: LigneStructure[] = arbre.map((e) => {
     const chemin = cheminLisible(e, index);
     return {
@@ -37,12 +39,19 @@ export default async function ListeStructurePage({
       nom: e.nom,
       code: e.code,
       type: e.type,
+      parent_id: e.parent_id,
+      path: e.path,
       niveau: e.niveau,
+      description: e.description,
       // Le chemin sans le dernier segment : le nom propre est deja en colonne 1.
       cheminParent: chemin.split(' › ').slice(0, -1).join(' › '),
       nbDescendants: e.nbDescendants,
-      isActive: e.is_active,
-      sansAcces: e.sans_acces_application,
+      nbEnfants: e.nbEnfants,
+      descendantsParType: e.descendantsParType,
+      sans_acces_application: e.sans_acces_application,
+      is_active: e.is_active,
+      created_at: e.created_at,
+      updated_at: e.updated_at,
     };
   });
 
@@ -81,10 +90,11 @@ export default async function ListeStructurePage({
           recherche: params.q ?? '',
           type:
             typeDemande && (ENTITY_TYPES as readonly string[]).includes(typeDemande)
-              ? typeDemande
+              ? (typeDemande as EntityType)
               : 'tous',
           actif:
             actifDemande === 'actifs' || actifDemande === 'inactifs' ? actifDemande : 'tous',
+          sansAcces: params.acces === 'sans',
         }}
       />
     </div>

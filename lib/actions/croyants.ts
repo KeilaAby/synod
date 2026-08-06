@@ -107,7 +107,15 @@ export async function creerCroyant(
     }
     const data = analyse.data;
 
-    const rattachement = await resoudreRattachement(data.egliseId, data.celluleId);
+    // Les deux lectures sont independantes : les enchainer ajoutait un
+    // aller-retour complet a chaque enregistrement.
+    const [rattachement, doublons] = await Promise.all([
+      resoudreRattachement(data.egliseId, data.celluleId),
+      data.doublonAccepte
+        ? Promise.resolve([])
+        : chercherDoublons(data.nom, data.prenom, data.dateNaissance),
+    ]);
+
     if (!rattachement.ok) return ko(rattachement.erreur);
 
     await requirePermission(session, 'croyant.create', rattachement.eglise.path);
@@ -118,17 +126,14 @@ export async function creerCroyant(
 
     // EF-CRO-13 — on avertit, on ne bloque pas : deux homonymes nés le même
     // jour existent réellement. La décision revient à l'utilisateur.
-    if (!data.doublonAccepte) {
-      const doublons = await chercherDoublons(data.nom, data.prenom, data.dateNaissance);
-      if (doublons.length > 0) {
-        const premier = doublons[0]!;
-        return ko(
-          `${nomComplet(premier.nom, premier.prenom)} est déjà enregistré avec la même ` +
-            `date de naissance (matricule ${premier.matricule}). ` +
-            'Confirmez pour créer malgré tout.',
-          { doublon: [premier.id] },
-        );
-      }
+    if (doublons.length > 0) {
+      const premier = doublons[0]!;
+      return ko(
+        `${nomComplet(premier.nom, premier.prenom)} est déjà enregistré avec la même ` +
+          `date de naissance (matricule ${premier.matricule}). ` +
+          'Confirmez pour créer malgré tout.',
+        { doublon: [premier.id] },
+      );
     }
 
     const sb = await createClient();
@@ -151,9 +156,10 @@ export async function creerCroyant(
         photo_key: data.photoKey ?? null,
         saisi_par: session.profileId,
         saisi_depuis: session.entityId,
-        // `matricule` est genere par le trigger ; PostgREST exige neanmoins une
-        // valeur pour une colonne NOT NULL sans defaut.
-        matricule: 'EN-ATTENTE',
+        // `matricule` est volontairement OMIS : un trigger BEFORE le renseigne,
+        // et cette contrainte NOT NULL n'est vérifiée qu'après les triggers.
+        // Seule la base peut garantir l'unicité de la séquence face à deux
+        // saisies simultanées.
       })
       .select('id, matricule')
       .single<{ id: string; matricule: string }>();

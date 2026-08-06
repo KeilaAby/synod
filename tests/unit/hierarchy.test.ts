@@ -3,12 +3,14 @@ import { describe, expect, it } from 'vitest';
 import {
   ENTITY_LEVELS,
   ENTITY_TYPES,
+  PREFIXES_CODE,
   ancetreCommun,
   construireChemin,
   creeraitUnCycle,
   estAncetre,
   estDescendant,
   etiquetteLtree,
+  gabaritCode,
   normaliserCode,
   peutAvoirUnCompte,
   peutEtreParent,
@@ -129,6 +131,41 @@ describe('RG-02 — code d au moins 3 caracteres, normalise', () => {
 
   it('refuse un code commencant par un tiret', () => {
     expect(validerCode('-EGL').ok).toBe(false);
+  });
+});
+
+describe('EF-STR-02 — code attribue automatiquement par niveau', () => {
+  // Le prefixe est DUPLIQUE en SQL (`fn_prefixe_entite`, migration 0013) parce
+  // que seule la base peut garantir l'unicite de la sequence. Ce test fige la
+  // table de correspondance : une divergence produirait des codes incoherents
+  // selon le chemin de creation, et personne ne s'en apercevrait avant la
+  // premiere collision.
+  it('associe un prefixe distinct a chacun des six niveaux', () => {
+    expect(PREFIXES_CODE).toEqual({
+      SIEGE: 'SG',
+      REGIONAL: 'REG',
+      DISTRICT: 'DIS',
+      PAROISSE: 'PAR',
+      EGLISE: 'EGL',
+      CELLULE: 'CEL',
+    });
+
+    const prefixes = Object.values(PREFIXES_CODE);
+    expect(new Set(prefixes).size).toBe(prefixes.length);
+  });
+
+  it('annonce la forme du code a venir, sequence de 4 chiffres', () => {
+    expect(gabaritCode('PAROISSE')).toBe('PAR-XXXX');
+    expect(gabaritCode('SIEGE')).toBe('SG-XXXX');
+  });
+
+  it('produit des codes que `validerCode` accepte', () => {
+    // Sans cette verification, un prefixe trop long ou mal forme ne serait
+    // refuse qu'a la modification, une fois l'entite deja creee.
+    for (const type of ENTITY_TYPES) {
+      const code = `${PREFIXES_CODE[type]}-0001`;
+      expect(validerCode(code), code).toMatchObject({ ok: true });
+    }
   });
 });
 

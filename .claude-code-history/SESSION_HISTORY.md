@@ -143,3 +143,79 @@ l'intérieur y serait sans effet.
 La mise à jour de `.agents/plan/plan.md` a été **retirée** des obligations de
 publication, et le fichier supprimé. Ce qu'il reste à faire est porté par le
 dernier `..._resumes-moi.md`, le découpage en lots par `notes/plan.md`.
+
+---
+
+## 6 août 2026 (suite) — Lot 2 : croyants, et retours sur le Lot 1
+
+### Base de données
+
+Migrations `0010` à `0013` : `croyants`, `transferts`, `baptemes`, séquences de
+matricules, colonne de recherche générée + index trigramme, fonctions de contrôle
+`RG-04`, `RG-05`, `RG-28`, plus loin les codes d'entité.
+
+### Chaîne de bugs bloquants, et ce qu'ils avaient en commun
+
+Quatre pannes successives à la création d'un croyant. Aucune n'était dans le
+formulaire ; chacune venait d'une frontière mal tenue.
+
+| Symptôme | Cause réelle |
+|---|---|
+| « Une réponse inattendue a été reçue du serveur » | Le `catch` ne traitait que `ErreurAcces` et relançait le reste. `executerAction` enveloppe désormais les 13 actions : message lisible, référence courte journalisée côté serveur, et les *digests* `NEXT_*` toujours relancés |
+| « L'opération n'a pas pu aboutir. » | `fn_generer_matricule` écrivait dans `matricule_sequences`, table en RLS `using(false)`. Un trigger s'exécute avec les droits de l'appelant → `42501`. Passée en `SECURITY DEFINER` (migration `0012`) |
+| « La date de baptême ne peut pas précéder la date de naissance » — sur un champ **vide** | **Schéma non idempotent** : le client transformait `''` en `null`, puis le serveur revalidait, et `z.coerce.date(null)` donne le 1ᵉʳ janvier 1970. Corrigé par `z.preprocess` ; le même défaut latent existait dans `optionnel()` |
+| « Cette église ne fait pas partie de votre périmètre » — au SuperAdmin | Un arbre **vide** était interprété comme « hors périmètre ». C'était une panne réseau. On ne peut pas conclure d'une absence de données à un refus de droit |
+
+Le réseau de l'utilisateur étant instable (`ConnectTimeoutError` vers Supabase), le
+`proxy` ne déconnecte plus sur échec de transport — une coupure réseau n'est pas une
+session expirée — et tous les appels sont bornés dans le temps.
+
+### Croyants — écrans
+
+Formulaire en **pop-up** et en **trois étapes** (Identité → Rattachement →
+Coordonnées) avec frise horizontale ; une erreur serveur ramène à l'étape fautive.
+Date de baptême facultative. Le SuperAdmin peut créer dans n'importe quelle église.
+
+**Matricule** : `MNK-00001-26` — initiales du nom et du prénom (3 au plus), séquence
+à 5 chiffres, deux derniers chiffres de l'année. Toujours attribué par un trigger :
+seule la base garantit l'unicité face à deux saisies simultanées.
+
+**Colonne « Nom »** : `RAKOTONIRINA Mamitiana Nantenaina` — le nom d'abord, en
+majuscules, précédé d'un **avatar à deux initiales** en attendant le téléversement
+de photo (teinte dérivée du nom, donc stable d'un écran à l'autre).
+
+**Vitesse** : trois requêtes de comptage supprimées de la liste — elles étaient
+rejouées à chaque frappe et le total était déjà ramené gratuitement par la requête
+paginée. À l'enregistrement, la résolution du rattachement et la recherche de
+doublons sont parallélisées.
+
+### Lot 1 — reprises demandées
+
+**Codes d'entité attribués automatiquement** (migration `0013`) :
+`SG-XXXX`, `REG-XXXX`, `DIS-XXXX`, `PAR-XXXX`, `EGL-XXXX`, `CEL-XXXX`, séquence de
+4 chiffres par niveau. Le champ a disparu des deux formulaires de création, remplacé
+par le gabarit affiché verrouillé ; il reste modifiable sur une entité existante.
+Le préfixe est dupliqué en TypeScript et en SQL — un test fige la correspondance.
+
+**Le CRUD d'entité est désormais partagé** entre l'organigramme et la vue liste :
+`useEntityDialogs` porte les quatre pop-up, `EntityMenu` le menu ⋮. Cliquer le nom
+d'une entité dans la liste ouvre sa fiche **sur place** — plus de navigation, donc
+plus de filtres ni de position de défilement perdus. La ligne transporte l'entité
+complète : la fiche s'ouvre sans requête.
+
+**Filtres en pictogrammes** au lieu des listes déroulantes : six niveaux, trois
+statuts, un marqueur « sans accès ». Une liste déroulante coûtait trois gestes et
+cachait l'état courant derrière un libellé. Chaque pictogramme porte l'effectif du
+niveau, compté sur les **autres** filtres appliqués : on voit avant de cliquer qu'un
+filtre ne donnera rien.
+
+### Outillage
+
+`pnpm db:bundle` produit `install.sql` (complet) ou `install-incremental.sql
+--depuis <version>`. Une table `schema_migrations` évite le `type … already exists`
+au rejeu. `supabase/diagnostic.sql` tient en une seule requête `UNION ALL` —
+l'éditeur Supabase n'affiche que le résultat de la dernière instruction.
+
+### Qualité
+
+168 tests unitaires, `pnpm verify` vert (secrets, lint, types, tests, build).

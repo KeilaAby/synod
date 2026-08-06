@@ -28,7 +28,17 @@ const codeSchema = z
 
 export const creerEntiteSchema = z.object({
   type: z.enum(ENTITY_TYPES, { message: "Selectionnez un type d'entite." }),
-  code: codeSchema,
+  /**
+   * ATTRIBUE PAR LA BASE — `<PREFIXE>-<SEQUENCE 4 chiffres>`, ex. `PAR-0007`.
+   *
+   * Laisser le champ vide confie la generation au trigger : seule la base peut
+   * garantir l'unicite de la sequence face a deux creations simultanees. Une
+   * valeur explicite reste acceptee, pour une reprise de codes existants.
+   */
+  code: z
+    .union([codeSchema, z.literal(''), z.null(), z.undefined()])
+    .optional()
+    .transform((v) => (v === '' || v === null || v === undefined ? null : v)),
   nom: z.string().trim().min(2, 'Le nom est requis.').max(120),
   // RG-01 : null n'est valide que pour le Siege. Le controle croise type/parent
   // est fait par `validerRattachement`, qui produit un message explicite.
@@ -41,10 +51,12 @@ export const creerEntiteSchema = z.object({
 export type CreerEntiteInput = z.input<typeof creerEntiteSchema>;
 export type CreerEntiteValide = z.output<typeof creerEntiteSchema>;
 
+/** En modification, le code existe : il redevient obligatoire et modifiable. */
 export const modifierEntiteSchema = creerEntiteSchema
-  .omit({ type: true, parentId: true })
+  .omit({ type: true, parentId: true, code: true })
   .extend({
     id: z.uuid(),
+    code: codeSchema,
     isActive: z.boolean().default(true),
   });
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2, Lock } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
@@ -22,7 +22,12 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { creerEntite, modifierEntite } from '@/lib/actions/entities';
-import { ENTITY_LABELS, type EntityType, typeParentDe } from '@/lib/domain/hierarchy';
+import {
+  ENTITY_LABELS,
+  type EntityType,
+  gabaritCode,
+  typeParentDe,
+} from '@/lib/domain/hierarchy';
 import { type CreerEntiteInput, creerEntiteSchema } from '@/lib/validation/entity';
 
 import { EntityPicker, type OptionEntite } from './entity-picker';
@@ -239,15 +244,35 @@ export function EntityForm(props: Props) {
               {...register('nom')}
             />
 
-            <TextField
-              label="Code"
-              required
-              placeholder="DIS-AVA"
-              hint="3 a 16 caracteres. Unique dans toute l'application."
-              className="[&_input]:font-mono [&_input]:uppercase"
-              error={errors.code?.message}
-              {...register('code')}
-            />
+            {/*
+              EF-STR-02 — en creation le code n'est plus saisi : seule la base
+              peut garantir l'unicite de la sequence face a deux creations
+              simultanees. En modification il existe deja et reste corrigeable.
+            */}
+            {existante ? (
+              <TextField
+                label="Code"
+                required
+                placeholder="DIS-0007"
+                hint="3 a 16 caracteres. Unique dans toute l'application."
+                className="[&_input]:font-mono [&_input]:uppercase"
+                error={errors.code?.message}
+                {...register('code')}
+              />
+            ) : (
+              <div className="space-y-1.5">
+                <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                  <Lock className="size-3.5 text-muted-foreground" aria-hidden />
+                  Code
+                </p>
+                <p className="font-mono text-sm text-muted-foreground">
+                  {typeChoisi ? gabaritCode(typeChoisi) : '—'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Attribue automatiquement a l&apos;enregistrement.
+                </p>
+              </div>
+            )}
           </div>
 
           <Field label="Description" error={errors.description?.message}>

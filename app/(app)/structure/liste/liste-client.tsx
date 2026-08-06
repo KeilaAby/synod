@@ -1,22 +1,18 @@
 'use client';
 
-import { Network, Search, WifiOff, X } from 'lucide-react';
-import Link from 'next/link';
+import { Network, WifiOff } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 
 import { EmptyState } from '@/components/shared/empty-state';
+import { useSession } from '@/components/shared/session-provider';
 import { StatusBadge } from '@/components/shared/status-badge';
+import type { EntiteFlux } from '@/components/structure/entite';
+import { EntityFilters, type FiltreActif } from '@/components/structure/entity-filters';
+import { EntityMenu } from '@/components/structure/entity-menu';
 import { TypeBadge } from '@/components/structure/type-badge';
+import { useEntityDialogs } from '@/components/structure/use-entity-dialogs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -25,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ENTITY_LABELS, ENTITY_TYPES, type EntityType } from '@/lib/domain/hierarchy';
+import { ENTITY_TYPES, type EntityType } from '@/lib/domain/hierarchy';
 import { formatNombre } from '@/lib/utils/format';
 
 /**
@@ -41,35 +37,43 @@ import { formatNombre } from '@/lib/utils/format';
  * `router.replace` aurait relance un rendu serveur complet — c'est
  * precisement ce qu'on evite ici.
  *
+ * Meme philosophie pour le CRUD : cliquer une entite ouvre sa fiche en pop-up
+ * (`useEntityDialogs`, partage avec l'organigramme). Naviguer vers une page
+ * ferait perdre les filtres et la position de defilement pour un simple
+ * coup d'oeil.
+ *
  * Ce choix est tenable parce que la structure est bornee (5 000 entites au
  * plus, ENF-PRF-05). La liste des croyants, elle, restera paginee cote
  * serveur (ENF-PRF-08).
  */
 
-export interface LigneStructure {
-  id: string;
-  nom: string;
-  code: string;
-  type: EntityType;
-  niveau: number;
+/** L'entite complete — la fiche en pop-up s'ouvre donc sans requete. */
+export interface LigneStructure extends EntiteFlux {
+  /** Chemin des ancetres, calcule par le serveur : O(n) au lieu de O(n²) ici. */
   cheminParent: string;
-  nbDescendants: number;
-  isActive: boolean;
-  sansAcces: boolean;
 }
-
-type FiltreActif = 'tous' | 'actifs' | 'inactifs';
 
 export function ListeStructureClient({
   entites,
   filtresInitiaux,
 }: {
   entites: LigneStructure[];
-  filtresInitiaux: { recherche: string; type: string; actif: FiltreActif };
+  filtresInitiaux: {
+    recherche: string;
+    type: EntityType | 'tous';
+    actif: FiltreActif;
+    sansAcces: boolean;
+  };
 }) {
+  const { peut } = useSession();
+
   const [recherche, setRecherche] = useState(filtresInitiaux.recherche);
-  const [type, setType] = useState(filtresInitiaux.type);
+  const [type, setType] = useState<EntityType | 'tous'>(filtresInitiaux.type);
   const [actif, setActif] = useState<FiltreActif>(filtresInitiaux.actif);
+  const [sansAcces, setSansAcces] = useState(filtresInitiaux.sansAcces);
+
+  const { ouvrirFiche, modifier, creerEnfant, demanderSuppression, dialogues } =
+    useEntityDialogs(entites);
 
   // Deconnecte la frappe du filtrage : la saisie reste fluide meme si le
   // rendu de la table prend quelques millisecondes.
@@ -81,87 +85,70 @@ export function ListeStructureClient({
     if (rechercheDifferee.trim()) params.set('q', rechercheDifferee.trim());
     if (type !== 'tous') params.set('type', type);
     if (actif !== 'tous') params.set('actif', actif);
+    if (sansAcces) params.set('acces', 'sans');
 
     const url = params.size > 0 ? `?${params}` : window.location.pathname;
     window.history.replaceState(null, '', url);
-  }, [rechercheDifferee, type, actif]);
+  }, [rechercheDifferee, type, actif, sansAcces]);
 
-  const filtrees = useMemo(() => {
+  /**
+   * Tous les filtres SAUF le niveau : c'est sur cette base que sont comptes
+   * les effectifs affiches sur les pictogrammes. Un compteur qui tiendrait
+   * compte du niveau selectionne afficherait zero partout ailleurs, et le
+   * filtre deviendrait un cul-de-sac.
+   */
+  const base = useMemo(() => {
     const terme = rechercheDifferee.trim().toLowerCase();
 
     return entites.filter((e) => {
-      if (type !== 'tous' && e.type !== type) return false;
-      if (actif === 'actifs' && !e.isActive) return false;
-      if (actif === 'inactifs' && e.isActive) return false;
+      if (actif === 'actifs' && !e.is_active) return false;
+      if (actif === 'inactifs' && e.is_active) return false;
+      if (sansAcces && !e.sans_acces_application) return false;
       if (terme && !`${e.nom} ${e.code}`.toLowerCase().includes(terme)) return false;
       return true;
     });
-  }, [entites, rechercheDifferee, type, actif]);
+  }, [entites, rechercheDifferee, actif, sansAcces]);
 
-  const aDesFiltres = recherche !== '' || type !== 'tous' || actif !== 'tous';
+  const comptesParType = useMemo(() => {
+    const comptes = Object.fromEntries(ENTITY_TYPES.map((t) => [t, 0])) as Record<
+      EntityType,
+      number
+    >;
+    for (const e of base) comptes[e.type] += 1;
+    return comptes;
+  }, [base]);
+
+  const filtrees = useMemo(
+    () => (type === 'tous' ? base : base.filter((e) => e.type === type)),
+    [base, type],
+  );
+
+  const aDesFiltres =
+    recherche !== '' || type !== 'tous' || actif !== 'tous' || sansAcces;
 
   function effacer() {
     setRecherche('');
     setType('tous');
     setActif('tous');
+    setSansAcces(false);
   }
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative">
-          <Search
-            className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            value={recherche}
-            onChange={(e) => setRecherche(e.target.value)}
-            placeholder="Rechercher par nom ou par code…"
-            aria-label="Rechercher une entite"
-            className="h-10 w-64 pl-9"
-          />
-        </div>
-
-        <Select value={type} onValueChange={setType}>
-          <SelectTrigger className="h-10 w-48" aria-label="Filtrer par niveau">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="tous">Tous les niveaux</SelectItem>
-            {ENTITY_TYPES.map((t) => (
-              <SelectItem key={t} value={t}>
-                {ENTITY_LABELS[t].pluriel}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={actif} onValueChange={(v) => setActif(v as FiltreActif)}>
-          <SelectTrigger className="h-10 w-40" aria-label="Filtrer par statut">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="tous">Tous les statuts</SelectItem>
-            <SelectItem value="actifs">Actives</SelectItem>
-            <SelectItem value="inactifs">Inactives</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {aDesFiltres && (
-          <Button variant="ghost" className="h-10" onClick={effacer}>
-            <X className="mr-2 size-4" aria-hidden />
-            Effacer
-          </Button>
-        )}
-
-        <span
-          className="ml-auto font-mono text-xs tabular-nums text-muted-foreground"
-          aria-live="polite"
-        >
-          {formatNombre(filtrees.length)} / {formatNombre(entites.length)}
-        </span>
-      </div>
+      <EntityFilters
+        recherche={recherche}
+        onRecherche={setRecherche}
+        type={type}
+        onType={setType}
+        actif={actif}
+        onActif={setActif}
+        sansAcces={sansAcces}
+        onSansAcces={setSansAcces}
+        comptesParType={comptesParType}
+        affichees={filtrees.length}
+        total={entites.length}
+        onEffacer={effacer}
+      />
 
       {filtrees.length === 0 ? (
         <EmptyState
@@ -189,6 +176,9 @@ export function ListeStructureClient({
                   <TableHead>Rattachement</TableHead>
                   <TableHead className="text-right">Sous-entites</TableHead>
                   <TableHead>Statut</TableHead>
+                  <TableHead className="w-12 text-right">
+                    <span className="sr-only">Options</span>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
 
@@ -196,12 +186,18 @@ export function ListeStructureClient({
                 {filtrees.map((entite) => (
                   <TableRow key={entite.id} className="h-12">
                     <TableCell>
-                      <Link
-                        href={`/structure/${entite.id}`}
-                        className="font-medium text-foreground transition-colors hover:text-indigo-700"
+                      {/*
+                        Un bouton, pas un lien : le clic ouvre la fiche sur
+                        place. Le lien profond `/structure/[id]` reste offert
+                        depuis la fiche elle-meme.
+                      */}
+                      <button
+                        type="button"
+                        onClick={() => ouvrirFiche(entite.id)}
+                        className="text-left font-medium text-foreground transition-colors hover:text-indigo-700"
                       >
                         {entite.nom}
-                      </Link>
+                      </button>
                     </TableCell>
 
                     <TableCell className="font-mono text-xs text-muted-foreground">
@@ -222,15 +218,30 @@ export function ListeStructureClient({
 
                     <TableCell>
                       <span className="flex items-center gap-2">
-                        <StatusBadge tone={entite.isActive ? 'success' : 'neutral'}>
-                          {entite.isActive ? 'Active' : 'Inactive'}
+                        <StatusBadge tone={entite.is_active ? 'success' : 'neutral'}>
+                          {entite.is_active ? 'Active' : 'Inactive'}
                         </StatusBadge>
-                        {entite.sansAcces && (
+                        {entite.sans_acces_application && (
                           <span title="Sans acces a l'application — saisie assuree par le Siege">
                             <WifiOff className="size-4 text-slate-400" aria-hidden />
                           </span>
                         )}
                       </span>
+                    </TableCell>
+
+                    <TableCell className="text-right">
+                      {/* Le MEME menu que dans l'organigramme (EF-STR-08). */}
+                      <EntityMenu
+                        id={entite.id}
+                        nom={entite.nom}
+                        type={entite.type}
+                        peutModifier={peut('entity.update', entite.path)}
+                        onOuvrir={ouvrirFiche}
+                        onCreerEnfant={creerEnfant}
+                        onModifier={modifier}
+                        onSupprimer={demanderSuppression}
+                        className="ml-auto"
+                      />
                     </TableCell>
                   </TableRow>
                 ))}
@@ -239,6 +250,8 @@ export function ListeStructureClient({
           </CardContent>
         </Card>
       )}
+
+      {dialogues}
     </div>
   );
 }

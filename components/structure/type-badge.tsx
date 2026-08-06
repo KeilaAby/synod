@@ -1,3 +1,13 @@
+import {
+  Building2,
+  Church,
+  Globe,
+  Landmark,
+  type LucideIcon,
+  Map,
+  Users,
+} from 'lucide-react';
+
 import { ENTITY_LABELS, type EntityType } from '@/lib/domain/hierarchy';
 import { cn } from '@/lib/utils';
 
@@ -14,6 +24,22 @@ export const COULEURS_NIVEAU: Record<EntityType, { badge: string; bordure: strin
   PAROISSE: { badge: 'bg-teal-100 text-teal-700', bordure: 'border-l-teal-500' },
   EGLISE: { badge: 'bg-amber-100 text-amber-700', bordure: 'border-l-amber-500' },
   CELLULE: { badge: 'bg-slate-100 text-slate-600', bordure: 'border-l-slate-400' },
+};
+
+/**
+ * Un pictogramme par niveau, pour les filtres en icones de la vue liste.
+ *
+ * Six formes nettement distinctes : reduits a 16 px, deux symboles voisins
+ * (deux eglises, deux epingles) ne se differencieraient plus, et le filtre
+ * redeviendrait un jeu de devinettes.
+ */
+export const ICONES_NIVEAU: Record<EntityType, LucideIcon> = {
+  SIEGE: Building2,
+  REGIONAL: Globe,
+  DISTRICT: Map,
+  PAROISSE: Landmark,
+  EGLISE: Church,
+  CELLULE: Users,
 };
 
 export function TypeBadge({

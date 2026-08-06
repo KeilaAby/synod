@@ -194,7 +194,7 @@ Les habilitations sont **unitaires**, regroupées par catégorie, et chacune peu
 | Réf. | Exigence | Priorité |
 |---|---|---|
 | **EF-STR-01** | Créer, consulter, modifier et supprimer (logiquement) une entité de type Siège, Régional, District, Paroisse, Église ou Cellule. | **Must** |
-| **EF-STR-02** | Toute entité porte un **nom** et un **code** d'au moins 3 caractères, **unique** dans toute l'application. | **Must** |
+| **EF-STR-02** | Toute entité porte un **nom** et un **code** d'au moins 3 caractères, **unique** dans toute l'application. Le code est **attribué automatiquement à la création** au format `<PRÉFIXE>-<séquence de 4 chiffres>` — `SG`, `REG`, `DIS`, `PAR`, `EGL`, `CEL` selon le niveau — et reste modifiable ensuite (reprise de codes existants). | **Must** |
 | **EF-STR-03** | Toute entité, sauf le Siège, référence obligatoirement une entité parente **du niveau immédiatement supérieur**. Le Siège est **unique** et n'a pas de parent. | **Must** |
 | **EF-STR-04** | Visualiser l'arborescence complète sous forme d'**organigramme interactif React Flow** : zoom, déplacement, repli/dépliage d'une branche, mini-carte, recherche et centrage sur un nœud. | **Must** |
 | **EF-STR-05** | Chaque nœud affiche : nom, code, type, effectif de croyants du sous-arbre, présence d'un bureau actif et **solde disponible** *(si l'utilisateur détient `finance.read`)*. | **Must** |
@@ -218,7 +218,7 @@ Les habilitations sont **unitaires**, regroupées par catégorie, et chacune peu
 > souvent avant que la date ne soit connue (reprise d'un registre papier, croyant
 > en préparation). Conséquence sur **RG-30** : un croyant sans date de baptême
 > n'entre jamais dans les « nouveaux baptisés ».
-| **EF-CRO-02** | Attribuer automatiquement un **matricule unique et immuable** (`<CODE_ÉGLISE>-<ANNÉE>-<SÉQUENCE>`). | **Must** |
+| **EF-CRO-02** | Attribuer automatiquement un **matricule unique et immuable** au format `<INITIALES>-<SÉQUENCE 5 chiffres>-<AA>`, ex. `MNK-00001-26` : initiales du nom puis du prénom (**3 au plus**), séquence, deux derniers chiffres de l'année d'enregistrement. *(Format arrêté le 6 août 2026 : le précédent, fondé sur le code d'église, était trop long à lire et à recopier sur un registre papier.)* | **Must** |
 | **EF-CRO-03** | La cellule sélectionnable appartient obligatoirement à l'église choisie (liste filtrée dynamiquement). | **Must** |
 | **EF-CRO-04** | Lister les croyants avec pagination serveur, tri multi-colonnes et filtres combinables : entité (tout niveau), sexe, grade, nationalité, statut marital, tranche d'âge, période de baptême, présence en cellule, statut. | **Must** |
 | **EF-CRO-05** | Rechercher en texte libre (nom, prénom, matricule, téléphone, e-mail) avec tolérance aux fautes de frappe. | **Must** |
@@ -424,7 +424,7 @@ Les habilitations sont **unitaires**, regroupées par catégorie, et chacune peu
 | Réf. | Règle |
 |---|---|
 | **RG-01** | La hiérarchie est strictement ordonnée : `Siège (1) > Régional (2) > District (3) > Paroisse (4) > Église (5) > Cellule (6)`. Un parent est **toujours** du niveau immédiatement supérieur. Aucun saut de niveau, aucun cycle. |
-| **RG-02** | Le **code** d'une entité comporte **au moins 3 caractères** et est **unique** sur toute l'application. |
+| **RG-02** | Le **code** d'une entité comporte **au moins 3 caractères** et est **unique** sur toute l'application. À défaut de valeur fournie, il est **généré par la base** : préfixe du niveau, puis séquence de 4 chiffres propre à ce niveau. La génération relève de la base et non du client — elle seule garantit l'unicité face à deux créations simultanées. |
 | **RG-03** | Il existe **une et une seule** entité de type Siège, et elle est la racine de la hiérarchie. |
 | **RG-04** | Tout croyant est rattaché à **exactement une Église**. Le rattachement à une **Cellule est facultatif**. |
 | **RG-05** | Si une cellule est renseignée, elle doit être **fille directe de l'église** du croyant. |

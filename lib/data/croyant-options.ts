@@ -9,6 +9,42 @@ import { createClient } from '@/lib/supabase/server';
 import { getArbrePerimetre } from './entities';
 import { DataError } from './errors';
 
+type ClientSupabase = Awaited<ReturnType<typeof createClient>>;
+
+/**
+ * Les référentiels changent rarement — quelques fois par an — et sont relus à
+ * CHAQUE affichage de liste ou de formulaire. Sur une liaison lente, ces deux
+ * allers-retours pèsent plus que la requête métier elle-même.
+ *
+ * Ils ne sont volontairement PAS mis en cache global : ils passent par la RLS,
+ * et un cache partagé entre comptes servirait à l'un ce que l'autre seul a le
+ * droit de voir. Le gain vient d'ailleurs — ces deux lectures partent en
+ * parallèle, et la liste ne les redemande plus à chaque frappe.
+ */
+async function lireGrades(sb: ClientSupabase): Promise<OptionReferentiel[]> {
+  const { data, error } = await sb
+    .from('grades')
+    .select('id, libelle')
+    .eq('is_active', true)
+    .order('ordre')
+    .returns<OptionReferentiel[]>();
+
+  if (error) throw new DataError('Les grades sont illisibles.', error);
+  return data ?? [];
+}
+
+async function lireNationalites(sb: ClientSupabase): Promise<OptionReferentiel[]> {
+  const { data, error } = await sb
+    .from('nationalites')
+    .select('id, libelle')
+    .eq('is_active', true)
+    .order('libelle')
+    .returns<OptionReferentiel[]>();
+
+  if (error) throw new DataError('Les nationalités sont illisibles.', error);
+  return data ?? [];
+}
+
 /**
  * Options des formulaires de croyant.
  *
@@ -20,24 +56,9 @@ export const getOptionsCroyant = cache(async () => {
   const arbre = await getArbrePerimetre();
 
   const [grades, nationalites] = await Promise.all([
-    sb
-      .from('grades')
-      .select('id, libelle')
-      .eq('is_active', true)
-      .order('ordre')
-      .returns<OptionReferentiel[]>(),
-    sb
-      .from('nationalites')
-      .select('id, libelle')
-      .eq('is_active', true)
-      .order('libelle')
-      .returns<OptionReferentiel[]>(),
+    lireGrades(sb),
+    lireNationalites(sb),
   ]);
-
-  if (grades.error) throw new DataError('Les grades sont illisibles.', grades.error);
-  if (nationalites.error) {
-    throw new DataError('Les nationalités sont illisibles.', nationalites.error);
-  }
 
   const eglises = arbre.filter((e) => e.type === 'EGLISE' && e.is_active);
 
@@ -51,7 +72,7 @@ export const getOptionsCroyant = cache(async () => {
   return {
     eglises: versOptions(eglises, arbre),
     cellules,
-    grades: grades.data ?? [],
-    nationalites: nationalites.data ?? [],
+    grades,
+    nationalites,
   };
 });

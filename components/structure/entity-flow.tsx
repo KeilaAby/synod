@@ -20,19 +20,17 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useMemo, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { useSession } from '@/components/shared/session-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { rattacherEntite, supprimerEntite } from '@/lib/actions/entities';
+import { rattacherEntite } from '@/lib/actions/entities';
 import { type EntityType, validerDeplacement } from '@/lib/domain/hierarchy';
 import { replisParDefaut } from '@/lib/domain/organigramme';
 import { formatNombre } from '@/lib/utils/format';
 
-import { EntityCreateDialog, type ParentCible } from './entity-create-dialog';
-import { EntityDetailDialog } from './entity-detail-dialog';
-import { EntityEditDialog } from './entity-edit-dialog';
+import type { EntiteFlux } from './entite';
 import { NoeudEntite } from './entity-node';
+import { useEntityDialogs } from './use-entity-dialogs';
 
 import '@xyflow/react/dist/style.css';
 
@@ -51,23 +49,7 @@ import '@xyflow/react/dist/style.css';
  * Charge en differe par `entity-flow-loader` (~120 ko, ENF-PRF-09, UI-18).
  */
 
-export interface EntiteFlux {
-  id: string;
-  nom: string;
-  code: string;
-  type: EntityType;
-  parent_id: string | null;
-  path: string;
-  niveau: number;
-  description: string | null;
-  nbDescendants: number;
-  nbEnfants: number;
-  descendantsParType: Partial<Record<EntityType, number>>;
-  sans_acces_application: boolean;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
+export type { EntiteFlux };
 
 /** Grille de 8px, jusque dans la disposition du graphe (UI-01). */
 const LARGEUR_NOEUD = 224; // w-56
@@ -127,16 +109,20 @@ function Organigramme({ entites }: { entites: EntiteFlux[] }) {
   const [recherche, setRecherche] = useState('');
   const [enCours, demarrer] = useTransition();
 
-  const [parentPourCreation, setParentPourCreation] = useState<ParentCible | null>(null);
-  const [aConsulter, setAConsulter] = useState<EntiteFlux | null>(null);
-  const [aModifier, setAModifier] = useState<EntiteFlux | null>(null);
-  const [aSupprimer, setASupprimer] = useState<EntiteFlux | null>(null);
-
   const [replies, setReplies] = useState<Set<string>>(() =>
     replisParDefaut(entites),
   );
 
-  const parId = useMemo(() => new Map(entites.map((e) => [e.id, e])), [entites]);
+  // Les quatre pop-up du CRUD sont mutualisees avec la vue liste : meme fiche,
+  // meme formulaire, meme confirmation de suppression.
+  const {
+    parId,
+    ouvrirFiche,
+    modifier,
+    creerEnfant,
+    demanderSuppression,
+    dialogues,
+  } = useEntityDialogs(entites);
 
   // --- Actions du menu de noeud ---------------------------------------------
 
@@ -148,52 +134,6 @@ function Organigramme({ entites }: { entites: EntiteFlux[] }) {
       return suivant;
     });
   }, []);
-
-  // Consultation et modification restent DANS l'organigramme : quitter la vue
-  // pour lire une fiche fait perdre le contexte de la branche en cours.
-  // Les pages `/structure/[id]` demeurent accessibles pour le lien profond.
-  const ouvrirFiche = useCallback(
-    (id: string) => {
-      const entite = parId.get(id);
-      if (entite) setAConsulter(entite);
-    },
-    [parId],
-  );
-
-  const modifier = useCallback(
-    (id: string) => {
-      const entite = parId.get(id);
-      if (entite) {
-        setAConsulter(null);
-        setAModifier(entite);
-      }
-    },
-    [parId],
-  );
-
-  const creerEnfant = useCallback(
-    (id: string) => {
-      const entite = parId.get(id);
-      if (entite) {
-        setAConsulter(null);
-        setParentPourCreation({
-          id: entite.id,
-          nom: entite.nom,
-          code: entite.code,
-          type: entite.type,
-        });
-      }
-    },
-    [parId],
-  );
-
-  const demanderSuppression = useCallback(
-    (id: string) => {
-      const entite = parId.get(id);
-      if (entite) setASupprimer(entite);
-    },
-    [parId],
-  );
 
   // --- Construction du graphe ------------------------------------------------
 
@@ -593,71 +533,7 @@ function Organigramme({ entites }: { entites: EntiteFlux[] }) {
         </ReactFlow>
       </div>
 
-      {/* --- Creation depuis un noeud (type et parent verrouilles) --- */}
-      <EntityCreateDialog
-        parent={parentPourCreation}
-        ouvert={parentPourCreation !== null}
-        onOuvertChange={(v) => !v && setParentPourCreation(null)}
-      />
-
-      {/* --- Consultation --- */}
-      <EntityDetailDialog
-        entite={aConsulter}
-        toutes={entites}
-        peutModifier={aConsulter ? peut('entity.update', aConsulter.path) : false}
-        ouvert={aConsulter !== null}
-        onOuvertChange={(v) => !v && setAConsulter(null)}
-        onModifier={modifier}
-        onCreerEnfant={creerEnfant}
-      />
-
-      {/* --- Modification ---
-          `key` sur l'identifiant : c'est le remontage qui reamorce les champs
-          quand on passe d'une entite a une autre. */}
-      {aModifier && (
-        <EntityEditDialog
-          key={aModifier.id}
-          entite={{
-            id: aModifier.id,
-            nom: aModifier.nom,
-            code: aModifier.code,
-            type: aModifier.type,
-            description: aModifier.description,
-            sans_acces_application: aModifier.sans_acces_application,
-            is_active: aModifier.is_active,
-            nomParent: aModifier.parent_id
-              ? (parId.get(aModifier.parent_id)?.nom ?? null)
-              : null,
-          }}
-          ouvert
-          onOuvertChange={(v) => !v && setAModifier(null)}
-        />
-      )}
-
-      {/* --- Suppression --- */}
-      {aSupprimer && (
-        <ConfirmDialog
-          open
-          onOpenChange={(v) => !v && setASupprimer(null)}
-          title={`Supprimer « ${aSupprimer.nom} » ?`}
-          description={
-            aSupprimer.nbEnfants > 0
-              ? `Cette entite contient ${formatNombre(aSupprimer.nbEnfants)} sous-entite(s). La suppression sera refusee : deplacez-les ou desactivez cette entite.`
-              : "L'entite sera placee en corbeille et pourra etre restauree."
-          }
-          confirmLabel="Supprimer"
-          onConfirm={async () => {
-            const resultat = await supprimerEntite({ id: aSupprimer.id });
-            setASupprimer(null);
-            if (!resultat.ok) {
-              toast.error(resultat.error);
-              return;
-            }
-            toast.success('Entite placee en corbeille.');
-            router.refresh();
-          }}
-        />
-      )}
+      {dialogues}
     </>
   );
 }

@@ -107,15 +107,15 @@ type Props = Presentation &
  */
 const ETAPES: readonly Etape[] = [
   { cle: 'identite', titre: 'Identité', description: 'Nom, sexe, naissance' },
-  { cle: 'coordonnees', titre: 'Coordonnées', description: 'Adresse et contacts' },
   { cle: 'rattachement', titre: 'Rattachement', description: 'Église, cellule, grade' },
+  { cle: 'coordonnees', titre: 'Coordonnées', description: 'Adresse et contacts' },
 ];
 
 /** Champs à valider avant de passer à l'étape suivante. */
 const CHAMPS_PAR_ETAPE: readonly (keyof CroyantInput)[][] = [
   ['nom', 'prenom', 'sexe', 'dateNaissance', 'nationaliteId'],
-  ['email', 'telephone', 'adresse'],
   ['egliseId', 'celluleId', 'gradeId', 'dateBapteme'],
+  ['email', 'telephone', 'adresse'],
 ];
 
 /** Un `<input type="date">` attend le format `YYYY-MM-DD`. */
@@ -383,41 +383,8 @@ export function CroyantForm(props: Props) {
           </div>
         </CardContent>
       </Card>
-
-      {/* --- Étape 2 : coordonnées --- */}
+      {/* --- Étape 2 : rattachement ecclésial --- */}
       <Card hidden={etape !== 1}>
-        <CardContent className="space-y-6 p-6">
-          <p className="eyebrow">Coordonnées</p>
-
-          <div className="grid gap-6 md:grid-cols-2">
-            <TextField
-              label="Adresse e-mail"
-              type="email"
-              placeholder="Facultatif"
-              error={errors.email?.message}
-              {...register('email')}
-            />
-            <TextField
-              label="Téléphone"
-              type="tel"
-              placeholder="Facultatif"
-              error={errors.telephone?.message}
-              {...register('telephone')}
-            />
-          </div>
-
-          <TextField
-            label="Adresse"
-            required
-            placeholder="Quartier, rue, ville"
-            error={errors.adresse?.message}
-            {...register('adresse')}
-          />
-        </CardContent>
-      </Card>
-
-      {/* --- Étape 3 : rattachement ecclésial --- */}
-      <Card hidden={etape !== 2}>
         <CardContent className="space-y-6 p-6">
           <p className="eyebrow">Rattachement ecclésial</p>
 
@@ -548,6 +515,39 @@ export function CroyantForm(props: Props) {
         </CardContent>
       </Card>
 
+      {/* --- Étape 3 : coordonnées --- */}
+      <Card hidden={etape !== 2}>
+        <CardContent className="space-y-6 p-6">
+          <p className="eyebrow">Coordonnées</p>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <TextField
+              label="Adresse e-mail"
+              type="email"
+              placeholder="Facultatif"
+              error={errors.email?.message}
+              {...register('email')}
+            />
+            <TextField
+              label="Téléphone"
+              type="tel"
+              placeholder="Facultatif"
+              error={errors.telephone?.message}
+              {...register('telephone')}
+            />
+          </div>
+
+          <TextField
+            label="Adresse"
+            required
+            placeholder="Quartier, rue, ville"
+            error={errors.adresse?.message}
+            {...register('adresse')}
+          />
+        </CardContent>
+      </Card>
+
+      
       {/* --- Navigation --- */}
       <div className="flex items-center justify-between gap-2">
         <div>

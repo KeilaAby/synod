@@ -22,7 +22,12 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { creerEntite } from '@/lib/actions/entities';
-import { ENTITY_LABELS, type EntityType, typeEnfantDe } from '@/lib/domain/hierarchy';
+import {
+  ENTITY_LABELS,
+  type EntityType,
+  gabaritCode,
+  typeEnfantDe,
+} from '@/lib/domain/hierarchy';
 import { creerEntiteSchema } from '@/lib/validation/entity';
 
 import { TypeBadge } from './type-badge';
@@ -47,9 +52,9 @@ export interface ParentCible {
   type: EntityType;
 }
 
+// Le CODE n'est plus saisi : la base l'attribue (`PAR-0007`).
 const saisieSchema = creerEntiteSchema.pick({
   nom: true,
-  code: true,
   description: true,
   sansAccesApplication: true,
 });
@@ -86,7 +91,7 @@ export function EntityCreateDialog({
     formState: { errors, isSubmitting },
   } = useForm<Saisie>({
     resolver: zodResolver(saisieSchema),
-    defaultValues: { nom: '', code: '', description: '', sansAccesApplication: false },
+    defaultValues: { nom: '', description: '', sansAccesApplication: false },
   });
 
   // Une Cellule est une feuille : rien a creer en dessous (RG-01).
@@ -165,30 +170,26 @@ export function EntityCreateDialog({
                   </span>
                 </p>
               </div>
+
+              {/* EF-STR-02 — le code n'est plus saisi : la base l'attribue. */}
+              <div className="space-y-1 sm:col-span-2">
+                <p className="text-xs text-muted-foreground">Code</p>
+                <p className="font-mono text-sm text-muted-foreground">
+                  {gabaritCode(typeEnfant)} — attribue a l&apos;enregistrement
+                </p>
+              </div>
             </div>
           </div>
 
           {/* --- Champs saisis --- */}
-          <div className="grid gap-6 sm:grid-cols-2">
-            <TextField
-              label="Nom"
-              required
-              autoFocus
-              placeholder={`${ENTITY_LABELS[typeEnfant].singulier} …`}
-              error={errors.nom?.message}
-              {...register('nom')}
-            />
-
-            <TextField
-              label="Code"
-              required
-              placeholder="PAR-ATN"
-              hint="3 a 16 caracteres, unique."
-              className="[&_input]:font-mono [&_input]:uppercase"
-              error={errors.code?.message}
-              {...register('code')}
-            />
-          </div>
+          <TextField
+            label="Nom"
+            required
+            autoFocus
+            placeholder={`${ENTITY_LABELS[typeEnfant].singulier} …`}
+            error={errors.nom?.message}
+            {...register('nom')}
+          />
 
           <Field label="Description" error={errors.description?.message}>
             {(aria) => (

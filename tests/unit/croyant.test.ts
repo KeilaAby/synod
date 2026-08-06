@@ -7,6 +7,8 @@ import {
   composerMatricule,
   decomposerMatricule,
   estNouveauBaptise,
+  initialesAvatar,
+  initialesMatricule,
   nomComplet,
   trancheAge,
   validerDatesCroyant,
@@ -76,23 +78,62 @@ describe('RG-28 — cohérence des dates du croyant', () => {
 });
 
 describe('RG-29 — matricule', () => {
-  it('compose un matricule avec une séquence sur quatre chiffres', () => {
-    expect(composerMatricule('EGL-COT', 2026, 147)).toBe('EGL-COT-2026-0147');
+  it('compose <INITIALES>-<SEQUENCE 5>-<AA>', () => {
+    expect(composerMatricule('NAKOU', 'Marc Kevin', 1, 2026)).toBe('NMK-00001-26');
   });
 
-  it('décompose un matricule valide', () => {
-    const d = decomposerMatricule('EGL-COT-2026-0147');
-    expect(d).toEqual({ codeEglise: 'EGL-COT', annee: 2026, sequence: 147 });
+  it('decompose un matricule valide', () => {
+    expect(decomposerMatricule('MNK-00001-26')).toEqual({
+      initiales: 'MNK',
+      sequence: 1,
+      annee: 26,
+    });
   });
 
-  it('accepte une séquence débordant les quatre chiffres', () => {
-    expect(decomposerMatricule('EGL-COT-2026-12345')?.sequence).toBe(12345);
-  });
-
-  it('rejette un matricule mal formé', () => {
-    for (const m of ['EGL-COT-2026', 'EGL-2026-0147-X', 'ab-2026-0147', '']) {
+  it('rejette un matricule mal forme', () => {
+    for (const m of ['MNK-1-26', 'MNKL-00001-26', 'MNK-00001-2026', '']) {
       expect(decomposerMatricule(m), m).toBeNull();
     }
+  });
+});
+
+describe('Initiales du matricule', () => {
+  it('prend le nom puis les prenoms, dans l ordre de saisie', () => {
+    expect(initialesMatricule('RAKOTONIRINA', 'Mamitiana Nantenaina')).toBe('RMN');
+  });
+
+  it('se limite a trois lettres', () => {
+    expect(initialesMatricule('DUPONT', 'Jean Pierre Marie Louis')).toBe('DJP');
+  });
+
+  it('replie les accents sur leur lettre de base', () => {
+    // Un matricule se saisit au clavier, parfois sans disposition francaise.
+    expect(initialesMatricule('ÉLISE', 'Ève')).toBe('EE');
+  });
+
+  it('traite tout groupe de lettres comme un mot, quel que soit le séparateur', () => {
+    // « N DIAYE » et « D'Artagnan » donnent N, D, D : espace, tiret et
+    // apostrophe séparent de la même façon. Même règle que `fn_initiales`
+    // en SQL, qui découpe aussi sur tout caractère non alphabétique.
+    expect(initialesMatricule('N DIAYE', "D'Artagnan")).toBe('NDD');
+    expect(initialesMatricule('Jean-Baptiste', 'Marie')).toBe('JBM');
+  });
+
+  it('ne rend jamais une chaine vide', () => {
+    expect(initialesMatricule('123', '456')).toBe('XXX');
+  });
+});
+
+describe('Affichage — le NOM precede les prenoms', () => {
+  it('met le nom en capitales, devant', () => {
+    expect(nomComplet('Rakotonirina', 'Mamitiana Nantenaina')).toBe(
+      'RAKOTONIRINA Mamitiana Nantenaina',
+    );
+  });
+
+  it('compose un avatar de deux lettres', () => {
+    expect(initialesAvatar('Rakotonirina', 'Mamitiana')).toBe('RM');
+    expect(initialesAvatar('Élise', 'Ève')).toBe('EE');
   });
 });
 
@@ -176,8 +217,4 @@ describe('RG-12 — seuls les croyants actifs alimentent les effectifs', () => {
   });
 });
 
-describe('Affichage', () => {
-  it('met le nom en capitales et le prénom devant', () => {
-    expect(nomComplet('koffi', 'Amos')).toBe('Amos KOFFI');
-  });
-});
+

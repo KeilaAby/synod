@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Users } from 'lucide-react';
 import Link from 'next/link';
 
+import { AvatarCroyant } from '@/components/croyants/avatar-croyant';
 import { NouveauCroyantDialog } from '@/components/croyants/croyant-dialog';
 import { EmptyState } from '@/components/shared/empty-state';
 import { PageHeader } from '@/components/shared/page-header';
@@ -15,9 +16,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { compterCroyants, listerCroyants } from '@/lib/data/croyants';
+import { listerCroyants } from '@/lib/data/croyants';
 import { getOptionsCroyant } from '@/lib/data/croyant-options';
-import { LIBELLES_SEXE, calculerAge } from '@/lib/domain/croyant';
+import { LIBELLES_SEXE, calculerAge, nomComplet } from '@/lib/domain/croyant';
 import { TON_CROYANT } from '@/components/shared/status-badge';
 import { formatDate, formatNombre } from '@/lib/utils/format';
 import { filtresDepuisParams } from '@/lib/validation/croyant';
@@ -42,9 +43,17 @@ export default async function CroyantsPage({
   const params = await searchParams;
   const filtres = filtresDepuisParams(params);
 
-  const [page, compteurs, options] = await Promise.all([
+  /**
+   * PERFORMANCE — deux lectures, pas cinq.
+   *
+   * Le décompte par sexe coûtait trois requêtes de comptage supplémentaires,
+   * rejouées à CHAQUE frappe dans la recherche. Sur une liaison lente, c'était
+   * l'essentiel de la latence ressentie. Le total vient désormais du `count`
+   * que la requête paginée ramène déjà gratuitement ; la répartition par sexe
+   * relève du tableau de bord (lot 5), pas d'un en-tête de liste.
+   */
+  const [page, options] = await Promise.all([
     listerCroyants(filtres),
-    compterCroyants(filtres.entiteId),
     getOptionsCroyant(),
   ]);
 
@@ -56,9 +65,9 @@ export default async function CroyantsPage({
         eyebrow="Croyants"
         title="Croyants"
         description={
-          `${formatNombre(compteurs.total)} croyant${compteurs.total > 1 ? 's' : ''} actif${compteurs.total > 1 ? 's' : ''} ` +
-          `— ${formatNombre(compteurs.femmes)} femme${compteurs.femmes > 1 ? 's' : ''}, ` +
-          `${formatNombre(compteurs.hommes)} homme${compteurs.hommes > 1 ? 's' : ''}.`
+          aDesFiltres
+            ? `${formatNombre(page.total)} croyant${page.total > 1 ? 's' : ''} correspondant aux filtres.`
+            : `${formatNombre(page.total)} croyant${page.total > 1 ? 's' : ''} dans votre périmètre.`
         }
         actions={<NouveauCroyantDialog options={options} />}
       />
@@ -114,9 +123,11 @@ export default async function CroyantsPage({
                       <TableCell>
                         <Link
                           href={`/croyants/${c.id}`}
-                          className="font-medium text-foreground transition-colors hover:text-indigo-700"
+                          className="flex items-center gap-3 font-medium text-foreground transition-colors hover:text-indigo-700"
                         >
-                          {c.prenom} {c.nom.toLocaleUpperCase('fr')}
+                          {/* EF-CRO-09 — en attendant le téléversement de photo. */}
+                          <AvatarCroyant nom={c.nom} prenom={c.prenom} />
+                          <span className="truncate">{nomComplet(c.nom, c.prenom)}</span>
                         </Link>
                       </TableCell>
 

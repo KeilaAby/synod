@@ -15,8 +15,14 @@ demande contredit `cdg.md`, signalez-le avant d'implémenter.
 ## État — 6 août 2026
 
 **Lots 0 et 1 livrés** : socle, authentification, habilitations avec portée,
-structure hiérarchique à 6 niveaux avec organigramme éditable, référentiels.
-**Lot 2 (croyants et transferts) à démarrer.**
+structure hiérarchique à 6 niveaux (organigramme éditable **et** vue liste, même
+CRUD en pop-up), référentiels.
+**Lot 2 aux deux tiers** : croyants livrés ; transferts et baptêmes ont leur base
+et leur domaine, les écrans restent à construire.
+
+⚠️ Migration `0013` **à appliquer** sur la base de l'utilisateur
+(`supabase/install-incremental.sql`) : sans elle, la création d'entité échoue —
+le formulaire n'envoie plus de code.
 
 Historique : [`SESSION_HISTORY.md`](.claude-code-history/SESSION_HISTORY.md) ·
 dernier point d'étape : [`.claude-code-history/2026-08-06_resumes-moi.md`](.claude-code-history/2026-08-06_resumes-moi.md)
@@ -57,6 +63,18 @@ Ce qu'il reste à faire est décrit dans le dernier point d'étape
 10. Aucun import de `@supabase/*` hors de `lib/supabase`, `lib/auth`,
     `lib/storage` — vérifié par ESLint (ENF-POR-02/03).
 11. La base ne stocke que des **clés d'objet relatives**, jamais d'URL signée.
+12. Un schéma Zod partagé client/serveur doit être **idempotent** : le serveur
+    revalide ce que le client a déjà transformé. `z.preprocess` pour normaliser
+    le vide, jamais `z.coerce` sur un champ facultatif — `coerce.date(null)`
+    donne le 1ᵉʳ janvier 1970.
+13. Une fonction appelée par un trigger et qui écrit dans une table verrouillée
+    par RLS doit être `SECURITY DEFINER` : un trigger s'exécute avec les droits
+    de l'appelant.
+14. Un identifiant à séquence (code d'entité, matricule) est attribué **par la
+    base**, jamais par le client : elle seule garantit l'unicité face à deux
+    créations simultanées.
+15. Une absence de données n'est pas un refus de droit. Un périmètre vide
+    signale une panne de lecture, pas une entité hors périmètre.
 
 ## Conventions
 

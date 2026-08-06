@@ -105,6 +105,26 @@ export function validerRattachement(
 // Codes — RG-02
 // -----------------------------------------------------------------------------
 
+/**
+ * Préfixe du code attribué automatiquement — `<PRÉFIXE>-<SÉQUENCE 4 chiffres>`.
+ *
+ * Doit rester aligné sur `fn_prefixe_entite` (0013). Volontairement court : un
+ * code se lit à voix haute et se recopie à la main sur un registre papier.
+ */
+export const PREFIXES_CODE: Record<EntityType, string> = {
+  SIEGE: 'SG',
+  REGIONAL: 'REG',
+  DISTRICT: 'DIS',
+  PAROISSE: 'PAR',
+  EGLISE: 'EGL',
+  CELLULE: 'CEL',
+};
+
+/** Forme du code à venir, pour l'afficher avant qu'il n'existe. */
+export function gabaritCode(type: EntityType): string {
+  return `${PREFIXES_CODE[type]}-XXXX`;
+}
+
 /** Doit rester aligne sur la contrainte `entities_code_format` (0003_entities.sql). */
 export const CODE_PATTERN = /^[A-Z0-9][A-Z0-9-]{2,15}$/;
 export const CODE_LONGUEUR_MIN = 3;

@@ -84,7 +84,10 @@ export async function creerEntite(input: unknown): Promise<ActionResult<{ id: st
       .from('entities')
       .insert({
         type: data.type,
-        code: data.code,
+        // Code OMIS quand il n'est pas fourni : le trigger l'attribue avant que
+        // la contrainte NOT NULL ne soit verifiee. Un compteur cote application
+        // ne pourrait pas garantir l'unicite face a deux creations simultanees.
+        ...(data.code ? { code: data.code } : {}),
         nom: sanitize(data.nom),
         parent_id: data.parentId,
         description: data.description ? sanitize(data.description) : null,

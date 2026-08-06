@@ -53,36 +53,65 @@ export function compteDansLesEffectifs(statut: StatutCroyant): boolean {
 // Matricule — EF-CRO-02, RG-29
 // -----------------------------------------------------------------------------
 
-/** `<CODE_ÉGLISE>-<ANNÉE>-<SÉQUENCE>` — ex. `EGL-COT-2026-0147`. */
-export const MATRICULE_PATTERN = /^([A-Z0-9][A-Z0-9-]{2,15})-(\d{4})-(\d{4,})$/;
+/**
+ * `<INITIALES>-<SÉQUENCE 5 chiffres>-<AA>` — ex. `MNK-00001-26`.
+ *
+ * Les initiales rendent le matricule reconnaissable à l'œil ; la séquence,
+ * globale par année, porte seule l'unicité. Les matricules attribués sous
+ * l'ancien format (`EGL-COT-2026-0147`) restent valides : un matricule est
+ * immuable (RG-29).
+ */
+export const MATRICULE_PATTERN = /^([A-Z]{1,3})-(\d{5})-(\d{2})$/;
+export const MATRICULE_PATTERN_HISTORIQUE = /^([A-Z0-9][A-Z0-9-]{2,15})-(\d{4})-(\d{4,})$/;
 
 export interface MatriculeDecompose {
-  codeEglise: string;
-  annee: number;
+  initiales: string;
   sequence: number;
+  /** Deux derniers chiffres de l'année d'enregistrement. */
+  annee: number;
 }
 
 export function decomposerMatricule(matricule: string): MatriculeDecompose | null {
   const m = MATRICULE_PATTERN.exec(matricule.trim().toUpperCase());
   if (!m) return null;
-  return {
-    codeEglise: m[1]!,
-    annee: Number(m[2]),
-    sequence: Number(m[3]),
-  };
+  return { initiales: m[1]!, sequence: Number(m[2]), annee: Number(m[3]) };
 }
 
 /**
- * Contrepartie de `fn_generer_matricule`. Utilisée pour l'affichage et les
- * tests ; la génération réelle reste en base, seule capable de garantir
- * l'unicité de la séquence face à deux saisies simultanées.
+ * Initiales du nom puis des prénoms, dans l'ordre de saisie, trois au plus.
+ *
+ * Contrepartie de `fn_initiales` en SQL. Les accents sont repliés sur leur
+ * lettre de base : un matricule se saisit au clavier, parfois sur un poste
+ * sans disposition française.
+ */
+export function initialesMatricule(nom: string, prenom: string): string {
+  const source = `${nom ?? ''} ${prenom ?? ''}`
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '');
+
+  const initiales = source
+    .split(/[^A-Za-z]+/)
+    .filter(Boolean)
+    .slice(0, 3)
+    .map((mot) => mot[0]!.toUpperCase())
+    .join('');
+
+  return initiales || 'XXX';
+}
+
+/**
+ * Contrepartie de `fn_generer_matricule`. Sert à l'affichage et aux tests ; la
+ * génération réelle reste en base, seule capable de garantir l'unicité de la
+ * séquence face à deux saisies simultanées.
  */
 export function composerMatricule(
-  codeEglise: string,
-  annee: number,
+  nom: string,
+  prenom: string,
   sequence: number,
+  annee: number = new Date().getFullYear(),
 ): string {
-  return `${codeEglise.toUpperCase()}-${annee}-${String(sequence).padStart(4, '0')}`;
+  const aa = String(annee % 100).padStart(2, '0');
+  return `${initialesMatricule(nom, prenom)}-${String(sequence).padStart(5, '0')}-${aa}`;
 }
 
 // -----------------------------------------------------------------------------
@@ -189,6 +218,31 @@ export function cleDoublon(nom: string, prenom: string, dateNaissance: Date): st
   return `${normaliser(nom)}|${normaliser(prenom)}|${iso}`;
 }
 
+/**
+ * Affichage d'une personne : **NOM en capitales, puis prénoms**.
+ *
+ * « RAKOTONIRINA Mamitiana Nantenaina », et non l'inverse. C'est l'usage des
+ * registres et des listes d'appel : le nom porte le tri et la reconnaissance,
+ * il vient donc en tête.
+ */
 export function nomComplet(nom: string, prenom: string): string {
-  return `${prenom.trim()} ${nom.trim().toLocaleUpperCase('fr')}`;
+  return `${nom.trim().toLocaleUpperCase('fr')} ${prenom.trim()}`.trim();
+}
+
+/**
+ * Deux lettres pour un avatar : initiale du nom, initiale du premier prénom.
+ *
+ * Distinct de `initialesMatricule`, qui en prend jusqu'à trois : ici la
+ * contrainte est la lisibilité dans un cercle de 32 pixels.
+ */
+export function initialesAvatar(nom: string, prenom: string): string {
+  const lettre = (v: string) =>
+    (v ?? '')
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .trim()
+      .charAt(0)
+      .toUpperCase();
+
+  return `${lettre(nom)}${lettre(prenom)}` || '?';
 }
