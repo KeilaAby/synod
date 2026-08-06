@@ -129,7 +129,7 @@ export async function creerCroyant(
         email: data.email,
         telephone: data.telephone,
         date_naissance: data.dateNaissance.toISOString().slice(0, 10),
-        date_bapteme: data.dateBapteme.toISOString().slice(0, 10),
+        date_bapteme: data.dateBapteme ? data.dateBapteme.toISOString().slice(0, 10) : null,
         adresse: sanitize(data.adresse),
         eglise_id: data.egliseId,
         cellule_id: data.celluleId ?? null,
@@ -196,7 +196,7 @@ export async function modifierCroyant(input: unknown): Promise<ActionResult<void
         email: data.email,
         telephone: data.telephone,
         date_naissance: data.dateNaissance.toISOString().slice(0, 10),
-        date_bapteme: data.dateBapteme.toISOString().slice(0, 10),
+        date_bapteme: data.dateBapteme ? data.dateBapteme.toISOString().slice(0, 10) : null,
         adresse: sanitize(data.adresse),
         // L'église ne change PAS ici : c'est un transfert (EF-TRF-01).
         cellule_id: data.celluleId ?? null,

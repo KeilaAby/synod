@@ -210,7 +210,14 @@ Les habilitations sont **unitaires**, regroupées par catégorie, et chacune peu
 
 | Réf. | Exigence | Priorité |
 |---|---|---|
-| **EF-CRO-01** | Créer un croyant avec : photo *(facultatif)*, **nom**, **prénom**, statut marital *(facultatif)*, e-mail *(facultatif)*, téléphone *(facultatif)*, **sexe**, **date de naissance**, **date de baptême**, **adresse**, **église d'appartenance**, cellule *(facultatif)*, **grade**, **nationalité**. | **Must** |
+| **EF-CRO-01** | Créer un croyant avec : photo *(facultatif)*, **nom**, **prénom**, statut marital *(facultatif)*, e-mail *(facultatif)*, téléphone *(facultatif)*, **sexe**, **date de naissance**, date de baptême *(facultatif — voir note)*, **adresse**, **église d'appartenance**, cellule *(facultatif)*, **grade**, **nationalité**. | **Must** |
+| **EF-CRO-01b** | La saisie se fait en **trois étapes** — identité, coordonnées, rattachement ecclésial — avec une frise de progression et validation au passage de chaque étape. | **Should** |
+
+> **Note — date de baptême.** `Brouillon.md` la donnait obligatoire. Rendue
+> **facultative** le 6 août 2026 sur décision de l'utilisateur : une fiche se crée
+> souvent avant que la date ne soit connue (reprise d'un registre papier, croyant
+> en préparation). Conséquence sur **RG-30** : un croyant sans date de baptême
+> n'entre jamais dans les « nouveaux baptisés ».
 | **EF-CRO-02** | Attribuer automatiquement un **matricule unique et immuable** (`<CODE_ÉGLISE>-<ANNÉE>-<SÉQUENCE>`). | **Must** |
 | **EF-CRO-03** | La cellule sélectionnable appartient obligatoirement à l'église choisie (liste filtrée dynamiquement). | **Must** |
 | **EF-CRO-04** | Lister les croyants avec pagination serveur, tri multi-colonnes et filtres combinables : entité (tout niveau), sexe, grade, nationalité, statut marital, tranche d'âge, période de baptême, présence en cellule, statut. | **Must** |

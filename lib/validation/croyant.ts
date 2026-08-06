@@ -13,6 +13,15 @@ import { SEXES, STATUTS_CROYANT, STATUTS_MARITAUX } from '@/lib/domain/croyant';
 /** Date sans heure : une saisie `<input type="date">` arrive en `YYYY-MM-DD`. */
 const dateJour = z.coerce.date({ message: 'Date invalide.' });
 
+/**
+ * Une saisie vide arrive en chaine vide : sans cette normalisation,
+ * `z.coerce.date('')` produirait une date invalide au lieu d'un champ absent.
+ */
+const dateJourOptionnelle = z
+  .union([z.coerce.date(), z.literal('')])
+  .optional()
+  .transform((v) => (v === '' || v === undefined ? null : v));
+
 const optionnel = (schema: z.ZodType<string>) =>
   z
     .union([schema, z.literal('')])
@@ -35,7 +44,8 @@ export const croyantSchema = z
     ),
 
     dateNaissance: dateJour,
-    dateBapteme: dateJour,
+    // Facultative : une fiche se cree souvent avant que la date ne soit connue.
+    dateBapteme: dateJourOptionnelle,
     adresse: z.string().trim().min(3, "L'adresse est requise.").max(255),
 
     // RG-04 — rattachement principal obligatoire.
@@ -53,7 +63,7 @@ export const croyantSchema = z
   })
   // RG-28 — la règle est portée par le domaine ; ici on l'ancre sur le champ
   // fautif pour que le message se pose au bon endroit dans le formulaire.
-  .refine((d) => d.dateBapteme >= d.dateNaissance, {
+  .refine((d) => !d.dateBapteme || d.dateBapteme >= d.dateNaissance, {
     message: 'La date de baptême ne peut pas précéder la date de naissance.',
     path: ['dateBapteme'],
   });
@@ -75,7 +85,7 @@ export const modifierCroyantSchema = z.object({
       .regex(/^\+?[0-9\s().-]{8,20}$/, 'Numéro de téléphone invalide.'),
   ),
   dateNaissance: dateJour,
-  dateBapteme: dateJour,
+  dateBapteme: dateJourOptionnelle,
   adresse: z.string().trim().min(3, "L'adresse est requise.").max(255),
   // Le rattachement se change par TRANSFERT (EF-TRF-01), pas par ce formulaire.
   celluleId: z.uuid().optional().nullable(),

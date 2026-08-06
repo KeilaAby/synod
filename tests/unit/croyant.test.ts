@@ -60,6 +60,19 @@ describe('RG-28 — cohérence des dates du croyant', () => {
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toContain('baptême');
   });
+
+  // La date de baptême est FACULTATIVE : une fiche se crée souvent avant
+  // qu'elle ne soit connue (reprise de registre, croyant en préparation).
+  it('accepte une fiche sans date de baptême', () => {
+    expect(validerDatesCroyant(new Date('1990-03-12'), null, aujourdhui).ok).toBe(true);
+    expect(validerDatesCroyant(new Date('1990-03-12'), undefined, aujourdhui).ok).toBe(true);
+  });
+
+  it('contrôle toujours la date de naissance, même sans baptême', () => {
+    const r = validerDatesCroyant(new Date('2030-01-01'), null, aujourdhui);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain('naissance');
+  });
 });
 
 describe('RG-29 — matricule', () => {
@@ -126,6 +139,11 @@ describe('RG-30 — nouveaux baptisés, fenêtre de 15 jours', () => {
   it('respecte une fenêtre paramétrée différemment', () => {
     expect(estNouveauBaptise(new Date('2026-06-01'), 90, aujourdhui)).toBe(true);
     expect(estNouveauBaptise(new Date('2026-06-01'), 15, aujourdhui)).toBe(false);
+  });
+
+  it("n'est jamais nouveau baptisé sans date de baptême", () => {
+    expect(estNouveauBaptise(null, 15, aujourdhui)).toBe(false);
+    expect(estNouveauBaptise(undefined, 15, aujourdhui)).toBe(false);
   });
 });
 

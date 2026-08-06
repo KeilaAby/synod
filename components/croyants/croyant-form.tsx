@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertCircle, Loader2, TriangleAlert } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ArrowRight, Loader2, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
@@ -33,16 +33,19 @@ import {
 } from '@/lib/domain/croyant';
 import { croyantSchema, type CroyantInput } from '@/lib/validation/croyant';
 
+import { FriseEtapes, type Etape } from './etapes';
+
 /**
  * Formulaire du croyant — EF-CRO-01, ENF-UTI-07 (moins de 90 secondes).
  *
- * Trois sections en carte, jamais un formulaire monolithique : identité,
- * coordonnées, rattachement ecclésial. C'est l'ordre dans lequel on lit une
- * fiche d'état civil, pas l'ordre des colonnes de la table.
+ * Découpé en TROIS ÉTAPES : un formulaire de quinze champs présenté d'un bloc
+ * décourage, surtout sur un écran étroit. Une étape tient sous les yeux, et la
+ * validation se fait au passage — l'erreur se corrige là où elle est née,
+ * plutôt qu'après un défilement.
  *
- * La liste des cellules est filtrée dynamiquement par l'église choisie
- * (RG-05) : proposer une cellule d'une autre église serait une erreur qu'on
- * ne peut commettre qu'en la rendant possible.
+ * En modification, les étapes restent affichées mais deviennent cliquables :
+ * la fiche existe, ses valeurs sont valides, rien ne justifie d'imposer un
+ * parcours linéaire pour corriger un numéro de téléphone.
  */
 
 export interface OptionReferentiel {
@@ -73,7 +76,7 @@ interface CroyantExistant {
   email: string | null;
   telephone: string | null;
   date_naissance: string;
-  date_bapteme: string;
+  date_bapteme: string | null;
   adresse: string;
   eglise_id: string;
   cellule_id: string | null;
@@ -85,10 +88,9 @@ interface CroyantExistant {
 
 /**
  * Le formulaire sert deux contextes : la page dédiée (lien profond, partage) et
- * le pop-up. Seules la navigation de sortie et la présentation du pied changent.
+ * le pop-up. Seule la sortie change.
  */
 interface Presentation {
-  /** Fourni en pop-up : remplace la navigation par une fermeture. */
   onSucces?: (id: string) => void;
   onAnnuler?: () => void;
 }
@@ -99,17 +101,36 @@ type Props = Presentation &
     | ({ mode: 'modification'; croyant: CroyantExistant } & Commun)
   );
 
-/** `<input type="date">` attend `YYYY-MM-DD`. */
-function jour(valeur: string | Date | undefined): string {
+/**
+ * L'ordre suit celui d'une fiche d'état civil, pas celui des colonnes de la
+ * table : on identifie la personne, on la joint, puis on la rattache.
+ */
+const ETAPES: readonly Etape[] = [
+  { cle: 'identite', titre: 'Identité', description: 'Nom, sexe, naissance' },
+  { cle: 'coordonnees', titre: 'Coordonnées', description: 'Adresse et contacts' },
+  { cle: 'rattachement', titre: 'Rattachement', description: 'Église, cellule, grade' },
+];
+
+/** Champs à valider avant de passer à l'étape suivante. */
+const CHAMPS_PAR_ETAPE: readonly (keyof CroyantInput)[][] = [
+  ['nom', 'prenom', 'sexe', 'dateNaissance', 'nationaliteId'],
+  ['email', 'telephone', 'adresse'],
+  ['egliseId', 'celluleId', 'gradeId', 'dateBapteme'],
+];
+
+/** Un `<input type="date">` attend le format `YYYY-MM-DD`. */
+function jour(valeur: string | Date | null | undefined): string {
   if (!valeur) return '';
   return new Date(valeur).toISOString().slice(0, 10);
 }
 
 export function CroyantForm(props: Props) {
   const router = useRouter();
+  const existant = props.mode === 'modification' ? props.croyant : null;
+
+  const [etape, setEtape] = useState(0);
   const [erreur, setErreur] = useState<string | null>(null);
   const [doublonSignale, setDoublonSignale] = useState<string | null>(null);
-  const existant = props.mode === 'modification' ? props.croyant : null;
   const [statut, setStatut] = useState<StatutCroyant>(existant?.statut ?? 'ACTIF');
 
   const {
@@ -118,9 +139,13 @@ export function CroyantForm(props: Props) {
     control,
     setValue,
     setError,
+    trigger,
     formState: { errors, isSubmitting },
   } = useForm<CroyantInput>({
     resolver: zodResolver(croyantSchema),
+    // Valider au passage d'un champ : sur un parcours en étapes, découvrir une
+    // erreur trois écrans plus loin oblige à revenir en arrière.
+    mode: 'onBlur',
     defaultValues: {
       nom: existant?.nom ?? '',
       prenom: existant?.prenom ?? '',
@@ -150,6 +175,17 @@ export function CroyantForm(props: Props) {
     [props.cellules, egliseChoisie],
   );
 
+  const derniereEtape = etape === ETAPES.length - 1;
+
+  async function suivant() {
+    // On ne valide QUE les champs de l'étape courante : valider tout le
+    // formulaire signalerait des erreurs sur des champs pas encore présentés.
+    const valide = await trigger(CHAMPS_PAR_ETAPE[etape]);
+    if (!valide) return;
+    setErreur(null);
+    setEtape((e) => Math.min(e + 1, ETAPES.length - 1));
+  }
+
   function traiterEchec(
     echec: { error: string; fieldErrors?: Record<string, string[]> },
     valeurs: CroyantInput,
@@ -162,6 +198,11 @@ export function CroyantForm(props: Props) {
       }
       if (champ in valeurs) {
         setError(champ as keyof CroyantInput, { message: messages[0] });
+        // Ramener sur l'étape du champ fautif : un message hors écran n'existe pas.
+        const index = CHAMPS_PAR_ETAPE.findIndex((c) =>
+          c.includes(champ as keyof CroyantInput),
+        );
+        if (index >= 0) setEtape(index);
       }
     }
     setErreur(echec.error);
@@ -207,6 +248,13 @@ export function CroyantForm(props: Props) {
 
   return (
     <form onSubmit={handleSubmit(envoyer)} className="space-y-8" noValidate>
+      <FriseEtapes
+        etapes={ETAPES}
+        courante={etape}
+        // En modification, tout est déjà valide : la navigation est libre.
+        onAller={existant ? setEtape : undefined}
+      />
+
       {erreur && !doublonSignale && (
         <Alert variant="destructive" role="alert">
           <AlertCircle className="size-4" aria-hidden />
@@ -214,7 +262,6 @@ export function CroyantForm(props: Props) {
         </Alert>
       )}
 
-      {/* EF-CRO-13 — le doublon s'assume, il ne se contourne pas en silence. */}
       {doublonSignale && (
         <Alert role="alert" className="border-amber-200 bg-amber-50">
           <TriangleAlert className="size-4 text-amber-700" aria-hidden />
@@ -237,8 +284,8 @@ export function CroyantForm(props: Props) {
         </Alert>
       )}
 
-      {/* --- Identité --- */}
-      <Card>
+      {/* --- Étape 1 : identité --- */}
+      <Card hidden={etape !== 0}>
         <CardContent className="space-y-6 p-6">
           <p className="eyebrow">Identité</p>
 
@@ -246,7 +293,6 @@ export function CroyantForm(props: Props) {
             <TextField
               label="Nom"
               required
-              autoFocus
               placeholder="KOFFI"
               error={errors.nom?.message}
               {...register('nom')}
@@ -282,11 +328,7 @@ export function CroyantForm(props: Props) {
               )}
             </Field>
 
-            <Field
-              label="Date de naissance"
-              required
-              error={errors.dateNaissance?.message}
-            >
+            <Field label="Date de naissance" required error={errors.dateNaissance?.message}>
               {(aria) => <Input {...aria} type="date" {...register('dateNaissance')} />}
             </Field>
 
@@ -342,8 +384,8 @@ export function CroyantForm(props: Props) {
         </CardContent>
       </Card>
 
-      {/* --- Coordonnées --- */}
-      <Card>
+      {/* --- Étape 2 : coordonnées --- */}
+      <Card hidden={etape !== 1}>
         <CardContent className="space-y-6 p-6">
           <p className="eyebrow">Coordonnées</p>
 
@@ -374,8 +416,8 @@ export function CroyantForm(props: Props) {
         </CardContent>
       </Card>
 
-      {/* --- Rattachement ecclésial --- */}
-      <Card>
+      {/* --- Étape 3 : rattachement ecclésial --- */}
+      <Card hidden={etape !== 2}>
         <CardContent className="space-y-6 p-6">
           <p className="eyebrow">Rattachement ecclésial</p>
 
@@ -474,7 +516,13 @@ export function CroyantForm(props: Props) {
               )}
             </Field>
 
-            <Field label="Date de baptême" required error={errors.dateBapteme?.message}>
+            {/* Facultative : une fiche se crée souvent avant que la date ne soit
+                connue — reprise d'un registre, croyant en préparation. */}
+            <Field
+              label="Date de baptême"
+              error={errors.dateBapteme?.message}
+              hint="Facultative — peut être renseignée plus tard."
+            >
               {(aria) => <Input {...aria} type="date" {...register('dateBapteme')} />}
             </Field>
           </div>
@@ -482,10 +530,7 @@ export function CroyantForm(props: Props) {
           {existant && (
             <Field label="Statut" hint="Un croyant non actif sort des effectifs consolidés.">
               {(aria) => (
-                <Select
-                  value={statut}
-                  onValueChange={(v) => setStatut(v as StatutCroyant)}
-                >
+                <Select value={statut} onValueChange={(v) => setStatut(v as StatutCroyant)}>
                   <SelectTrigger {...aria} className="h-10 w-full md:w-1/2">
                     <SelectValue />
                   </SelectTrigger>
@@ -503,27 +548,54 @@ export function CroyantForm(props: Props) {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end gap-2">
-        {props.onAnnuler ? (
-          <Button
-            type="button"
-            variant="outline"
-            className="h-10"
-            onClick={props.onAnnuler}
-            disabled={isSubmitting}
-          >
-            Annuler
-          </Button>
-        ) : (
-          <Button asChild variant="outline" className="h-10">
-            <Link href={existant ? `/croyants/${existant.id}` : '/croyants'}>Annuler</Link>
-          </Button>
-        )}
+      {/* --- Navigation --- */}
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          {etape > 0 && (
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-10"
+              onClick={() => setEtape((e) => e - 1)}
+              disabled={isSubmitting}
+            >
+              <ArrowLeft className="mr-2 size-4" aria-hidden />
+              Précédent
+            </Button>
+          )}
+        </div>
 
-        <Button type="submit" className="h-10" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />}
-          {existant ? 'Enregistrer' : 'Enregistrer le croyant'}
-        </Button>
+        <div className="flex gap-2">
+          {props.onAnnuler ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10"
+              onClick={props.onAnnuler}
+              disabled={isSubmitting}
+            >
+              Annuler
+            </Button>
+          ) : (
+            <Button asChild variant="outline" className="h-10">
+              <Link href={existant ? `/croyants/${existant.id}` : '/croyants'}>Annuler</Link>
+            </Button>
+          )}
+
+          {/* En modification, l'enregistrement reste accessible à toute étape :
+              corriger un champ ne doit pas imposer de parcourir le reste. */}
+          {!derniereEtape && !existant ? (
+            <Button type="button" className="h-10" onClick={suivant}>
+              Suivant {etape + 2}/{ETAPES.length}
+              <ArrowRight className="ml-2 size-4" aria-hidden />
+            </Button>
+          ) : (
+            <Button type="submit" className="h-10" disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />}
+              {existant ? 'Enregistrer' : 'Enregistrer le croyant'}
+            </Button>
+          )}
+        </div>
       </div>
     </form>
   );

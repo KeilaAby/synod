@@ -52,7 +52,7 @@ interface CroyantAModifier {
   email: string | null;
   telephone: string | null;
   date_naissance: string;
-  date_bapteme: string;
+  date_bapteme: string | null;
   adresse: string;
   eglise_id: string;
   cellule_id: string | null;

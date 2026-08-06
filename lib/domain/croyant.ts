@@ -101,12 +101,17 @@ function memeJourOuAvant(a: Date, b: Date): boolean {
  */
 export function validerDatesCroyant(
   dateNaissance: Date,
-  dateBapteme: Date,
+  dateBapteme: Date | null | undefined,
   aujourdhui: Date = new Date(),
 ): ActionResult<void> {
   if (!memeJourOuAvant(new Date(dateNaissance), aujourdhui)) {
     return ko('La date de naissance ne peut pas être dans le futur.');
   }
+
+  // La date de bapteme est FACULTATIVE : une fiche se cree souvent avant
+  // qu'elle ne soit connue. Les regles ne s'appliquent que si elle est la.
+  if (!dateBapteme) return ok();
+
   if (!memeJourOuAvant(new Date(dateBapteme), aujourdhui)) {
     return ko('La date de baptême ne peut pas être dans le futur.');
   }
@@ -147,10 +152,13 @@ export function trancheAge(age: number): (typeof TRANCHES_AGE)[number]['cle'] {
 export const FENETRE_NOUVEAUX_BAPTISES_JOURS = 15;
 
 export function estNouveauBaptise(
-  dateBapteme: Date,
+  dateBapteme: Date | null | undefined,
   fenetreJours: number = FENETRE_NOUVEAUX_BAPTISES_JOURS,
   aujourdhui: Date = new Date(),
 ): boolean {
+  // Sans date de bapteme, la question ne se pose pas.
+  if (!dateBapteme) return false;
+
   const seuil = new Date(aujourdhui);
   seuil.setDate(seuil.getDate() - fenetreJours);
   seuil.setHours(0, 0, 0, 0);

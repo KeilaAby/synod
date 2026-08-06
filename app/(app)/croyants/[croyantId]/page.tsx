@@ -46,7 +46,10 @@ export default async function FicheCroyantPage({ params }: Params) {
   const eglise = arbre.find((e) => e.id === croyant.eglise_id);
 
   const age = calculerAge(new Date(croyant.date_naissance));
-  const nouveauBaptise = estNouveauBaptise(new Date(croyant.date_bapteme));
+    // La date de bapteme est facultative : sans elle, la question ne se pose pas.
+  const nouveauBaptise = estNouveauBaptise(
+    croyant.date_bapteme ? new Date(croyant.date_bapteme) : null,
+  );
 
   return (
     <div className="space-y-8">
@@ -162,7 +165,11 @@ export default async function FicheCroyantPage({ params }: Params) {
               <Donnee libelle="Grade" valeur={croyant.grade?.libelle ?? '—'} />
               <Donnee
                 libelle="Date de baptême"
-                valeur={formatDateLongue(croyant.date_bapteme)}
+                valeur={
+                  croyant.date_bapteme
+                    ? formatDateLongue(croyant.date_bapteme)
+                    : 'Non renseignée'
+                }
               />
               <Donnee libelle="Matricule" valeur={croyant.matricule} mono />
             </dl>

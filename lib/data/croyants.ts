@@ -34,7 +34,7 @@ export interface CroyantListe {
   prenom: string;
   sexe: 'M' | 'F';
   date_naissance: string;
-  date_bapteme: string;
+  date_bapteme: string | null;
   statut: string;
   photo_key: string | null;
   eglise_id: string;
