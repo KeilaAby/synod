@@ -1,0 +1,1174 @@
+-- =============================================================================
+-- SYNOD — Installation complete de la base
+-- =============================================================================
+-- FICHIER GENERE — ne pas editer a la main.
+-- Source : supabase/migrations/*.sql + supabase/seed.sql
+-- Regenerer avec : pnpm db:bundle
+--
+-- Utilisation : coller l'integralite dans l'editeur SQL de Supabase, puis
+-- executer. L'ordre des instructions est significatif.
+--
+-- Genere le 2026-08-06T09:57:22.122Z
+-- Migrations incluses : 9 + seed.sql
+-- =============================================================================
+
+
+-- #############################################################################
+-- ## 0001_extensions.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0001 — Extensions
+-- =============================================================================
+-- ENF-POR-01 : uniquement des extensions PostgreSQL courantes, disponibles chez
+-- tout hebergeur. Aucune extension proprietaire.
+-- =============================================================================
+
+create extension if not exists pgcrypto;   -- gen_random_uuid()
+create extension if not exists ltree;      -- chemins materialises (DA-2)
+create extension if not exists pg_trgm;    -- recherche floue sur les croyants
+
+
+-- -----------------------------------------------------------------------------
+-- Role applicatif.
+--
+-- Les politiques RLS s'adressent toutes au role `authenticated`. Supabase le
+-- fournit d'origine ; un PostgreSQL nu, non. Sans ce garde, la restauration
+-- chez un hebergeur tiers (ENF-POR-07, CA-16) echouerait des la premiere
+-- politique.
+-- -----------------------------------------------------------------------------
+do $$
+begin
+  if not exists (select 1 from pg_roles where rolname = 'authenticated') then
+    create role authenticated nologin;
+  end if;
+end $$;
+
+-- #############################################################################
+-- ## 0002_enums.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0002 — Types enumeres
+-- =============================================================================
+-- Reference : plan.md §3.2
+-- =============================================================================
+
+-- Hierarchie a 6 niveaux, Siege inclus (RG-01, ARB-2)
+create type entity_type as enum (
+  'SIEGE', 'REGIONAL', 'DISTRICT', 'PAROISSE', 'EGLISE', 'CELLULE'
+);
+
+create type sexe_type      as enum ('M', 'F');
+create type statut_marital as enum ('CELIBATAIRE', 'MARIE', 'VEUF', 'DIVORCE', 'AUTRE');
+create type statut_croyant as enum ('ACTIF', 'INACTIF', 'TRANSFERE', 'DECEDE');
+
+create type user_role as enum (
+  'SUPERADMIN', 'ENTITE_ADMIN', 'ENTITE_OPERATEUR', 'LECTEUR'
+);
+
+-- Finances : recettes ET depenses (ARB-2)
+create type sens_finance as enum ('RECETTE', 'DEPENSE');
+
+-- Workflow de validation financiere, activable par le SuperAdmin (ARB-3, RG-16)
+create type statut_mouvement as enum (
+  'BROUILLON', 'SOUMIS', 'VALIDE', 'REJETE', 'ANNULE'
+);
+
+-- Workflow d'approbation des transferts (ARB-4, RG-11)
+create type statut_transfert as enum (
+  'DEMANDE', 'APPROUVE', 'REFUSE', 'ANNULE', 'EFFECTUE'
+);
+
+create type categorie_fonction as enum (
+  'DIRECTION', 'FINANCE', 'COMMUNICATION', 'OEUVRES', 'AUTRE'
+);
+
+-- Generateur de rapports
+create type visibilite_modele as enum ('PRIVE', 'ENTITE', 'DESCENDANTS', 'GLOBAL');
+create type statut_rapport    as enum ('BROUILLON', 'GENERE', 'PUBLIE', 'ARCHIVE');
+
+-- #############################################################################
+-- ## 0003_entities.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0003 — Hierarchie des entites
+-- =============================================================================
+-- Reference : plan.md §3.3 — RG-01, RG-02, RG-03
+-- Table unique pour les 6 niveaux (DA-1) + chemin materialise ltree (DA-2).
+-- =============================================================================
+
+create table entities (
+  id          uuid primary key default gen_random_uuid(),
+  type        entity_type not null,
+  code        text        not null,
+  nom         text        not null,
+  parent_id   uuid        references entities(id) on delete restrict,
+  niveau      smallint    not null,   -- 1=SIEGE .. 6=CELLULE, derive de `type`
+  path        ltree       not null,   -- chemin materialise racine -> noeud
+  description text,
+
+  -- ARB-2 / EF-STR-10 : autorise la saisie financiere deleguee par le Siege
+  sans_acces_application boolean not null default false,
+
+  is_active  boolean     not null default true,
+  deleted_at timestamptz,
+  created_at timestamptz not null default now(),
+  created_by uuid,                     -- FK ajoutee en 0005 (dependance circulaire)
+  updated_at timestamptz not null default now(),
+
+  constraint entities_code_len    check (char_length(code) >= 3),                 -- RG-02
+  constraint entities_code_format check (code ~ '^[A-Z0-9][A-Z0-9-]{2,15}$'),
+  constraint entities_racine      check ((type = 'SIEGE') = (parent_id is null))  -- RG-03
+);
+
+comment on table  entities      is 'Noeuds de la structure ecclesiale, tous niveaux confondus (DA-1)';
+comment on column entities.path is 'Chemin materialise ltree : permet "moi et mes descendants" via <@ (DA-2)';
+comment on column entities.sans_acces_application is
+  'Entite depourvue d''acces a l''application : le Siege saisit pour son compte (ARB-2)';
+
+-- RG-02 : code unique sur toute l'application, tous niveaux confondus
+create unique index entities_code_unique on entities (upper(code)) where deleted_at is null;
+
+-- RG-03 : une seule et unique entite Siege
+create unique index entities_siege_unique on entities (type)
+  where type = 'SIEGE' and deleted_at is null;
+
+create index entities_path_gist  on entities using gist (path);
+create index entities_parent_idx on entities (parent_id) where deleted_at is null;
+create index entities_type_idx   on entities (type)      where deleted_at is null;
+
+
+-- -----------------------------------------------------------------------------
+-- Etiquette ltree derivee d'un uuid.
+-- Prefixe 'n' pour garantir une etiquette valide quel que soit l'uuid.
+-- -----------------------------------------------------------------------------
+create or replace function fn_ltree_label(p_id uuid) returns ltree
+language sql immutable strict as $$
+  select text2ltree('n' || replace(p_id::text, '-', '_'))
+$$;
+
+
+-- -----------------------------------------------------------------------------
+-- RG-01 : hierarchie strictement ordonnee, aucun saut de niveau, aucun cycle.
+-- Maintient `niveau` et `path` a chaque ecriture.
+-- -----------------------------------------------------------------------------
+create or replace function fn_entities_before_write() returns trigger
+language plpgsql as $$
+declare
+  v_niveau smallint;
+  v_parent entities%rowtype;
+begin
+  v_niveau := case new.type
+    when 'SIEGE'    then 1
+    when 'REGIONAL' then 2
+    when 'DISTRICT' then 3
+    when 'PAROISSE' then 4
+    when 'EGLISE'   then 5
+    when 'CELLULE'  then 6
+  end;
+
+  new.niveau := v_niveau;
+  new.code   := upper(trim(new.code));
+
+  if new.parent_id is null then
+    if v_niveau <> 1 then
+      raise exception 'RG-01 : une entite de type % doit avoir un parent', new.type
+        using errcode = 'check_violation';
+    end if;
+    new.path := fn_ltree_label(new.id);
+  else
+    select * into v_parent from entities where id = new.parent_id;
+    if not found then
+      raise exception 'Entite parente introuvable' using errcode = 'foreign_key_violation';
+    end if;
+
+    -- Le parent doit etre du niveau immediatement superieur
+    if v_parent.niveau <> v_niveau - 1 then
+      raise exception
+        'RG-01 : un(e) % ne peut etre rattache(e) qu''a un(e) %, pas a un(e) %',
+        new.type,
+        (array['SIEGE','REGIONAL','DISTRICT','PAROISSE','EGLISE'])[v_niveau - 1],
+        v_parent.type
+        using errcode = 'check_violation';
+    end if;
+
+    -- EF-STR-07 : un rattachement ne doit jamais creer de cycle
+    if tg_op = 'UPDATE' and v_parent.path <@ fn_ltree_label(old.id) then
+      raise exception 'RG-01 : rattachement impossible, cycle detecte'
+        using errcode = 'check_violation';
+    end if;
+
+    new.path := v_parent.path || fn_ltree_label(new.id);
+  end if;
+
+  new.updated_at := now();
+  return new;
+end $$;
+
+create trigger trg_entities_biu
+  before insert or update of type, parent_id, code on entities
+  for each row execute function fn_entities_before_write();
+
+
+-- -----------------------------------------------------------------------------
+-- EF-STR-07 : un rattachement deplace tout le sous-arbre.
+-- Le garde pg_trigger_depth() evite la recursion : seule la mise a jour
+-- de tete propage, en une seule instruction.
+-- -----------------------------------------------------------------------------
+create or replace function fn_entities_propagate_path() returns trigger
+language plpgsql as $$
+begin
+  if pg_trigger_depth() > 1 then
+    return null;
+  end if;
+
+  if new.path is distinct from old.path then
+    update entities
+       set path   = new.path || subpath(path, nlevel(old.path)),
+           niveau = new.niveau + (nlevel(path) - nlevel(old.path))
+     where path <@ old.path
+       and id <> new.id;
+  end if;
+
+  return null;
+end $$;
+
+create trigger trg_entities_aiu
+  after update of path on entities
+  for each row execute function fn_entities_propagate_path();
+
+
+-- -----------------------------------------------------------------------------
+-- EF-STR-08 : une entite ayant des sous-entites vivantes ne peut etre supprimee
+-- logiquement ; l'interface propose une desactivation a la place.
+-- -----------------------------------------------------------------------------
+create or replace function fn_entities_before_soft_delete() returns trigger
+language plpgsql as $$
+begin
+  if new.deleted_at is not null and old.deleted_at is null then
+    if exists (
+      select 1 from entities
+       where parent_id = old.id and deleted_at is null
+    ) then
+      raise exception
+        'EF-STR-08 : "%" possede des sous-entites actives et ne peut etre supprimee', old.nom
+        using errcode = 'check_violation';
+    end if;
+  end if;
+  return new;
+end $$;
+
+create trigger trg_entities_soft_delete
+  before update of deleted_at on entities
+  for each row execute function fn_entities_before_soft_delete();
+
+
+-- -----------------------------------------------------------------------------
+-- `updated_at` sur toute modification.
+--
+-- Trigger distinct de `trg_entities_biu` a dessein : ce dernier est restreint
+-- aux colonnes type/parent_id/code, car il RECALCULE `path`. L'elargir ferait
+-- entrer en conflit son calcul avec la propagation de sous-arbre.
+-- -----------------------------------------------------------------------------
+create or replace function fn_touch_updated_at() returns trigger
+language plpgsql as $$
+begin
+  new.updated_at := now();
+  return new;
+end $$;
+
+create trigger trg_entities_touch
+  before update on entities
+  for each row execute function fn_touch_updated_at();
+
+-- #############################################################################
+-- ## 0004_referentiels.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0004 — Referentiels administrables
+-- =============================================================================
+-- Reference : plan.md §3.4 — EF-REF-01 a 06, RG-06, RG-23, RG-31
+-- Toute suppression est bloquee par `on delete restrict` cote consommateurs ;
+-- l'interface propose la desactivation (is_active = false).
+-- =============================================================================
+
+create table grades (
+  id         uuid primary key default gen_random_uuid(),
+  code       text not null unique,
+  libelle    text not null,
+  ordre      smallint not null default 100,
+  is_active  boolean  not null default true,
+  created_at timestamptz not null default now()
+);
+comment on table grades is 'Grade ecclesial du croyant (Pasteur, Diacre, Croyant...) — EF-REF-01';
+
+create table nationalites (
+  id         uuid primary key default gen_random_uuid(),
+  code_iso   char(3) not null unique,
+  libelle    text not null,
+  is_active  boolean not null default true,
+  created_at timestamptz not null default now()
+);
+comment on table nationalites is 'Nationalite du croyant — EF-REF-02';
+
+create table fonctions (
+  id                  uuid primary key default gen_random_uuid(),
+  code                text not null unique,
+  libelle             text not null,
+  categorie           categorie_fonction not null default 'AUTRE',
+  -- RG-31 : alimente l'indicateur « membres de finances »
+  est_financiere      boolean  not null default false,
+  -- Rang dans l'organigramme de bureau (EF-BUR-07)
+  ordre_protocolaire  smallint not null default 100,
+  niveaux_applicables entity_type[] not null
+    default '{SIEGE,REGIONAL,DISTRICT,PAROISSE,EGLISE,CELLULE}',
+  is_active           boolean not null default true,
+  created_at          timestamptz not null default now()
+);
+comment on table fonctions is 'Fonction occupee au sein d''un Bureau — EF-REF-03';
+comment on column fonctions.est_financiere is
+  'RG-31 : un membre de bureau titulaire d''une fonction financiere est un « membre de finances »';
+
+create table finance_categories (
+  id         uuid primary key default gen_random_uuid(),
+  code       text not null unique,
+  libelle    text not null,
+  -- RG-13 : le sens du mouvement est porte par la categorie, jamais saisi a la main
+  sens       sens_finance not null,
+  ordre      smallint not null default 100,
+  is_active  boolean  not null default true,
+  created_at timestamptz not null default now()
+);
+comment on table finance_categories is
+  'Categorie de mouvement financier, porteuse du sens recette/depense — EF-REF-04, RG-13';
+
+-- #############################################################################
+-- ## 0005_profiles_permissions.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0005 — Comptes, habilitations fines et preferences
+-- =============================================================================
+-- Reference : plan.md §3.10 et §5 — ARB-3, RG-20, RG-21, RG-24, RG-25
+--
+-- PORTABILITE (ENF-POR-02) : `profiles` possede sa PROPRE cle primaire.
+-- `auth_user_id` est l'unique point de couplage avec le fournisseur d'identite.
+-- Changer de fournisseur ne touche ni le modele metier ni les politiques RLS.
+-- =============================================================================
+
+create table profiles (
+  id           uuid primary key default gen_random_uuid(),
+  auth_user_id uuid unique,                    -- identifiant chez le fournisseur d'auth
+  email        text not null unique,
+  nom_complet  text not null,
+  role         user_role not null default 'LECTEUR',
+  entity_id    uuid not null references entities(id) on delete restrict,  -- perimetre
+  croyant_id   uuid,                            -- FK ajoutee au lot 2 (EF-ADM-07)
+  is_active    boolean not null default true,
+  derniere_connexion timestamptz,
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+
+comment on table profiles is 'Compte applicatif — le perimetre est le sous-arbre de entity_id (RG-20)';
+comment on column profiles.auth_user_id is
+  'ENF-POR-02 : seul lien vers le fournisseur d''identite. Nullable le temps de l''invitation.';
+
+create index profiles_entity_idx on profiles (entity_id);
+
+-- Referentiel circulaire resolu ici : entities.created_by -> profiles.id
+alter table entities
+  add constraint entities_created_by_fkey
+  foreign key (created_by) references profiles(id) on delete set null;
+
+
+-- -----------------------------------------------------------------------------
+-- RG-21 : aucun compte rattache a une Cellule.
+-- Un SuperAdmin est necessairement rattache au Siege (EF-ACT-2).
+-- -----------------------------------------------------------------------------
+create or replace function fn_profile_rattachement() returns trigger
+language plpgsql as $$
+declare v_type entity_type;
+begin
+  select type into v_type from entities where id = new.entity_id;
+
+  if v_type = 'CELLULE' then
+    raise exception 'RG-21 : une Cellule ne peut disposer d''un compte d''acces'
+      using errcode = 'check_violation';
+  end if;
+
+  if new.role = 'SUPERADMIN' and v_type <> 'SIEGE' then
+    raise exception 'EF-ACT-2 : un SuperAdmin doit etre rattache au Siege'
+      using errcode = 'check_violation';
+  end if;
+
+  new.updated_at := now();
+  return new;
+end $$;
+
+-- Volontairement sur TOUTE ecriture, et non sur les seules colonnes concernees :
+-- le controle est un simple SELECT indexe, et `updated_at` doit etre touche a
+-- chaque modification, pas seulement lors d'un changement de rattachement.
+create trigger trg_profile_rattachement
+  before insert or update on profiles
+  for each row execute function fn_profile_rattachement();
+
+
+-- -----------------------------------------------------------------------------
+-- Habilitation = (cle, portee)  — DA-10, RG-25
+--   scope_entity_id NULL  => le droit couvre tout le perimetre du compte
+--   scope_entity_id defini => le droit est restreint a cette sous-structure
+--                             et a ses descendants
+-- -----------------------------------------------------------------------------
+create table user_permissions (
+  id              uuid primary key default gen_random_uuid(),
+  user_id         uuid not null references profiles(id) on delete cascade,
+  permission      text not null,
+  scope_entity_id uuid references entities(id) on delete cascade,
+  source          text not null default 'INDIVIDUEL'
+                    check (source in ('ROLE', 'PROFIL', 'INDIVIDUEL')),
+  granted_by      uuid references profiles(id) on delete set null,
+  granted_at      timestamptz not null default now()
+);
+
+comment on table user_permissions is
+  'Droit unitaire eventuellement restreint a une sous-structure — ARB-3, RG-25';
+
+-- NULL etant distinct de NULL dans un index unique, on normalise la portee absente.
+create unique index user_permissions_unique on user_permissions
+  (user_id, permission, coalesce(scope_entity_id, '00000000-0000-0000-0000-000000000000'::uuid));
+
+create index user_permissions_user_idx on user_permissions (user_id);
+
+
+-- -----------------------------------------------------------------------------
+-- Profils d'habilitation reutilisables — EF-ADM-05
+--   entity_id NULL => profil global, gere par le Siege
+-- -----------------------------------------------------------------------------
+create table permission_profiles (
+  id          uuid primary key default gen_random_uuid(),
+  nom         text not null,
+  description text,
+  entity_id   uuid references entities(id) on delete cascade,
+  permissions text[] not null default '{}',
+  created_by  uuid references profiles(id) on delete set null,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+
+
+-- -----------------------------------------------------------------------------
+-- Tableau de bord configurable — EF-DSH-03, EF-DSH-07
+-- -----------------------------------------------------------------------------
+create table dashboard_layouts (
+  user_id    uuid primary key references profiles(id) on delete cascade,
+  layout     jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
+create table dashboard_templates (
+  id           uuid primary key default gen_random_uuid(),
+  nom          text not null,
+  description  text,
+  role_cible   user_role,
+  niveau_cible entity_type,
+  layout       jsonb not null,
+  is_default   boolean not null default false,
+  created_at   timestamptz not null default now()
+);
+
+-- #############################################################################
+-- ## 0006_settings_audit.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0006 — Parametres generaux et journal d'audit
+-- =============================================================================
+-- Reference : plan.md §3.10 — EF-ADM-09, EF-ADM-11, ENF-SEC-08
+-- =============================================================================
+
+-- Table a ligne unique : les parametres globaux de l'organisation.
+create table organisation_settings (
+  id               smallint primary key default 1 check (id = 1),
+  nom_organisation text    not null default 'SYNOD',
+  logo_key         text,                                   -- cle d'objet relative
+  devise           char(3) not null default 'XOF',         -- ARB-7 : devise unique
+  fuseau_horaire   text    not null default 'Africa/Porto-Novo',
+  format_matricule text    not null default '{CODE}-{ANNEE}-{SEQ}',
+
+  -- ARB-5 : fenetre « nouveaux baptises », 15 jours par defaut (RG-30)
+  fenetre_nouveaux_baptises_jours smallint not null default 15
+    check (fenetre_nouveaux_baptises_jours between 1 and 365),
+
+  -- ARB-3 : workflow de validation financiere, active/desactive par le SuperAdmin
+  finance_validation_active       boolean not null default false,
+  separation_saisie_validation    boolean not null default true,   -- EF-FIN-18
+
+  -- ARB-4 : auto-approbation des transferts internes au perimetre (EF-TRF-05)
+  transfert_auto_approbation_interne boolean not null default true,
+
+  updated_by uuid references profiles(id) on delete set null,
+  updated_at timestamptz not null default now()
+);
+
+comment on table organisation_settings is
+  'Parametres globaux — une seule ligne (id = 1). EF-ADM-11';
+comment on column organisation_settings.finance_validation_active is
+  'ARB-3 : si vrai, tout mouvement suit Brouillon -> Soumis -> Valide (RG-16)';
+
+insert into organisation_settings (id) values (1) on conflict (id) do nothing;
+
+-- Empeche la suppression de la ligne unique de parametrage.
+create or replace function fn_settings_no_delete() returns trigger
+language plpgsql as $$
+begin
+  raise exception 'Les parametres de l''organisation ne peuvent pas etre supprimes'
+    using errcode = 'check_violation';
+end $$;
+
+create trigger trg_settings_no_delete
+  before delete on organisation_settings
+  for each row execute function fn_settings_no_delete();
+
+
+-- -----------------------------------------------------------------------------
+-- Journal d'audit — insertion seule, immuable (ENF-SEC-08)
+-- Conserve 5 ans minimum. Aucune mise a jour ni suppression n'est possible.
+-- -----------------------------------------------------------------------------
+create table audit_log (
+  id         bigserial primary key,
+  user_id    uuid references profiles(id) on delete set null,
+  action     text not null,
+  table_name text not null,
+  record_id  uuid,
+  entity_id  uuid references entities(id) on delete set null,
+  diff       jsonb,
+  ip_address inet,
+  user_agent text,
+  created_at timestamptz not null default now(),
+
+  constraint audit_action_connue check (action in (
+    'CREATE','UPDATE','DELETE','RESTORE','PURGE',
+    'TRANSFER','APPROVE','REJECT',
+    'SUBMIT','VALIDATE','CANCEL',
+    'GRANT','REVOKE',
+    'REPORT','EXPORT',
+    'LOGIN','LOGOUT','DENIED'
+  ))
+);
+
+comment on table audit_log is
+  'Journal immuable : insertion seule. UPDATE et DELETE sont revoques (ENF-SEC-08)';
+comment on column audit_log.action is
+  'DENIED trace notamment les tentatives d''elevation de privilege (ENF-SEC-11)';
+
+create index audit_created_idx on audit_log (created_at desc);
+create index audit_record_idx  on audit_log (table_name, record_id);
+create index audit_action_idx  on audit_log (action, created_at desc);
+create index audit_entity_idx  on audit_log (entity_id, created_at desc);
+
+-- Immuabilite garantie au niveau du moteur, pas seulement par les privileges.
+create or replace function fn_audit_immuable() returns trigger
+language plpgsql as $$
+begin
+  raise exception 'ENF-SEC-08 : le journal d''audit est immuable (insertion seule)'
+    using errcode = 'insufficient_privilege';
+end $$;
+
+create trigger trg_audit_immuable
+  before update or delete on audit_log
+  for each row execute function fn_audit_immuable();
+
+-- #############################################################################
+-- ## 0007_rls_helpers.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0007 — Fonctions de contexte pour la RLS
+-- =============================================================================
+-- Reference : plan.md §4.1 — RG-20, RG-25, ENF-SEC-01, ENF-POR-02
+--
+-- Toutes les fonctions sont STABLE + SECURITY DEFINER : elles doivent lire
+-- `profiles` et `user_permissions` sans etre elles-memes soumises a la RLS,
+-- faute de quoi les politiques s'auto-referenceraient a l'infini.
+--
+-- Elles echouent TOUJOURS en fermeture : sans profil actif, current_scope_path()
+-- vaut NULL, `path <@ NULL` vaut NULL, et aucune ligne n'est retournee.
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- ENF-POR-02 : SEUL point de couplage avec le fournisseur d'identite.
+-- Aujourd'hui Supabase (auth.uid()) ; ailleurs, un parametre de session
+-- standard (app.user_id) pose par la couche applicative.
+-- -----------------------------------------------------------------------------
+create or replace function app_current_auth_id() returns uuid
+language plpgsql stable as $$
+begin
+  begin
+    return auth.uid();
+  exception when others then
+    return nullif(current_setting('app.user_id', true), '')::uuid;
+  end;
+end $$;
+
+comment on function app_current_auth_id is
+  'ENF-POR-02 : encapsule auth.uid() et retombe sur le parametre de session app.user_id';
+
+
+create or replace function current_profile_id() returns uuid
+language sql stable security definer set search_path = public as $$
+  select id
+    from profiles
+   where auth_user_id = app_current_auth_id()
+     and is_active
+   limit 1
+$$;
+
+
+-- RG-20 : le perimetre d'un compte est le sous-arbre de son entite de rattachement.
+create or replace function current_scope_path() returns ltree
+language sql stable security definer set search_path = public as $$
+  select e.path
+    from profiles p
+    join entities e on e.id = p.entity_id
+   where p.id = current_profile_id()
+     and e.deleted_at is null
+   limit 1
+$$;
+
+
+create or replace function is_superadmin() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from profiles
+     where id = current_profile_id()
+       and role = 'SUPERADMIN'
+  )
+$$;
+
+
+-- RG-20 : l'entite visee est-elle dans le perimetre du compte ?
+create or replace function entity_in_scope(p_entity_id uuid) returns boolean
+language sql stable security definer set search_path = public as $$
+  select is_superadmin()
+      or exists (
+        select 1 from entities e
+         where e.id = p_entity_id
+           and e.path <@ current_scope_path()
+      )
+$$;
+
+
+-- -----------------------------------------------------------------------------
+-- RG-25 : le droit est-il detenu, et sa portee couvre-t-elle l'entite visee ?
+--   p_entity_id NULL => on teste la seule DETENTION du droit, sans portee.
+-- -----------------------------------------------------------------------------
+create or replace function has_perm(p_permission text, p_entity_id uuid default null)
+returns boolean
+language sql stable security definer set search_path = public as $$
+  select is_superadmin()
+      or exists (
+        select 1
+          from user_permissions up
+          left join entities se on se.id = up.scope_entity_id
+         where up.user_id = current_profile_id()
+           and up.permission = p_permission
+           and (
+                p_entity_id is null            -- detention seule
+             or up.scope_entity_id is null     -- portee = tout le perimetre du compte
+             or exists (
+                  select 1 from entities e
+                   where e.id = p_entity_id
+                     and e.path <@ se.path     -- portee restreinte : inclusion de chemin
+                )
+           )
+      )
+$$;
+
+comment on function has_perm is
+  'RG-25 : detention du droit ET couverture de portee. Ne verifie PAS le perimetre : voir can().';
+
+
+-- Controle complet : droit detenu + portee couvrante + entite dans le perimetre.
+create or replace function can(p_permission text, p_entity_id uuid) returns boolean
+language sql stable security definer set search_path = public as $$
+  select entity_in_scope(p_entity_id) and has_perm(p_permission, p_entity_id)
+$$;
+
+comment on function can is
+  'Controle de reference cote base : toujours prefere a has_perm() seul';
+
+
+-- Identifiant du Siege — utile aux politiques portant sur des ressources globales.
+create or replace function siege_id() returns uuid
+language sql stable security definer set search_path = public as $$
+  select id from entities where type = 'SIEGE' and deleted_at is null limit 1
+$$;
+
+
+-- Les fonctions de contexte ne doivent pas etre appelables par un role anonyme.
+revoke execute on function current_profile_id, current_scope_path, is_superadmin,
+                          entity_in_scope, has_perm, can, siege_id
+  from public;
+grant execute on function current_profile_id, current_scope_path, is_superadmin,
+                          entity_in_scope, has_perm, can, siege_id
+  to authenticated;
+
+-- #############################################################################
+-- ## 0008_rls_policies.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0008 — Politiques RLS du socle
+-- =============================================================================
+-- Reference : plan.md §4.2 — RG-20, RG-21, RG-25, ENF-SEC-01
+--
+-- Regle non negociable (plan.md §18.2 n°9) : AUCUNE table metier sans RLS.
+-- Un test d'integration enumere pg_tables et echoue si une table y echappe.
+-- =============================================================================
+
+alter table entities            enable row level security;
+alter table profiles            enable row level security;
+alter table user_permissions    enable row level security;
+alter table permission_profiles enable row level security;
+alter table dashboard_layouts   enable row level security;
+alter table dashboard_templates enable row level security;
+alter table organisation_settings enable row level security;
+alter table audit_log           enable row level security;
+alter table grades              enable row level security;
+alter table nationalites        enable row level security;
+alter table fonctions           enable row level security;
+alter table finance_categories  enable row level security;
+
+
+-- -----------------------------------------------------------------------------
+-- ENTITES
+-- Lecture : mes descendants (mon perimetre) ET mes ancetres (fil d'Ariane
+-- lisible : un district doit pouvoir nommer son regional et le Siege).
+-- -----------------------------------------------------------------------------
+create policy entities_select on entities for select to authenticated
+  using (
+       is_superadmin()
+    or path <@ current_scope_path()      -- mes descendants
+    or current_scope_path() <@ path      -- mes ancetres
+  );
+
+create policy entities_insert on entities for insert to authenticated
+  with check (
+    has_perm('entity.create', parent_id)
+    and (
+         is_superadmin()
+      or exists (
+           select 1 from entities p
+            where p.id = parent_id
+              and p.path <@ current_scope_path()
+         )
+    )
+  );
+
+create policy entities_update on entities for update to authenticated
+  using      (can('entity.update', id))
+  with check (entity_in_scope(id));
+
+-- entity.delete n'est pas delegable : reserve au Siege (NON_DELEGABLES)
+create policy entities_delete on entities for delete to authenticated
+  using (is_superadmin());
+
+
+-- -----------------------------------------------------------------------------
+-- PROFILS
+-- Chacun lit son propre profil ; les gestionnaires de comptes lisent
+-- ceux de leur perimetre.
+-- -----------------------------------------------------------------------------
+create policy profiles_select on profiles for select to authenticated
+  using (
+       id = current_profile_id()
+    or (has_perm('user.manage') and entity_in_scope(entity_id))
+  );
+
+create policy profiles_insert on profiles for insert to authenticated
+  with check (can('user.manage', entity_id));
+
+create policy profiles_update on profiles for update to authenticated
+  using (
+       id = current_profile_id()                        -- son propre profil
+    or can('user.manage', entity_id)
+  )
+  with check (
+       id = current_profile_id()
+    or can('user.manage', entity_id)
+  );
+
+-- Un compte n'est jamais supprime : il est desactive (is_active = false).
+create policy profiles_delete on profiles for delete to authenticated
+  using (is_superadmin());
+
+
+-- -----------------------------------------------------------------------------
+-- HABILITATIONS
+-- Lecture de ses propres droits (EF-AUT-05) ou de ceux du perimetre gere.
+-- L'ecriture est encadree par le trigger de delegation (0009), qui applique
+-- RG-24. La politique ne fait que le premier filtrage.
+-- -----------------------------------------------------------------------------
+create policy user_permissions_select on user_permissions for select to authenticated
+  using (
+       user_id = current_profile_id()
+    or has_perm('user.manage')
+    or has_perm('permission.delegate')
+  );
+
+create policy user_permissions_insert on user_permissions for insert to authenticated
+  with check (has_perm('permission.delegate'));
+
+create policy user_permissions_delete on user_permissions for delete to authenticated
+  using (has_perm('permission.delegate'));
+
+-- Un octroi ne se modifie pas : il se revoque puis se re-accorde (tracabilite).
+create policy user_permissions_update on user_permissions for update to authenticated
+  using (false);
+
+
+-- -----------------------------------------------------------------------------
+-- PROFILS D'HABILITATION — EF-ADM-05
+-- entity_id NULL = profil global du Siege, lisible par tous.
+-- -----------------------------------------------------------------------------
+create policy permission_profiles_select on permission_profiles for select to authenticated
+  using (entity_id is null or entity_in_scope(entity_id));
+
+-- Parentheses explicites : un profil GLOBAL (entity_id null) est reserve au
+-- Siege, un profil LOCAL suit le perimetre. Sans elles, la precedence de `and`
+-- sur `or` donnerait un resultat different de l'intention.
+create policy permission_profiles_write on permission_profiles for all to authenticated
+  using (
+    has_perm('permission.delegate')
+    and (
+         (entity_id is null and is_superadmin())
+      or (entity_id is not null and entity_in_scope(entity_id))
+    )
+  )
+  with check (
+    has_perm('permission.delegate')
+    and (
+         (entity_id is null and is_superadmin())
+      or (entity_id is not null and entity_in_scope(entity_id))
+    )
+  );
+
+
+-- -----------------------------------------------------------------------------
+-- TABLEAU DE BORD — strictement personnel
+-- -----------------------------------------------------------------------------
+create policy dashboard_layouts_own on dashboard_layouts for all to authenticated
+  using      (user_id = current_profile_id())
+  with check (user_id = current_profile_id());
+
+create policy dashboard_templates_select on dashboard_templates for select to authenticated
+  using (true);
+
+create policy dashboard_templates_write on dashboard_templates for all to authenticated
+  using (is_superadmin()) with check (is_superadmin());
+
+
+-- -----------------------------------------------------------------------------
+-- PARAMETRES GENERAUX
+-- Lisibles par tous (l'application en depend : devise, fenetre baptises...),
+-- modifiables par le seul detenteur de settings.manage (non delegable).
+-- -----------------------------------------------------------------------------
+create policy settings_select on organisation_settings for select to authenticated
+  using (true);
+
+create policy settings_update on organisation_settings for update to authenticated
+  using (has_perm('settings.manage')) with check (has_perm('settings.manage'));
+
+
+-- -----------------------------------------------------------------------------
+-- AUDIT — lecture filtree par perimetre, insertion libre, jamais de modification
+-- -----------------------------------------------------------------------------
+create policy audit_select on audit_log for select to authenticated
+  using (
+    has_perm('audit.read')
+    and (entity_id is null or entity_in_scope(entity_id))
+  );
+
+create policy audit_insert on audit_log for insert to authenticated
+  with check (true);
+
+-- ENF-SEC-08 : double verrou — privileges revoques ET trigger d'immuabilite (0006)
+revoke update, delete on audit_log from authenticated;
+
+
+-- -----------------------------------------------------------------------------
+-- REFERENTIELS — lisibles par tout compte authentifie, geres par le Siege
+-- (referentiel.manage figure dans NON_DELEGABLES)
+-- -----------------------------------------------------------------------------
+create policy grades_select on grades for select to authenticated using (true);
+create policy grades_write  on grades for all to authenticated
+  using (has_perm('referentiel.manage')) with check (has_perm('referentiel.manage'));
+
+create policy nationalites_select on nationalites for select to authenticated using (true);
+create policy nationalites_write  on nationalites for all to authenticated
+  using (has_perm('referentiel.manage')) with check (has_perm('referentiel.manage'));
+
+create policy fonctions_select on fonctions for select to authenticated using (true);
+create policy fonctions_write  on fonctions for all to authenticated
+  using (has_perm('referentiel.manage')) with check (has_perm('referentiel.manage'));
+
+create policy finance_categories_select on finance_categories for select to authenticated
+  using (true);
+create policy finance_categories_write on finance_categories for all to authenticated
+  using (has_perm('referentiel.manage')) with check (has_perm('referentiel.manage'));
+
+-- #############################################################################
+-- ## 0009_delegation.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0009 — Delegation d'habilitations
+-- =============================================================================
+-- Reference : plan.md §5.3 — ARB-3, RG-24, ENF-SEC-11
+--
+-- RG-24 : on ne delegue QUE ce que l'on detient, a un compte de SON perimetre,
+-- pour une portee INCLUSE dans la sienne. Aucune elevation de privilege.
+--
+-- Ce controle existe en double : dans lib/domain/permissions.ts (message clair
+-- a l'utilisateur) et ici (tient meme en cas d'appel SQL direct).
+-- =============================================================================
+
+-- Droits jamais delegables — doit rester aligne sur NON_DELEGABLES
+-- dans lib/domain/permissions.ts.
+create or replace function fn_permissions_non_delegables() returns text[]
+language sql immutable as $$
+  select array[
+    'entity.delete',
+    'referentiel.manage',
+    'settings.manage',
+    'finance.delegate'
+  ]::text[]
+$$;
+
+
+create or replace function fn_check_delegation() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+  v_moi              uuid := current_profile_id();
+  v_cible_path       ltree;
+  v_portee_detenue   ltree;
+  v_portee_accordee  ltree;
+begin
+  -- Le SuperAdmin accorde sans restriction.
+  if is_superadmin() then
+    new.granted_by := coalesce(new.granted_by, v_moi);
+    return new;
+  end if;
+
+  -- Amorcage / migrations hors session applicative : aucun profil courant.
+  if v_moi is null then
+    return new;
+  end if;
+
+  if not has_perm('permission.delegate') then
+    raise exception 'RG-24 : vous ne pouvez pas deleguer d''habilitations'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  if new.permission = any (fn_permissions_non_delegables()) then
+    raise exception 'RG-24 : le droit "%" n''est pas delegable', new.permission
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  -- Le compte cible doit appartenir au perimetre du delegant.
+  select e.path into v_cible_path
+    from profiles p
+    join entities e on e.id = p.entity_id
+   where p.id = new.user_id;
+
+  if v_cible_path is null or not (v_cible_path <@ current_scope_path()) then
+    raise exception 'RG-24 : le compte cible est hors de votre perimetre'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  -- Le delegant doit detenir le droit. On retient sa portee la PLUS LARGE
+  -- (nlevel le plus faible) : c'est la borne superieure de ce qu'il peut accorder.
+  select coalesce(se.path, current_scope_path())
+    into v_portee_detenue
+    from user_permissions up
+    left join entities se on se.id = up.scope_entity_id
+   where up.user_id = v_moi
+     and up.permission = new.permission
+   order by nlevel(coalesce(se.path, current_scope_path())) asc
+   limit 1;
+
+  if v_portee_detenue is null then
+    raise exception
+      'RG-24 : vous ne detenez pas le droit "%" et ne pouvez donc pas l''accorder',
+      new.permission
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  -- La portee accordee (ou, a defaut, le perimetre du compte cible)
+  -- doit etre incluse dans la portee detenue.
+  if new.scope_entity_id is null then
+    v_portee_accordee := v_cible_path;
+  else
+    select path into v_portee_accordee from entities where id = new.scope_entity_id;
+    if v_portee_accordee is null then
+      raise exception 'RG-24 : portee introuvable' using errcode = 'foreign_key_violation';
+    end if;
+  end if;
+
+  if not (v_portee_accordee <@ v_portee_detenue) then
+    raise exception 'RG-24 : la portee accordee depasse celle de votre habilitation'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  new.granted_by := v_moi;
+  return new;
+end $$;
+
+create trigger trg_check_delegation
+  before insert or update on user_permissions
+  for each row execute function fn_check_delegation();
+
+
+-- -----------------------------------------------------------------------------
+-- Tracabilite des octrois et revocations — EF-ADM-09.
+-- Ecrite en base et non seulement dans les Server Actions, car ces lignes
+-- sont le pivot de la securite applicative.
+-- -----------------------------------------------------------------------------
+create or replace function fn_audit_permissions() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare v_entity uuid;
+begin
+  if tg_op = 'INSERT' then
+    select entity_id into v_entity from profiles where id = new.user_id;
+    insert into audit_log (user_id, action, table_name, record_id, entity_id, diff)
+    values (
+      current_profile_id(), 'GRANT', 'user_permissions', new.id, v_entity,
+      jsonb_build_object(
+        'beneficiaire', new.user_id,
+        'permission',   new.permission,
+        'portee',       new.scope_entity_id,
+        'source',       new.source
+      )
+    );
+    return new;
+  else
+    select entity_id into v_entity from profiles where id = old.user_id;
+    insert into audit_log (user_id, action, table_name, record_id, entity_id, diff)
+    values (
+      current_profile_id(), 'REVOKE', 'user_permissions', old.id, v_entity,
+      jsonb_build_object(
+        'beneficiaire', old.user_id,
+        'permission',   old.permission,
+        'portee',       old.scope_entity_id
+      )
+    );
+    return old;
+  end if;
+end $$;
+
+create trigger trg_audit_permissions
+  after insert or delete on user_permissions
+  for each row execute function fn_audit_permissions();
+
+-- #############################################################################
+-- ## seed.sql — amorce des donnees de reference
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — Amorce des donnees de reference
+-- =============================================================================
+-- Idempotent : rejouable sans effet de bord (on conflict do nothing).
+-- Ne contient AUCUNE donnee personnelle (ENF-DCP-05).
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- Le Siege — racine unique de la hierarchie (RG-03)
+-- -----------------------------------------------------------------------------
+insert into entities (type, code, nom, description)
+values ('SIEGE', 'SIEGE', 'Siege National', 'Administration nationale de l''organisation')
+on conflict do nothing;
+
+
+-- -----------------------------------------------------------------------------
+-- Grades — EF-REF-01
+-- -----------------------------------------------------------------------------
+insert into grades (code, libelle, ordre) values
+  ('PASTEUR',     'Pasteur',     10),
+  ('EVANGELISTE', 'Evangeliste', 20),
+  ('DIACRE',      'Diacre',      30),
+  ('ANCIEN',      'Ancien',      40),
+  ('CROYANT',     'Croyant',     50)
+on conflict (code) do nothing;
+
+
+-- -----------------------------------------------------------------------------
+-- Nationalites — EF-REF-02
+-- -----------------------------------------------------------------------------
+insert into nationalites (code_iso, libelle) values
+  ('BEN', 'Beninoise'),
+  ('BFA', 'Burkinabe'),
+  ('CIV', 'Ivoirienne'),
+  ('CMR', 'Camerounaise'),
+  ('COD', 'Congolaise (RDC)'),
+  ('FRA', 'Francaise'),
+  ('GHA', 'Ghaneenne'),
+  ('MDG', 'Malgache'),
+  ('MLI', 'Malienne'),
+  ('NER', 'Nigerienne'),
+  ('NGA', 'Nigeriane'),
+  ('SEN', 'Senegalaise'),
+  ('TGO', 'Togolaise')
+on conflict (code_iso) do nothing;
+
+
+-- -----------------------------------------------------------------------------
+-- Fonctions de bureau — EF-REF-03
+-- `ordre_protocolaire` pilote la disposition de l'organigramme (EF-BUR-07).
+-- `est_financiere` alimente l'indicateur « membres de finances » (RG-31).
+-- -----------------------------------------------------------------------------
+insert into fonctions (code, libelle, categorie, est_financiere, ordre_protocolaire) values
+  ('PRESIDENT',           'President',                  'DIRECTION',     false,  10),
+  ('VICE_PRESIDENT',      'Vice-President',             'DIRECTION',     false,  20),
+  ('SECRETAIRE',          'Secretaire',                 'DIRECTION',     false,  30),
+  ('SECRETAIRE_ADJOINT',  'Secretaire adjoint',         'DIRECTION',     false,  40),
+  ('TRESORIER',           'Tresorier',                  'FINANCE',       true,   50),
+  ('TRESORIER_ADJOINT',   'Tresorier adjoint',          'FINANCE',       true,   60),
+  ('DIR_FINANCES',        'Directeur des finances',     'FINANCE',       true,   70),
+  ('COMMISSAIRE_COMPTES', 'Commissaire aux comptes',    'FINANCE',       true,   80),
+  ('DIR_COMMUNICATIONS',  'Directeur des communications','COMMUNICATION', false,  90),
+  ('DIR_OEUVRES',         'Directeur des oeuvres',      'OEUVRES',       false, 100),
+  ('DIR_JEUNESSE',        'Directeur de la jeunesse',   'OEUVRES',       false, 110),
+  ('CONSEILLER',          'Conseiller',                 'AUTRE',         false, 120)
+on conflict (code) do nothing;
+
+-- Le Commissaire aux comptes n'a de sens qu'a partir de la Paroisse.
+update fonctions
+   set niveaux_applicables = '{SIEGE,REGIONAL,DISTRICT,PAROISSE}'
+ where code = 'COMMISSAIRE_COMPTES';
+
+
+-- -----------------------------------------------------------------------------
+-- Categories financieres — EF-REF-04, ARB-2
+-- Le `sens` est porte par la categorie : il n'est jamais saisi a la main (RG-13).
+-- -----------------------------------------------------------------------------
+insert into finance_categories (code, libelle, sens, ordre) values
+  -- Recettes
+  ('DIME',            'Dime',                    'RECETTE',  10),
+  ('QUETE',           'Quete',                   'RECETTE',  20),
+  ('OFFRANDE',        'Offrande',                'RECETTE',  30),
+  ('DON',             'Don',                     'RECETTE',  40),
+  ('COTISATION',      'Cotisation',              'RECETTE',  50),
+  ('AUTRE_RECETTE',   'Autre recette',           'RECETTE',  90),
+  -- Depenses
+  ('FONCTIONNEMENT',  'Fonctionnement',          'DEPENSE', 110),
+  ('TRAVAUX',         'Travaux et entretien',    'DEPENSE', 120),
+  ('AIDE_SOCIALE',    'Aide sociale',            'DEPENSE', 130),
+  ('MISSION',         'Mission et evangelisation','DEPENSE', 140),
+  ('TRANSPORT',       'Transport',               'DEPENSE', 150),
+  ('EVENEMENT',       'Evenement',               'DEPENSE', 160),
+  ('AUTRE_DEPENSE',   'Autre depense',           'DEPENSE', 190)
+on conflict (code) do nothing;

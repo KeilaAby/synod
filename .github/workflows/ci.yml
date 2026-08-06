@@ -1,0 +1,51 @@
+name: CI
+
+# ENF-MNT-04 — lint, types, tests et build sont BLOQUANTS avant toute fusion.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verifier:
+    name: Lint · Types · Tests · Build
+    runs-on: ubuntu-latest
+
+    env:
+      # Valeurs de place : le build ne contacte aucun service externe.
+      # Les polices sont auto-hebergees (P-9), la base n'est jamais interrogee
+      # a la compilation.
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Installer les dependances
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Verification des types
+        run: pnpm typecheck
+
+      - name: Tests unitaires
+        run: pnpm test
+
+      - name: Build de production
+        run: pnpm build

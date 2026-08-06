@@ -1,36 +1,184 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SYNOD
 
-## Getting Started
+Plateforme web de gestion et de pilotage d'une organisation ecclésiale.
 
-First, run the development server:
+| Document | Contenu |
+|---|---|
+| [`cdg.md`](notes/cdg.md) | Cahier des charges — exigences `EF-*`, règles de gestion `RG-01` à `RG-32`, critères d'acceptation |
+| [`plan.md`](notes/plan.md) | Plan de conception — modèle de données, RLS, design system, écrans, lots |
+| [`.agents/rules/designrules.md`](.agents/rules/designrules.md) | Stack et design system **imposés** |
+
+---
+
+## Démarrage
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+cp .env.example .env.local     # puis renseigner les valeurs Supabase
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+> Un `.env.local` de démarrage contenant des **valeurs de place** est présent :
+> il permet à `pnpm dev` et `pnpm build` de fonctionner avant que le projet
+> Supabase n'existe. Toute requête réelle échouera tant qu'il n'est pas
+> renseigné.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Base de données
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+> ⚠️ **L'ordre est significatif.** `seed.sql` insère dans des tables créées par
+> les migrations : l'exécuter en premier échoue avec
+> `relation "entities" does not exist`.
 
-## Learn More
+**Le plus simple — éditeur SQL Supabase.** Coller l'intégralité de
+[`supabase/install.sql`](supabase/install.sql), puis exécuter. Ce fichier est
+**généré** : il concatène les 9 migrations dans l'ordre, puis l'amorce.
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+pnpm db:bundle     # à relancer après toute nouvelle migration
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**Ou fichier par fichier**, avec n'importe quel client PostgreSQL — les
+migrations sont du SQL standard (ENF-POR-05) :
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+supabase db reset                                     # via la CLI Supabase
 
-## Deploy on Vercel
+for f in supabase/migrations/*.sql; do                # ou directement
+  psql "$DATABASE_URL" -f "$f"
+done
+psql "$DATABASE_URL" -f supabase/seed.sql
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+L'amorce crée le **Siège** (racine unique de la hiérarchie) et les quatre
+référentiels : grades, nationalités, fonctions, catégories financières.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Premier compte
+
+1. **Supabase > Authentication > Users > Add user** — cocher *Auto Confirm User*.
+2. Exécuter [`supabase/bootstrap-superadmin.sql`](supabase/bootstrap-superadmin.sql)
+   après y avoir remplacé l'adresse et le nom.
+
+Le SuperAdmin est nécessairement rattaché au Siège (EF-ACT-2) : un trigger
+refuse tout autre rattachement. Aucune ligne dans `user_permissions` n'est
+requise — `is_superadmin()` court-circuite l'évaluation des habilitations.
+
+Le script est idempotent et **échoue bruyamment** : si l'utilisateur
+d'authentification n'existe pas, il le dit au lieu de ne rien faire.
+
+### Diagnostic
+
+[`supabase/diagnostic.sql`](supabase/diagnostic.sql) rapporte l'état de
+l'installation, liste les comptes d'authentification, et vérifie qu'aucune
+table métier n'échappe à la RLS (règle non négociable n° 9).
+
+### Commandes
+
+| Commande | Rôle |
+|---|---|
+| `pnpm dev` | Serveur de développement |
+| `pnpm lint` | ESLint, garde-fous inclus |
+| `pnpm typecheck` | TypeScript strict |
+| `pnpm test` | Tests unitaires (Vitest) |
+| `pnpm test:coverage` | Couverture sur la logique métier |
+| `pnpm build` | Build de production |
+| `pnpm verify` | Les quatre précédents, dans l'ordre de la CI |
+
+---
+
+## Architecture
+
+```
+app/
+  (auth)/          connexion · mot-de-passe-oublie · reinitialiser
+  (app)/           layout applicatif (sidebar, topbar, session)
+lib/
+  auth/            ADAPTATEUR d'identité      ← ENF-POR-02
+  storage/         ADAPTATEUR de stockage     ← ENF-POR-03
+  domain/          règles de gestion PURES, 100 % testées
+  data/            lectures typées
+  actions/         Server Actions (mutations)
+  session.ts       requireSession · requirePermission · auditer
+components/
+  ui/              Shadcn — possédés, éditables
+  layout/          sidebar, topbar, fil d'Ariane
+  shared/          PageHeader, EmptyState, StatusBadge, PermissionGate, Field
+  skeletons/       un squelette par écran (règle UI-15)
+supabase/
+  migrations/      SQL standard, ordonné
+  seed.sql         Siège + référentiels
+proxy.ts           session, garde de route, en-têtes de sécurité
+```
+
+### Sécurité — défense en profondeur
+
+| Couche | Rôle |
+|---|---|
+| `proxy.ts` | Session valide, redirection, en-têtes (ENF-SEC-07) |
+| Layout `(app)` | Charge profil + habilitations **une fois** par requête |
+| `<PermissionGate>` | **Confort d'affichage uniquement** — ne protège rien |
+| Server Action | Revalide : session → droit → **portée** → périmètre → audit |
+| PostgreSQL RLS | Filet ultime : hors périmètre = **zéro ligne** (ENF-SEC-01) |
+
+Les habilitations sont des couples **(droit, portée)** : détenir `finance.create`
+ne signifie pas pouvoir saisir pour n'importe quelle paroisse. Utilisez toujours
+`can(permission, entityId)`, jamais la seule clé.
+
+### Portabilité (ARB-8)
+
+Le patrimoine de données doit rester transférable vers un autre hébergeur.
+Trois garde-fous structurels :
+
+1. **SQL standard uniquement** — `ltree`, `pg_trgm`, `pgcrypto`, RLS, triggers,
+   vues matérialisées. Aucune extension propriétaire.
+2. **`profiles` a sa propre clé primaire**, indépendante du fournisseur
+   d'identité ; `auth_user_id` est le seul point de couplage.
+3. **La base ne stocke que des clés d'objet relatives** — jamais d'URL signée.
+
+Une règle ESLint interdit d'importer le SDK de l'hébergeur hors de
+`lib/supabase`, `lib/auth` et `lib/storage`.
+
+---
+
+## Règles non négociables
+
+Vérifiées automatiquement (`pnpm lint`) ou en revue de code :
+
+1. Aucune écriture en base depuis un composant — tout passe par une Server Action.
+2. Aucune mutation sans validation Zod côté serveur.
+3. Aucun contrôle de droit sans sa portée : `can(permission, entityId)`.
+4. **Aucune page sans squelette** — jamais d'écran blanc ni de spinner plein écran.
+   `Loader2` est réservé aux actions ponctuelles.
+5. Aucune valeur numérique ou monétaire sans `font-mono`.
+6. Aucun espacement hors grille de 8 px — *vérifié par ESLint*.
+7. Aucune bibliothèque lourde importée statiquement (React Flow, Recharts, PDF, xlsx).
+8. Aucune mutation sans écriture d'audit.
+9. Aucune table métier sans RLS activée.
+10. Aucun import du SDK de l'hébergeur hors des adaptateurs — *vérifié par ESLint*.
+11. Aucune URL absolue de fichier stockée en base.
+
+---
+
+## Écarts assumés par rapport aux documents de conception
+
+| Sujet | Prévu | Livré | Raison |
+|---|---|---|---|
+| Framework | Next.js 15+ | **Next.js 16.3** | `latest` au moment du socle ; satisfait « 15+ ». |
+| Convention middleware | `middleware.ts` | **`proxy.ts`** | Renommé et déprécié par Next 16. |
+| Police | Google Sans | **Inter** (auto-hébergée) | Google Sans est propriétaire, non distribuable. Bascule documentée dans [`lib/fonts.ts`](lib/fonts.ts) : déposer le `.woff2` sous licence et changer une ligne. |
+| Chargement des polices | `next/font/google` | **`next/font/local`** | P-9 : aucune requête vers un CDN externe, build reproductible hors ligne. |
+
+---
+
+## Avancement
+
+| Lot | Contenu | État |
+|---|---|---|
+| **0** | Socle : design system, adaptateurs, session, auth, layout, squelettes, CI | ✅ |
+| **1** | Structure & référentiels — organigramme React Flow, CRUD entités, 4 référentiels | ✅ |
+| 2 | Croyants & transferts — workflow d'approbation | à venir |
+| 3 | Bureaux — mandats, organigramme | à venir |
+| 4 | Finances — recettes/dépenses, solde, workflow de validation | à venir |
+| 5 | Tableaux de bord configurables | à venir |
+| 6 | Générateur de rapports | à venir |
+| 7 | Habilitations fines & administration | à venir |
+| 8 | Portabilité, recette, mise en production | à venir |

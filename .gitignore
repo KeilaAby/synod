@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# transcripts de sessions Claude Code
+# Contiennent le contenu integral des echanges, y compris des valeurs de
+# .env.local : ne doivent jamais etre versionnes (ENF-SEC-09).
+/.claude-code-history/

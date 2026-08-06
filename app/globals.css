@@ -1,26 +1,228 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* =============================================================================
+   SYNOD — Jetons de design
+   -----------------------------------------------------------------------------
+   Source : .agents/rules/designrules.md + plan.md §8.1
+   Philosophie : High-Density Minimalist. Peu de couleurs, beaucoup de blanc,
+   hierarchie typographique nette, separation par la BORDURE et non par l'ombre.
+   ============================================================================= */
+
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-heading: var(--font-sans);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* UI-02 — Echelle de rayons CANONIQUE Tailwind.
+     On n'utilise pas la chaine de calc() de shadcn : les designrules exigent
+     `rounded-xl` = 12px pour les cartes et `rounded-md` = 6px pour les
+     boutons et champs. Toute derivation calc() casserait ces deux valeurs. */
+  --radius-xs: 0.125rem; /*  2px */
+  --radius-sm: 0.25rem; /*  4px */
+  --radius-md: 0.375rem; /*  6px — boutons, inputs */
+  --radius-lg: 0.5rem; /*  8px */
+  --radius-xl: 0.75rem; /* 12px — cartes principales */
+  --radius-2xl: 1rem; /* 16px */
+  --radius-3xl: 1.5rem; /* 24px */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  /* --- Surfaces (UI-03) ------------------------------------------------- */
+  --background: #f9fafb; /* Gray-50  — fond de page */
+  --foreground: #0f172a; /* Slate-900 — titres */
+  --card: #ffffff; /* White    — cartes */
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --border: #e5e7eb; /* Gray-200 — bordure fine */
+  --input: #e5e7eb;
+
+  /* --- Actions ---------------------------------------------------------- */
+  --primary: #0f172a; /* Slate-900 — bouton principal (maquettes) */
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9; /* Slate-100 */
+  --secondary-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b; /* Slate-500 — metadonnees */
+
+  /* UI-06 — accent unique : eyebrows et etats « en cours ». Jamais un bouton. */
+  --accent: #eef2ff; /* Indigo-50  — fond d'etat */
+  --accent-foreground: #4338ca; /* Indigo-700 */
+  --ring: #6366f1; /* Indigo-500 — focus visible (ENF-UTI-03) */
+
+  /* --- Semantique (UI-08) ----------------------------------------------- */
+  --destructive: #e11d48; /* Rose-600 */
+
+  --success: #d1fae5; /* Emerald-100 */
+  --success-foreground: #047857; /* Emerald-700 */
+  --warning: #fef3c7; /* Amber-100   */
+  --warning-foreground: #b45309; /* Amber-700   */
+  --danger: #ffe4e6; /* Rose-100    */
+  --danger-foreground: #be123c; /* Rose-700    */
+  --neutral: #f1f5f9; /* Slate-100   */
+  --neutral-foreground: #334155; /* Slate-700   */
+
+  /* UI-13 — montant negatif : depenses et soldes debiteurs */
+  --montant-negatif: #e11d48; /* Rose-600 */
+
+  /* --- Navigation laterale ---------------------------------------------- */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f172a;
+  --sidebar-primary: #0f172a;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1f5f9;
+  --sidebar-accent-foreground: #0f172a;
+  --sidebar-border: #e5e7eb;
+  --sidebar-ring: #6366f1;
+
+  /* --- Graphiques -------------------------------------------------------
+     Aligne sur le code couleur des niveaux hierarchiques (plan.md §13.1),
+     pour qu'un graphique et un organigramme parlent la meme langue.
+     Sera valide contre les regles de contraste au lot 5. */
+  --chart-1: #6366f1; /* Indigo-500 */
+  --chart-2: #0ea5e9; /* Sky-500    */
+  --chart-3: #14b8a6; /* Teal-500   */
+  --chart-4: #f59e0b; /* Amber-500  */
+  --chart-5: #f43f5e; /* Rose-500   */
+
+  --radius: 0.75rem; /* UI-02 — rayon de reference : la carte */
+}
+
+/* -----------------------------------------------------------------------------
+   Theme sombre — NON ACTIVE en V1.
+   Le cahier des charges ne le demande pas et les maquettes sont en clair ;
+   aucun selecteur de theme n'est expose. Ce bloc n'existe que pour eviter un
+   rendu casse si la classe `.dark` etait posee par un composant tiers.
+   ----------------------------------------------------------------------------- */
+.dark {
+  --background: #0f172a;
+  --foreground: #f8fafc;
+  --card: #1e293b;
+  --card-foreground: #f8fafc;
+  --popover: #1e293b;
+  --popover-foreground: #f8fafc;
+  --primary: #f8fafc;
+  --primary-foreground: #0f172a;
+  --secondary: #334155;
+  --secondary-foreground: #f8fafc;
+  --muted: #334155;
+  --muted-foreground: #94a3b8;
+  --accent: #312e81;
+  --accent-foreground: #e0e7ff;
+  --destructive: #fb7185;
+  --border: #334155;
+  --input: #334155;
+  --ring: #818cf8;
+  --sidebar: #1e293b;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-primary: #f8fafc;
+  --sidebar-primary-foreground: #0f172a;
+  --sidebar-accent: #334155;
+  --sidebar-accent-foreground: #f8fafc;
+  --sidebar-border: #334155;
+  --sidebar-ring: #818cf8;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    @apply font-sans;
+    /* Evite le zoom automatique de Safari iOS sur les champs (ENF-UTI-02). */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /* UI-07 / UI-13 — toute valeur numerique est alignee en chasse fixe.
+     `tabular-nums` evite le tremblement des colonnes de chiffres. */
+  .font-mono {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ENF-UTI-03 — le focus doit rester visible partout, y compris au clavier. */
+  :focus-visible {
+    @apply outline-ring outline-2 outline-offset-2;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  /* UI-11 — sur-titre de section, motif repris des maquettes de reference. */
+  .eyebrow {
+    @apply text-xs font-medium tracking-[0.14em] text-indigo-600 uppercase;
+  }
+
+  /* UI-13 — montant financier : chasse fixe, chiffres tabulaires. */
+  .montant {
+    @apply font-mono tabular-nums;
+  }
+
+  .montant-negatif {
+    @apply font-mono text-rose-600 tabular-nums;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   Impression — sert le rendu A4 du generateur de rapports (EF-RAP-05).
+   ----------------------------------------------------------------------------- */
+@media print {
+  @page {
+    size: A4;
+    margin: 16mm;
+  }
+
+  body {
+    background: #ffffff;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .page-break {
+    break-after: page;
+  }
 }
