@@ -311,7 +311,7 @@ export function CroyantForm(props: Props) {
                   control={control}
                   name="sexe"
                   render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <Select value={field.value ?? ''} onValueChange={field.onChange}>
                       <SelectTrigger {...aria} className="h-10 w-full">
                         <SelectValue placeholder="Choisir" />
                       </SelectTrigger>
@@ -364,7 +364,7 @@ export function CroyantForm(props: Props) {
                   control={control}
                   name="nationaliteId"
                   render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <Select value={field.value ?? ''} onValueChange={field.onChange}>
                       <SelectTrigger {...aria} className="h-10 w-full">
                         <SelectValue placeholder="Choisir" />
                       </SelectTrigger>
@@ -499,7 +499,7 @@ export function CroyantForm(props: Props) {
                   control={control}
                   name="gradeId"
                   render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <Select value={field.value ?? ''} onValueChange={field.onChange}>
                       <SelectTrigger {...aria} className="h-10 w-full">
                         <SelectValue placeholder="Choisir" />
                       </SelectTrigger>

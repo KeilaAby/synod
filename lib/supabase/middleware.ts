@@ -3,6 +3,12 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 import { envClient } from '@/lib/env';
 
+import {
+  DELAI_RESEAU_PROXY_MS,
+  estPanneReseau,
+  fetchAvecDelai,
+} from './reseau';
+
 /** Routes accessibles sans session. */
 const ROUTES_PUBLIQUES = ['/connexion', '/mot-de-passe-oublie', '/reinitialiser'];
 
@@ -28,6 +34,9 @@ export async function updateSession(request: NextRequest) {
     envClient.NEXT_PUBLIC_SUPABASE_URL,
     envClient.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
+      // Le proxy s'exécute sur CHAQUE requête : sans délai borné, une coupure
+      // réseau ajoute dix secondes à la moindre navigation.
+      global: { fetch: fetchAvecDelai(DELAI_RESEAU_PROXY_MS) },
       cookies: {
         getAll() {
           return request.cookies.getAll();
@@ -46,11 +55,23 @@ export async function updateSession(request: NextRequest) {
   );
 
   // Revalide le jeton aupres du serveur d'identite et rafraichit le cookie.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data, error } = await supabase.auth.getUser();
+  const user = data?.user ?? null;
 
   const chemin = request.nextUrl.pathname;
+
+  /**
+   * Une session NON VERIFIABLE n'est pas une session absente.
+   *
+   * Rediriger vers /connexion sur une panne reseau deconnecte l'utilisateur au
+   * premier hoquet — et le renvoie sur un formulaire de connexion qui echouera
+   * pour la meme raison. On laisse donc passer : la RLS protege les donnees, et
+   * les pages afficheront un message honnete sur l'indisponibilite.
+   */
+  if (!user && error && estPanneReseau(error)) {
+    console.warn('[proxy] verification de session impossible — reseau', error.message);
+    return response;
+  }
 
   if (!user && !estRoutePublique(chemin)) {
     const url = request.nextUrl.clone();

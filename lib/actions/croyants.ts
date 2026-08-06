@@ -55,6 +55,19 @@ async function resoudreRattachement(
   celluleId: string | null | undefined,
 ): Promise<Rattachement> {
   const arbre = await getArbrePerimetre();
+
+  // Un arbre VIDE ne veut pas dire « hors périmètre » : il signale que la
+  // structure n'a pas pu être lue. Accuser le périmètre serait un mensonge —
+  // c'est ce qui faisait dire à un SuperAdmin que l'église n'était pas dans
+  // le sien, alors que le sien couvre toute l'organisation.
+  if (arbre.length === 0) {
+    return {
+      ok: false,
+      erreur:
+        "La structure n'a pas pu être chargée. Vérifiez votre connexion, puis réessayez.",
+    };
+  }
+
   const eglise = arbre.find((e) => e.id === egliseId);
 
   if (!eglise) {

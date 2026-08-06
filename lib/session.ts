@@ -11,7 +11,9 @@ import {
   detient,
 } from '@/lib/domain/permissions';
 import { estDescendant } from '@/lib/domain/hierarchy';
+import { DataError } from '@/lib/data/errors';
 import { createClient } from '@/lib/supabase/server';
+import { MESSAGE_PANNE_RESEAU, estPanneReseau } from '@/lib/supabase/reseau';
 
 /**
  * Session applicative — plan.md §4.3.
@@ -86,6 +88,13 @@ export const getSession = cache(async (): Promise<SessionComplete | null> => {
       message: error.message,
       details: error.details,
     });
+
+    // Une panne RESEAU se distingue d'un profil absent : rendre `null` ferait
+    // rediriger vers /connexion, donc deconnecter l'utilisateur pour une
+    // coupure passagere. On leve, et l'appelant affiche un message honnete.
+    if (estPanneReseau(error) || estPanneReseau({ message: error.message })) {
+      throw new DataError(MESSAGE_PANNE_RESEAU, error);
+    }
     return null;
   }
 

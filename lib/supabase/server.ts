@@ -5,6 +5,8 @@ import { cookies } from 'next/headers';
 
 import { envClient, envServeur } from '@/lib/env';
 
+import { DELAI_RESEAU_MS, fetchAvecDelai } from './reseau';
+
 /**
  * Client PostgreSQL cote serveur, porteur de la session de l'utilisateur.
  *
@@ -22,6 +24,8 @@ export async function createClient() {
     envClient.NEXT_PUBLIC_SUPABASE_URL,
     envClient.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
+      // Sans delai borne, une coupure reseau fige la page dix secondes.
+      global: { fetch: fetchAvecDelai(DELAI_RESEAU_MS) },
       cookies: {
         getAll() {
           return cookieStore.getAll();
@@ -63,6 +67,7 @@ export function createAdminClient() {
     envClient.NEXT_PUBLIC_SUPABASE_URL,
     SUPABASE_SERVICE_ROLE_KEY,
     {
+      global: { fetch: fetchAvecDelai(DELAI_RESEAU_MS) },
       cookies: { getAll: () => [], setAll: () => {} },
     },
   );
