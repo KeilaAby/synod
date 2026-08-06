@@ -2,16 +2,44 @@
 -- SYNOD — Installation complete de la base
 -- =============================================================================
 -- FICHIER GENERE — ne pas editer a la main.
--- Source : supabase/migrations/*.sql + supabase/seed.sql
 -- Regenerer avec : pnpm db:bundle
 --
--- Utilisation : coller l'integralite dans l'editeur SQL de Supabase, puis
--- executer. L'ordre des instructions est significatif.
+-- ⚠️  BASE NEUVE UNIQUEMENT.
+--     Sur une base deja installee, ce fichier echoue des le premier
+--     « create type ... already exists ». Utilisez alors :
+--         pnpm db:bundle --depuis <derniere version appliquee>
+--     La derniere version appliquee se lit dans supabase/diagnostic.sql.
 --
--- Genere le 2026-08-06T15:18:05.540Z
--- Migrations incluses : 11 + seed.sql
+-- Genere le 2026-08-06T15:39:11.270Z
+-- Migrations : 11 + amorce
 -- =============================================================================
 
+
+-- #############################################################################
+-- ## 0000_migrations.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0000 — Suivi des migrations appliquees
+-- =============================================================================
+-- Sans registre, rien ne distingue une base neuve d'une base deja installee :
+-- rejouer `install.sql` echoue des le premier `create type`, et l'on ne sait
+-- pas ou l'on en est.
+--
+-- Chaque section des fichiers generes s'enregistre ici. `diagnostic.sql` lit
+-- cette table pour dire quelles migrations restent a appliquer.
+-- =============================================================================
+
+create table if not exists schema_migrations (
+  version    text primary key,
+  applied_at timestamptz not null default now()
+);
+
+comment on table schema_migrations is
+  'Registre des migrations appliquees. Alimente par les fichiers generes.';
+
+insert into schema_migrations (version) values ('0000')
+  on conflict (version) do nothing;
 
 -- #############################################################################
 -- ## 0001_extensions.sql
@@ -43,6 +71,9 @@ begin
     create role authenticated nologin;
   end if;
 end $$;
+
+insert into schema_migrations (version) values ('0001')
+  on conflict (version) do nothing;
 
 -- #############################################################################
 -- ## 0002_enums.sql
@@ -87,6 +118,9 @@ create type categorie_fonction as enum (
 -- Generateur de rapports
 create type visibilite_modele as enum ('PRIVE', 'ENTITE', 'DESCENDANTS', 'GLOBAL');
 create type statut_rapport    as enum ('BROUILLON', 'GENERE', 'PUBLIE', 'ARCHIVE');
+
+insert into schema_migrations (version) values ('0002')
+  on conflict (version) do nothing;
 
 -- #############################################################################
 -- ## 0003_entities.sql
@@ -283,6 +317,9 @@ create trigger trg_entities_touch
   before update on entities
   for each row execute function fn_touch_updated_at();
 
+insert into schema_migrations (version) values ('0003')
+  on conflict (version) do nothing;
+
 -- #############################################################################
 -- ## 0004_referentiels.sql
 -- #############################################################################
@@ -344,6 +381,9 @@ create table finance_categories (
 );
 comment on table finance_categories is
   'Categorie de mouvement financier, porteuse du sens recette/depense — EF-REF-04, RG-13';
+
+insert into schema_migrations (version) values ('0004')
+  on conflict (version) do nothing;
 
 -- #############################################################################
 -- ## 0005_profiles_permissions.sql
@@ -480,6 +520,9 @@ create table dashboard_templates (
   created_at   timestamptz not null default now()
 );
 
+insert into schema_migrations (version) values ('0005')
+  on conflict (version) do nothing;
+
 -- #############################################################################
 -- ## 0006_settings_audit.sql
 -- #############################################################################
@@ -581,6 +624,9 @@ end $$;
 create trigger trg_audit_immuable
   before update or delete on audit_log
   for each row execute function fn_audit_immuable();
+
+insert into schema_migrations (version) values ('0006')
+  on conflict (version) do nothing;
 
 -- #############################################################################
 -- ## 0007_rls_helpers.sql
@@ -716,6 +762,9 @@ revoke execute on function current_profile_id, current_scope_path, is_superadmin
 grant execute on function current_profile_id, current_scope_path, is_superadmin,
                           entity_in_scope, has_perm, can, siege_id
   to authenticated;
+
+insert into schema_migrations (version) values ('0007')
+  on conflict (version) do nothing;
 
 -- #############################################################################
 -- ## 0008_rls_policies.sql
@@ -921,6 +970,9 @@ create policy finance_categories_select on finance_categories for select to auth
 create policy finance_categories_write on finance_categories for all to authenticated
   using (has_perm('referentiel.manage')) with check (has_perm('referentiel.manage'));
 
+insert into schema_migrations (version) values ('0008')
+  on conflict (version) do nothing;
+
 -- #############################################################################
 -- ## 0009_delegation.sql
 -- #############################################################################
@@ -1073,6 +1125,9 @@ end $$;
 create trigger trg_audit_permissions
   after insert or delete on user_permissions
   for each row execute function fn_audit_permissions();
+
+insert into schema_migrations (version) values ('0009')
+  on conflict (version) do nothing;
 
 -- #############################################################################
 -- ## 0010_croyants.sql
@@ -1258,6 +1313,9 @@ create policy croyants_delete on croyants for delete to authenticated
 alter table matricule_sequences enable row level security;
 create policy matricule_sequences_aucun_acces on matricule_sequences
   for all to authenticated using (false);
+
+insert into schema_migrations (version) values ('0010')
+  on conflict (version) do nothing;
 
 -- #############################################################################
 -- ## 0011_transferts.sql
@@ -1453,6 +1511,9 @@ create policy baptemes_update on baptemes for update to authenticated
 
 create policy baptemes_delete on baptemes for delete to authenticated
   using (is_superadmin());
+
+insert into schema_migrations (version) values ('0011')
+  on conflict (version) do nothing;
 
 -- #############################################################################
 -- ## seed.sql — amorce des donnees de reference

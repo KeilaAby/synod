@@ -29,13 +29,32 @@ pnpm dev
 > les migrations : l'exécuter en premier échoue avec
 > `relation "entities" does not exist`.
 
-**Le plus simple — éditeur SQL Supabase.** Coller l'intégralité de
-[`supabase/install.sql`](supabase/install.sql), puis exécuter. Ce fichier est
-**généré** : il concatène les 9 migrations dans l'ordre, puis l'amorce.
+#### Base neuve
+
+Coller l'intégralité de [`supabase/install.sql`](supabase/install.sql) dans
+l'éditeur SQL Supabase, puis exécuter. Ce fichier est **généré** : il concatène
+les migrations dans l'ordre, puis l'amorce.
 
 ```bash
-pnpm db:bundle     # à relancer après toute nouvelle migration
+pnpm db:bundle
 ```
+
+#### Base déjà installée
+
+> ⚠️ Rejouer `install.sql` sur une base existante **échoue** dès le premier
+> `create type … already exists`. C'est attendu : ce fichier vise une base neuve.
+
+1. Exécuter [`supabase/diagnostic.sql`](supabase/diagnostic.sql) : sa première
+   requête donne la dernière version appliquée.
+2. Générer le fichier de mise à jour, puis le coller dans l'éditeur :
+
+```bash
+pnpm db:bundle -- --depuis 0009    # → supabase/install-incremental.sql
+```
+
+Il ne contient que les migrations postérieures, sans l'amorce. Un registre
+`schema_migrations` enregistre chaque application ; la première mise à jour
+rattrape aussi l'historique antérieur.
 
 **Ou fichier par fichier**, avec n'importe quel client PostgreSQL — les
 migrations sont du SQL standard (ENF-POR-05) :
