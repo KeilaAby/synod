@@ -95,10 +95,15 @@ export default async function StructurePage() {
             // et a detecter les cycles lors d'un rattachement (EF-STR-07).
             path: e.path,
             niveau: e.niveau,
+            description: e.description,
             nbDescendants: e.nbDescendants,
             nbEnfants: e.nbEnfants,
+            // Alimente la fiche en pop-up sans requete supplementaire.
+            descendantsParType: e.descendantsParType,
             sans_acces_application: e.sans_acces_application,
             is_active: e.is_active,
+            created_at: e.created_at,
+            updated_at: e.updated_at,
           }))}
         />
       )}

@@ -41,6 +41,8 @@ import {
 import { formatNombre } from '@/lib/utils/format';
 
 import { EntityCreateDialog, type ParentCible } from './entity-create-dialog';
+import { EntityDetailDialog } from './entity-detail-dialog';
+import { EntityEditDialog } from './entity-edit-dialog';
 import { NoeudEntite } from './entity-node';
 
 import '@xyflow/react/dist/style.css';
@@ -68,10 +70,14 @@ export interface EntiteFlux {
   parent_id: string | null;
   path: string;
   niveau: number;
+  description: string | null;
   nbDescendants: number;
   nbEnfants: number;
+  descendantsParType: Partial<Record<EntityType, number>>;
   sans_acces_application: boolean;
   is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 /** Grille de 8px, jusque dans la disposition du graphe (UI-01). */
@@ -141,6 +147,8 @@ function Organigramme({ entites }: { entites: EntiteFlux[] }) {
   const [enCours, demarrer] = useTransition();
 
   const [parentPourCreation, setParentPourCreation] = useState<ParentCible | null>(null);
+  const [aConsulter, setAConsulter] = useState<EntiteFlux | null>(null);
+  const [aModifier, setAModifier] = useState<EntiteFlux | null>(null);
   const [aSupprimer, setASupprimer] = useState<EntiteFlux | null>(null);
   const [deplacement, setDeplacement] = useState<Deplacement | null>(null);
 
@@ -170,16 +178,33 @@ function Organigramme({ entites }: { entites: EntiteFlux[] }) {
     });
   }, []);
 
-  const ouvrirFiche = useCallback((id: string) => router.push(`/structure/${id}`), [router]);
+  // Consultation et modification restent DANS l'organigramme : quitter la vue
+  // pour lire une fiche fait perdre le contexte de la branche en cours.
+  // Les pages `/structure/[id]` demeurent accessibles pour le lien profond.
+  const ouvrirFiche = useCallback(
+    (id: string) => {
+      const entite = parId.get(id);
+      if (entite) setAConsulter(entite);
+    },
+    [parId],
+  );
+
   const modifier = useCallback(
-    (id: string) => router.push(`/structure/${id}/modifier`),
-    [router],
+    (id: string) => {
+      const entite = parId.get(id);
+      if (entite) {
+        setAConsulter(null);
+        setAModifier(entite);
+      }
+    },
+    [parId],
   );
 
   const creerEnfant = useCallback(
     (id: string) => {
       const entite = parId.get(id);
       if (entite) {
+        setAConsulter(null);
         setParentPourCreation({
           id: entite.id,
           nom: entite.nom,
@@ -264,19 +289,21 @@ function Organigramme({ entites }: { entites: EntiteFlux[] }) {
    * Positions locales : le glissement doit etre visible pendant le geste, mais
    * la disposition Dagre reprend la main des que la structure change.
    *
-   * L'ajustement se fait EN RENDU plutot que dans un effet — un effet
+   * On se cale sur l'IDENTITE de `graphe`, pas sur une signature derivee.
+   * Une signature construite a partir des seuls identifiants de noeuds ne
+   * changeait pas apres un rattachement — les entites sont les memes, seule
+   * leur parente differe : les positions ET les donnees restaient figees.
+   * `graphe` etant un `useMemo`, son identite change exactement quand la
+   * structure, le repli ou les habilitations changent.
+   *
+   * L'ajustement se fait EN RENDU plutot que dans un effet : un effet
    * declencherait un second rendu et un scintillement du graphe.
    */
-  const [signature, setSignature] = useState<string | null>(null);
+  const [grapheAffiche, setGrapheAffiche] = useState(graphe);
   const [noeuds, setNoeuds] = useState<Node[]>(graphe.noeuds);
 
-  const signatureCourante = useMemo(
-    () => graphe.noeuds.map((n) => n.id).join('|'),
-    [graphe.noeuds],
-  );
-
-  if (signature !== signatureCourante) {
-    setSignature(signatureCourante);
+  if (grapheAffiche !== graphe) {
+    setGrapheAffiche(graphe);
     setNoeuds(graphe.noeuds);
   }
 
@@ -566,6 +593,40 @@ function Organigramme({ entites }: { entites: EntiteFlux[] }) {
         ouvert={parentPourCreation !== null}
         onOuvertChange={(v) => !v && setParentPourCreation(null)}
       />
+
+      {/* --- Consultation --- */}
+      <EntityDetailDialog
+        entite={aConsulter}
+        toutes={entites}
+        peutModifier={aConsulter ? peut('entity.update', aConsulter.path) : false}
+        ouvert={aConsulter !== null}
+        onOuvertChange={(v) => !v && setAConsulter(null)}
+        onModifier={modifier}
+        onCreerEnfant={creerEnfant}
+      />
+
+      {/* --- Modification ---
+          `key` sur l'identifiant : c'est le remontage qui reamorce les champs
+          quand on passe d'une entite a une autre. */}
+      {aModifier && (
+        <EntityEditDialog
+          key={aModifier.id}
+          entite={{
+            id: aModifier.id,
+            nom: aModifier.nom,
+            code: aModifier.code,
+            type: aModifier.type,
+            description: aModifier.description,
+            sans_acces_application: aModifier.sans_acces_application,
+            is_active: aModifier.is_active,
+            nomParent: aModifier.parent_id
+              ? (parId.get(aModifier.parent_id)?.nom ?? null)
+              : null,
+          }}
+          ouvert
+          onOuvertChange={(v) => !v && setAModifier(null)}
+        />
+      )}
 
       {/* --- Confirmation de rattachement --- */}
       <Dialog open={deplacement !== null} onOpenChange={(v) => !v && setDeplacement(null)}>

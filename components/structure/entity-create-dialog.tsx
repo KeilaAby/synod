@@ -126,16 +126,16 @@ export function EntityCreateDialog({
         onOuvertChange(v);
       }}
     >
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="max-h-[90vh] w-[min(96vw,56rem)] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Nouvelle structure</DialogTitle>
+          <DialogTitle className="text-2xl">Nouvelle structure</DialogTitle>
           <DialogDescription>
             Sous « {parent.nom} ». Le niveau et le rattachement sont determines par la
             position dans la hierarchie.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(envoyer)} className="space-y-6 py-2" noValidate>
+        <form onSubmit={handleSubmit(envoyer)} className="space-y-8 py-2" noValidate>
           {erreur && (
             <Alert variant="destructive" role="alert">
               <AlertCircle className="size-4" aria-hidden />
