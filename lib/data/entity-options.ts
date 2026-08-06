@@ -1,28 +1,31 @@
 import 'server-only';
 
 import type { OptionEntite } from '@/components/structure/entity-picker';
-import {
-  ENTITY_TYPES,
-  type EntityType,
-  typeParentDe,
-} from '@/lib/domain/hierarchy';
+import { ENTITY_TYPES, type EntityType, typeParentDe } from '@/lib/domain/hierarchy';
 
-import { type NoeudEntite, cheminLisible, getArbrePerimetre } from './entities';
+import {
+  type NoeudEntite,
+  cheminLisible,
+  getArbrePerimetre,
+  indexerParChemin,
+} from './entities';
 
 /**
  * Adaptation arbre -> options de `EntityPicker`.
  *
- * Isole ici pour que les pages n'aient pas a connaitre la forme interne des
- * entites, et pour que le chemin lisible soit calcule une seule fois.
+ * L'index par chemin est construit UNE FOIS puis reutilise : le composer a
+ * chaque ligne ferait retomber le cout a O(n²) sur les grandes structures.
  */
 export function versOptions(entites: NoeudEntite[], arbre: NoeudEntite[]): OptionEntite[] {
+  const index = indexerParChemin(arbre);
+
   return entites.map((e) => ({
     id: e.id,
     nom: e.nom,
     code: e.code,
     type: e.type,
     niveau: e.niveau,
-    chemin: cheminLisible(e, arbre),
+    chemin: cheminLisible(e, index),
   }));
 }
 
@@ -44,7 +47,7 @@ export function typesCreables(arbre: NoeudEntite[]): EntityType[] {
   });
 }
 
-/** Raccourci : arbre + options + types creables, en une seule lecture. */
+/** Arbre + options + types creables, en une seule lecture memoisee. */
 export async function getContexteStructure() {
   const arbre = await getArbrePerimetre();
   return {

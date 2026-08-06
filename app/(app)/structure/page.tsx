@@ -91,6 +91,9 @@ export default async function StructurePage() {
             code: e.code,
             type: e.type,
             parent_id: e.parent_id,
+            // Le chemin sert a evaluer les habilitations par portee (RG-25)
+            // et a detecter les cycles lors d'un rattachement (EF-STR-07).
+            path: e.path,
             niveau: e.niveau,
             nbDescendants: e.nbDescendants,
             nbEnfants: e.nbEnfants,

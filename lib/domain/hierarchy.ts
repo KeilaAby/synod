@@ -192,3 +192,52 @@ export function ancetreCommun(cheminA: string, cheminB: string): string | null {
 export function creeraitUnCycle(cheminEntite: string, cheminNouveauParent: string): boolean {
   return estDescendant(cheminNouveauParent, cheminEntite);
 }
+
+// -----------------------------------------------------------------------------
+// Deplacement dans l'organigramme — EF-STR-07
+// -----------------------------------------------------------------------------
+
+export interface NoeudDeplacable {
+  readonly id: string;
+  readonly nom: string;
+  readonly type: EntityType;
+  readonly path: string;
+  readonly parentId: string | null;
+}
+
+/**
+ * Un deplacement est-il recevable ? Regroupe les trois controles en un seul
+ * point, utilise a l'identique par l'editeur d'organigramme (pour refuser le
+ * geste avant qu'il n'aboutisse) et par la Server Action (pour le garantir).
+ *
+ * Retourner un message plutot qu'un booleen permet a l'interface d'expliquer
+ * le refus au lieu de simplement ignorer le geste, ce qui laisserait
+ * l'utilisateur croire a un bug.
+ */
+export function validerDeplacement(
+  enfant: NoeudDeplacable,
+  nouveauParent: NoeudDeplacable,
+): ActionResult<void> {
+  if (enfant.id === nouveauParent.id) {
+    return ko('Une entite ne peut pas etre rattachee a elle-meme.');
+  }
+
+  if (enfant.parentId === nouveauParent.id) {
+    return ko(`« ${enfant.nom} » est deja rattachee a « ${nouveauParent.nom} ».`);
+  }
+
+  // RG-01 : le parent doit etre du niveau immediatement superieur.
+  const rattachement = validerRattachement(enfant.type, nouveauParent.type);
+  if (!rattachement.ok) return rattachement;
+
+  // EF-STR-07 : deplacer une branche sous l'un de ses propres descendants
+  // detacherait le sous-arbre de la racine.
+  if (creeraitUnCycle(enfant.path, nouveauParent.path)) {
+    return ko(
+      `« ${nouveauParent.nom} » appartient au sous-arbre de « ${enfant.nom} » : ` +
+        'ce rattachement creerait un cycle.',
+    );
+  }
+
+  return ok();
+}

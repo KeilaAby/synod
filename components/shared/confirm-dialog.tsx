@@ -28,6 +28,8 @@ import { cn } from '@/lib/utils';
  */
 export function ConfirmDialog({
   trigger,
+  open,
+  onOpenChange,
   title,
   description,
   confirmLabel = 'Confirmer',
@@ -35,7 +37,11 @@ export function ConfirmDialog({
   destructive = true,
   onConfirm,
 }: {
-  trigger: React.ReactNode;
+  /** Element declencheur. Omis en mode controle. */
+  trigger?: React.ReactNode;
+  /** Mode controle : la boite est ouverte par un evenement exterieur. */
+  open?: boolean;
+  onOpenChange?: (ouvert: boolean) => void;
   title: string;
   description: React.ReactNode;
   confirmLabel?: string;
@@ -43,21 +49,31 @@ export function ConfirmDialog({
   destructive?: boolean;
   onConfirm: () => void | Promise<void>;
 }) {
-  const [ouvert, setOuvert] = useState(false);
+  const [ouvertInterne, setOuvertInterne] = useState(false);
   const [enCours, demarrer] = useTransition();
+
+  // Controle si `open` est fourni, autonome sinon : le meme composant sert le
+  // clic direct (menu) et l'ouverture programmee (glisser-deposer).
+  const controle = open !== undefined;
+  const ouvert = controle ? open : ouvertInterne;
+
+  function definirOuvert(valeur: boolean) {
+    if (controle) onOpenChange?.(valeur);
+    else setOuvertInterne(valeur);
+  }
 
   function confirmer(evenement: React.MouseEvent) {
     // On garde la boite ouverte pendant l'action pour montrer sa progression.
     evenement.preventDefault();
     demarrer(async () => {
       await onConfirm();
-      setOuvert(false);
+      definirOuvert(false);
     });
   }
 
   return (
-    <AlertDialog open={ouvert} onOpenChange={setOuvert}>
-      <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
+    <AlertDialog open={ouvert} onOpenChange={definirOuvert}>
+      {trigger && <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>}
 
       <AlertDialogContent>
         <AlertDialogHeader>

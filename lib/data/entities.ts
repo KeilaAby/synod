@@ -14,9 +14,14 @@ import { DataError } from './errors';
  *
  * Toutes les requetes passent par le client porteur de la session : la RLS
  * s'applique, une entite hors perimetre ne remonte jamais (ENF-SEC-01).
+ *
+ * PERFORMANCE — le module ne fait qu'UNE SEULE requete par requete HTTP :
+ * `getEntitesVisibles` est memoisee par React `cache`, et toutes les autres
+ * fonctions derivent de son resultat. Les compteurs de sous-arbre sont
+ * calcules en O(n) par un parcours suffixe, la ou une comparaison de chaque
+ * entite avec toutes les autres couterait O(n²).
  */
 
-/** Colonnes systematiquement selectionnees. */
 const CHAMPS = `
   id, type, code, nom, parent_id, niveau, path, description,
   sans_acces_application, is_active, created_at, updated_at
@@ -43,22 +48,17 @@ export interface NoeudEntite extends Entite {
   nbDescendants: number;
   /** Repartition des descendants par niveau, pour la fiche entite. */
   descendantsParType: Partial<Record<EntityType, number>>;
-  /** Enfants directs, calcules en memoire depuis l'arbre. */
+  /** Enfants directs. */
   nbEnfants: number;
 }
 
 /**
- * Arbre complet du perimetre.
+ * Requete unique de la page — memoisee par React `cache`.
  *
- * La RLS retourne les descendants ET les ancetres (le fil d'Ariane doit rester
- * lisible). L'organigramme, lui, ne represente que le SOUS-ARBRE : on retire
- * donc les ancetres avec `estDescendant`, la fonction deja couverte par les
- * tests unitaires.
+ * La RLS retourne le sous-arbre du compte ET ses ancetres : le fil d'Ariane
+ * doit rester lisible pour un district qui veut nommer son regional.
  */
-export const getArbrePerimetre = cache(async (): Promise<NoeudEntite[]> => {
-  const session = await getSession();
-  if (!session) return [];
-
+const getEntitesVisibles = cache(async (): Promise<Entite[]> => {
   const sb = await createClient();
   const { data, error } = await sb
     .from('entities')
@@ -69,90 +69,96 @@ export const getArbrePerimetre = cache(async (): Promise<NoeudEntite[]> => {
     .returns<Entite[]>();
 
   if (error) throw new DataError('La structure est momentanement illisible.', error);
-
-  const sousArbre = (data ?? []).filter((e) => estDescendant(e.path, session.scopePath));
-  return enrichir(sousArbre);
+  return data ?? [];
 });
 
-/** Calcule les compteurs de sous-arbre en memoire — un seul parcours, pas N requetes. */
+/**
+ * Compteurs de sous-arbre en O(n).
+ *
+ * Un parcours suffixe : les compteurs d'un noeud sont la somme de ceux de ses
+ * enfants, plus les enfants eux-memes. Chaque entite n'est visitee qu'une fois.
+ */
 function enrichir(entites: Entite[]): NoeudEntite[] {
-  const parId = new Map(entites.map((e) => [e.id, e]));
-  const enfantsDe = new Map<string, string[]>();
-
+  const enfantsDe = new Map<string, Entite[]>();
   for (const e of entites) {
-    if (e.parent_id && parId.has(e.parent_id)) {
-      const liste = enfantsDe.get(e.parent_id) ?? [];
-      liste.push(e.id);
-      enfantsDe.set(e.parent_id, liste);
-    }
+    if (!e.parent_id) continue;
+    const liste = enfantsDe.get(e.parent_id);
+    if (liste) liste.push(e);
+    else enfantsDe.set(e.parent_id, [e]);
   }
 
-  return entites.map((e) => {
-    const descendantsParType: Partial<Record<EntityType, number>> = {};
-    let nbDescendants = 0;
+  const calcule = new Map<string, Partial<Record<EntityType, number>>>();
 
-    // `path <@ path` : la relation d'ancetre se lit directement dans le chemin,
-    // sans parcours recursif.
-    for (const autre of entites) {
-      if (autre.id !== e.id && estDescendant(autre.path, e.path)) {
-        nbDescendants++;
-        descendantsParType[autre.type] = (descendantsParType[autre.type] ?? 0) + 1;
+  function agreger(id: string): Partial<Record<EntityType, number>> {
+    const memo = calcule.get(id);
+    if (memo) return memo;
+
+    const total: Partial<Record<EntityType, number>> = {};
+    for (const enfant of enfantsDe.get(id) ?? []) {
+      total[enfant.type] = (total[enfant.type] ?? 0) + 1;
+      for (const [type, n] of Object.entries(agreger(enfant.id))) {
+        const cle = type as EntityType;
+        total[cle] = (total[cle] ?? 0) + n;
       }
     }
 
+    calcule.set(id, total);
+    return total;
+  }
+
+  return entites.map((e) => {
+    const descendantsParType = agreger(e.id);
+    const nbDescendants = Object.values(descendantsParType).reduce((s, n) => s + n, 0);
     return {
       ...e,
-      nbDescendants,
       descendantsParType,
+      nbDescendants,
       nbEnfants: enfantsDe.get(e.id)?.length ?? 0,
     };
   });
 }
 
-/** Fiche d'une entite, avec son chemin d'ancetres pour le fil d'Ariane. */
+/**
+ * Sous-arbre du perimetre, enrichi.
+ *
+ * Les ancetres visibles par la RLS sont ecartes : l'organigramme represente le
+ * perimetre de responsabilite, pas la remontee vers le Siege.
+ */
+export const getArbrePerimetre = cache(async (): Promise<NoeudEntite[]> => {
+  const session = await getSession();
+  if (!session) return [];
+
+  const visibles = await getEntitesVisibles();
+  return enrichir(visibles.filter((e) => estDescendant(e.path, session.scopePath)));
+});
+
+/** Ancetres d'une entite, du plus haut au plus proche — fil d'Ariane. */
+export async function getAncetres(chemin: string): Promise<Entite[]> {
+  const visibles = await getEntitesVisibles();
+  return visibles
+    .filter((e) => e.path !== chemin && estDescendant(chemin, e.path))
+    .sort((a, b) => a.niveau - b.niveau);
+}
+
+/** Fiche d'une entite — aucune requete supplementaire, tout vient du cache. */
 export const getEntite = cache(
   async (
     id: string,
   ): Promise<{ entite: NoeudEntite; ancetres: Entite[]; enfants: NoeudEntite[] } | null> => {
-    const sb = await createClient();
-
-    const { data, error } = await sb
-      .from('entities')
-      .select(CHAMPS)
-      .eq('id', id)
-      .is('deleted_at', null)
-      .maybeSingle<Entite>();
-
-    if (error) throw new DataError("L'entite est momentanement illisible.", error);
-    if (!data) return null;
-
     const arbre = await getArbrePerimetre();
-    const enrichie = arbre.find((e) => e.id === id);
-    if (!enrichie) return null;
+    const entite = arbre.find((e) => e.id === id);
+    if (!entite) return null;
 
-    // Les ancetres sont deja dans le jeu autorise par la RLS : on les relit
-    // sans filtre de sous-arbre.
-    const { data: tous, error: erreurTous } = await sb
-      .from('entities')
-      .select(CHAMPS)
-      .is('deleted_at', null)
-      .returns<Entite[]>();
-
-    if (erreurTous) throw new DataError("Le chemin de l'entite est illisible.", erreurTous);
-
-    const ancetres = (tous ?? [])
-      .filter((e) => e.id !== id && estDescendant(data.path, e.path))
-      .sort((a, b) => a.niveau - b.niveau);
-
+    const ancetres = await getAncetres(entite.path);
     const enfants = arbre
       .filter((e) => e.parent_id === id)
       .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
 
-    return { entite: enrichie, ancetres, enfants };
+    return { entite, ancetres, enfants };
   },
 );
 
-/** Liste filtree — EF-STR-09. Le filtrage porte sur l'arbre deja charge. */
+/** Liste filtree — EF-STR-09. Filtrage en memoire sur l'arbre deja charge. */
 export async function listerEntites(filtres: FiltresEntite): Promise<NoeudEntite[]> {
   const arbre = await getArbrePerimetre();
   const recherche = filtres.recherche?.trim().toLowerCase();
@@ -163,27 +169,16 @@ export async function listerEntites(filtres: FiltresEntite): Promise<NoeudEntite
       if (filtres.parentId && e.parent_id !== filtres.parentId) return false;
       if (filtres.actif === 'actifs' && !e.is_active) return false;
       if (filtres.actif === 'inactifs' && e.is_active) return false;
-      if (recherche) {
-        const cible = `${e.nom} ${e.code}`.toLowerCase();
-        if (!cible.includes(recherche)) return false;
-      }
+      if (recherche && !`${e.nom} ${e.code}`.toLowerCase().includes(recherche)) return false;
       return true;
     })
     .sort((a, b) => a.niveau - b.niveau || a.nom.localeCompare(b.nom, 'fr'));
 }
 
-/**
- * Candidats d'un `EntityPicker` — plan.md §10.1.
- *
- * `types` restreint aux niveaux voulus (ex. ['EGLISE'] pour rattacher un
- * croyant) ; `parentId` restreint aux enfants directs d'une entite
- * (ex. les cellules d'une eglise, RG-05).
- */
-export async function getCandidatsEntite(options: {
-  types?: EntityType[];
-  parentId?: string;
-  inclureInactifs?: boolean;
-} = {}): Promise<NoeudEntite[]> {
+/** Candidats d'un `EntityPicker` — plan.md §10.1. */
+export async function getCandidatsEntite(
+  options: { types?: EntityType[]; parentId?: string; inclureInactifs?: boolean } = {},
+): Promise<NoeudEntite[]> {
   const arbre = await getArbrePerimetre();
 
   return arbre
@@ -211,13 +206,23 @@ export async function listerEntitesSupprimees(): Promise<Entite[]> {
 }
 
 /**
- * Chemin lisible d'une entite : « Siege › Regional Nord › District Avaradrano ».
- * Utilise en metadonnee du picker et du fil d'Ariane des fiches.
+ * Chemin lisible : « Siege › Regional Nord › District Avaradrano ».
+ *
+ * Prend une TABLE D'INDEX plutot que la liste complete : appelee pour chaque
+ * ligne d'un tableau, une recherche lineaire redonnerait un cout quadratique.
  */
-export function cheminLisible(entite: Entite, arbre: Entite[]): string {
-  return arbre
-    .filter((e) => estDescendant(entite.path, e.path))
-    .sort((a, b) => a.niveau - b.niveau)
-    .map((e) => e.nom)
-    .join(' › ');
+export function indexerParChemin(entites: Entite[]): Map<string, Entite> {
+  return new Map(entites.map((e) => [e.path, e]));
+}
+
+export function cheminLisible(entite: Entite, index: Map<string, Entite>): string {
+  const segments = entite.path.split('.');
+  const noms: string[] = [];
+
+  for (let i = 1; i <= segments.length; i++) {
+    const ancetre = index.get(segments.slice(0, i).join('.'));
+    if (ancetre) noms.push(ancetre.nom);
+  }
+
+  return noms.join(' › ');
 }

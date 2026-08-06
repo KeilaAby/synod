@@ -1,36 +1,25 @@
 import type { Metadata } from 'next';
-import { Network, Plus, WifiOff } from 'lucide-react';
+import { Network, Plus } from 'lucide-react';
 import Link from 'next/link';
 
-import { EmptyState } from '@/components/shared/empty-state';
 import { PageHeader } from '@/components/shared/page-header';
 import { PermissionGate } from '@/components/shared/permission-gate';
-import { StatusBadge } from '@/components/shared/status-badge';
-import { TypeBadge } from '@/components/structure/type-badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { getArbrePerimetre, cheminLisible, listerEntites } from '@/lib/data/entities';
-import { filtresEntiteSchema } from '@/lib/validation/entity';
+import { cheminLisible, getArbrePerimetre, indexerParChemin } from '@/lib/data/entities';
+import { ENTITY_TYPES } from '@/lib/domain/hierarchy';
 import { formatNombre } from '@/lib/utils/format';
 
-import { FiltresStructure } from './filtres';
+import { ListeStructureClient, type LigneStructure } from './liste-client';
 
 export const metadata: Metadata = { title: 'Liste des entites' };
 
 /**
  * EF-STR-09 — liste filtrable des entites.
  *
- * Filtres portes par l'URL : la vue est partageable et restauree au retour
- * arriere. Le filtrage s'execute cote serveur (ENF-PRF-08) ; aucun tableau
- * complet n'est envoye au navigateur pour etre trie ensuite.
+ * Le serveur charge l'arbre UNE FOIS ; le filtrage est ensuite instantane cote
+ * client (voir `liste-client.tsx`). Les parametres d'URL ne servent qu'a
+ * amorcer l'etat initial : ils ne declenchent plus de rendu serveur a chaque
+ * changement de filtre.
  */
 export default async function ListeStructurePage({
   searchParams,
@@ -38,20 +27,34 @@ export default async function ListeStructurePage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const params = await searchParams;
-  const filtres = filtresEntiteSchema.parse({
-    recherche: params.q,
-    type: params.type,
-    actif: params.actif ?? 'tous',
+  const arbre = await getArbrePerimetre();
+  const index = indexerParChemin(arbre);
+
+  const lignes: LigneStructure[] = arbre.map((e) => {
+    const chemin = cheminLisible(e, index);
+    return {
+      id: e.id,
+      nom: e.nom,
+      code: e.code,
+      type: e.type,
+      niveau: e.niveau,
+      // Le chemin sans le dernier segment : le nom propre est deja en colonne 1.
+      cheminParent: chemin.split(' › ').slice(0, -1).join(' › '),
+      nbDescendants: e.nbDescendants,
+      isActive: e.is_active,
+      sansAcces: e.sans_acces_application,
+    };
   });
 
-  const [entites, arbre] = await Promise.all([listerEntites(filtres), getArbrePerimetre()]);
+  const typeDemande = params.type;
+  const actifDemande = params.actif;
 
   return (
     <div className="space-y-8">
       <PageHeader
         eyebrow="Structure"
         title="Liste des entites"
-        description={`${formatNombre(entites.length)} entite${entites.length > 1 ? 's' : ''} correspondant aux filtres.`}
+        description={`${formatNombre(arbre.length)} entite${arbre.length > 1 ? 's' : ''} dans votre perimetre.`}
         actions={
           <>
             <Button asChild variant="outline" className="h-10">
@@ -72,78 +75,18 @@ export default async function ListeStructurePage({
         }
       />
 
-      <FiltresStructure />
-
-      {entites.length === 0 ? (
-        <EmptyState
-          icon={Network}
-          title="Aucune entite ne correspond"
-          description="Elargissez les filtres, ou creez la premiere entite de ce niveau."
-        />
-      ) : (
-        <Card>
-          <CardContent className="p-0">
-            {/* UI-07 : DataTable sans bordures verticales, valeurs en font-mono. */}
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>Nom</TableHead>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Niveau</TableHead>
-                  <TableHead>Rattachement</TableHead>
-                  <TableHead className="text-right">Sous-entites</TableHead>
-                  <TableHead>Statut</TableHead>
-                </TableRow>
-              </TableHeader>
-
-              <TableBody>
-                {entites.map((entite) => (
-                  <TableRow key={entite.id} className="h-12">
-                    <TableCell>
-                      <Link
-                        href={`/structure/${entite.id}`}
-                        className="font-medium text-foreground transition-colors hover:text-indigo-700"
-                      >
-                        {entite.nom}
-                      </Link>
-                    </TableCell>
-
-                    <TableCell className="font-mono text-xs text-muted-foreground">
-                      {entite.code}
-                    </TableCell>
-
-                    <TableCell>
-                      <TypeBadge type={entite.type} />
-                    </TableCell>
-
-                    <TableCell className="max-w-xs truncate text-xs text-muted-foreground">
-                      {cheminLisible(entite, arbre).split(' › ').slice(0, -1).join(' › ') ||
-                        '—'}
-                    </TableCell>
-
-                    <TableCell className="text-right font-mono tabular-nums">
-                      {formatNombre(entite.nbDescendants)}
-                    </TableCell>
-
-                    <TableCell>
-                      <span className="flex items-center gap-2">
-                        <StatusBadge tone={entite.is_active ? 'success' : 'neutral'}>
-                          {entite.is_active ? 'Active' : 'Inactive'}
-                        </StatusBadge>
-                        {entite.sans_acces_application && (
-                          <span title="Sans acces a l'application — saisie assuree par le Siege">
-                            <WifiOff className="size-4 text-slate-400" aria-hidden />
-                          </span>
-                        )}
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
+      <ListeStructureClient
+        entites={lignes}
+        filtresInitiaux={{
+          recherche: params.q ?? '',
+          type:
+            typeDemande && (ENTITY_TYPES as readonly string[]).includes(typeDemande)
+              ? typeDemande
+              : 'tous',
+          actif:
+            actifDemande === 'actifs' || actifDemande === 'inactifs' ? actifDemande : 'tous',
+        }}
+      />
     </div>
   );
 }

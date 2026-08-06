@@ -16,6 +16,7 @@ import {
   typeEnfantDe,
   typeParentDe,
   validerCode,
+  validerDeplacement,
   validerRattachement,
 } from '@/lib/domain/hierarchy';
 
@@ -186,6 +187,75 @@ describe('RG-12 — plus petit ancetre commun, borne des approbateurs', () => {
 
   it('retourne null quand les deux chemins n ont aucune racine commune', () => {
     expect(ancetreCommun('n1.n2', 'n9.n8')).toBeNull();
+  });
+});
+
+describe('EF-STR-07 — deplacement dans l organigramme', () => {
+  // siege(n1) > regional(n1.n2) > districtA(n1.n2.n3) > paroisse1(n1.n2.n3.n4)
+  //                                                   > eglise1(n1.n2.n3.n4.n5)
+  //                            > districtB(n1.n2.n7)
+  const districtA = {
+    id: 'a',
+    nom: 'District A',
+    type: 'DISTRICT' as const,
+    path: 'n1.n2.n3',
+    parentId: 'reg',
+  };
+  const districtB = {
+    id: 'b',
+    nom: 'District B',
+    type: 'DISTRICT' as const,
+    path: 'n1.n2.n7',
+    parentId: 'reg',
+  };
+  const paroisse1 = {
+    id: 'p1',
+    nom: 'Paroisse 1',
+    type: 'PAROISSE' as const,
+    path: 'n1.n2.n3.n4',
+    parentId: 'a',
+  };
+  const eglise1 = {
+    id: 'e1',
+    nom: 'Eglise 1',
+    type: 'EGLISE' as const,
+    path: 'n1.n2.n3.n4.n5',
+    parentId: 'p1',
+  };
+
+  it('accepte un deplacement vers un parent de niveau valide', () => {
+    expect(validerDeplacement(paroisse1, districtB).ok).toBe(true);
+  });
+
+  it('refuse un saut de niveau : une Eglise directement sous un District', () => {
+    const resultat = validerDeplacement(eglise1, districtB);
+    expect(resultat.ok).toBe(false);
+    if (!resultat.ok) expect(resultat.error).toContain('Paroisse');
+  });
+
+  it('refuse un rattachement a soi-meme', () => {
+    const resultat = validerDeplacement(paroisse1, paroisse1);
+    expect(resultat.ok).toBe(false);
+    if (!resultat.ok) expect(resultat.error).toContain('elle-meme');
+  });
+
+  it('refuse un deplacement vers le parent actuel', () => {
+    const resultat = validerDeplacement(paroisse1, districtA);
+    expect(resultat.ok).toBe(false);
+    if (!resultat.ok) expect(resultat.error).toContain('deja rattachee');
+  });
+
+  it('refuse un cycle : deplacer une branche sous l un de ses descendants', () => {
+    // Meme niveau valide, mais paroisse1 est dans le sous-arbre de districtA :
+    // le rattachement detacherait tout le sous-arbre de la racine.
+    const paroisseCible = { ...paroisse1, type: 'DISTRICT' as const };
+    const districtDeplace = { ...districtA, parentId: 'autre' };
+    const resultat = validerDeplacement(
+      { ...districtDeplace, type: 'PAROISSE' as const },
+      { ...paroisseCible, type: 'DISTRICT' as const, id: 'p1' },
+    );
+    expect(resultat.ok).toBe(false);
+    if (!resultat.ok) expect(resultat.error).toContain('cycle');
   });
 });
 
