@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { rattacherEntite, supprimerEntite } from '@/lib/actions/entities';
 import { type EntityType, validerDeplacement } from '@/lib/domain/hierarchy';
+import { replisParDefaut } from '@/lib/domain/organigramme';
 import { formatNombre } from '@/lib/utils/format';
 
 import { EntityCreateDialog, type ParentCible } from './entity-create-dialog';
@@ -73,9 +74,6 @@ const LARGEUR_NOEUD = 224; // w-56
 const HAUTEUR_NOEUD = 168;
 const ESPACEMENT_FRERES = 40;
 const ESPACEMENT_NIVEAUX = 80;
-
-const SEUIL_REPLI_AUTO = 40;
-const PROFONDEUR_VISIBLE_PAR_DEFAUT = 2;
 
 const TYPES_NOEUDS = { entite: NoeudEntite };
 
@@ -134,18 +132,9 @@ function Organigramme({ entites }: { entites: EntiteFlux[] }) {
   const [aModifier, setAModifier] = useState<EntiteFlux | null>(null);
   const [aSupprimer, setASupprimer] = useState<EntiteFlux | null>(null);
 
-  const [replies, setReplies] = useState<Set<string>>(() => {
-    if (entites.length <= SEUIL_REPLI_AUTO) return new Set();
-    const profondeurMin = Math.min(...entites.map((e) => e.niveau));
-    return new Set(
-      entites
-        .filter(
-          (e) =>
-            e.niveau - profondeurMin >= PROFONDEUR_VISIBLE_PAR_DEFAUT - 1 && e.nbEnfants > 0,
-        )
-        .map((e) => e.id),
-    );
-  });
+  const [replies, setReplies] = useState<Set<string>>(() =>
+    replisParDefaut(entites),
+  );
 
   const parId = useMemo(() => new Map(entites.map((e) => [e.id, e])), [entites]);
 
@@ -532,10 +521,10 @@ function Organigramme({ entites }: { entites: EntiteFlux[] }) {
             variant="outline"
             className="h-10 bg-card"
             onClick={() => {
-              if (toutReplie) setReplies(new Set());
-              else {
-                setReplies(new Set(entites.filter((e) => e.nbEnfants > 0).map((e) => e.id)));
-              }
+              // Seuil au niveau le plus haut : tout est replie SAUF la racine
+              // du perimetre, que `replisParDefaut` preserve toujours. La
+              // replier aussi ne laisserait qu'un seul noeud a l'ecran.
+              setReplies(toutReplie ? new Set() : replisParDefaut(entites, 'SIEGE'));
               requestAnimationFrame(() => void fitView({ duration: 400, padding: 0.2 }));
             }}
           >

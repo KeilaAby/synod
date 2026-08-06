@@ -83,6 +83,24 @@ Mais elle a existé. La parade porte donc sur la récidive, pas sur le constat :
 La rotation de la clé reste à la charge de l'utilisateur — procédure dans `README.md`.
 Un secret exposé ne se retire pas, il se révoque.
 
+### Ergonomie — repli par défaut de l'organigramme
+
+`/structure` s'ouvre replié au niveau **Régional** : depuis le Siège, on voit les
+Régionaux fermés, et l'on descend à la demande — chaque dépliage ne révèle qu'un
+niveau. La règle est isolée dans `lib/domain/organigramme.ts`, donc testable sans
+monter un canevas React Flow.
+
+Deux cas que la règle doit traiter, et que huit tests verrouillent :
+
+- **La racine du périmètre n'est jamais repliée.** Pour un administrateur de
+  Régional, sa propre entité EST la racine : la replier n'afficherait qu'un seul
+  nœud et la page paraîtrait vide.
+- **Un périmètre démarrant sous le seuil reste déployé.** Un administrateur de
+  district n'a rien au-dessus de sa racine ; le seuil ne s'applique qu'à ce qui est
+  plus profond qu'elle.
+
+« Tout replier » suit la même règle : il s'arrête à la racine.
+
 ### Ergonomie — ERG-1
 
 Le rattachement par glisser-déposer s'applique **immédiatement**, avec une action

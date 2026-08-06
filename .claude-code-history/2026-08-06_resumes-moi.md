@@ -34,6 +34,10 @@ sont amorcés (5 grades, 13 nationalités, 12 fonctions, 13 catégories financi�
 tirer un trait depuis le point bas d'une entité mère aussi, et le menu ⋮ ouvre
 création / fiche / modification / suppression — le tout en pop-up, sans quitter la vue.
 
+Il s'ouvre **replié au niveau Régional** : la vue d'ensemble tient à l'écran, et
+chaque dépliage ne révèle qu'un niveau. La racine du périmètre n'est jamais
+repliée — sans quoi un administrateur de Régional verrait un seul nœud.
+
 ---
 
 ## Trois décisions qui structurent la suite
