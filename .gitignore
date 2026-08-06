@@ -40,7 +40,18 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# transcripts de sessions Claude Code
-# Contiennent le contenu integral des echanges, y compris des valeurs de
-# .env.local : ne doivent jamais etre versionnes (ENF-SEC-09).
-/.claude-code-history/
+# Transcripts de sessions Claude Code.
+# Ils contiennent le contenu integral des echanges, y compris des valeurs lues
+# dans .env.local : ne doivent JAMAIS etre versionnes (ENF-SEC-09).
+#
+# Exceptions : les documents rediges a la main, exempts de secrets, que
+# .agents/rules/gitpush.md impose de pousser — le journal de sessions et les
+# points d'etape « ..._resumes-moi.md ».
+#
+# On ignore le CONTENU du dossier (/*) plutot que le dossier lui-meme : git
+# n'explore pas un repertoire ignore, une negation y serait donc sans effet.
+# Les transcripts se terminent par un identifiant de session hexadecimal, ils
+# ne peuvent pas entrer en collision avec ces motifs.
+/.claude-code-history/*
+!/.claude-code-history/SESSION_HISTORY.md
+!/.claude-code-history/*_resumes-moi.md

@@ -6,10 +6,34 @@ Application web de gestion d'église. **Lire avant toute tâche** :
 
 - [`cdg.md`](notes/cdg.md) — exigences `EF-*`, règles de gestion `RG-01` à `RG-32`
 - [`plan.md`](notes/plan.md) — modèle de données, RLS, design system, écrans, lots
-- [`.agents/rules/designrules.md`](.agents/rules/designrules.md) — stack et design **imposés**
+- [`.agents/rules/`](.agents/rules/) — règles **impératives** : `designrules.md`
+  (stack et design) et `gitpush.md` (procédure de publication)
 
 Toute modification doit citer l'exigence ou la règle qu'elle sert. Si une
 demande contredit `cdg.md`, signalez-le avant d'implémenter.
+
+## État — 6 août 2026
+
+**Lots 0 et 1 livrés** : socle, authentification, habilitations avec portée,
+structure hiérarchique à 6 niveaux avec organigramme éditable, référentiels.
+**Lot 2 (croyants et transferts) à démarrer.**
+
+Historique : [`SESSION_HISTORY.md`](.claude-code-history/SESSION_HISTORY.md) ·
+dernier point d'étape : [`.claude-code-history/2026-08-06_resumes-moi.md`](.claude-code-history/2026-08-06_resumes-moi.md)
+
+## Publication — lire `.agents/rules/gitpush.md` AVANT tout push
+
+1. **Demander l'autorisation** de l'utilisateur avant chaque `git push`.
+   Une autorisation vaut pour UN push, pas pour les suivants.
+2. Mettre à jour au préalable les trois documents exigés :
+   `.claude-code-history/SESSION_HISTORY.md`, le dernier
+   `.claude-code-history/..._resumes-moi.md`, et ce fichier.
+3. Vérifier qu'aucun secret n'entre dans l'index. `.claude-code-history/` est
+   ignoré **sauf** ces deux documents rédigés à la main : les transcripts bruts
+   contiennent des valeurs lues dans `.env.local`.
+
+Ce qu'il reste à faire est décrit dans le dernier point d'étape
+`..._resumes-moi.md`, et le découpage en lots dans [`notes/plan.md`](notes/plan.md).
 
 ## Règles non négociables
 
