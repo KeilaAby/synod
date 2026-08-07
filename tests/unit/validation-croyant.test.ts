@@ -161,3 +161,53 @@ describe('Champs obligatoires', () => {
     expect(croyantSchema.safeParse(sansNaissance).success).toBe(false);
   });
 });
+
+describe('EF-CRO-07 — la modification n ecrit que les champs dont elle est la source', () => {
+  /**
+   * REGRESSION. `photoKey` figurait dans ce schema alors que le formulaire ne
+   * l'affiche pas : il arrivait donc vide, et `modifierCroyant` remettait
+   * `photo_key` a null. Enregistrer la fiche effacait la photo televersee dix
+   * secondes plus tot, sans message et sans erreur.
+   *
+   * Le journal d'audit l'a montre : deux UPDATE consecutifs, le second annulant
+   * le premier.
+   */
+  const complet = {
+    id: uuid(),
+    nom: 'KOFFI',
+    prenom: 'Amos',
+    sexe: 'M' as const,
+    dateNaissance: '1990-03-12',
+    adresse: 'Cotonou, quartier Zogbo',
+    gradeId: uuid(),
+    nationaliteId: uuid(),
+    statut: 'ACTIF' as const,
+  };
+
+  it('ignore une photo glissee dans la charge utile', () => {
+    const analyse = modifierCroyantSchema.safeParse({
+      ...complet,
+      photoKey: 'photos/ailleurs.webp',
+    });
+
+    expect(analyse.success).toBe(true);
+    if (analyse.success) expect(analyse.data).not.toHaveProperty('photoKey');
+  });
+
+  it('ignore une eglise glissee dans la charge utile', () => {
+    // Le rattachement se change par TRANSFERT (EF-TRF-01), avec approbation :
+    // le laisser passer ici contournerait tout le workflow.
+    const analyse = modifierCroyantSchema.safeParse({ ...complet, egliseId: uuid() });
+
+    expect(analyse.success).toBe(true);
+    if (analyse.success) expect(analyse.data).not.toHaveProperty('egliseId');
+  });
+
+  it('n expose aucun champ que le formulaire ne saisit pas', () => {
+    const analyse = modifierCroyantSchema.parse(complet);
+
+    for (const interdit of ['photoKey', 'egliseId', 'matricule', 'saisiPar']) {
+      expect(Object.keys(analyse), interdit).not.toContain(interdit);
+    }
+  });
+});

@@ -73,7 +73,6 @@ export const croyantSchema = z
     gradeId: z.uuid('Sélectionnez un grade.'),
     nationaliteId: z.uuid('Sélectionnez une nationalité.'),
 
-    photoKey: z.string().max(255).optional().nullable(),
 
     /** EF-CRO-13 — passe outre l'avertissement de doublon, en connaissance de cause. */
     doublonAccepte: z.boolean().default(false),
@@ -88,6 +87,21 @@ export const croyantSchema = z
 export type CroyantInput = z.input<typeof croyantSchema>;
 export type CroyantValide = z.output<typeof croyantSchema>;
 
+/**
+ * Modification d'une fiche — EF-CRO-07.
+ *
+ * CE QUE CE SCHÉMA N'A PAS, ET POURQUOI. Deux champs de la table sont
+ * volontairement absents parce que **ce formulaire ne les possède pas** :
+ *
+ *   - `egliseId` — se change par TRANSFERT (EF-TRF-01), avec approbation ;
+ *   - `photoKey` — a ses propres actions (EF-CRO-09).
+ *
+ * Un champ qu'un formulaire n'affiche pas mais qu'il envoie quand même arrive
+ * vide et **efface la donnée** : `photoKey` figurait ici, et enregistrer la
+ * fiche remettait à `null` la photo téléversée dix secondes plus tôt. Sans un
+ * message, sans une erreur. Une action ne doit écrire que les champs dont son
+ * formulaire est réellement la source.
+ */
 export const modifierCroyantSchema = z.object({
   id: z.uuid(),
   nom: z.string().trim().min(2, 'Le nom est requis.').max(80),
@@ -109,7 +123,6 @@ export const modifierCroyantSchema = z.object({
   gradeId: z.uuid(),
   nationaliteId: z.uuid(),
   statut: z.enum(STATUTS_CROYANT),
-  photoKey: z.string().max(255).optional().nullable(),
 });
 
 export type ModifierCroyantInput = z.input<typeof modifierCroyantSchema>;

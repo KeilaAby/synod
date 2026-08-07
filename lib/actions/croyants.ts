@@ -153,7 +153,6 @@ export async function creerCroyant(
         cellule_id: data.celluleId ?? null,
         grade_id: data.gradeId,
         nationalite_id: data.nationaliteId,
-        photo_key: data.photoKey ?? null,
         saisi_par: session.profileId,
         saisi_depuis: session.entityId,
         // `matricule` est volontairement OMIS : un trigger BEFORE le renseigne,
@@ -222,7 +221,10 @@ export async function modifierCroyant(input: unknown): Promise<ActionResult<void
         grade_id: data.gradeId,
         nationalite_id: data.nationaliteId,
         statut: data.statut,
-        photo_key: data.photoKey ?? null,
+        // La PHOTO non plus : elle a ses propres actions (EF-CRO-09), et le
+        // formulaire ne la transporte pas. L'écrire ici la remettait à null à
+        // chaque enregistrement — la photo téléversée dix secondes plus tôt
+        // disparaissait sans un mot.
       })
       .eq('id', data.id);
 
