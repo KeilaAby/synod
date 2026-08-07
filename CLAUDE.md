@@ -14,13 +14,14 @@ demande contredit `cdg.md`, signalez-le avant d'implémenter.
 
 ## État — 7 août 2026
 
-**Lots 0 et 1 livrés** : socle, authentification, habilitations avec portée,
-structure hiérarchique à 6 niveaux (organigramme éditable **et** vue liste, même
-CRUD en pop-up), référentiels.
-**Lot 2 aux deux tiers** : croyants livrés ; transferts et baptêmes ont leur base
-et leur domaine, les écrans restent à construire.
+**Lots 0, 1 et 2 livrés** : socle, authentification, habilitations avec portée,
+structure à 6 niveaux (organigramme éditable **et** vue liste), référentiels,
+croyants avec photo, **transferts** avec workflow d'approbation, **baptêmes**.
 
-Base à jour jusqu'à la migration `0013`. Le stockage de fichiers ne se
+Reste au lot 2 : l'**import Excel** (EF-CRO-11) — c'est là que se posera ARB-6 —
+et la saisie de baptêmes en lot (EF-BAP-07, *Could*).
+
+Base à jour jusqu'à la migration `0014`. Le stockage de fichiers ne se
 configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` et
 `postgres` s'y voit refuser `CREATE POLICY` : `pnpm db:bucket` s'en charge par
 l'API.
@@ -89,6 +90,16 @@ Ce qu'il reste à faire est décrit dans le dernier point d'étape
 18. Le contrôle suit la nature de l'ensemble : **pictogrammes** si l'ensemble
     est clos et connu (niveaux, statuts, sexe), **sélecteur** s'il est ouvert
     (entités, grades, nationalités).
+19. Une action n'écrit **que les champs dont son formulaire est la source**. Un
+    champ qu'un formulaire n'affiche pas mais qu'il envoie arrive vide et
+    **efface la donnée** — sans message et sans erreur.
+20. Deux écritures indissociables se font **en base**, dans une fonction : deux
+    appels HTTP ne forment pas une transaction. Avant d'en écrire une, se
+    demander si l'état intermédiaire est *faux et indétectable* (alors la
+    fonction s'impose) ou *bénin et rattrapable* (alors il suffit de le dire).
+21. Un paramètre configurable se **lit à chaque rendu**, jamais codé en dur dans
+    un écran — sinon le réglage devient décoratif.
+22. Le stockage de fichiers ne se configure pas en SQL : `pnpm db:bucket`.
 
 ## Conventions
 

@@ -13,8 +13,7 @@
 
 ## Où en est le projet
 
-**SYNOD** — plateforme de gestion d'église. **Lots 0 et 1 livrés**, **Lot 2 aux
-deux tiers**.
+**SYNOD** — plateforme de gestion d'église. **Lots 0, 1 et 2 livrés.**
 
 L'application tourne : vous êtes connecté, le Siège existe, les quatre référentiels
 sont amorcés (5 grades, 13 nationalités, 12 fonctions, 13 catégories financières),
@@ -30,7 +29,11 @@ et les croyants s'enregistrent.
 | Structure — organigramme éditable, vue liste, CRUD en pop-up, corbeille | ✅ |
 | Référentiels — les quatre tables, CRUD complet | ✅ |
 | Croyants — création en 3 étapes, liste, fiche, modification, corbeille | ✅ |
-| Transferts, baptêmes | Base et domaine faits ; **écrans à construire** |
+| Photo de profil — recadrage client, seau privé | ✅ |
+| Transferts — demande, approbation, refus motivé, journal, compteur | ✅ |
+| Baptêmes — saisie créant le croyant, registre, fenêtre paramétrable | ✅ |
+| Import Excel des croyants (EF-CRO-11) | Reste du lot 2 — c'est là que se posera **ARB-6** |
+| Saisie de baptêmes en lot (EF-BAP-07) | *Could* — non livré, le champ « session » le prépare |
 | Tableau de bord | Coquille seulement — le moteur configurable est le Lot 5 |
 | Bureaux, Finances, Rapports | À venir |
 
@@ -106,31 +109,39 @@ et une règle ESLint interdit d'importer le SDK Supabase hors des adaptateurs.
 
 ## Ce qui vous attend
 
-**1. Appliquer la migration `0013`.** Dans l'éditeur SQL Supabase, exécuter
-`supabase/install-incremental.sql` (ne contient que `0013`). Elle crée les
-séquences de codes d'entité, réécrit le générateur de matricule au nouveau format
-et rattrape les compteurs des enregistrements existants. Sans elle, la création
-d'entité échouera : le formulaire n'envoie plus de code.
-
-**2. La rotation de la clé `service_role`** (Supabase > Project Settings > API).
+**1. La rotation de la clé `service_role`** (Supabase > Project Settings > API).
 Elle a figuré en clair dans un transcript local ; celui-ci a depuis été remplacé et
 le dossier est exclu du dépôt, mais la clé a existé hors du coffre. Procédure
 détaillée dans `README.md`. Un secret exposé ne se retire pas, il se révoque.
+Cette clé sert désormais à un usage courant — tout accès au stockage des
+photos — et non plus aux seules invitations : la rotation gagne en urgence.
+
+**2. Supprimer le seau `croyant-photos`**, resté **public** dans le projet
+Supabase. Tout fichier qui s'y trouve est lisible par quiconque connaît son URL.
+`pnpm db:bucket` le signale à chaque exécution.
 
 ---
 
 ## Ce qui reste au Lot 2
 
-Dans cet ordre — chaque étape s'appuie sur la précédente :
+**L'import Excel des croyants** (EF-CRO-11, *Should*). C'est là qu'**ARB-6** se
+posera enfin : il faudra voir vos fichiers sources — volume, format, qualité —
+pour caler l'import. La question a été mise de côté depuis le cadrage
+précisément pour être posée à ce moment.
 
-1. **Transferts** (EF-TRF-01 à 08) : dialogue de demande, file d'approbation,
-   journal. La table, les transitions d'état et la recherche d'approbateur
-   compétent (`RG-12`, `fn_ancetre_commun`) sont déjà en base et testées ; il ne
-   manque que les écrans.
-2. **Baptêmes** (EF-BAP-01 à 04) : saisie, et fenêtre « nouveaux baptisés » de
-   15 jours (ARB-5).
-3. **Compteurs « en attente »** dans l'en-tête (UI-21) — ils n'ont de sens qu'une
-   fois la file d'approbation existante.
+La **saisie de baptêmes en lot** (EF-BAP-07) est un *Could* : le champ
+« session ou cérémonie » est déjà saisi, ce qui évitera de revenir sur les
+baptêmes existants le jour où elle sera livrée.
+
+---
+
+## Deux points déjà rattachés au Lot 3 — Bureaux
+
+- **EF-TRF-09** — un transfert effectif doit clore les mandats de bureau de
+  l'entité d'origine. Le point d'insertion est marqué dans
+  `fn_appliquer_transfert`, entre le déplacement et la clôture du transfert.
+- La **frise du croyant** accueillera les fonctions occupées : `TypeEvenement`
+  n'a qu'à gagner une valeur, et le composant une icône.
 
 ---
 
@@ -139,7 +150,7 @@ Dans cet ordre — chaque étape s'appuie sur la précédente :
 ```bash
 pnpm install      # installe aussi le hook pre-commit de détection de secrets
 pnpm dev          # http://localhost:3000
-pnpm verify       # secrets + lint + types + 181 tests + build
+pnpm verify       # secrets + lint + types + 200 tests + build
 ```
 
 Lire avant toute tâche : `CLAUDE.md`, puis `notes/cdg.md` et `notes/plan.md`.

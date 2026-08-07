@@ -334,3 +334,117 @@ que le `ilike` SQL n'avait pas :
   avec la ponctuation exacte de l'enregistrement.
 
 `filtresCroyantSchema` et `filtresDepuisParams` sont supprimés, sans appelant.
+
+---
+
+## 7 août 2026 (suite) — Lot 2 achevé : transferts, baptêmes, photo
+
+### Photo de profil — EF-CRO-09
+
+L'adaptateur de stockage existait **depuis le lot 0** — dépôt, URL signée,
+vérification par signature binaire, plafond de 5 Mo — mais n'avait aucun
+appelant, et le seau `synod` que le code suppose n'existait pas.
+
+Trois tentatives ont échoué avant d'aboutir, et chacune a appris quelque chose :
+
+| Erreur | Ce qu'elle révélait |
+|---|---|
+| `42501: must be owner of table objects` | `alter table storage.objects enable row level security` exige d'être propriétaire ; la RLS y est déjà active dans tout projet Supabase |
+| `postgres n'est pas membre de supabase_storage_admin` | **Aucune** politique de stockage n'est créable en SQL sur ce projet |
+| « La photo n'a pas pu être jointe » | Le seau n'existait pas : chaque tentative se terminant par une erreur, l'éditeur SQL annulait la transaction — création du seau comprise |
+
+D'où le choix final : **le seau se crée par l'API** (`pnpm db:bucket`), pas en
+SQL, et il ne porte **aucune politique**. Les fichiers ne transitent que par les
+Server Actions, qui portent déjà le contrôle d'habilitation avec sa portée. Une
+politique SQL aurait réexprimé en SQL une règle de périmètre déjà tenue par le
+domaine — et deux écritures d'une même règle divergent toujours.
+
+Contrepartie assumée et écrite en tête des deux fichiers concernés : il n'y a
+plus de second filet derrière `requirePermission`.
+
+L'image est recadrée en carré et réduite à 512 px **dans le navigateur** : une
+photo de téléphone passe de 5 Mo à une cinquantaine de kilo-octets, pour un
+résultat identique à l'écran. Le serveur relit les premiers octets et ne fait
+aucune confiance à ce traitement.
+
+### Le bug le plus instructif de la session
+
+Le téléversement réussissait, puis la photo disparaissait. Le journal d'audit a
+donné la scène :
+
+```
+15:10:29  UPDATE  photo_key : null → photos/957e….webp
+15:10:38  UPDATE  nom, prenom, statut
+```
+
+`photoKey` figurait dans `modifierCroyantSchema` alors que le formulaire ne
+l'affiche pas : il arrivait donc vide, et `data.photoKey ?? null` écrasait la
+valeur neuf secondes plus tard.
+
+**Règle qui en découle** : une action n'écrit que les champs dont son formulaire
+est réellement la source. `egliseId` en était déjà exclu — se change par
+transfert — mais la raison n'avait été tirée que pour lui. Trois tests
+verrouillent désormais l'exclusion.
+
+### Transferts — EF-TRF-01 à 10
+
+L'application effective passe par `fn_appliquer_transfert` (migration `0014`),
+en base. Déplacer le croyant et clore le transfert sont deux écritures
+indissociables : deux appels HTTP ne forment pas une transaction, et une coupure
+entre eux laisserait un croyant déplacé sans trace, ou un transfert clos sans
+effet — deux états faux, et aucun ne se détecte. La fonction étant
+`SECURITY DEFINER`, elle revalide RG-11 et RG-12 : c'est le seul endroit où la
+règle tient encore une fois la RLS mise de côté.
+
+**Ni l'origine ni le niveau ne sont saisis.** L'origine se lit sur la fiche — la
+demander laisserait l'écran et la requête diverger, et c'est elle qui détermine
+l'approbateur. Le niveau se déduit du point de divergence des deux chemins et
+est **annoncé** : demander à l'utilisateur de qualifier son geste, c'est lui
+demander de se tromper.
+
+Le compteur de navigation (UI-21) ne dénombre pas ce que la RLS laisse **voir**
+mais ce que l'utilisateur peut **trancher** (RG-12). Un badge annonçant trois
+demandes pour une file qui en montre zéro ferait douter de l'application entière.
+
+Découvert en chemin : le bouton « Transférer » de la fiche pointait vers
+`/croyants/[id]/transferer`, **une route qui n'a jamais existé**.
+
+### Historique du croyant en frise
+
+La section était restée un texte d'attente : le module de lecture existait,
+l'écran ne l'appelait pas. Ce qui n'est pas vérifié n'est pas branché — d'où dix
+tests.
+
+Une **frise** et non un tableau : ce qui se lit est un enchaînement dans le
+temps, et un tableau alignerait des colonnes qui n'ont pas la même nature d'un
+événement à l'autre. Trois signaux distincts : le trait porte l'ordre, la
+pastille la nature, la couleur l'issue.
+
+Un transfert s'y situe à la date où il a produit son **effet**, pas à celle de sa
+demande ; un refus affiche le motif du **refus**, pas celui de la demande — c'est
+lui qui explique l'issue.
+
+### Baptêmes — EF-BAP-01 à 06
+
+La saisie **crée le croyant** (EF-BAP-02) : il n'y a pas de double saisie, donc
+pas de « rattacher un baptême à un croyant existant ». Un seul écran là où la
+création d'un croyant en demande trois — c'est le **parcours** qui est simplifié,
+pas les données : un champ `not null` en base le reste dans le formulaire.
+
+Deux écritures sans transaction, et **c'est assumé** : contrairement au
+transfert, l'état intermédiaire est bénin. Un baptême à moitié saisi laisse un
+croyant correct, avec sa `date_bapteme` — donc compté dans les indicateurs — à
+qui manquent seulement le lieu et le célébrant. L'action le dit plutôt que de le
+taire.
+
+La fenêtre « nouveaux baptisés » est lue des paramètres à chaque rendu (ARB-5,
+RG-30) : la coder en dur aurait rendu le réglage décoratif. Le libellé du filtre
+la nomme, pour qu'on sache ce que « récent » veut dire aujourd'hui.
+
+**EF-BAP-07 (saisie en lot) n'est pas livré** — c'est un *Could*. Le champ
+« session ou cérémonie » est déjà saisi, ce qui évitera de revenir sur les
+baptêmes existants le jour où il le sera.
+
+### Qualité
+
+200 tests unitaires. `pnpm verify` vert.
