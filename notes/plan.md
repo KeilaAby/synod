@@ -480,7 +480,7 @@ end $$;
 create table bureaux (
   id uuid primary key default gen_random_uuid(),
   entity_id  uuid not null references entities(id) on delete restrict,
-  libelle    text not null,                  -- ex. « Bureau District Avaradrano 2026-2029 »
+  libelle    text not null,                  -- NOM du bureau : « Bureau executif »
   date_debut date not null,
   date_fin   date,
   is_active  boolean not null default true,
@@ -489,7 +489,11 @@ create table bureaux (
   constraint bureaux_periode check (date_fin is null or date_fin > date_debut)
 );
 
-create unique index bureaux_un_seul_actif on bureaux (entity_id)      -- RG-10
+-- RG-10 : au plus un mandat actif PAR BUREAU. Une entite fait coexister un
+-- « Bureau executif » et un « Comite des finances » ; deux « Bureau executif »
+-- ouverts en meme temps restent une erreur.
+create unique index bureaux_un_actif_par_nom
+  on bureaux (entity_id, lower(btrim(libelle)))
   where is_active and deleted_at is null;
 
 create table bureau_membres (
@@ -2483,11 +2487,15 @@ describe('RG-26 / RG-27 — rapports', () => {
 
 ### Lot 3 — Bureaux *(2 semaines)*
 
-- [ ] `bureaux` et `bureau_membres`, triggers de périmètre et d'unicité, RLS.
-- [ ] Mandats : création, clôture, reconduction. Membres : ajout, remplacement, retrait.
+- [x] `bureaux` et `bureau_membres`, triggers de périmètre et d'unicité, RLS
+      (migrations `0016` et `0017`).
+- [x] EF-TRF-09 — clôture des mandats d'origine à l'application d'un transfert.
+- [x] Mandats : création, clôture, reconduction. Membres : ajout, remplacement,
+      retrait. **Server Actions livrées ; écrans à construire.**
 - [ ] `BureauFlow` par rang protocolaire, fonctions vacantes visibles.
 - [ ] Onglet « Fonctions occupées » sur la fiche croyant.
-- [ ] Tests : RG-07 à RG-10, RG-31.
+- [x] Tests : RG-08 à RG-10, RG-31 — 25 tests. *(RG-07 est portée par la clé
+      étrangère et le trigger : aucune contrepartie applicative à tester.)*
 
 ### Lot 4 — Finances *(3 semaines)*
 

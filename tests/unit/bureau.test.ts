@@ -6,14 +6,16 @@ import {
   type Mandat,
   type MandatMembre,
   aReconduire,
-  bureauActif,
+  bureauxActifs,
   candidatsEligibles,
   composerBureau,
   comptePostes,
   croyantEligible,
   fonctionApplicable,
   fonctionsDuNiveau,
-  libelleMandat,
+  libelleAffichage,
+  mandatActifDe,
+  memeBureau,
   membresDeFinances,
   validerDesignation,
   validerPeriodeMandat,
@@ -259,28 +261,55 @@ describe('Recevabilite d une designation', () => {
 
 // -----------------------------------------------------------------------------
 
-describe('RG-10 — une entite n a qu un bureau actif', () => {
+describe('RG-10 — au plus un mandat actif PAR BUREAU', () => {
   const m = (p: Partial<Mandat>): Mandat => ({
     id: 'b1',
     entityId: 'e1',
-    libelle: 'Bureau 2023-2026',
+    libelle: 'Bureau executif',
     dateDebut: '2023-01-01',
     dateFin: '2026-01-01',
     isActive: false,
     ...p,
   });
 
-  it('retient le mandat actif parmi les anterieurs', () => {
+  it('laisse coexister plusieurs bureaux de noms differents', () => {
+    // Correction du 7 aout 2026 : la premiere redaction — un seul bureau actif
+    // par entite — refusait au Comite des finances d'exister a cote du Bureau
+    // executif.
     const mandats = [
-      m({ id: 'b1' }),
-      m({ id: 'b2', isActive: true, dateDebut: '2026-01-02', dateFin: null }),
+      m({ id: 'b1', libelle: 'Bureau executif', isActive: true, dateFin: null }),
+      m({ id: 'b2', libelle: 'Comite des finances', isActive: true, dateFin: null }),
+      m({ id: 'b3', libelle: 'Commission des jeunes', isActive: true, dateFin: null }),
     ];
-    expect(bureauActif(mandats)?.id).toBe('b2');
+
+    expect(bureauxActifs(mandats)).toHaveLength(3);
   });
 
-  it('retourne null quand aucun mandat n est ouvert', () => {
-    expect(bureauActif([m({})])).toBeNull();
-    expect(bureauActif([])).toBeNull();
+  it('ecarte les mandats clos et ordonne par nom', () => {
+    const mandats = [
+      m({ id: 'b1', libelle: 'Comite des finances', isActive: true, dateFin: null }),
+      m({ id: 'b2', libelle: 'Bureau executif', isActive: true, dateFin: null }),
+      m({ id: 'b3', libelle: 'Bureau executif' }), // mandat precedent, clos
+    ];
+
+    expect(bureauxActifs(mandats).map((b) => b.id)).toEqual(['b2', 'b1']);
+  });
+
+  it('retrouve le mandat en cours d un bureau donne', () => {
+    const mandats = [
+      m({ id: 'b1', libelle: 'Bureau executif', isActive: true, dateFin: null }),
+      m({ id: 'b2', libelle: 'Comite des finances', isActive: true, dateFin: null }),
+    ];
+
+    expect(mandatActifDe(mandats, 'Comite des finances')?.id).toBe('b2');
+    expect(mandatActifDe(mandats, 'Commission des jeunes')).toBeNull();
+  });
+
+  it('reconnait un meme bureau malgre la casse et les espaces', () => {
+    // Sans cette normalisation, la contrainte d'unicite se contournerait d'une
+    // majuscule — et l'entite se retrouverait avec deux « Bureau executif ».
+    expect(memeBureau('Bureau Executif', '  bureau executif ')).toBe(true);
+    expect(memeBureau('Bureau executif', 'Comite des finances')).toBe(false);
   });
 
   it('refuse une periode dont la fin precede le debut', () => {
@@ -289,12 +318,14 @@ describe('RG-10 — une entite n a qu un bureau actif', () => {
     expect(validerPeriodeMandat('2026-01-01', null).ok).toBe(true);
   });
 
-  it('compose un libelle portant l entite et la periode', () => {
-    expect(libelleMandat('IAVOAMBONY', '2026-01-01', '2029-12-31')).toBe(
-      'Bureau IAVOAMBONY 2026-2029',
+  it('compose l intitule affiche a partir du nom et de la periode', () => {
+    // COMPOSE et non stocke : dupliquer la periode dans le libelle produirait
+    // un intitule faux le jour ou le mandat est clos par anticipation.
+    expect(libelleAffichage('Bureau executif', '2026-01-01', '2029-12-31')).toBe(
+      'Bureau executif 2026-2029',
     );
-    expect(libelleMandat('IAVOAMBONY', '2026-01-01', null)).toBe(
-      'Bureau IAVOAMBONY depuis 2026',
+    expect(libelleAffichage('Bureau executif', '2026-01-01', null)).toBe(
+      'Bureau executif depuis 2026',
     );
   });
 });

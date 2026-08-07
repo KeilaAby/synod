@@ -195,6 +195,7 @@ export function validerDesignation(
 export interface Mandat {
   readonly id: string;
   readonly entityId: string;
+  /** NOM du bureau — « Bureau executif ». La periode se lit dans les dates. */
   readonly libelle: string;
   readonly dateDebut: string;
   readonly dateFin: string | null;
@@ -202,11 +203,40 @@ export interface Mandat {
 }
 
 /**
- * RG-10 — une entite n'a qu'UN bureau actif. Les mandats anterieurs sont
- * conserves : c'est l'histoire du bureau, pas un brouillon.
+ * Deux bureaux portent-ils le MEME nom ?
+ *
+ * Casse et espaces de bord ecartes : « Bureau Executif » et
+ * « bureau executif  » designent le meme organe. Doit rester aligne sur
+ * l'index `bureaux_un_actif_par_nom` (migration 0017).
  */
-export function bureauActif(mandats: readonly Mandat[]): Mandat | null {
-  return mandats.find((m) => m.isActive) ?? null;
+export function memeBureau(a: string, b: string): boolean {
+  const normaliser = (v: string) => v.trim().toLocaleLowerCase('fr');
+  return normaliser(a) === normaliser(b);
+}
+
+/**
+ * RG-10 — une entite a au plus un mandat actif PAR BUREAU.
+ *
+ * Elle peut en revanche faire coexister plusieurs bureaux de noms differents :
+ * un « Bureau executif », un « Comite des finances », une « Commission des
+ * jeunes ». La premiere redaction de la regle — un seul bureau actif par
+ * entite — refusait le second (corrige le 7 aout 2026).
+ *
+ * Les mandats anterieurs sont conserves : c'est l'histoire du bureau, pas un
+ * brouillon.
+ */
+export function bureauxActifs(mandats: readonly Mandat[]): Mandat[] {
+  return mandats
+    .filter((m) => m.isActive)
+    .sort((a, b) => a.libelle.localeCompare(b.libelle, 'fr'));
+}
+
+/** Le mandat en cours d'un bureau donne, s'il existe. */
+export function mandatActifDe(
+  mandats: readonly Mandat[],
+  libelle: string,
+): Mandat | null {
+  return mandats.find((m) => m.isActive && memeBureau(m.libelle, libelle)) ?? null;
 }
 
 export function validerPeriodeMandat(
@@ -220,14 +250,14 @@ export function validerPeriodeMandat(
 }
 
 /**
- * Libelle propose pour un nouveau mandat.
+ * Intitule affiche d'un mandat — « Bureau executif 2026-2029 ».
  *
- * « Bureau IAVOAMBONY 2026-2029 » : l'entite et la periode. Ce que l'on
- * cherche dans une liste de mandats, c'est l'annee — la mettre dans le libelle
- * evite d'avoir a ouvrir chaque ligne.
+ * COMPOSE, jamais stocke : la periode se lit deja dans les dates, et la
+ * dupliquer dans le libelle produirait un intitule faux le jour ou le mandat
+ * est clos par anticipation.
  */
-export function libelleMandat(
-  nomEntite: string,
+export function libelleAffichage(
+  nomBureau: string,
   dateDebut: string,
   dateFin: string | null,
 ): string {
@@ -236,7 +266,7 @@ export function libelleMandat(
     ? `${annee(dateDebut)}-${annee(dateFin)}`
     : `depuis ${annee(dateDebut)}`;
 
-  return `Bureau ${nomEntite} ${periode}`;
+  return `${nomBureau.trim()} ${periode}`;
 }
 
 /**

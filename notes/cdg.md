@@ -243,7 +243,7 @@ Les habilitations sont **unitaires**, regroupées par catégorie, et chacune peu
 | **EF-TRF-06** | Un transfert enregistre : date de demande, date effective, entité d'origine, entité de destination, motif, demandeur, approbateur, décision. | **Must** |
 | **EF-TRF-07** | Notifier les approbateurs concernés des demandes en attente (indicateur dans la barre de navigation + liste dédiée). | **Must** |
 | **EF-TRF-08** | Consulter l'**historique complet** des transferts d'un croyant et le journal global, filtrable par période, entité et statut. | **Must** |
-| **EF-TRF-09** | Un transfert effectif clôt automatiquement les mandats de bureau détenus dans l'entité d'origine, avec avertissement préalable au demandeur. | **Must** |
+| **EF-TRF-09** | Un transfert effectif **clôt** les mandats de bureau détenus dans le sous-arbre d'origine — et **n'en accorde aucun** à la destination, qui désigne si elle le souhaite. Ne sont clos que les mandats que la destination ne couvre pas : un transfert entre deux églises d'une même paroisse ne démet personne du bureau de cette paroisse. *(Précisé le 7 août 2026.)* | **Must** |
 | **EF-TRF-10** | Annuler une demande tant qu'elle n'est pas approuvée. | **Should** |
 | **EF-TRF-11** | Transférer un lot de croyants en une seule demande (ex. scission d'une cellule). | **Could** |
 
@@ -263,7 +263,7 @@ Les habilitations sont **unitaires**, regroupées par catégorie, et chacune peu
 | Réf. | Exigence | Priorité |
 |---|---|---|
 | **EF-BUR-01** | Créer et gérer un Bureau pour **chaque entité** — Siège, Régional, District, Paroisse, Église, Cellule. | **Must** |
-| **EF-BUR-02** | Un Bureau est défini par un **mandat** : libellé, date de début, date de fin *(facultative)*, statut. Une entité ne peut avoir **qu'un seul bureau actif** à un instant donné. | **Must** |
+| **EF-BUR-02** | Un Bureau porte un **nom** — « Bureau exécutif », « Comité des finances » — et un **mandat** : date de début, date de fin *(facultative)*, statut. Une entité peut avoir **plusieurs bureaux**, mais **un seul mandat actif par bureau**. Rouvrir un bureau du même nom clôt le mandat précédent et permet d'en reconduire la composition. | **Must** |
 | **EF-BUR-03** | Composer un Bureau en associant, à chaque **Fonction**, un **croyant** existant. Un membre de bureau est **obligatoirement** un croyant enregistré. | **Must** |
 | **EF-BUR-04** | Un croyant peut n'avoir **aucune** fonction : l'appartenance à un bureau est facultative. | **Must** |
 | **EF-BUR-05** | Une même Fonction n'est occupée que par **un seul croyant** dans un bureau à une date donnée. | **Must** |
@@ -434,8 +434,8 @@ Les habilitations sont **unitaires**, regroupées par catégorie, et chacune peu
 | **RG-06** | Le **grade** et la **nationalité** proviennent obligatoirement des référentiels dédiés. |
 | **RG-07** | Un **membre de bureau est obligatoirement un croyant** enregistré ; un croyant n'a **pas nécessairement** de fonction. |
 | **RG-08** | Une **Fonction** est occupée par **au plus un croyant** dans un bureau donné à une date donnée. |
-| **RG-09** | Un croyant désigné dans le bureau d'une entité appartient au **sous-arbre** de cette entité. |
-| **RG-10** | Une entité possède **au plus un bureau actif** à un instant donné ; les mandats antérieurs sont conservés. |
+| **RG-09** | Un croyant désigné dans le bureau d'une entité appartient au **sous-arbre** de cette entité — autrement dit, l'entité est sur la **chaîne d'ascendants de son église**. Il peut donc cumuler des mandats à plusieurs niveaux — son église, sa paroisse, son district, son régional — et dans plusieurs bureaux d'une même entité. Il ne peut pas siéger dans une branche voisine. *(Confirmé le 7 août 2026 ; la variante « siéger au régional ouvre ses sous-entités » a été écartée : l'éligibilité aurait dépendu des mandats déjà détenus, et changé à la clôture de l'un d'eux.)* |
+| **RG-10** | Une entité possède **au plus un mandat actif par bureau**. Elle peut en revanche faire coexister **plusieurs bureaux de noms différents** — Bureau exécutif, Comité des finances, Commission des jeunes. Les mandats antérieurs sont conservés. *(Corrigé le 7 août 2026 : la rédaction initiale — « au plus un bureau actif par entité » — interdisait au second bureau d'exister.)* |
 | **RG-11** | Un **transfert** n'est appliqué qu'après **approbation**. Une fois effectif, il met à jour les rattachements, clôt les mandats de bureau de l'entité d'origine et crée une ligne d'historique. Il ne supprime jamais l'antériorité. |
 | **RG-12** | L'**approbateur** d'un transfert détient `transfer.approve` et son périmètre couvre **simultanément** l'entité d'origine et l'entité de destination. Le SuperAdmin peut toujours approuver. |
 | **RG-13** | Un mouvement financier porte un **sens** — recette ou dépense — **déduit de sa catégorie** et non modifiable après validation. |

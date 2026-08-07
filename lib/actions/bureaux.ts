@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 
 import { listerCandidats, listerFonctions } from '@/lib/data/bureaux';
 import { getArbrePerimetre } from '@/lib/data/entities';
-import { aReconduire, validerDesignation } from '@/lib/domain/bureau';
+import { aReconduire, memeBureau, validerDesignation } from '@/lib/domain/bureau';
 import { nomComplet } from '@/lib/domain/croyant';
 import { type ActionResult, ko, ok } from '@/lib/domain/result';
 import { auditer, requirePermission, requireSession } from '@/lib/session';
@@ -33,8 +33,11 @@ import { executerAction } from './executer';
 function messageErreurSql(erreur: { code?: string; message?: string }): string {
   // RG-08, RG-10 — index uniques partiels.
   if (erreur.code === '23505') {
-    if (erreur.message?.includes('bureaux_un_seul_actif')) {
-      return 'RG-10 : cette entite a deja un bureau actif. Clorez-le avant d\'en ouvrir un autre.';
+    if (erreur.message?.includes('bureaux_un_actif_par_nom')) {
+      return (
+        'RG-10 : un bureau de ce nom est deja ouvert pour cette entite. ' +
+        'Choisissez un autre nom, ou renouvelez le mandat existant.'
+      );
     }
     if (erreur.message?.includes('membres_fonction_unique')) {
       return 'RG-08 : cette fonction est deja occupee. Remplacez son titulaire.';
@@ -95,24 +98,40 @@ export async function ouvrirMandat(input: unknown): Promise<ActionResult<{ id: s
 
     const sb = await createClient();
 
-    // RG-10 — le mandat en cours se clot AVANT que le suivant ne s'ouvre :
-    // l'index unique refuserait deux bureaux actifs, et le message serait
-    // moins clair que ce que l'utilisateur vient de demander.
-    const { data: precedent } = await sb
+    /**
+     * RG-10 — on ne clot QUE le mandat du MEME bureau.
+     *
+     * Une entite fait coexister un « Bureau executif », un « Comite des
+     * finances », une « Commission des jeunes » : ouvrir le second ne doit pas
+     * demettre le premier. La premiere version fermait tout bureau actif de
+     * l'entite — c'etait la traduction d'un RG-10 mal redige.
+     *
+     * Ouvrir un bureau du meme nom, en revanche, est un RENOUVELLEMENT : le
+     * mandat precedent se clot, et sa composition peut etre reconduite.
+     */
+    const { data: bureauxActifsEntite } = await sb
       .from('bureaux')
-      .select('id, bureau_membres!bureau_membres_bureau_id_fkey (id, croyant_id, fonction_id, date_fin)')
+      .select(
+        'id, libelle, bureau_membres!bureau_membres_bureau_id_fkey (id, croyant_id, fonction_id, date_fin)',
+      )
       .eq('entity_id', data.entityId)
       .eq('is_active', true)
       .is('deleted_at', null)
-      .maybeSingle<{
-        id: string;
-        bureau_membres: {
+      .returns<
+        {
           id: string;
-          croyant_id: string;
-          fonction_id: string;
-          date_fin: string | null;
-        }[];
-      }>();
+          libelle: string;
+          bureau_membres: {
+            id: string;
+            croyant_id: string;
+            fonction_id: string;
+            date_fin: string | null;
+          }[];
+        }[]
+      >();
+
+    const precedent =
+      (bureauxActifsEntite ?? []).find((b) => memeBureau(b.libelle, data.libelle)) ?? null;
 
     if (precedent) {
       const veille = new Date(data.dateDebut);
