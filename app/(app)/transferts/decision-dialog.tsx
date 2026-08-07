@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertCircle, ArrowRight, Check, Loader2, X } from 'lucide-react';
+import { AlertCircle, Check, Loader2, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -18,9 +18,9 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { approuverTransfert, refuserTransfert } from '@/lib/actions/transferts';
+import { TransfertDetail } from '@/components/transferts/transfert-detail';
 import type { TransfertListe } from '@/lib/data/transferts';
 import { nomComplet } from '@/lib/domain/croyant';
-import { ENTITY_LABELS } from '@/lib/domain/hierarchy';
 import { formatDate } from '@/lib/utils/format';
 
 /**
@@ -120,58 +120,7 @@ export function DecisionDialog({
             </Alert>
           )}
 
-          <div className="flex flex-wrap items-center gap-4 rounded-md border border-border bg-slate-50 p-4">
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Origine</p>
-              <p className="text-sm font-medium text-foreground">
-                {transfert.origine?.nom ?? '—'}
-              </p>
-              {transfert.celluleOrigine && (
-                <p className="text-xs text-muted-foreground">
-                  Cellule {transfert.celluleOrigine.nom}
-                </p>
-              )}
-            </div>
-
-            <ArrowRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
-
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Destination</p>
-              <p className="text-sm font-medium text-foreground">
-                {transfert.destination?.nom ?? '—'}
-              </p>
-              {transfert.celluleDestination && (
-                <p className="text-xs text-muted-foreground">
-                  Cellule {transfert.celluleDestination.nom}
-                </p>
-              )}
-            </div>
-
-            <div className="ml-auto space-y-1">
-              <p className="text-xs text-muted-foreground">Niveau</p>
-              <p className="text-sm text-foreground">
-                {ENTITY_LABELS[transfert.niveau_transfert].singulier}
-              </p>
-            </div>
-          </div>
-
-          {transfert.motif && (
-            <div className="space-y-2">
-              <p className="eyebrow">Motif invoqué</p>
-              <p className="rounded-md bg-slate-50 p-4 text-sm text-muted-foreground">
-                « {transfert.motif} »
-              </p>
-            </div>
-          )}
-
-          {/* RG-12 — dire au nom de quoi l'on décide. */}
-          {transfert.arbitre && (
-            <p className="text-xs text-muted-foreground">
-              Vous décidez au titre de votre périmètre sur{' '}
-              <strong className="text-foreground">{transfert.arbitre.nom}</strong>, plus
-              petite entité couvrant à la fois l&apos;origine et la destination.
-            </p>
-          )}
+          <TransfertDetail transfert={transfert} />
 
           {modeRefus && (
             <Field label="Motif du refus" required>

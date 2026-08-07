@@ -22,9 +22,17 @@ import { EmptyState } from '@/components/shared/empty-state';
 import { FiltreIcone, GroupeFiltres } from '@/components/shared/filtre-icone';
 import { useSession } from '@/components/shared/session-provider';
 import { StatusBadge } from '@/components/shared/status-badge';
+import { TransfertDetail } from '@/components/transferts/transfert-detail';
 import { TypeBadge } from '@/components/structure/type-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import {
   Table,
@@ -72,6 +80,7 @@ export function TransfertsClient({ transferts }: { transferts: TransfertListe[] 
   const [recherche, setRecherche] = useState('');
   const [statut, setStatut] = useState<StatutTransfert | 'tous'>('tous');
   const [aDecider, setADecider] = useState<TransfertListe | null>(null);
+  const [aConsulter, setAConsulter] = useState<TransfertListe | null>(null);
   const [enCours, demarrer] = useTransition();
 
   const rechercheDifferee = useDeferredValue(recherche);
@@ -295,7 +304,8 @@ export function TransfertsClient({ transferts }: { transferts: TransfertListe[] 
                       <TableHead>Croyant</TableHead>
                       <TableHead>Trajet</TableHead>
                       <TableHead>Niveau</TableHead>
-                      <TableHead>Demandé le</TableHead>
+                      <TableHead>Demande</TableHead>
+                      <TableHead>Décision</TableHead>
                       <TableHead>Statut</TableHead>
                       <TableHead className="text-right">Action</TableHead>
                     </TableRow>
@@ -328,8 +338,26 @@ export function TransfertsClient({ transferts }: { transferts: TransfertListe[] 
                           <TypeBadge type={t.niveau_transfert} />
                         </TableCell>
 
-                        <TableCell className="font-mono text-xs tabular-nums text-muted-foreground">
-                          {formatDate(t.date_demande)}
+                        {/* EF-TRF-06 — qui, et quand : le dossier doit repondre
+                            sans qu'on ait a l'ouvrir. */}
+                        <TableCell>
+                          <Horodatage
+                            date={t.date_demande}
+                            auteur={t.demandeur?.nom_complet}
+                          />
+                        </TableCell>
+
+                        <TableCell>
+                          {t.date_decision ? (
+                            <Horodatage
+                              date={t.date_decision}
+                              auteur={t.decideur?.nom_complet}
+                            />
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              En attente
+                            </span>
+                          )}
                         </TableCell>
 
                         <TableCell>
@@ -362,7 +390,15 @@ export function TransfertsClient({ transferts }: { transferts: TransfertListe[] 
                               )}
                               Retirer
                             </Button>
-                          ) : null}
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              className="h-8"
+                              onClick={() => setAConsulter(t)}
+                            >
+                              Détail
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -378,6 +414,32 @@ export function TransfertsClient({ transferts }: { transferts: TransfertListe[] 
           ouvert={aDecider !== null}
           onOuvertChange={(v) => !v && setADecider(null)}
         />
+
+        {/* EF-TRF-08 — consulter un dossier clos, sans pouvoir le rouvrir. */}
+        <Dialog
+          open={aConsulter !== null}
+          onOpenChange={(v) => !v && setAConsulter(null)}
+        >
+          <DialogContent className="max-h-[90vh] w-[min(96vw,48rem)] overflow-y-auto sm:max-w-2xl">
+            {aConsulter && (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="text-2xl">Dossier de transfert</DialogTitle>
+                  <DialogDescription>
+                    {aConsulter.croyant
+                      ? nomComplet(aConsulter.croyant.nom, aConsulter.croyant.prenom)
+                      : 'Croyant'}{' '}
+                    — matricule {aConsulter.croyant?.matricule}.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="py-2">
+                  <TransfertDetail transfert={aConsulter} />
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </TooltipProvider>
   );
@@ -411,6 +473,25 @@ function Trajet({
             · {transfert.celluleDestination.nom}
           </span>
         )}
+      </span>
+    </span>
+  );
+}
+
+/**
+ * Une date et son auteur, sur deux lignes — EF-TRF-06.
+ *
+ * « Le 3 juin » sans « par qui » ne repond pas a la question que l'on se pose
+ * en consultant un journal : c'est toujours la responsabilite que l'on cherche.
+ */
+function Horodatage({ date, auteur }: { date: string; auteur?: string }) {
+  return (
+    <span className="block space-y-0.5">
+      <span className="block font-mono text-xs tabular-nums text-foreground">
+        {formatDate(date)}
+      </span>
+      <span className="block truncate text-xs text-muted-foreground">
+        {auteur ?? 'Compte supprimé'}
       </span>
     </span>
   );

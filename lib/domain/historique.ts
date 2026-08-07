@@ -1,4 +1,4 @@
-import { LIBELLES_STATUT_TRANSFERT, type StatutTransfert } from './transfert';
+import type { StatutTransfert } from './transfert';
 
 /**
  * Historique d'un croyant — EF-TRF-08, EF-CRO-06.
@@ -83,6 +83,42 @@ function titreTransfert(t: TransfertHistorique): string {
   }
 }
 
+/**
+ * EF-TRF-06 — QUI a demande, QUI a decide, et quand.
+ *
+ * L'evenement porte deja SA date ; ce recit porte l'AUTRE. Un transfert
+ * effectue le 3 juin se lit mieux avec « demande le 1er juin par Christian,
+ * approuve le 2 par le Siege » : c'est cet ecart de dates, et cette chaine de
+ * responsabilite, qu'on vient verifier dans un historique.
+ *
+ * Un compte peut avoir ete supprime depuis (`on delete set null`) : on le dit
+ * plutot que d'afficher un blanc, qui ferait croire a une donnee manquante.
+ */
+function recitDeLaDecision(t: TransfertHistorique): string {
+  const auteur = (nom: string | undefined) => nom ?? 'un compte depuis supprime';
+  const demande = `Demande le ${jour(t.date_demande)} par ${auteur(t.demandeur?.nom_complet)}`;
+
+  if (t.statut === 'DEMANDE') return demande;
+
+  const verbe =
+    t.statut === 'REFUSE' ? 'Refuse' : t.statut === 'ANNULE' ? 'Retire' : 'Approuve';
+
+  const decision = t.date_decision
+    ? `${verbe} le ${jour(t.date_decision)} par ${auteur(t.decideur?.nom_complet)}`
+    : `${verbe} par ${auteur(t.decideur?.nom_complet)}`;
+
+  return `${demande} · ${decision}`;
+}
+
+/** Date courte, sans l'heure : la frise raconte des jours, pas des minutes. */
+function jour(iso: string): string {
+  return new Date(iso).toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
 export function construireHistorique(
   croyant: CroyantHistorique,
   transferts: readonly TransfertHistorique[],
@@ -110,22 +146,12 @@ export function construireHistorique(
   }
 
   for (const t of transferts) {
-    const decideur = t.decideur?.nom_complet;
-    const demandeur = t.demandeur?.nom_complet;
-
     evenements.push({
       cle: `transfert:${t.id}`,
       date: dateDeReference(t),
       type: 'TRANSFERT',
       titre: titreTransfert(t),
-      detail:
-        t.statut === 'DEMANDE'
-          ? demandeur
-            ? `Demande par ${demandeur}`
-            : undefined
-          : decideur
-            ? `${LIBELLES_STATUT_TRANSFERT[t.statut]} par ${decideur}`
-            : LIBELLES_STATUT_TRANSFERT[t.statut],
+      detail: recitDeLaDecision(t),
       // Le motif du REFUS prime : c'est lui qui explique l'issue.
       note: t.motif_refus ?? t.motif ?? undefined,
       statut: t.statut,

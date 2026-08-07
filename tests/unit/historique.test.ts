@@ -95,6 +95,27 @@ describe('EF-TRF-08 — un transfert se lit a la date ou il a produit son effet'
     expect(transfert!.detail).toContain('Christian');
   });
 
+  it('EF-TRF-06 — porte la chaine complete : qui a demande, qui a decide, quand', () => {
+    const [transfert] = construireHistorique(croyant, [gabarit({})]);
+
+    // L'evenement est situe au 3 juin (date d'effet) ; le recit doit donc
+    // porter les DEUX autres dates, sans quoi l'ecart entre demande et
+    // application resterait invisible.
+    expect(transfert!.detail).toContain('Christian');
+    expect(transfert!.detail).toContain('Le Siege');
+    expect(transfert!.detail).toContain('1 juin 2026');
+    expect(transfert!.detail).toContain('2 juin 2026');
+  });
+
+  it('nomme un compte supprime plutot que de laisser un blanc', () => {
+    // `on delete set null` sur le demandeur : un blanc ferait croire a une
+    // donnee manquante plutot qu'a un compte disparu.
+    const [transfert] = construireHistorique(croyant, [
+      gabarit({ demandeur: null, decideur: null }),
+    ]);
+    expect(transfert!.detail).toContain('supprime');
+  });
+
   it('marque un transfert approuve comme non encore applique', () => {
     const [transfert] = construireHistorique(croyant, [
       gabarit({ statut: 'APPROUVE', date_effet: null }),
