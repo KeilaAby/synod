@@ -26,7 +26,7 @@ import { executerAction } from './executer';
  *     un transfert clos sans effet : deux etats FAUX, et indetectables ;
  *   - un bapteme a moitie saisi laisse un croyant CORRECT, avec sa
  *     `date_bapteme` — donc compte dans les indicateurs (RG-30) — auquel il
- *     manque seulement le lieu et le celebrant.
+ *     manque seulement le lieu et les celebrants.
  *
  * Le second est benin et rattrapable ; il ne justifie pas de dupliquer en SQL
  * toute la validation du croyant. L'action le DIT plutot que de le taire.
@@ -37,7 +37,7 @@ function messageErreurSql(erreur: { code?: string; message?: string }): string {
     return 'Un bapteme est deja enregistre pour ce croyant.';
   }
   if (erreur.code === '23503') {
-    return "L'eglise, la cellule, le grade, la nationalite ou le celebrant est introuvable.";
+    return "L'eglise, la cellule, le grade ou la nationalite indique est introuvable.";
   }
   if (erreur.message?.includes('RG-')) {
     return erreur.message.split('\n')[0] ?? 'Operation refusee.';
@@ -144,15 +144,28 @@ export async function saisirBaptise(
     });
 
     // --- La ceremonie (EF-BAP-03) ---
-    const { error: erreurBapteme } = await sb.from('baptemes').insert({
-      croyant_id: croyant.id,
-      entity_id: data.egliseId,
-      date_bapteme: data.dateBapteme.toISOString().slice(0, 10),
-      lieu: data.lieu ? sanitize(data.lieu) : null,
-      celebrant_id: data.celebrantId ?? null,
-      session_libelle: data.sessionLibelle ? sanitize(data.sessionLibelle) : null,
-      saisi_par: session.profileId,
-    });
+    const { data: bapteme, error: erreurBapteme } = await sb
+      .from('baptemes')
+      .insert({
+        croyant_id: croyant.id,
+        entity_id: data.egliseId,
+        date_bapteme: data.dateBapteme.toISOString().slice(0, 10),
+        lieu: data.lieu ? sanitize(data.lieu) : null,
+        session_libelle: data.sessionLibelle ? sanitize(data.sessionLibelle) : null,
+        saisi_par: session.profileId,
+      })
+      .select('id')
+      .single<{ id: string }>();
+
+    // Les celebrants vivent dans une table de liaison : plusieurs par ceremonie.
+    if (!erreurBapteme && bapteme && data.celebrantIds.length > 0) {
+      await sb.from('bapteme_celebrants').insert(
+        data.celebrantIds.map((croyantId) => ({
+          bapteme_id: bapteme.id,
+          croyant_id: croyantId,
+        })),
+      );
+    }
 
     revalidatePath('/baptemes');
     revalidatePath('/croyants');

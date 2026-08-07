@@ -31,7 +31,7 @@ et les croyants s'enregistrent.
 | Croyants — création en 3 étapes, liste, fiche, modification, corbeille | ✅ |
 | Photo de profil — recadrage client, seau privé | ✅ |
 | Transferts — demande, approbation, refus motivé, journal, compteur | ✅ |
-| Baptêmes — saisie créant le croyant, registre, fenêtre paramétrable | ✅ |
+| Baptêmes — saisie créant le croyant, célébrants multiples, registre | ✅ |
 | Import Excel des croyants (EF-CRO-11) | Reste du lot 2 — c'est là que se posera **ARB-6** |
 | Saisie de baptêmes en lot (EF-BAP-07) | *Could* — non livré, le champ « session » le prépare |
 | Tableau de bord | Coquille seulement — le moteur configurable est le Lot 5 |
@@ -116,7 +116,10 @@ détaillée dans `README.md`. Un secret exposé ne se retire pas, il se révoque
 Cette clé sert désormais à un usage courant — tout accès au stockage des
 photos — et non plus aux seules invitations : la rotation gagne en urgence.
 
-**2. Supprimer le seau `croyant-photos`**, resté **public** dans le projet
+**2. Appliquer la migration `0015`** (`supabase/install-incremental.sql`) :
+elle crée la table des célébrants multiples et retire `baptemes.celebrant_id`.
+
+**3. Supprimer le seau `croyant-photos`**, resté **public** dans le projet
 Supabase. Tout fichier qui s'y trouve est lisible par quiconque connaît son URL.
 `pnpm db:bucket` le signale à chaque exécution.
 
@@ -150,7 +153,7 @@ baptêmes existants le jour où elle sera livrée.
 ```bash
 pnpm install      # installe aussi le hook pre-commit de détection de secrets
 pnpm dev          # http://localhost:3000
-pnpm verify       # secrets + lint + types + 200 tests + build
+pnpm verify       # secrets + lint + types + 211 tests + build
 ```
 
 Lire avant toute tâche : `CLAUDE.md`, puis `notes/cdg.md` et `notes/plan.md`.

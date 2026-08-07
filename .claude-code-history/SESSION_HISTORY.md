@@ -448,3 +448,46 @@ baptêmes existants le jour où il le sera.
 ### Qualité
 
 200 tests unitaires. `pnpm verify` vert.
+
+### Deux fois le même défaut : PGRST201
+
+Le registre des baptêmes était illisible. `baptemes` pointe **deux fois** vers
+`croyants` — le baptisé et le célébrant — et l'ambiguïté n'avait été levée que
+sur le second.
+
+C'était la **deuxième occurrence**. Le 6 août, deux clés entre `profiles` et
+`entities` empêchaient la connexion. Le cas avait été corrigé sans que la règle
+en soit tirée.
+
+La règle est **« nommer toujours la clé »**, pas « nommer quand c'est ambigu » :
+une requête juste aujourd'hui casse le jour où une seconde clé apparaît vers la
+même table. Tous les embeds de `lib/data` la nomment désormais.
+
+Un test parcourt les chaînes de sélection et refuse tout embed anonyme. Il ne
+double aucune vérification existante : une chaîne PostgREST n'est contrôlée ni
+par TypeScript ni par le build, l'erreur n'apparaît qu'à l'exécution. Éprouvé en
+réintroduisant le défaut — le test échoue bien, sur le bon fichier.
+
+Il a servi dix minutes plus tard, sur l'embed inverse `bapteme_celebrants`
+ajouté pour les célébrants multiples.
+
+### Célébrants multiples — EF-BAP-03 révisé
+
+Un baptême est fréquemment célébré à plusieurs : un pasteur assisté d'un diacre,
+deux pasteurs en cérémonie collective. La colonne `celebrant_id` n'en portait
+qu'un, et perdait le second sans rien signaler.
+
+Table de liaison `bapteme_celebrants` (migration `0015`) plutôt qu'un
+`uuid[]` : le tableau aurait évité une table mais perdu l'intégrité
+référentielle — rien n'empêcherait d'y glisser l'identifiant d'un croyant
+inexistant. La contrainte reste à la base, seul endroit où elle tienne quoi
+qu'il arrive.
+
+La politique RLS interroge `baptemes` au lieu de recopier sa règle de
+périmètre — même raisonnement que partout ailleurs.
+
+`SelecteurMultiple` reprend la forme d'`EntityPicker` : champ de recherche,
+groupes, panneau qui ne s'enferme pas dans la largeur du déclencheur. Les
+éléments retenus s'affichent en pastilles **sous** le déclencheur — trois noms
+dans un bouton de 40 px les tronquent tous les trois, et l'on ne sait plus qui
+est sélectionné, ce qui est précisément la question qu'on se pose.

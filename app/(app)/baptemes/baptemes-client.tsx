@@ -85,6 +85,7 @@ export function BaptemesClient({
           b.entite?.nom ?? '',
           b.lieu ?? '',
           b.session_libelle ?? '',
+          nomsCelebrants(b),
         ].join(' '),
       );
       return terme.split(' ').every((mot) => texte.includes(mot));
@@ -212,7 +213,7 @@ export function BaptemesClient({
                     <TableHead className="text-right">Âge</TableHead>
                     <TableHead>Église</TableHead>
                     <TableHead>Date</TableHead>
-                    <TableHead>Célébrant</TableHead>
+                    <TableHead>Célébrants</TableHead>
                     <TableHead>Lieu ou cérémonie</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -255,10 +256,8 @@ export function BaptemesClient({
                         {formatDate(b.date_bapteme)}
                       </TableCell>
 
-                      <TableCell className="max-w-40 truncate text-sm text-muted-foreground">
-                        {b.celebrant
-                          ? `${b.celebrant.nom.toLocaleUpperCase('fr')} ${b.celebrant.prenom}`
-                          : '—'}
+                      <TableCell className="max-w-48 text-sm text-muted-foreground">
+                        {nomsCelebrants(b) || '—'}
                       </TableCell>
 
                       <TableCell className="max-w-48 truncate text-sm text-muted-foreground">
@@ -281,4 +280,18 @@ export function BaptemesClient({
       </div>
     </TooltipProvider>
   );
+}
+
+/**
+ * Les célébrants d'une cérémonie, en toutes lettres.
+ *
+ * Un lien pouvant pointer vers un croyant purgé (`on delete cascade`), on
+ * écarte les entrées vides plutôt que d'afficher des virgules orphelines.
+ */
+function nomsCelebrants(b: BaptemeListe): string {
+  return b.celebrants
+    .map((c) => c.croyant)
+    .filter((c): c is NonNullable<typeof c> => c !== null)
+    .map((c) => `${c.nom.toLocaleUpperCase('fr')} ${c.prenom}`)
+    .join(', ');
 }

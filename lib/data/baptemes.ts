@@ -34,7 +34,9 @@ const CHAMPS = `
     id, nom, prenom, matricule, sexe, date_naissance, photo_key,
     eglise:entities!croyants_eglise_id_fkey (id, nom, path)
   ),
-  celebrant:croyants!baptemes_celebrant_id_fkey (id, nom, prenom),
+  celebrants:bapteme_celebrants!bapteme_celebrants_bapteme_id_fkey (
+    croyant:croyants!bapteme_celebrants_croyant_id_fkey (id, nom, prenom)
+  ),
   entite:entities!baptemes_entity_id_fkey (id, nom, path)
 ` as const;
 
@@ -56,7 +58,8 @@ export interface BaptemeListe {
     photo_key: string | null;
     eglise: { id: string; nom: string; path: string } | null;
   } | null;
-  celebrant: { id: string; nom: string; prenom: string } | null;
+  /** EF-BAP-03 — plusieurs celebrants possibles par ceremonie. */
+  celebrants: { croyant: { id: string; nom: string; prenom: string } | null }[];
   entite: { id: string; nom: string; path: string } | null;
 }
 

@@ -328,7 +328,7 @@ Les habilitations sont **unitaires**, regroupées par catégorie, et chacune peu
 |---|---|---|
 | **EF-BAP-01** | Permettre à une entité de saisir les informations des **nouveaux baptisés** via un formulaire dédié et simplifié. | **Must** |
 | **EF-BAP-02** | La saisie d'un nouveau baptisé **crée le croyant correspondant** dans l'église concernée ; aucune double saisie. | **Must** |
-| **EF-BAP-03** | Enregistrer les informations de baptême : date, lieu, célébrant *(croyant de grade Pasteur/Diacre)*, session ou cérémonie. | **Should** |
+| **EF-BAP-03** | Enregistrer les informations de baptême : date, lieu, **un ou plusieurs célébrants** *(croyants de grade Pasteur, Évangéliste ou Diacre)*, session ou cérémonie. *(Pluriel arrêté le 7 août 2026 : un baptême est fréquemment célébré à plusieurs — un pasteur assisté d'un diacre, deux pasteurs en cérémonie collective. Une colonne unique perdait le second sans rien signaler.)* | **Should** |
 | **EF-BAP-04** | Rendre les nouveaux baptisés **immédiatement visibles** dans le tableau de bord du SuperAdmin (indicateur dédié + liste détaillée). | **Must** |
 | **EF-BAP-05** | Un « nouveau baptisé » est un croyant baptisé depuis **15 jours ou moins** *(ARB-5)*. Ce seuil est **paramétrable** par le SuperAdmin. | **Must** |
 | **EF-BAP-06** | Filtrer les nouveaux baptisés par période, entité, sexe et tranche d'âge. | **Must** |

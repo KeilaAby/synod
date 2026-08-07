@@ -21,7 +21,7 @@ croyants avec photo, **transferts** avec workflow d'approbation, **baptêmes**.
 Reste au lot 2 : l'**import Excel** (EF-CRO-11) — c'est là que se posera ARB-6 —
 et la saisie de baptêmes en lot (EF-BAP-07, *Could*).
 
-Base à jour jusqu'à la migration `0014`. Le stockage de fichiers ne se
+Base à jour jusqu'à la migration `0015`. Le stockage de fichiers ne se
 configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` et
 `postgres` s'y voit refuser `CREATE POLICY` : `pnpm db:bucket` s'en charge par
 l'API.

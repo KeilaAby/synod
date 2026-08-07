@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import type { CelluleOption, OptionReferentiel } from '@/components/croyants/croyant-form';
 import { Field, TextField } from '@/components/shared/field';
 import { PermissionGate } from '@/components/shared/permission-gate';
+import { SelecteurMultiple } from '@/components/shared/selecteur-multiple';
 import { EntityPicker, type OptionEntite } from '@/components/structure/entity-picker';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -93,7 +94,7 @@ export function BaptemeDialog({
       telephone: '',
       celluleId: null,
       gradeId: gradeParDefaut,
-      celebrantId: null,
+      celebrantIds: [],
       lieu: '',
       sessionLibelle: '',
       // La date du jour : on saisit un baptême le jour où il a eu lieu, ou le
@@ -123,6 +124,19 @@ export function BaptemeDialog({
       (a, b) => local(a) - local(b) || a.nom.localeCompare(b.nom, 'fr'),
     );
   }, [celebrants, egliseChoisie]);
+
+  const optionsCelebrants = useMemo(
+    () =>
+      celebrantsTries.map((c) => ({
+        id: c.id,
+        libelle: `${c.nom.toLocaleUpperCase('fr')} ${c.prenom}`,
+        detail: c.grade,
+        // Le célébrant de l'église concernée remonte en tête : c'est le cas
+        // courant, sans exclure ceux d'ailleurs — un pasteur invité baptise.
+        prioritaire: c.egliseId === egliseChoisie,
+      })),
+    [celebrantsTries, egliseChoisie],
+  );
 
   function fermer() {
     reset();
@@ -402,33 +416,27 @@ export function BaptemeDialog({
                     )}
                   </Field>
 
+                  {/* EF-BAP-03 — plusieurs célébrants : un pasteur assisté
+                      d'un diacre, deux pasteurs en cérémonie collective. */}
                   <Field
-                    label="Célébrant"
-                    error={errors.celebrantId?.message}
-                    hint="Pasteur, évangéliste ou diacre. Facultatif."
+                    label="Célébrants"
+                    error={errors.celebrantIds?.message}
+                    hint="Pasteurs, évangélistes et diacres. Plusieurs possibles, facultatif."
                   >
                     {(aria) => (
                       <Controller
                         control={control}
-                        name="celebrantId"
+                        name="celebrantIds"
                         render={({ field }) => (
-                          <Select
-                            value={field.value ?? 'aucun'}
-                            onValueChange={(v) => field.onChange(v === 'aucun' ? null : v)}
-                          >
-                            <SelectTrigger {...aria} className="h-10 w-full">
-                              <SelectValue placeholder="Non renseigné" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="aucun">Non renseigné</SelectItem>
-                              {celebrantsTries.map((c) => (
-                                <SelectItem key={c.id} value={c.id}>
-                                  {c.nom.toLocaleUpperCase('fr')} {c.prenom}
-                                  {c.grade ? ` — ${c.grade}` : ''}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <SelecteurMultiple
+                            {...aria}
+                            options={optionsCelebrants}
+                            valeurs={(field.value as string[] | undefined) ?? []}
+                            onChange={field.onChange}
+                            placeholder="Non renseigné"
+                            rechercheMessage="Rechercher par nom ou par grade…"
+                            emptyMessage="Aucun célébrant enregistré."
+                          />
                         )}
                       />
                     )}

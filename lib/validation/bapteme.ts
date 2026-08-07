@@ -58,8 +58,20 @@ export const saisirBaptiseSchema = z
     // --- La ceremonie — EF-BAP-03 ---
     dateBapteme: dateJour,
     lieu: optionnel(z.string().trim().max(160)),
-    /** Croyant de grade Pasteur ou Diacre (EF-BAP-03), verifie cote serveur. */
-    celebrantId: z.uuid().optional().nullable(),
+    /**
+     * EF-BAP-03 — un bapteme est frequemment celebre A PLUSIEURS : un pasteur
+     * assiste d'un diacre, deux pasteurs lors d'une ceremonie collective.
+     *
+     * `preprocess` : le champ peut arriver absent d'un formulaire qui ne l'a
+     * pas touche. Le normaliser AVANT de valider garde le schema idempotent —
+     * le serveur revalide sans dommage ce que le client a deja transforme.
+     */
+    celebrantIds: z
+      .preprocess(
+        (v) => (v === undefined || v === null ? [] : v),
+        z.array(z.uuid()).max(10, 'Dix celebrants au plus.'),
+      )
+      .transform((v) => [...new Set(v)]),
     /** « Ceremonie de Paques 2026 » : ce qui regroupe un lot (EF-BAP-07). */
     sessionLibelle: optionnel(z.string().trim().max(120)),
   })
