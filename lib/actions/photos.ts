@@ -21,6 +21,11 @@ import { executerAction } from './executer';
  * rejete ici, pas dans le navigateur.
  *
  * La base ne recoit que la CLE relative, jamais une URL (ENF-POR-03).
+ *
+ * ⚠ LE SEUL FILET. Le seau n'a aucune politique et la couche stockage emprunte
+ * la cle de service (voir la migration 0014) : le `requirePermission` ci-dessous
+ * n'est pas une commodite d'affichage doublee par la RLS, c'est le controle
+ * d'acces lui-meme. Ne jamais appeler `storage()` sans l'avoir precede.
  */
 
 const cibleSchema = z.object({ croyantId: z.uuid() });
