@@ -246,3 +246,129 @@ export function initialesAvatar(nom: string, prenom: string): string {
 
   return `${lettre(nom)}${lettre(prenom)}` || '?';
 }
+
+// -----------------------------------------------------------------------------
+// Filtrage de la liste — EF-CRO-04, EF-CRO-05
+//
+// Module PUR : c'est la contrepartie applicative des `where` SQL, deplacee
+// dans le navigateur pour que le filtrage soit INSTANTANE (voir
+// `lib/data/croyants.ts` pour la raison du deplacement et sa limite).
+// -----------------------------------------------------------------------------
+
+/** Normalisation commune a la recherche : casse, accents, espaces. */
+export function normaliserRecherche(valeur: string): string {
+  return valeur
+    .trim()
+    .toLocaleLowerCase('fr')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ');
+}
+
+export interface CroyantFiltrable {
+  nom: string;
+  prenom: string;
+  matricule: string;
+  telephone: string | null;
+  email: string | null;
+  sexe: Sexe;
+  statut: string;
+  date_naissance: string;
+  eglise_id: string;
+  cellule_id: string | null;
+  grade_id: string;
+  nationalite_id: string;
+}
+
+export interface FiltresListeCroyants {
+  recherche: string;
+  /** Identifiant d'eglise, ou `null` pour tout le perimetre. */
+  egliseId: string | null;
+  sexe: Sexe | null;
+  statut: StatutCroyant;
+  /** `null` : peu importe. */
+  enCellule: boolean | null;
+  gradeId: string | null;
+  nationaliteId: string | null;
+  ageMin: number | null;
+  ageMax: number | null;
+}
+
+export const FILTRES_LISTE_VIDES: FiltresListeCroyants = {
+  recherche: '',
+  egliseId: null,
+  sexe: null,
+  // Le defaut n'est pas « tous » : une liste ne montre pas les decedes sans
+  // qu'on l'ait demande.
+  statut: 'ACTIF',
+  enCellule: null,
+  gradeId: null,
+  nationaliteId: null,
+  ageMin: null,
+  ageMax: null,
+};
+
+export function aDesFiltres(filtres: FiltresListeCroyants): boolean {
+  return (
+    filtres.recherche !== FILTRES_LISTE_VIDES.recherche ||
+    filtres.egliseId !== FILTRES_LISTE_VIDES.egliseId ||
+    filtres.sexe !== FILTRES_LISTE_VIDES.sexe ||
+    filtres.statut !== FILTRES_LISTE_VIDES.statut ||
+    filtres.enCellule !== FILTRES_LISTE_VIDES.enCellule ||
+    filtres.gradeId !== FILTRES_LISTE_VIDES.gradeId ||
+    filtres.nationaliteId !== FILTRES_LISTE_VIDES.nationaliteId ||
+    filtres.ageMin !== FILTRES_LISTE_VIDES.ageMin ||
+    filtres.ageMax !== FILTRES_LISTE_VIDES.ageMax
+  );
+}
+
+/**
+ * EF-CRO-05 — recherche libre sur nom, prenom, matricule, telephone, e-mail.
+ *
+ * Chaque MOT de la requete doit se retrouver quelque part : taper
+ * « rakoto mami » trouve « RAKOTONIRINA Mamitiana » sans imposer l'ordre ni
+ * l'exactitude des espaces. Les accents sont ignores des deux cotes.
+ *
+ * Le telephone est compare chiffres a chiffres : personne ne saisit un numero
+ * avec les memes espaces que ceux enregistres.
+ */
+export function correspondRecherche(croyant: CroyantFiltrable, terme: string): boolean {
+  const requete = normaliserRecherche(terme);
+  if (requete === '') return true;
+
+  const texte = normaliserRecherche(
+    [croyant.nom, croyant.prenom, croyant.matricule, croyant.email ?? ''].join(' '),
+  );
+  const chiffres = (croyant.telephone ?? '').replace(/\D/g, '');
+
+  return requete.split(' ').every((mot) => {
+    if (texte.includes(mot)) return true;
+    const motChiffres = mot.replace(/\D/g, '');
+    return motChiffres !== '' && chiffres.includes(motChiffres);
+  });
+}
+
+export function filtrerCroyants<T extends CroyantFiltrable>(
+  croyants: readonly T[],
+  filtres: FiltresListeCroyants,
+  aujourdhui: Date = new Date(),
+): T[] {
+  return croyants.filter((c) => {
+    if (c.statut !== filtres.statut) return false;
+    if (filtres.egliseId && c.eglise_id !== filtres.egliseId) return false;
+    if (filtres.sexe && c.sexe !== filtres.sexe) return false;
+    if (filtres.gradeId && c.grade_id !== filtres.gradeId) return false;
+    if (filtres.nationaliteId && c.nationalite_id !== filtres.nationaliteId) return false;
+
+    if (filtres.enCellule === true && c.cellule_id === null) return false;
+    if (filtres.enCellule === false && c.cellule_id !== null) return false;
+
+    if (filtres.ageMin !== null || filtres.ageMax !== null) {
+      const age = calculerAge(new Date(c.date_naissance), aujourdhui);
+      if (filtres.ageMin !== null && age < filtres.ageMin) return false;
+      if (filtres.ageMax !== null && age > filtres.ageMax) return false;
+    }
+
+    return correspondRecherche(c, filtres.recherche);
+  });
+}

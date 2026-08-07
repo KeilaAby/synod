@@ -471,7 +471,7 @@ Les habilitations sont **unitaires**, regroupées par catégorie, et chacune peu
 | **ENF-PRF-05** | Volumétrie supportée sans dégradation | 200 000 croyants · 5 000 entités · 500 000 mouvements financiers |
 | **ENF-PRF-06** | Utilisateurs simultanés | 300 sessions actives |
 | **ENF-PRF-07** | Scores Lighthouse (Performance / Accessibilité / Bonnes pratiques) | ≥ 90 sur les écrans principaux |
-| **ENF-PRF-08** | Pagination **serveur** obligatoire au-delà de 50 lignes | — |
+| **ENF-PRF-08** | Une liste ne charge jamais plus de **2 000 lignes** ; au-delà, l'écran annonce la troncature et invite à restreindre le périmètre. En deçà, le jeu est chargé **en une requête** et filtré côté client — mesuré le 7 août 2026, le filtrage serveur coûtait quatre allers-retours enchaînés par frappe, soit ~1,7 s. *(Révision de la rédaction initiale « pagination serveur obligatoire au-delà de 50 lignes » : c'est le nombre d'allers-retours qui coûte, pas le nombre de lignes.)* | — |
 | **ENF-PRF-09** | Chargement différé systématique des modules lourds : React Flow, graphiques, générateur PDF, éditeur de rapport, éditeur d'image | — |
 
 ### 7.2 Sécurité

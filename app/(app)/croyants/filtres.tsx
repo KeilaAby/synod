@@ -13,8 +13,7 @@ import {
   Venus,
   X,
 } from 'lucide-react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 
 import type { OptionReferentiel } from '@/components/croyants/croyant-form';
 import { FiltreIcone, GroupeFiltres } from '@/components/shared/filtre-icone';
@@ -29,173 +28,61 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { LIBELLES_STATUT_CROYANT } from '@/lib/domain/croyant';
+import {
+  type FiltresListeCroyants,
+  LIBELLES_STATUT_CROYANT,
+  type Sexe,
+  type StatutCroyant,
+  aDesFiltres,
+} from '@/lib/domain/croyant';
 import { formatNombre } from '@/lib/utils/format';
 
 /**
  * Filtres de la liste des croyants — EF-CRO-04, EF-CRO-05.
  *
- * Contrairement à la structure, filtrée en mémoire, la recherche est SERVEUR :
- * les 200 000 croyants visés (ENF-PRF-05) ne peuvent pas être chargés côté
- * client. Chaque changement navigue donc réellement.
+ * Composant CONTRÔLÉ, sans état ni navigation : le parent détient les filtres
+ * et refiltre en mémoire à chaque changement. Rien n'attend le serveur, donc
+ * rien ne clignote — même comportement que la liste des entités.
  *
- * D'où la règle qui gouverne ce composant : **l'affichage du filtre ne doit
- * jamais attendre le serveur.** L'état vit ici, en local ; le clic le change
- * immédiatement et l'URL suit dans une transition. Auparavant les contrôles
- * lisaient `useSearchParams()`, qui ne se met à jour qu'une fois la navigation
- * terminée : on cliquait, et rien ne bougeait pendant tout l'aller-retour.
- * La liste, elle, reste affichée et s'estompe — jamais de squelette à la place
- * de données déjà correctes.
- *
- * Les ensembles CLOS (sexe, statut, présence en cellule) passent en
- * pictogrammes, comme la liste des entités ; les ensembles OUVERTS (église,
- * grade, nationalité, âge) gardent un sélecteur.
+ * Les ensembles CLOS (sexe, statut, présence en cellule) prennent la forme de
+ * pictogrammes ; les ensembles OUVERTS (église, grade, nationalité, âge)
+ * gardent un sélecteur.
  */
-
-const SEXE_TOUS = 'tous';
-const STATUT_DEFAUT = 'ACTIF';
-
-interface Etat {
-  q: string;
-  entite: string | null;
-  sexe: string;
-  statut: string;
-  encellule: string;
-  grade: string;
-  nationalite: string;
-  age_min: string;
-  age_max: string;
-}
-
-function etatDepuis(params: URLSearchParams): Etat {
-  return {
-    q: params.get('q') ?? '',
-    entite: params.get('entite'),
-    sexe: params.get('sexe') ?? SEXE_TOUS,
-    statut: params.get('statut') ?? STATUT_DEFAUT,
-    encellule: params.get('encellule') ?? 'tous',
-    grade: params.get('grade') ?? 'tous',
-    nationalite: params.get('nationalite') ?? 'tous',
-    age_min: params.get('age_min') ?? '',
-    age_max: params.get('age_max') ?? '',
-  };
-}
-
-/**
- * Recliquer le filtre actif le relâche.
- *
- * Fonction PURE, appelée dans le gestionnaire et non pendant le rendu : une
- * fabrique de gestionnaires invoquée en rendu ferait lire le minuteur de
- * débounce à ce moment-là, ce que le compilateur React refuse à juste titre.
- */
-function alterne(courant: string, valeur: string, neutre: string): string {
-  return courant === valeur ? neutre : valeur;
-}
-
-const ETAT_VIDE: Etat = {
-  q: '',
-  entite: null,
-  sexe: SEXE_TOUS,
-  statut: STATUT_DEFAUT,
-  encellule: 'tous',
-  grade: 'tous',
-  nationalite: 'tous',
-  age_min: '',
-  age_max: '',
-};
-
 export function FiltresCroyants({
+  filtres,
+  onChange,
+  onEffacer,
   eglises,
   grades,
   nationalites,
+  affiches,
   total,
-  enCours,
-  demarrer,
 }: {
+  filtres: FiltresListeCroyants;
+  onChange: (modifs: Partial<FiltresListeCroyants>) => void;
+  onEffacer: () => void;
   eglises: OptionEntite[];
   grades: OptionReferentiel[];
   nationalites: OptionReferentiel[];
+  affiches: number;
   total: number;
-  /**
-   * La transition appartient au PARENT : c'est lui qui estompe la table
-   * pendant que le serveur recalcule. La remonter par un effet aurait
-   * enfreint `react-hooks/set-state-in-effect` — et pour cause, ce serait un
-   * second rendu pour propager une information déjà connue à l'appel.
-   */
-  enCours: boolean;
-  demarrer: (action: () => void) => void;
 }) {
-  const router = useRouter();
-  const chemin = usePathname();
-  const params = useSearchParams();
-
   const [avance, setAvance] = useState(false);
-  const [etat, setEtat] = useState<Etat>(() => etatDepuis(params));
 
-  /**
-   * Minuteur de débounce : une frappe ne doit pas produire une requête par
-   * caractère, mais le champ doit répondre à chaque touche.
-   */
-  const minuteur = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  /**
-   * Navigation dérivée de l'état local. Appelée uniquement depuis un
-   * gestionnaire d'événement : `etat` y est donc déjà celui du dernier rendu.
-   */
-  function appliquer(modifs: Partial<Etat>, delaiMs = 0) {
-    const suivant = { ...etat, ...modifs };
-    setEtat(suivant);
-    programmer(suivant, delaiMs);
+  /** Recliquer le filtre actif le relâche. */
+  function alterne<T>(courant: T, valeur: T, neutre: T): T {
+    return courant === valeur ? neutre : valeur;
   }
 
-  function programmer(cible: Etat, delaiMs: number) {
-    if (minuteur.current) clearTimeout(minuteur.current);
-
-    const naviguer = () => {
-      const suivants = new URLSearchParams();
-      if (cible.q.trim()) suivants.set('q', cible.q.trim());
-      if (cible.entite) suivants.set('entite', cible.entite);
-      if (cible.sexe !== SEXE_TOUS) suivants.set('sexe', cible.sexe);
-      if (cible.statut !== STATUT_DEFAUT) suivants.set('statut', cible.statut);
-      if (cible.encellule !== 'tous') suivants.set('encellule', cible.encellule);
-      if (cible.grade !== 'tous') suivants.set('grade', cible.grade);
-      if (cible.nationalite !== 'tous') suivants.set('nationalite', cible.nationalite);
-      if (cible.age_min) suivants.set('age_min', cible.age_min);
-      if (cible.age_max) suivants.set('age_max', cible.age_max);
-
-      // Tout changement de filtre ramène à la première page : rester en page 7
-      // d'un jeu qui n'en compte plus que 2 afficherait un vide inexplicable.
-      demarrer(() => {
-        router.replace(`${chemin}${suivants.size ? `?${suivants}` : ''}`, {
-          scroll: false,
-        });
-      });
-    };
-
-    if (delaiMs === 0) naviguer();
-    else minuteur.current = setTimeout(naviguer, delaiMs);
-  }
-
-  const aDesFiltres =
-    etat.q !== '' ||
-    etat.entite !== null ||
-    etat.sexe !== SEXE_TOUS ||
-    etat.statut !== STATUT_DEFAUT ||
-    etat.encellule !== 'tous' ||
-    etat.grade !== 'tous' ||
-    etat.nationalite !== 'tous' ||
-    etat.age_min !== '' ||
-    etat.age_max !== '';
-
-  function effacer() {
-    setEtat(ETAT_VIDE);
-    if (minuteur.current) clearTimeout(minuteur.current);
-    demarrer(() => router.replace(chemin, { scroll: false }));
+  function nombreOuNull(valeur: string): number | null {
+    if (valeur.trim() === '') return null;
+    const n = Number(valeur);
+    return Number.isFinite(n) ? n : null;
   }
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="space-y-4" data-pending={enCours || undefined}>
+      <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <div className="relative">
             <Search
@@ -203,10 +90,8 @@ export function FiltresCroyants({
               aria-hidden
             />
             <Input
-              value={etat.q}
-              // Débounce : une frappe ne doit pas déclencher une requête par
-              // caractère. Le champ, lui, répond à chaque touche.
-              onChange={(e) => appliquer({ q: e.target.value }, 350)}
+              value={filtres.recherche}
+              onChange={(e) => onChange({ recherche: e.target.value })}
               placeholder="Nom, prénom, matricule, téléphone…"
               aria-label="Rechercher un croyant"
               className="h-10 w-72 pl-9"
@@ -216,8 +101,8 @@ export function FiltresCroyants({
           <div className="w-56">
             <EntityPicker
               options={eglises}
-              value={etat.entite}
-              onChange={(v) => appliquer({ entite: v })}
+              value={filtres.egliseId}
+              onChange={(v) => onChange({ egliseId: v })}
               placeholder="Tout le périmètre"
               emptyMessage="Aucune église"
             />
@@ -228,55 +113,57 @@ export function FiltresCroyants({
             <FiltreIcone
               icone={Mars}
               libelle="Hommes"
-              actif={etat.sexe === 'M'}
+              actif={filtres.sexe === 'M'}
               classeActive="bg-sky-100 text-sky-700"
-              onClick={() => appliquer({ sexe: alterne(etat.sexe, 'M', SEXE_TOUS) })}
+              onClick={() => onChange({ sexe: alterne<Sexe | null>(filtres.sexe, 'M', null) })}
             />
             <FiltreIcone
               icone={Venus}
               libelle="Femmes"
-              actif={etat.sexe === 'F'}
+              actif={filtres.sexe === 'F'}
               classeActive="bg-pink-100 text-pink-700"
-              onClick={() => appliquer({ sexe: alterne(etat.sexe, 'F', SEXE_TOUS) })}
+              onClick={() => onChange({ sexe: alterne<Sexe | null>(filtres.sexe, 'F', null) })}
             />
           </GroupeFiltres>
 
           {/* --- Statut ---
               ACTIF est le défaut : la liste ne montre pas les décédés sans
-              qu'on l'ait demandé. Recliquer un statut revient donc à ACTIF. */}
+              qu'on l'ait demandé. Relâcher un statut y revient donc. */}
           <GroupeFiltres libelle="Filtrer par statut">
             <FiltreIcone
               icone={CircleCheck}
               libelle={LIBELLES_STATUT_CROYANT.ACTIF}
-              actif={etat.statut === 'ACTIF'}
+              actif={filtres.statut === 'ACTIF'}
               classeActive="bg-emerald-100 text-emerald-700"
-              onClick={() => appliquer({ statut: 'ACTIF' })}
+              onClick={() => onChange({ statut: 'ACTIF' })}
             />
             <FiltreIcone
               icone={CircleSlash}
               libelle={LIBELLES_STATUT_CROYANT.INACTIF}
-              actif={etat.statut === 'INACTIF'}
+              actif={filtres.statut === 'INACTIF'}
               classeActive="bg-slate-200 text-slate-700"
               onClick={() =>
-                appliquer({ statut: alterne(etat.statut, 'INACTIF', STATUT_DEFAUT) })
+                onChange({ statut: alterne<StatutCroyant>(filtres.statut, 'INACTIF', 'ACTIF') })
               }
             />
             <FiltreIcone
               icone={ArrowRightLeft}
               libelle={LIBELLES_STATUT_CROYANT.TRANSFERE}
-              actif={etat.statut === 'TRANSFERE'}
+              actif={filtres.statut === 'TRANSFERE'}
               classeActive="bg-indigo-100 text-indigo-700"
               onClick={() =>
-                appliquer({ statut: alterne(etat.statut, 'TRANSFERE', STATUT_DEFAUT) })
+                onChange({
+                  statut: alterne<StatutCroyant>(filtres.statut, 'TRANSFERE', 'ACTIF'),
+                })
               }
             />
             <FiltreIcone
               icone={Cross}
               libelle={LIBELLES_STATUT_CROYANT.DECEDE}
-              actif={etat.statut === 'DECEDE'}
+              actif={filtres.statut === 'DECEDE'}
               classeActive="bg-slate-900 text-white"
               onClick={() =>
-                appliquer({ statut: alterne(etat.statut, 'DECEDE', STATUT_DEFAUT) })
+                onChange({ statut: alterne<StatutCroyant>(filtres.statut, 'DECEDE', 'ACTIF') })
               }
             />
           </GroupeFiltres>
@@ -286,16 +173,20 @@ export function FiltresCroyants({
             <FiltreIcone
               icone={UsersRound}
               libelle="Rattachés à une cellule"
-              actif={etat.encellule === 'oui'}
+              actif={filtres.enCellule === true}
               classeActive="bg-teal-100 text-teal-700"
-              onClick={() => appliquer({ encellule: alterne(etat.encellule, 'oui', 'tous') })}
+              onClick={() =>
+                onChange({ enCellule: alterne<boolean | null>(filtres.enCellule, true, null) })
+              }
             />
             <FiltreIcone
               icone={UserMinus}
               libelle="Sans cellule"
-              actif={etat.encellule === 'non'}
+              actif={filtres.enCellule === false}
               classeActive="bg-amber-100 text-amber-700"
-              onClick={() => appliquer({ encellule: alterne(etat.encellule, 'non', 'tous') })}
+              onClick={() =>
+                onChange({ enCellule: alterne<boolean | null>(filtres.enCellule, false, null) })
+              }
             />
           </GroupeFiltres>
 
@@ -309,8 +200,8 @@ export function FiltresCroyants({
             Plus de filtres
           </Button>
 
-          {aDesFiltres && (
-            <Button variant="ghost" className="h-10" onClick={effacer}>
+          {aDesFiltres(filtres) && (
+            <Button variant="ghost" className="h-10" onClick={onEffacer}>
               <X className="mr-2 size-4" aria-hidden />
               Effacer
             </Button>
@@ -320,14 +211,17 @@ export function FiltresCroyants({
             className="ml-auto font-mono text-xs tabular-nums text-muted-foreground"
             aria-live="polite"
           >
-            {formatNombre(total)} résultat{total > 1 ? 's' : ''}
+            {formatNombre(affiches)} / {formatNombre(total)}
           </span>
         </div>
 
         {/* --- Ensembles OUVERTS : la liste déroulante reste la bonne réponse --- */}
         {avance && (
           <div className="flex flex-wrap items-end gap-2 rounded-xl border border-border bg-card p-4">
-            <Select value={etat.grade} onValueChange={(v) => appliquer({ grade: v })}>
+            <Select
+              value={filtres.gradeId ?? 'tous'}
+              onValueChange={(v) => onChange({ gradeId: v === 'tous' ? null : v })}
+            >
               <SelectTrigger className="h-10 w-48" aria-label="Filtrer par grade">
                 <SelectValue placeholder="Tous les grades" />
               </SelectTrigger>
@@ -342,8 +236,8 @@ export function FiltresCroyants({
             </Select>
 
             <Select
-              value={etat.nationalite}
-              onValueChange={(v) => appliquer({ nationalite: v })}
+              value={filtres.nationaliteId ?? 'tous'}
+              onValueChange={(v) => onChange({ nationaliteId: v === 'tous' ? null : v })}
             >
               <SelectTrigger className="h-10 w-48" aria-label="Filtrer par nationalité">
                 <SelectValue placeholder="Toutes nationalités" />
@@ -364,9 +258,9 @@ export function FiltresCroyants({
                 min={0}
                 max={130}
                 placeholder="Âge min"
-                value={etat.age_min}
+                value={filtres.ageMin ?? ''}
                 aria-label="Âge minimum"
-                onChange={(e) => appliquer({ age_min: e.target.value }, 500)}
+                onChange={(e) => onChange({ ageMin: nombreOuNull(e.target.value) })}
                 className="h-10 w-28 font-mono tabular-nums"
               />
               <span className="text-sm text-muted-foreground">à</span>
@@ -375,9 +269,9 @@ export function FiltresCroyants({
                 min={0}
                 max={130}
                 placeholder="Âge max"
-                value={etat.age_max}
+                value={filtres.ageMax ?? ''}
                 aria-label="Âge maximum"
-                onChange={(e) => appliquer({ age_max: e.target.value }, 500)}
+                onChange={(e) => onChange({ ageMax: nombreOuNull(e.target.value) })}
                 className="h-10 w-28 font-mono tabular-nums"
               />
             </div>

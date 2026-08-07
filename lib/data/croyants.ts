@@ -5,7 +5,6 @@ import { cache } from 'react';
 import type { EntityType } from '@/lib/domain/hierarchy';
 import { cleDoublon } from '@/lib/domain/croyant';
 import { createClient } from '@/lib/supabase/server';
-import type { FiltresCroyant } from '@/lib/validation/croyant';
 
 import { getArbrePerimetre } from './entities';
 import { DataError } from './errors';
@@ -13,9 +12,15 @@ import { DataError } from './errors';
 /**
  * Lectures des croyants — EF-CRO-04 à 06.
  *
- * PAGINATION SERVEUR obligatoire (ENF-PRF-08) : contrairement aux entités,
- * bornées à quelques milliers, les croyants visent 200 000 (ENF-PRF-05). Rien
- * n'est jamais chargé intégralement côté client.
+ * ENF-PRF-08 prescrivait un filtrage et une pagination SERVEUR, les croyants
+ * visant 200 000 (ENF-PRF-05). Mesuré, ce choix coûtait quatre allers-retours
+ * enchaînés par caractère saisi — près de deux secondes par frappe.
+ *
+ * Le compromis retenu : charger le périmètre en UNE requête tant qu'il tient
+ * sous `PLAFOND_CHARGEMENT_INTEGRAL`, et filtrer dans le navigateur. Au-delà,
+ * le lot est tronqué et l'interface le dit ; restreindre l'église recharge un
+ * périmètre plus étroit. L'exigence de volume est donc tenue par le PLAFOND,
+ * plus par la pagination.
  */
 
 /**
@@ -59,12 +64,24 @@ export interface CroyantListe {
   nationalite: { id: string; libelle: string } | null;
 }
 
-export interface PageCroyants {
+/**
+ * PLAFOND du chargement intégral — ENF-PRF-05, ENF-PRF-08.
+ *
+ * Au-delà, la liste repasse en filtrage serveur. La valeur est un compromis
+ * assumé : 2 000 fiches pèsent quelques centaines de kilo-octets, transférées
+ * UNE fois ; le filtrage serveur, lui, coûtait quatre allers-retours par frappe
+ * — près de deux secondes sur une liaison ordinaire.
+ *
+ * Une paroisse, un district, souvent un régional tiennent sous ce plafond. Le
+ * Siège d'une grande organisation, non : là, restreindre d'abord l'église est
+ * de toute façon le seul geste utile.
+ */
+export const PLAFOND_CHARGEMENT_INTEGRAL = 2000;
+
+export interface LotCroyants {
   lignes: CroyantListe[];
-  total: number;
-  page: number;
-  taille: number;
-  nbPages: number;
+  /** Le périmètre dépasse le plafond : `lignes` n'en est qu'une tranche. */
+  tronque: boolean;
 }
 
 /**
@@ -86,83 +103,51 @@ async function eglisesDuPerimetre(entiteId?: string): Promise<string[] | null> {
     .map((e) => e.id);
 }
 
-export async function listerCroyants(filtres: FiltresCroyant): Promise<PageCroyants> {
+/**
+ * Charge les croyants du périmètre en UNE requête, pour un filtrage instantané
+ * côté client — EF-CRO-04, EF-CRO-05.
+ *
+ * Le filtrage serveur imposait un aller-retour complet par frappe : session,
+ * arbre, référentiels puis liste, enchaînés. Sur la liaison de l'utilisateur,
+ * 1,7 s de code applicatif par caractère saisi. Aucune optimisation de requête
+ * ne rattrape cela — c'est le nombre d'allers-retours qu'il fallait supprimer,
+ * pas leur durée.
+ *
+ * On lit donc `plafond + 1` lignes : la ligne excédentaire ne sert qu'à
+ * SAVOIR que le périmètre déborde, sans payer un `count` séparé.
+ */
+export async function chargerCroyants(
+  entiteId?: string,
+  plafond: number = PLAFOND_CHARGEMENT_INTEGRAL,
+): Promise<LotCroyants> {
   const sb = await createClient();
 
-  let requete = sb
-    .from('croyants')
-    .select(CHAMPS_LISTE, { count: 'exact' })
-    .is('deleted_at', null);
+  let requete = sb.from('croyants').select(CHAMPS_LISTE).is('deleted_at', null);
 
-  const eglises = await eglisesDuPerimetre(filtres.entiteId);
+  const eglises = await eglisesDuPerimetre(entiteId);
   if (eglises !== null) {
     // Aucune église dans le périmètre demandé : inutile d'interroger la base.
-    if (eglises.length === 0) {
-      return { lignes: [], total: 0, page: 1, taille: filtres.taille, nbPages: 0 };
-    }
+    if (eglises.length === 0) return { lignes: [], tronque: false };
     requete = requete.in('eglise_id', eglises);
   }
 
-  if (filtres.celluleId) requete = requete.eq('cellule_id', filtres.celluleId);
-  if (filtres.sexe) requete = requete.eq('sexe', filtres.sexe);
-  if (filtres.gradeId) requete = requete.eq('grade_id', filtres.gradeId);
-  if (filtres.nationaliteId) requete = requete.eq('nationalite_id', filtres.nationaliteId);
-  if (filtres.statutMarital) requete = requete.eq('statut_marital', filtres.statutMarital);
-  if (filtres.statut) requete = requete.eq('statut', filtres.statut);
-
-  if (filtres.encellule === 'oui') requete = requete.not('cellule_id', 'is', null);
-  if (filtres.encellule === 'non') requete = requete.is('cellule_id', null);
-
-  if (filtres.baptiseDepuis) {
-    requete = requete.gte('date_bapteme', isoJour(filtres.baptiseDepuis));
-  }
-  if (filtres.baptiseJusqua) {
-    requete = requete.lte('date_bapteme', isoJour(filtres.baptiseJusqua));
-  }
-
-  // Tranche d'âge -> intervalle de dates de naissance. Le sens s'inverse :
-  // l'âge MINIMUM correspond à la date de naissance la plus RÉCENTE.
-  if (filtres.ageMin !== undefined) {
-    requete = requete.lte('date_naissance', isoJour(dateAnniversaire(filtres.ageMin)));
-  }
-  if (filtres.ageMax !== undefined) {
-    requete = requete.gte('date_naissance', isoJour(dateAnniversaire(filtres.ageMax + 1)));
-  }
-
-  // EF-CRO-05 — colonne générée + index trigram : `ilike` reste indexé.
-  if (filtres.recherche) {
-    requete = requete.ilike('recherche', `%${filtres.recherche}%`);
-  }
-
-  const debut = (filtres.page - 1) * filtres.taille;
-
-  const { data, count, error } = await requete
-    .order(filtres.tri, { ascending: filtres.ordre === 'asc' })
-    .order('id') // départage les homonymes : sans quoi la pagination peut répéter une ligne
-    .range(debut, debut + filtres.taille - 1)
+  const { data, error } = await requete
+    .order('nom')
+    .order('prenom')
+    .order('id') // départage les homonymes : l'ordre doit être total
+    .limit(plafond + 1)
     .returns<CroyantListe[]>();
 
   if (error) throw new DataError('La liste des croyants est momentanément illisible.', error);
 
-  const total = count ?? 0;
-  return {
-    lignes: data ?? [],
-    total,
-    page: filtres.page,
-    taille: filtres.taille,
-    nbPages: Math.max(1, Math.ceil(total / filtres.taille)),
-  };
+  const lignes = data ?? [];
+  return lignes.length > plafond
+    ? { lignes: lignes.slice(0, plafond), tronque: true }
+    : { lignes, tronque: false };
 }
 
 function isoJour(d: Date): string {
   return new Date(d).toISOString().slice(0, 10);
-}
-
-/** Date de naissance d'une personne atteignant exactement `age` aujourd'hui. */
-function dateAnniversaire(age: number): Date {
-  const d = new Date();
-  d.setFullYear(d.getFullYear() - age);
-  return d;
 }
 
 // -----------------------------------------------------------------------------

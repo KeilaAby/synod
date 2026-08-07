@@ -58,9 +58,16 @@ Il en découle la forme actuelle de l'interface :
 ensembles clos (niveaux, statuts, sexe, présence en cellule), sélecteur pour les
 ensembles ouverts (églises, grades, nationalités, âge).
 
-**Un filtre ne doit jamais attendre le serveur.** Son état vit côté client, le
-clic le change immédiatement, l'URL suit dans une transition, et la liste reste
-affichée en s'estompant plutôt que de céder la place à un squelette.
+**Un filtre ne doit jamais attendre le serveur.** Les deux listes chargent leur
+périmètre en une requête puis filtrent en mémoire ; `history.replaceState` garde
+l'URL partageable sans déclencher de rendu serveur.
+
+Pour les croyants, cela a demandé de **réviser ENF-PRF-08** : le filtrage
+serveur coûtait quatre allers-retours enchaînés par caractère saisi, soit 1,7 s
+mesurées par frappe. L'exigence de volume est maintenant tenue par un plafond
+(`PLAFOND_CHARGEMENT_INTEGRAL = 2 000`) plutôt que par la pagination. Au-delà, le
+lot est tronqué, l'écran le dit, et restreindre l'église recharge un périmètre
+plus étroit.
 
 ---
 
@@ -132,7 +139,7 @@ Dans cet ordre — chaque étape s'appuie sur la précédente :
 ```bash
 pnpm install      # installe aussi le hook pre-commit de détection de secrets
 pnpm dev          # http://localhost:3000
-pnpm verify       # secrets + lint + types + 168 tests + build
+pnpm verify       # secrets + lint + types + 181 tests + build
 ```
 
 Lire avant toute tâche : `CLAUDE.md`, puis `notes/cdg.md` et `notes/plan.md`.

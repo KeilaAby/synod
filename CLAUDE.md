@@ -79,9 +79,12 @@ Ce qu'il reste à faire est décrit dans le dernier point d'étape
     divergent toujours. Les pages `[id]` et `[id]/modifier` ne subsistent que
     pour le lien profond ; toute création ou édition déclenchée depuis une liste
     passe par le pop-up partagé.
-17. Un filtre ne doit **jamais attendre le serveur** : son état vit côté client,
-    le clic le change immédiatement, l'URL suit dans une transition. Une liste
-    déjà juste s'estompe, elle ne cède pas la place à un squelette.
+17. Un filtre ne doit **jamais attendre le serveur** : charger le périmètre en
+    une requête, filtrer en mémoire, synchroniser l'URL par
+    `history.replaceState`. Ce qui coûte, ce n'est pas la durée d'un
+    aller-retour mais leur **nombre** — mesurer avant d'optimiser une requête.
+    Un volume trop grand se borne par un **plafond annoncé à l'écran**, jamais
+    par un retour silencieux à la pagination serveur.
 18. Le contrôle suit la nature de l'ensemble : **pictogrammes** si l'ensemble
     est clos et connu (niveaux, statuts, sexe), **sélecteur** s'il est ouvert
     (entités, grades, nationalités).

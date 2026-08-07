@@ -1,16 +1,22 @@
 'use client';
 
-import { Users } from 'lucide-react';
+import { TriangleAlert, Users } from 'lucide-react';
 import Link from 'next/link';
-import { useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 
 import { AvatarCroyant } from '@/components/croyants/avatar-croyant';
-import { NouveauCroyantDialog, type OptionsCroyant } from '@/components/croyants/croyant-dialog';
+import {
+  NouveauCroyantDialog,
+  type OptionsCroyant,
+} from '@/components/croyants/croyant-dialog';
 import { CroyantMenu } from '@/components/croyants/croyant-menu';
 import { useCroyantDialogs } from '@/components/croyants/use-croyant-dialogs';
 import { EmptyState } from '@/components/shared/empty-state';
 import { useSession } from '@/components/shared/session-provider';
 import { StatusBadge, TON_CROYANT } from '@/components/shared/status-badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Table,
@@ -21,87 +27,171 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import type { CroyantListe } from '@/lib/data/croyants';
-import { LIBELLES_SEXE, calculerAge, nomComplet } from '@/lib/domain/croyant';
-import { cn } from '@/lib/utils';
-import { formatDate } from '@/lib/utils/format';
+import {
+  FILTRES_LISTE_VIDES,
+  type FiltresListeCroyants,
+  LIBELLES_SEXE,
+  aDesFiltres,
+  calculerAge,
+  filtrerCroyants,
+  nomComplet,
+} from '@/lib/domain/croyant';
+import { formatDate, formatNombre } from '@/lib/utils/format';
 
 import { FiltresCroyants } from './filtres';
 import { Pagination } from './pagination';
 
 /**
- * Liste des croyants — EF-CRO-04.
+ * Liste des croyants — EF-CRO-04, EF-CRO-05.
  *
- * Filtres, table et pop-up vivent dans un MEME composant client parce qu'ils
- * partagent une chose : l'état de transition. Quand un filtre navigue, la table
- * reste affichée et s'estompe. La remplacer par un squelette effacerait des
- * données encore justes pour la durée d'un aller-retour — sur une liaison
- * lente, c'est l'écran qui clignote à chaque frappe.
+ * FILTRAGE INSTANTANÉ, en mémoire, comme la liste des entités. Les croyants du
+ * périmètre sont chargés en une requête ; plus rien ne navigue ensuite — ni
+ * une frappe, ni un pictogramme, ni un changement de page.
  *
- * Les lignes portent l'intégralité de la fiche : le pop-up de modification
- * s'ouvre sans requête supplémentaire.
+ * Le filtrage serveur coûtait quatre allers-retours enchaînés par caractère
+ * saisi : session, arbre, référentiels, liste — près de deux secondes sur la
+ * liaison de l'utilisateur. Aucun réglage de requête ne rattrape cela ; c'est
+ * le NOMBRE d'allers-retours qu'il fallait ramener à un.
+ *
+ * La contrepartie est bornée et assumée : au-delà de
+ * `PLAFOND_CHARGEMENT_INTEGRAL`, le lot est tronqué et l'écran le dit — il
+ * faut alors restreindre l'église, ce qui recharge un périmètre plus étroit.
+ *
+ * L'URL reste synchronisée par `history.replaceState` : la vue demeure
+ * partageable, sans déclencher de rendu serveur.
  */
+
+const TAILLE_PAGE = 50;
+
 export function CroyantsClient({
-  lignes,
-  total,
-  page,
-  nbPages,
+  croyants,
+  tronque,
   options,
-  aDesFiltres,
+  filtresInitiaux,
 }: {
-  lignes: CroyantListe[];
-  total: number;
-  page: number;
-  nbPages: number;
+  croyants: CroyantListe[];
+  tronque: boolean;
   options: OptionsCroyant;
-  aDesFiltres: boolean;
+  filtresInitiaux: FiltresListeCroyants;
 }) {
   const { peut } = useSession();
-  const [enCours, demarrer] = useTransition();
+  const router = useRouter();
+
+  const [filtres, setFiltres] = useState<FiltresListeCroyants>(filtresInitiaux);
+  const [page, setPage] = useState(1);
 
   const { modifier, demanderSuppression, dialogues } = useCroyantDialogs({
-    croyants: lignes,
+    croyants,
     options,
   });
+
+  // Déconnecte la frappe du filtrage : la saisie reste fluide même si le rendu
+  // de la table prend quelques millisecondes.
+  const filtresDifferes = useDeferredValue(filtres);
+
+  const resultats = useMemo(
+    () => filtrerCroyants(croyants, filtresDifferes),
+    [croyants, filtresDifferes],
+  );
+
+  const nbPages = Math.max(1, Math.ceil(resultats.length / TAILLE_PAGE));
+  const pageBornee = Math.min(page, nbPages);
+  const visibles = resultats.slice(
+    (pageBornee - 1) * TAILLE_PAGE,
+    pageBornee * TAILLE_PAGE,
+  );
+
+  // Synchronisation de l'URL sans navigation : pas de rendu serveur déclenché.
+  useEffect(() => {
+    const params = new URLSearchParams();
+    const f = filtresDifferes;
+
+    if (f.recherche.trim()) params.set('q', f.recherche.trim());
+    if (f.egliseId) params.set('eglise', f.egliseId);
+    if (f.sexe) params.set('sexe', f.sexe);
+    if (f.statut !== FILTRES_LISTE_VIDES.statut) params.set('statut', f.statut);
+    if (f.enCellule !== null) params.set('encellule', f.enCellule ? 'oui' : 'non');
+    if (f.gradeId) params.set('grade', f.gradeId);
+    if (f.nationaliteId) params.set('nationalite', f.nationaliteId);
+    if (f.ageMin !== null) params.set('age_min', String(f.ageMin));
+    if (f.ageMax !== null) params.set('age_max', String(f.ageMax));
+
+    const url = params.size > 0 ? `?${params}` : window.location.pathname;
+    window.history.replaceState(null, '', url);
+  }, [filtresDifferes]);
+
+  function changer(modifs: Partial<FiltresListeCroyants>) {
+    // Lot tronqué : changer d'église doit RECHARGER un périmètre plus étroit,
+    // sinon on ne filtrerait que les 2 000 premiers et l'alerte mentirait.
+    if (tronque && 'egliseId' in modifs && modifs.egliseId !== filtres.egliseId) {
+      router.replace(modifs.egliseId ? `/croyants?eglise=${modifs.egliseId}` : '/croyants');
+      return;
+    }
+
+    setFiltres((precedents) => ({ ...precedents, ...modifs }));
+    // Rester en page 7 d'un jeu qui n'en compte plus que 2 afficherait un vide
+    // inexplicable.
+    setPage(1);
+  }
+
+  function effacer() {
+    setFiltres(FILTRES_LISTE_VIDES);
+    setPage(1);
+  }
+
+  const filtrage = aDesFiltres(filtres);
 
   return (
     <div className="space-y-8">
       <FiltresCroyants
+        filtres={filtres}
+        onChange={changer}
+        onEffacer={effacer}
         eglises={options.eglises}
         grades={options.grades}
         nationalites={options.nationalites}
-        total={total}
-        enCours={enCours}
-        demarrer={demarrer}
+        affiches={resultats.length}
+        total={croyants.length}
       />
 
-      {lignes.length === 0 ? (
+      {/* ENF-PRF-05 — au-delà du plafond, la recherche ne porte plus sur tout
+          le périmètre. Le taire ferait croire à une absence de résultat. */}
+      {tronque && (
+        <Alert>
+          <TriangleAlert className="size-4" aria-hidden />
+          <AlertTitle>Périmètre trop large pour une recherche complète</AlertTitle>
+          <AlertDescription>
+            Seuls les {formatNombre(croyants.length)} premiers croyants sont chargés.
+            Choisissez une église pour restreindre le périmètre : la recherche
+            redeviendra exhaustive.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {visibles.length === 0 ? (
         <EmptyState
           icon={Users}
-          title={aDesFiltres ? 'Aucun croyant ne correspond' : 'Aucun croyant enregistré'}
+          title={filtrage ? 'Aucun croyant ne correspond' : 'Aucun croyant enregistré'}
           description={
-            aDesFiltres
+            filtrage
               ? 'Élargissez les filtres, ou vérifiez le périmètre sélectionné.'
               : 'Enregistrez le premier croyant de votre périmètre. Le matricule sera attribué automatiquement.'
           }
           action={
-            !aDesFiltres ? (
+            filtrage ? (
+              <Button variant="outline" className="h-10" onClick={effacer}>
+                Effacer les filtres
+              </Button>
+            ) : (
               <NouveauCroyantDialog
                 options={options}
                 libelle="Enregistrer le premier croyant"
               />
-            ) : undefined
+            )
           }
         />
       ) : (
-        <div
-          // UI-16 : la table s'estompe, elle ne disparaît pas. `aria-busy`
-          // annonce le recalcul à ceux qui ne voient pas l'opacité.
-          aria-busy={enCours}
-          className={cn(
-            'space-y-8 transition-opacity duration-200',
-            enCours && 'pointer-events-none opacity-60',
-          )}
-        >
+        <>
           <Card>
             <CardContent className="p-0">
               {/* UI-07 : pas de bordures verticales, valeurs en font-mono. */}
@@ -124,7 +214,7 @@ export function CroyantsClient({
                 </TableHeader>
 
                 <TableBody>
-                  {lignes.map((c) => {
+                  {visibles.map((c) => {
                     // RG-25 : le droit s'évalue avec la portée de l'église.
                     const portee = c.eglise?.path;
                     return (
@@ -189,8 +279,13 @@ export function CroyantsClient({
             </CardContent>
           </Card>
 
-          <Pagination page={page} nbPages={nbPages} total={total} />
-        </div>
+          <Pagination
+            page={pageBornee}
+            nbPages={nbPages}
+            total={resultats.length}
+            onPage={setPage}
+          />
+        </>
       )}
 
       {dialogues}

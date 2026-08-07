@@ -116,62 +116,9 @@ export type ModifierCroyantInput = z.input<typeof modifierCroyantSchema>;
 
 export const supprimerCroyantSchema = z.object({ id: z.uuid() });
 
-// -----------------------------------------------------------------------------
-// Filtres et pagination — EF-CRO-04, ENF-PRF-08
-// -----------------------------------------------------------------------------
-
-export const TAILLE_PAGE_DEFAUT = 25;
-export const TAILLE_PAGE_MAX = 100;
-
-export const filtresCroyantSchema = z.object({
-  recherche: z.string().trim().max(120).optional(),
-  /** Périmètre : n'importe quel niveau, pas seulement l'église. */
-  entiteId: z.uuid().optional(),
-  celluleId: z.uuid().optional(),
-  sexe: z.enum(SEXES).optional(),
-  gradeId: z.uuid().optional(),
-  nationaliteId: z.uuid().optional(),
-  statutMarital: z.enum(STATUTS_MARITAUX).optional(),
-  statut: z.enum(STATUTS_CROYANT).optional().default('ACTIF'),
-  /** EF-CRO-04 — présence ou non en cellule. */
-  encellule: z.enum(['tous', 'oui', 'non']).default('tous'),
-  baptiseDepuis: z.coerce.date().optional(),
-  baptiseJusqua: z.coerce.date().optional(),
-  ageMin: z.coerce.number().int().min(0).max(130).optional(),
-  ageMax: z.coerce.number().int().min(0).max(130).optional(),
-
-  tri: z.enum(['nom', 'prenom', 'date_bapteme', 'created_at']).default('nom'),
-  ordre: z.enum(['asc', 'desc']).default('asc'),
-  page: z.coerce.number().int().min(1).default(1),
-  taille: z.coerce.number().int().min(1).max(TAILLE_PAGE_MAX).default(TAILLE_PAGE_DEFAUT),
-});
-
-export type FiltresCroyant = z.output<typeof filtresCroyantSchema>;
-
-/** Lit les filtres depuis l'URL, en ignorant silencieusement ce qui est invalide. */
-export function filtresDepuisParams(
-  params: Record<string, string | undefined>,
-): FiltresCroyant {
-  const analyse = filtresCroyantSchema.safeParse({
-    recherche: params.q,
-    entiteId: params.entite,
-    celluleId: params.cellule,
-    sexe: params.sexe,
-    gradeId: params.grade,
-    nationaliteId: params.nationalite,
-    statutMarital: params.marital,
-    statut: params.statut,
-    encellule: params.encellule,
-    baptiseDepuis: params.bapteme_debut,
-    baptiseJusqua: params.bapteme_fin,
-    ageMin: params.age_min,
-    ageMax: params.age_max,
-    tri: params.tri,
-    ordre: params.ordre,
-    page: params.page,
-    taille: params.taille,
-  });
-
-  // Une URL bricolée ne doit pas casser la page : on retombe sur les défauts.
-  return analyse.success ? analyse.data : filtresCroyantSchema.parse({});
-}
+/*
+ * Les filtres de liste ne sont PLUS un schema serveur : ils vivent dans le
+ * domaine (`filtrerCroyants`, `FiltresListeCroyants`) et s'appliquent dans le
+ * navigateur. Voir `lib/data/croyants.ts` pour la raison — un aller-retour par
+ * frappe coutait pres de deux secondes — et la limite qui borne ce choix.
+ */

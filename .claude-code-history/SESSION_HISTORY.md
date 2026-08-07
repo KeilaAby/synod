@@ -293,3 +293,44 @@ depuis le gestionnaire.
 
 `compterCroyants` supprimée — plus aucun appelant depuis le retrait des trois
 requêtes de comptage.
+
+### Recherche des croyants — d'une seconde et demie à zéro
+
+Le journal du serveur donnait la mesure exacte :
+
+```
+GET /croyants?q=ma   200 in 2.3s  (application-code: 1709ms)
+GET /croyants?q=mam  200 in 1927ms (application-code: 1608ms)
+```
+
+Quatre allers-retours **enchaînés** par caractère saisi : session, arbre du
+périmètre, référentiels, puis la liste. Aucun réglage de requête ne rattrape
+cela — c'est le *nombre* d'allers-retours qu'il fallait ramener à un, pas leur
+durée.
+
+Le périmètre est donc chargé **en une seule requête**, et tout le filtrage passe
+dans le navigateur : recherche, sexe, statut, cellule, grade, nationalité,
+tranche d'âge, pagination. Plus rien ne navigue. `history.replaceState` garde
+l'URL partageable sans déclencher de rendu serveur — exactement le mécanisme
+déjà retenu pour la liste des entités.
+
+**ENF-PRF-08 prescrivait pourtant un filtrage serveur**, les croyants visant
+200 000 (ENF-PRF-05). L'exigence de volume est désormais tenue par un
+**plafond** plutôt que par la pagination : `PLAFOND_CHARGEMENT_INTEGRAL = 2000`.
+Au-delà, le lot est tronqué et l'écran le dit — restreindre l'église recharge un
+périmètre plus étroit, et la recherche redevient exhaustive. Une paroisse, un
+district, souvent un régional tiennent sous ce plafond ; pour le Siège d'une
+grande organisation, restreindre d'abord l'église est de toute façon le seul
+geste utile.
+
+Le filtrage devient du **domaine pur** (`filtrerCroyants`, `correspondRecherche`
+dans `lib/domain/croyant.ts`), donc testable sans base ni navigateur — 13 tests
+nommés par l'exigence qu'ils couvrent. Deux d'entre eux fixent un comportement
+que le `ilike` SQL n'avait pas :
+
+- la requête « rakoto mami » trouve « RAKOTONIRINA Mamitiana » — chaque mot doit
+  se retrouver, sans contrainte d'ordre ni d'espacement ;
+- le téléphone se compare **chiffre à chiffre** : personne ne saisit un numéro
+  avec la ponctuation exacte de l'enregistrement.
+
+`filtresCroyantSchema` et `filtresDepuisParams` sont supprimés, sans appelant.
