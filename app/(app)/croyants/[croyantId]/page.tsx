@@ -3,6 +3,7 @@ import { WifiOff } from 'lucide-react';
 import { notFound } from 'next/navigation';
 
 import { ModifierCroyantDialog } from '@/components/croyants/croyant-dialog';
+import { HistoriqueCroyant } from '@/components/croyants/historique-croyant';
 import { PhotoUploader } from '@/components/croyants/photo-uploader';
 import { TransfertBouton } from '@/components/transferts/transfert-bouton';
 import { PageHeader } from '@/components/shared/page-header';
@@ -12,6 +13,8 @@ import { getCroyant } from '@/lib/data/croyants';
 import { getOptionsCroyant } from '@/lib/data/croyant-options';
 import { getArbrePerimetre, cheminLisible, indexerParChemin } from '@/lib/data/entities';
 import { signerPhotos } from '@/lib/data/photos';
+import { transfertsDuCroyant } from '@/lib/data/transferts';
+import { construireHistorique } from '@/lib/domain/historique';
 import {
   LIBELLES_SEXE,
   LIBELLES_STATUT_CROYANT,
@@ -41,11 +44,15 @@ export default async function FicheCroyantPage({ params }: Params) {
   const croyant = await getCroyant(croyantId);
   if (!croyant) notFound();
 
-  const [arbre, options, photos] = await Promise.all([
+  const [arbre, options, photos, transferts] = await Promise.all([
     getArbrePerimetre(),
     getOptionsCroyant(),
     signerPhotos([croyant.photo_key]),
+    // EF-TRF-08 — l'historique complet des transferts du croyant.
+    transfertsDuCroyant(croyantId),
   ]);
+
+  const evenements = construireHistorique(croyant, transferts);
   const index = indexerParChemin(arbre);
   const eglise = arbre.find((e) => e.id === croyant.eglise_id);
 
@@ -206,15 +213,21 @@ export default async function FicheCroyantPage({ params }: Params) {
       </div>
 
       <Card>
-        <CardContent className="space-y-4 p-6">
-          <p className="eyebrow">Historique</p>
-          <p className="text-sm text-muted-foreground">
-            Fiche créée le {formatDateLongue(croyant.created_at)} · dernière modification le{' '}
-            {formatDateLongue(croyant.updated_at)}.
-          </p>
+        <CardContent className="space-y-6 p-6">
+          <div className="space-y-1">
+            <p className="eyebrow">Historique</p>
+            <p className="text-sm text-muted-foreground">
+              Ce qui est arrivé au croyant, du plus récent au plus ancien. Les
+              corrections de saisie relèvent du journal d&apos;audit, pas d&apos;ici.
+            </p>
+          </div>
+
+          <HistoriqueCroyant evenements={evenements} />
+
           <p className="border-t border-border pt-4 text-xs text-muted-foreground">
-            L&apos;historique des transferts et les fonctions occupées en bureau
-            apparaîtront ici avec la suite du lot 2 et le lot 3.
+            Dernière modification de la fiche le {formatDateLongue(croyant.updated_at)}.
+            Les fonctions occupées en bureau s&apos;ajouteront à cette frise avec le
+            lot 3.
           </p>
         </CardContent>
       </Card>
