@@ -227,7 +227,7 @@ Les habilitations sont **unitaires**, regroupées par catégorie, et chacune peu
 | **EF-CRO-08** | Supprimer logiquement (corbeille) et restaurer. La suppression définitive est réservée au SuperAdmin. | **Must** |
 | **EF-CRO-09** | Téléverser une photo (JPEG/PNG/WebP, ≤ 5 Mo), redimensionnée et recadrée côté client. | **Should** |
 | **EF-CRO-10** | Gérer le statut : `ACTIF`, `INACTIF`, `TRANSFÉRÉ`, `DÉCÉDÉ`. Les croyants non actifs sont exclus des effectifs par défaut. | **Must** |
-| **EF-CRO-11** | Importer un lot de croyants depuis Excel/CSV avec pré-validation et rapport d'erreurs. | **Should** |
+| **EF-CRO-11** | Importer un lot de croyants depuis **CSV** avec **correspondance de colonnes**, pré-validation et rapport d'erreurs ligne à ligne. Aucun modèle de fichier n'est imposé : les colonnes de l'utilisateur sont lues et il désigne ce qu'elles contiennent. Les églises, grades et nationalités se résolvent par **libellé ou par code**. *(XLSX reporté le 7 août 2026 : format compressé exigeant une bibliothèque, à trancher sur les fichiers réels — ARB-6.)* | **Should** |
 | **EF-CRO-12** | Exporter la liste filtrée (Excel/CSV) et la fiche individuelle (PDF). | **Should** |
 | **EF-CRO-13** | Détecter les doublons potentiels (même nom + prénom + date de naissance) et demander une confirmation explicite. | **Should** |
 

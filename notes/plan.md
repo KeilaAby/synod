@@ -2475,7 +2475,10 @@ describe('RG-26 / RG-27 — rapports', () => {
 - [ ] `CroyantTable` : filtres, recherche trigram, tri/pagination serveur, exports.
 - [ ] Fiche croyant, détection de doublons, corbeille.
 - [ ] **Workflow d'approbation des transferts** : table, `fn_ancetre_commun`, actions, file d'attente, auto-approbation intra-périmètre, notifications.
-- [ ] Import Excel avec pré-validation.
+- [x] Import CSV avec correspondance de colonnes et pré-validation (EF-CRO-11).
+- [ ] Lecture XLSX — à trancher sur les fichiers réels (ARB-6). La chaîne ne
+      manipule que des tableaux de chaînes : un lecteur se branche dans
+      `lib/domain/csv.ts` sans toucher au reste.
 - [ ] Tests : RG-04 à RG-06, RG-11, RG-12, RG-28, RG-29.
 
 ### Lot 3 — Bureaux *(2 semaines)*

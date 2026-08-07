@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
 import { NouveauCroyantDialog } from '@/components/croyants/croyant-dialog';
+import { ImportCroyantsDialog } from '@/components/croyants/import-dialog';
 import { PageHeader } from '@/components/shared/page-header';
 import { chargerCroyants } from '@/lib/data/croyants';
 import { getOptionsCroyant } from '@/lib/data/croyant-options';
@@ -58,7 +59,14 @@ export default async function CroyantsPage({
             ? `Plus de ${formatNombre(lot.lignes.length)} croyants dans votre périmètre — restreignez l'église pour une recherche exhaustive.`
             : `${formatNombre(lot.lignes.length)} croyant${lot.lignes.length > 1 ? 's' : ''} dans votre périmètre.`
         }
-        actions={<NouveauCroyantDialog options={options} />}
+        actions={
+          <>
+            {/* EF-CRO-11 — l'import vient AVANT la saisie unitaire dans l'ordre
+                de lecture : c'est le premier geste d'une reprise de donnees. */}
+            <ImportCroyantsDialog />
+            <NouveauCroyantDialog options={options} />
+          </>
+        }
       />
 
       <CroyantsClient
