@@ -10,7 +10,7 @@
 --         pnpm db:bundle --depuis <derniere version appliquee>
 --     La derniere version appliquee se lit dans supabase/diagnostic.sql.
 --
--- Genere le 2026-08-07T14:19:18.785Z
+-- Genere le 2026-08-07T14:26:46.825Z
 -- Migrations : 14 + amorce
 -- =============================================================================
 
@@ -1938,7 +1938,31 @@ $$;
 comment on function fn_croyant_de_la_cle(text) is
   'Extrait l''identifiant de croyant d''une cle `photos/<uuid>.<ext>`.';
 
-alter table storage.objects enable row level security;
+-- PAS de `alter table storage.objects enable row level security` : elle l'est
+-- deja dans tout projet Supabase, et cette instruction exige d'etre
+-- PROPRIETAIRE de la table — ce que `postgres` n'est plus depuis que
+-- `supabase_storage_admin` l'a reprise. La tentative echouait en 42501 et
+-- interrompait la migration. Creer une politique, en revanche, reste permis :
+-- c'est la voie documentee par Supabase.
+
+-- Verification prealable : un 42501 nu ne dit pas quoi faire. Mieux vaut
+-- echouer en nommant le role manquant et la marche a suivre.
+do $$
+declare v_proprietaire text;
+begin
+  select pg_get_userbyid(relowner) into v_proprietaire
+    from pg_class where oid = 'storage.objects'::regclass;
+
+  if not pg_has_role(current_user, v_proprietaire, 'member') then
+    raise exception
+      'Creer une politique sur storage.objects exige le role « % », dont « % » n''est pas membre.',
+      v_proprietaire, current_user
+      using hint =
+        'Creez les quatre politiques depuis Supabase > Storage > Policies '
+        'sur le seau « synod » (dossier photos/), ou rejouez ce fichier avec un '
+        'role proprietaire. Le reste de la migration est deja applique.';
+  end if;
+end $$;
 
 drop policy if exists synod_photos_lecture on storage.objects;
 drop policy if exists synod_photos_depot on storage.objects;
