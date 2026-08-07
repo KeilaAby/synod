@@ -124,8 +124,18 @@ export function EntityPicker({
         </Button>
       </PopoverTrigger>
 
+      {/*
+        Le panneau part de la largeur du declencheur mais ne s'y ENFERME pas :
+        un filtre etroit tronquait « ANTSAHATSIRESY » en « ANTSAHATS… », et
+        deux eglises voisines devenaient indiscernables. Le nom d'entite est
+        precisement ce qu'on vient lire ici.
+
+        `min-width` plutot qu'une largeur fixe : le panneau ne devient jamais
+        plus etroit que son declencheur, et `max-width` le borne sur un ecran
+        de telephone.
+      */}
       <PopoverContent
-        className="w-(--radix-popover-trigger-width) p-0"
+        className="w-(--radix-popover-trigger-width) min-w-80 max-w-[min(28rem,90vw)] p-0"
         align="start"
       >
         <Command

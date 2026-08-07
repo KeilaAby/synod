@@ -19,7 +19,7 @@ const CHAMPS = `
   id, croyant_id, niveau_transfert, statut, motif, motif_refus,
   from_eglise_id, to_eglise_id, from_cellule_id, to_cellule_id,
   ancetre_commun_id, date_demande, date_decision, date_effet,
-  croyant:croyants (id, nom, prenom, matricule, photo_key),
+  croyant:croyants!transferts_croyant_id_fkey (id, nom, prenom, matricule, photo_key),
   origine:entities!transferts_from_eglise_id_fkey (id, nom, code, path),
   destination:entities!transferts_to_eglise_id_fkey (id, nom, code, path),
   celluleOrigine:entities!transferts_from_cellule_id_fkey (id, nom),

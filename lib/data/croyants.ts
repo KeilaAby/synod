@@ -35,8 +35,8 @@ const CHAMPS_LISTE = `
   statut_marital, email, telephone, adresse,
   eglise:entities!croyants_eglise_id_fkey (id, nom, code, path),
   cellule:entities!croyants_cellule_id_fkey (id, nom),
-  grade:grades (id, libelle),
-  nationalite:nationalites (id, libelle)
+  grade:grades!croyants_grade_id_fkey (id, libelle),
+  nationalite:nationalites!croyants_nationalite_id_fkey (id, libelle)
 ` as const;
 
 export interface CroyantListe {
@@ -156,8 +156,8 @@ const CHAMPS_FICHE = `
   *,
   eglise:entities!croyants_eglise_id_fkey (id, nom, code, path, type),
   cellule:entities!croyants_cellule_id_fkey (id, nom, code),
-  grade:grades (id, libelle, code),
-  nationalite:nationalites (id, libelle, code_iso)
+  grade:grades!croyants_grade_id_fkey (id, libelle, code),
+  nationalite:nationalites!croyants_nationalite_id_fkey (id, libelle, code_iso)
 ` as const;
 
 export interface CroyantFiche extends CroyantListe {

@@ -14,9 +14,23 @@ import { DataError } from './errors';
  * des croyants, pas des baptemes.
  */
 
+/**
+ * Chaque embed NOMME sa cle etrangere — y compris quand une seule semble
+ * possible.
+ *
+ * `baptemes` pointe DEUX FOIS vers `croyants` : le baptise (`croyant_id`) et
+ * le celebrant (`celebrant_id`). PostgREST refuse alors l'embed ambigu avec
+ * `PGRST201`, et l'erreur ne se voit qu'a l'execution — une chaine de selection
+ * n'est pas verifiee par le compilateur.
+ *
+ * C'est le meme defaut qui empechait la connexion le 6 aout : deux cles entre
+ * `profiles` et `entities`. La regle a en tirer n'est pas « lever l'ambiguite
+ * quand elle se presente » mais « nommer toujours » : le jour ou une seconde
+ * cle apparait, la requete continue de fonctionner.
+ */
 const CHAMPS = `
   id, croyant_id, entity_id, date_bapteme, lieu, session_libelle, created_at,
-  croyant:croyants (
+  croyant:croyants!baptemes_croyant_id_fkey (
     id, nom, prenom, matricule, sexe, date_naissance, photo_key,
     eglise:entities!croyants_eglise_id_fkey (id, nom, path)
   ),

@@ -98,7 +98,8 @@ export function FiltresCroyants({
             />
           </div>
 
-          <div className="w-56">
+          {/* Assez large pour lire un nom d eglise sans le tronquer. */}
+          <div className="w-64">
             <EntityPicker
               options={eglises}
               value={filtres.egliseId}
