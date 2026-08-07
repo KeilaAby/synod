@@ -43,6 +43,8 @@ import {
   type ChampReferentiel,
   type DefinitionReferentiel,
   LIBELLES_VALEURS,
+  REFERENTIELS,
+  type SlugReferentiel,
 } from '@/lib/domain/referentiels';
 import { cn } from '@/lib/utils';
 
@@ -52,21 +54,45 @@ import { cn } from '@/lib/utils';
  * Un seul composant sert les quatre referentiels : la forme des colonnes et
  * des champs vient du registre (DA-7). Ajouter un referentiel n'ajoute pas une
  * ligne d'interface.
+ *
+ * LE COMPOSANT RECOIT UN SLUG, PAS UNE DEFINITION. La definition porte un
+ * schema Zod — une instance de classe — et React refuse de serialiser autre
+ * chose que des objets simples entre un composant serveur et un composant
+ * client. La transmettre faisait echouer la page entiere :
+ *
+ *   « Only plain objects, and a few built-ins, can be passed to Client
+ *     Components from Server Components. »
+ *
+ * Le registre etant un module PUR, le client le lit directement : rien ne
+ * traverse la frontiere, et le probleme disparait au lieu d'etre contourne.
  */
 
-type Ligne = Record<string, unknown> & { id: string; is_active: boolean };
+export type LigneReferentiel = Record<string, unknown> & {
+  id: string;
+  is_active: boolean;
+};
+
+type Ligne = LigneReferentiel;
 
 export function ReferentielTable({
-  definition,
+  slug,
   lignes,
   peutGerer,
+  ajoutImmediat = false,
 }: {
-  definition: DefinitionReferentiel;
+  slug: SlugReferentiel;
   lignes: Ligne[];
   peutGerer: boolean;
+  /** Ouvre le formulaire d'ajout des le montage — entree « Ajouter » du menu. */
+  ajoutImmediat?: boolean;
 }) {
+  const definition = REFERENTIELS[slug];
   const router = useRouter();
-  const [edition, setEdition] = useState<{ ligne: Ligne | null } | null>(null);
+  // Valeur INITIALE plutot qu'un effet : ouvrir le formulaire apres coup
+  // aurait produit un second rendu, que le compilateur React refuse.
+  const [edition, setEdition] = useState<{ ligne: Ligne | null } | null>(
+    ajoutImmediat && peutGerer ? { ligne: null } : null,
+  );
   const [enCours, demarrer] = useTransition();
 
   function basculer(ligne: Ligne) {
@@ -120,7 +146,10 @@ export function ReferentielTable({
 
             <TableBody>
               {lignes.map((ligne) => (
-                <TableRow key={ligne.id} className={cn('h-12', !ligne.is_active && 'opacity-60')}>
+                <TableRow
+                  key={ligne.id}
+                  className={cn('h-12', !ligne.is_active && 'opacity-60')}
+                >
                   {definition.colonnes.map((colonne) => (
                     <TableCell
                       key={colonne.cle}
@@ -293,7 +322,7 @@ function FormulaireReferentiel({
 
         <div className="space-y-6 py-2">
           {erreurGlobale && (
-            <p role="alert" className="text-sm font-medium text-destructive">
+            <p role="alert" className="text-destructive text-sm font-medium">
               {erreurGlobale}
             </p>
           )}
@@ -352,8 +381,10 @@ function ChampSaisie({
             className="mt-0.5"
           />
           <span className="space-y-1">
-            <span className="block text-sm font-medium text-foreground">{champ.label}</span>
-            {hint && <span className="block text-xs text-muted-foreground">{hint}</span>}
+            <span className="text-foreground block text-sm font-medium">
+              {champ.label}
+            </span>
+            {hint && <span className="text-muted-foreground block text-xs">{hint}</span>}
           </span>
         </label>
       );
@@ -401,7 +432,7 @@ function ChampSaisie({
                       )
                     }
                   />
-                  <span className="text-sm text-foreground">{o.label}</span>
+                  <span className="text-foreground text-sm">{o.label}</span>
                 </label>
               ))}
             </div>

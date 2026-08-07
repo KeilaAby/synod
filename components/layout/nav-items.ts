@@ -127,10 +127,6 @@ export const LIBELLES_SEGMENTS: Record<string, string> = {
   corbeille: 'Corbeille',
   parametres: 'Parametres',
   portabilite: 'Portabilite',
-  grades: 'Grades',
-  nationalites: 'Nationalites',
-  fonctions: 'Fonctions',
-  'categories-finance': 'Categories financieres',
   'mon-compte': 'Mon compte',
 };
 
