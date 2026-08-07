@@ -45,6 +45,30 @@ export const supabaseStorageAdapter: StorageAdapter = {
     return ok(data.signedUrl);
   },
 
+  async signedUrls(cles, dureeSecondes = DUREE_URL_SIGNEE_SECONDES) {
+    if (cles.length === 0) return ok(new Map());
+
+    const { STORAGE_BUCKET } = envServeur();
+    const sb = await createClient();
+
+    const { data, error } = await sb.storage
+      .from(STORAGE_BUCKET)
+      .createSignedUrls([...cles], dureeSecondes);
+
+    if (error) {
+      console.error('[storage] signature en lot', error.message);
+      return ko("Les fichiers n'ont pas pu etre rendus accessibles.");
+    }
+
+    const table = new Map<string, string>();
+    for (const entree of data ?? []) {
+      // `path` peut etre nul quand l'objet a disparu : on l'ignore plutot que
+      // de faire echouer les autres.
+      if (entree.path && entree.signedUrl) table.set(entree.path, entree.signedUrl);
+    }
+    return ok(table);
+  },
+
   async delete(cle) {
     const { STORAGE_BUCKET } = envServeur();
     const sb = await createClient();

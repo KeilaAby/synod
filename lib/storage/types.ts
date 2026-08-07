@@ -38,6 +38,17 @@ export interface StorageAdapter {
   /** ENF-SEC-06 — URL a duree limitee. N'est JAMAIS persistee en base. */
   signedUrl(cle: string, dureeSecondes?: number): Promise<ActionResult<string>>;
 
+  /**
+   * Signature EN LOT — une liste de cinquante photos ne doit pas coûter
+   * cinquante allers-retours. Retourne une table cle -> URL ; une cle
+   * introuvable est simplement absente, un objet manquant ne devant pas faire
+   * echouer l'affichage des autres.
+   */
+  signedUrls(
+    cles: readonly string[],
+    dureeSecondes?: number,
+  ): Promise<ActionResult<Map<string, string>>>;
+
   delete(cle: string): Promise<ActionResult<void>>;
 
   list(prefixe: string): Promise<ActionResult<string[]>>;
@@ -45,6 +56,14 @@ export interface StorageAdapter {
 
 /** Duree de vie par defaut d'une URL signee : assez pour afficher, pas pour partager. */
 export const DUREE_URL_SIGNEE_SECONDES = 60 * 10;
+
+/**
+ * Les photos vivent plus longtemps que dix minutes : une liste reste ouverte,
+ * on y revient par le bouton « precedent », et des vignettes qui expirent en
+ * cours de consultation se lisent comme une panne. Une heure reste tres en
+ * deca d'un partage durable.
+ */
+export const DUREE_URL_PHOTO_SECONDES = 60 * 60;
 
 /**
  * ENF-SEC-06 — types acceptes, par usage.
@@ -65,6 +84,16 @@ export const CONTRAINTES_FICHIER = {
 } as const;
 
 export type UsageFichier = keyof typeof CONTRAINTES_FICHIER;
+
+/**
+ * EF-CRO-09 — cote du carre produit par le recadrage client.
+ *
+ * 512 px suffisent : la photo n'est jamais affichee plus grande que 64 px, et
+ * le double permet les ecrans a haute densite. Envoyer l'original de 5 Mo sur
+ * une liaison lente couterait plusieurs dizaines de secondes pour un resultat
+ * strictement identique a l'ecran.
+ */
+export const COTE_PHOTO_PIXELS = 512;
 
 /** Signatures binaires (magic numbers) des formats autorises. */
 const SIGNATURES: ReadonlyArray<{ type: string; octets: readonly number[]; decalage: number }> = [

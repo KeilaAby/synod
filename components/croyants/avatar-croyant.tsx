@@ -37,15 +37,38 @@ const TAILLES = {
 export function AvatarCroyant({
   nom,
   prenom,
+  url,
   taille = 'sm',
   className,
 }: {
   nom: string;
   prenom: string;
+  /** URL signee de la photo (EF-CRO-09). Les initiales prennent le relais. */
+  url?: string | null;
   taille?: keyof typeof TAILLES;
   className?: string;
 }) {
   const initiales = initialesAvatar(nom, prenom);
+
+  if (url) {
+    return (
+      // Pas de `next/image` : l'URL est signée, donc change à chaque rendu et
+      // pointe hors du domaine. L'optimiseur la retéléchargerait à chaque
+      // signature, et son cache ne servirait jamais deux fois. L'image est
+      // déjà réduite à 512 px au téléversement — il n'y a plus rien à optimiser.
+      // eslint-disable-next-line @next/next/no-img-element -- voir ci-dessus
+      <img
+        src={url}
+        alt=""
+        aria-hidden
+        className={cn(
+          'inline-block shrink-0 rounded-full object-cover',
+          TAILLES[taille],
+          className,
+        )}
+      />
+    );
+  }
 
   return (
     <span

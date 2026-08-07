@@ -65,11 +65,14 @@ const TAILLE_PAGE = 50;
 
 export function CroyantsClient({
   croyants,
+  photos,
   tronque,
   options,
   filtresInitiaux,
 }: {
   croyants: CroyantListe[];
+  /** Clé de stockage -> URL signée (EF-CRO-09). Signées en lot par la page. */
+  photos: Record<string, string>;
   tronque: boolean;
   options: OptionsCroyant;
   filtresInitiaux: FiltresListeCroyants;
@@ -225,7 +228,11 @@ export function CroyantsClient({
                             className="flex items-center gap-3 font-medium text-foreground transition-colors hover:text-indigo-700"
                           >
                             {/* EF-CRO-09 — en attendant le téléversement de photo. */}
-                            <AvatarCroyant nom={c.nom} prenom={c.prenom} />
+                            <AvatarCroyant
+                              nom={c.nom}
+                              prenom={c.prenom}
+                              url={c.photo_key ? photos[c.photo_key] : null}
+                            />
                             <span className="truncate">{nomComplet(c.nom, c.prenom)}</span>
                           </Link>
                         </TableCell>

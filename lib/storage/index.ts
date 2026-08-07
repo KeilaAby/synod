@@ -31,6 +31,8 @@ export function storage(): StorageAdapter {
 
 export {
   CONTRAINTES_FICHIER,
+  COTE_PHOTO_PIXELS,
+  DUREE_URL_PHOTO_SECONDES,
   DUREE_URL_SIGNEE_SECONDES,
   PREFIXES,
   construireCle,

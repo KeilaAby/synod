@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { ModifierCroyantDialog } from '@/components/croyants/croyant-dialog';
+import { PhotoUploader } from '@/components/croyants/photo-uploader';
 import { PageHeader } from '@/components/shared/page-header';
 import { PermissionGate } from '@/components/shared/permission-gate';
 import { StatusBadge, TON_CROYANT } from '@/components/shared/status-badge';
@@ -12,6 +13,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { getCroyant } from '@/lib/data/croyants';
 import { getOptionsCroyant } from '@/lib/data/croyant-options';
 import { getArbrePerimetre, cheminLisible, indexerParChemin } from '@/lib/data/entities';
+import { signerPhotos } from '@/lib/data/photos';
 import {
   LIBELLES_SEXE,
   LIBELLES_STATUT_CROYANT,
@@ -41,7 +43,11 @@ export default async function FicheCroyantPage({ params }: Params) {
   const croyant = await getCroyant(croyantId);
   if (!croyant) notFound();
 
-  const [arbre, options] = await Promise.all([getArbrePerimetre(), getOptionsCroyant()]);
+  const [arbre, options, photos] = await Promise.all([
+    getArbrePerimetre(),
+    getOptionsCroyant(),
+    signerPhotos([croyant.photo_key]),
+  ]);
   const index = indexerParChemin(arbre);
   const eglise = arbre.find((e) => e.id === croyant.eglise_id);
 
@@ -97,7 +103,17 @@ export default async function FicheCroyantPage({ params }: Params) {
         }
       />
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-6">
+        {/* EF-CRO-09 — l'avatar a initiales reste le repli. */}
+        <PhotoUploader
+          croyantId={croyant.id}
+          nom={croyant.nom}
+          prenom={croyant.prenom}
+          urlPhoto={croyant.photo_key ? (photos.get(croyant.photo_key) ?? null) : null}
+          peutModifier={Boolean(eglise)}
+        />
+
+        <div className="flex flex-wrap items-center gap-2">
         <StatusBadge tone={TON_CROYANT[croyant.statut] ?? 'neutral'}>
           {LIBELLES_STATUT_CROYANT[croyant.statut as StatutCroyant] ?? croyant.statut}
         </StatusBadge>
@@ -111,6 +127,7 @@ export default async function FicheCroyantPage({ params }: Params) {
             Église sans accès à l&apos;application
           </StatusBadge>
         )}
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">

@@ -4,6 +4,7 @@ import { NouveauCroyantDialog } from '@/components/croyants/croyant-dialog';
 import { PageHeader } from '@/components/shared/page-header';
 import { chargerCroyants } from '@/lib/data/croyants';
 import { getOptionsCroyant } from '@/lib/data/croyant-options';
+import { signerPhotos } from '@/lib/data/photos';
 import {
   FILTRES_LISTE_VIDES,
   type FiltresListeCroyants,
@@ -43,6 +44,10 @@ export default async function CroyantsPage({
     getOptionsCroyant(),
   ]);
 
+  // EF-CRO-09 — une seule signature pour tout le lot ; aucune requête si
+  // personne n'a encore de photo, ce qui reste le cas le plus fréquent.
+  const photos = await signerPhotos(lot.lignes.map((c) => c.photo_key));
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -58,6 +63,7 @@ export default async function CroyantsPage({
 
       <CroyantsClient
         croyants={lot.lignes}
+        photos={Object.fromEntries(photos)}
         tronque={lot.tronque}
         options={options}
         // L'église de l'URL n'est retenue que si c'en est vraiment une : une
