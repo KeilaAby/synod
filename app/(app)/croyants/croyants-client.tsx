@@ -85,6 +85,7 @@ export function CroyantsClient({
 
   const { modifier, demanderSuppression, dialogues } = useCroyantDialogs({
     croyants,
+    photos,
     options,
   });
 

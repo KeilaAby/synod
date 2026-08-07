@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { creerCroyant, modifierCroyant } from '@/lib/actions/croyants';
+import { televerserPhotoCroyant } from '@/lib/actions/photos';
 import {
   LIBELLES_SEXE,
   LIBELLES_STATUT_CROYANT,
@@ -34,6 +35,9 @@ import {
 import { croyantSchema, type CroyantInput } from '@/lib/validation/croyant';
 
 import { FriseEtapes, type Etape } from './etapes';
+import { PhotoUploader } from './photo-uploader';
+import { versFichierWebp } from './preparer-photo';
+import { SelecteurPhoto } from './selecteur-photo';
 
 /**
  * Formulaire du croyant — EF-CRO-01, ENF-UTI-07 (moins de 90 secondes).
@@ -93,6 +97,8 @@ interface CroyantExistant {
 interface Presentation {
   onSucces?: (id: string) => void;
   onAnnuler?: () => void;
+  /** URL signee de la photo existante (EF-CRO-09). Modification uniquement. */
+  urlPhoto?: string | null;
 }
 
 type Props = Presentation &
@@ -133,6 +139,10 @@ export function CroyantForm(props: Props) {
   const [doublonSignale, setDoublonSignale] = useState<string | null>(null);
   const [statut, setStatut] = useState<StatutCroyant>(existant?.statut ?? 'ACTIF');
 
+  // EF-CRO-09 — en création, la photo attend l'identifiant que seule la base
+  // peut attribuer. Elle part juste après, dans la foulée de l'enregistrement.
+  const [photoEnAttente, setPhotoEnAttente] = useState<Blob | null>(null);
+
   const {
     register,
     handleSubmit,
@@ -168,6 +178,10 @@ export function CroyantForm(props: Props) {
   });
 
   const egliseChoisie = useWatch({ control, name: 'egliseId' });
+
+  // L'avatar de repli suit la saisie : on voit ses initiales se former.
+  const nomSaisi = useWatch({ control, name: 'nom' });
+  const prenomSaisi = useWatch({ control, name: 'prenom' });
 
   // RG-05 — seules les cellules de l'église retenue sont proposées.
   const cellulesDisponibles = useMemo(
@@ -239,6 +253,23 @@ export function CroyantForm(props: Props) {
       if (!resultat.ok) return traiterEchec(resultat, valeurs);
 
       toast.success(`Croyant enregistré — matricule ${resultat.data.matricule}.`);
+
+      // La photo part MAINTENANT : l'identifiant vient d'être attribué.
+      // Un échec ici ne remet pas la fiche en cause — elle est créée, et la
+      // photo se rajoute depuis la fiche. On le dit plutôt que de le taire.
+      if (photoEnAttente) {
+        const envoi = new FormData();
+        envoi.set('croyantId', resultat.data.id);
+        envoi.set('photo', versFichierWebp(photoEnAttente));
+
+        const photo = await televerserPhotoCroyant(envoi);
+        if (!photo.ok) {
+          toast.warning(
+            `La fiche est enregistrée, mais la photo n'a pas pu être jointe : ${photo.error}`,
+          );
+        }
+      }
+
       if (props.onSucces) props.onSucces(resultat.data.id);
       else router.push(`/croyants/${resultat.data.id}`);
     }
@@ -288,6 +319,30 @@ export function CroyantForm(props: Props) {
       <Card hidden={etape !== 0}>
         <CardContent className="space-y-6 p-6">
           <p className="eyebrow">Identité</p>
+
+          {/*
+            EF-CRO-09 — la photo appartient à l'identité, pas à une page à part.
+            En modification la fiche existe : l'envoi est immédiat. En création
+            elle n'existe pas encore, donc l'image attend l'identifiant.
+          */}
+          {existant ? (
+            <PhotoUploader
+              croyantId={existant.id}
+              nom={existant.nom}
+              prenom={existant.prenom}
+              urlPhoto={props.urlPhoto ?? null}
+              peutModifier
+              className="border-b border-border pb-6"
+            />
+          ) : (
+            <SelecteurPhoto
+              nom={nomSaisi ?? ''}
+              prenom={prenomSaisi ?? ''}
+              photo={photoEnAttente}
+              onPhoto={setPhotoEnAttente}
+              className="border-b border-border pb-6"
+            />
+          )}
 
           <div className="grid gap-6 md:grid-cols-2">
             <TextField

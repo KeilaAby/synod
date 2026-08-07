@@ -78,6 +78,9 @@ export default async function FicheCroyantPage({ params }: Params) {
               <ModifierCroyantDialog
                 scope={eglise.path}
                 options={options}
+                urlPhoto={
+                  croyant.photo_key ? (photos.get(croyant.photo_key) ?? null) : null
+                }
                 croyant={{
                   id: croyant.id,
                   matricule: croyant.matricule,

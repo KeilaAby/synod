@@ -119,11 +119,14 @@ export function ModifierCroyantDialog({
   croyant,
   options,
   scope,
+  urlPhoto,
 }: {
   croyant: CroyantAModifier;
   options: OptionsCroyant;
   /** Chemin de l'église : l'habilitation s'évalue avec sa portée (RG-25). */
   scope: string;
+  /** URL signée de la photo (EF-CRO-09) : la base ne stocke que la clé. */
+  urlPhoto?: string | null;
 }) {
   const router = useRouter();
   const [ouvert, setOuvert] = useState(false);
@@ -154,6 +157,7 @@ export function ModifierCroyantDialog({
               key={croyant.id}
               mode="modification"
               croyant={croyant}
+              urlPhoto={urlPhoto}
               {...options}
               onAnnuler={() => setOuvert(false)}
               onSucces={() => {

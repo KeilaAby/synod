@@ -32,9 +32,12 @@ import type { OptionsCroyant } from './croyant-dialog';
  */
 export function useCroyantDialogs({
   croyants,
+  photos,
   options,
 }: {
   croyants: readonly CroyantListe[];
+  /** Clé de stockage -> URL signée (EF-CRO-09). */
+  photos: Record<string, string>;
   options: OptionsCroyant;
 }) {
   const router = useRouter();
@@ -101,6 +104,9 @@ export function useCroyantDialogs({
                   statut: aModifier.statut as 'ACTIF' | 'INACTIF' | 'TRANSFERE' | 'DECEDE',
                   egliseNom: aModifier.eglise?.nom ?? '—',
                 }}
+                urlPhoto={
+                  aModifier.photo_key ? (photos[aModifier.photo_key] ?? null) : null
+                }
                 {...options}
                 onAnnuler={() => setAModifier(null)}
                 onSucces={() => {
