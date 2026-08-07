@@ -16,7 +16,8 @@ import { DUREE_URL_SIGNEE_SECONDES, type StorageAdapter } from './types';
  * ⚠ CE MODULE CONTOURNE LA RLS. Il emprunte la cle de service, parce que le
  * seau n'a AUCUNE politique et reste ferme a tout role `authenticated` : sur
  * Supabase, `storage.objects` appartient a `supabase_storage_admin` et
- * `CREATE POLICY` y est refuse a `postgres` (42501). Voir la migration 0014.
+ * `CREATE POLICY` y est refuse a `postgres` (42501). Le seau lui-meme se cree
+ * par l'API, pas en SQL : `pnpm db:bucket`.
  *
  * L'application est donc la SEULE porte, et c'est un choix defendable :
  * l'autorisation vit a un seul endroit, la Server Action, ou elle s'exprime
@@ -45,6 +46,33 @@ function client(): ActionResult<ClientAdmin> {
   }
 }
 
+/**
+ * Traduit les pannes de configuration en instructions.
+ *
+ * Un « Le fichier n'a pas pu etre enregistre » generique a coute une demi-heure
+ * de recherche pour un seau simplement absent : la cause etait dans le journal
+ * du serveur, que l'utilisateur n'a aucune raison de lire. Ce qui est
+ * reparable par une commande doit le dire a l'ecran.
+ */
+function messageStockage(erreur: { message?: string }, defaut: string): string {
+  const message = erreur.message ?? '';
+
+  if (/bucket not found/i.test(message)) {
+    const { STORAGE_BUCKET } = envServeur();
+    return (
+      `Le seau de stockage « ${STORAGE_BUCKET} » n'existe pas. ` +
+      'Executez `pnpm db:bucket` pour le creer.'
+    );
+  }
+  if (/exceeded the maximum allowed size|payload too large/i.test(message)) {
+    return 'Le fichier depasse la taille autorisee par le stockage.';
+  }
+  if (/mime type .* is not supported/i.test(message)) {
+    return "Ce format de fichier n'est pas accepte par le stockage.";
+  }
+  return defaut;
+}
+
 export const supabaseStorageAdapter: StorageAdapter = {
   async put(cle, contenu, options) {
     const sb = client();
@@ -58,7 +86,7 @@ export const supabaseStorageAdapter: StorageAdapter = {
 
     if (error) {
       console.error('[storage] depot', cle, error.message);
-      return ko("Le fichier n'a pas pu etre enregistre.");
+      return ko(messageStockage(error, "Le fichier n'a pas pu etre enregistre."));
     }
     // On retourne la CLE, jamais une URL : c'est elle qui va en base.
     return ok(cle);
@@ -74,7 +102,9 @@ export const supabaseStorageAdapter: StorageAdapter = {
       .createSignedUrl(cle, dureeSecondes);
 
     if (error || !data?.signedUrl) {
-      return ko("Le fichier est introuvable ou n'est plus accessible.");
+      return ko(
+        messageStockage(error ?? {}, "Le fichier est introuvable ou n'est plus accessible."),
+      );
     }
     return ok(data.signedUrl);
   },
@@ -92,7 +122,7 @@ export const supabaseStorageAdapter: StorageAdapter = {
 
     if (error) {
       console.error('[storage] signature en lot', error.message);
-      return ko("Les fichiers n'ont pas pu etre rendus accessibles.");
+      return ko(messageStockage(error, "Les fichiers n'ont pas pu etre rendus accessibles."));
     }
 
     const table = new Map<string, string>();
@@ -110,7 +140,9 @@ export const supabaseStorageAdapter: StorageAdapter = {
 
     const { STORAGE_BUCKET } = envServeur();
     const { error } = await sb.data.storage.from(STORAGE_BUCKET).remove([cle]);
-    return error ? ko("Le fichier n'a pas pu etre supprime.") : ok();
+    return error
+      ? ko(messageStockage(error, "Le fichier n'a pas pu etre supprime."))
+      : ok();
   },
 
   async list(prefixe) {
@@ -119,7 +151,7 @@ export const supabaseStorageAdapter: StorageAdapter = {
 
     const { STORAGE_BUCKET } = envServeur();
     const { data, error } = await sb.data.storage.from(STORAGE_BUCKET).list(prefixe);
-    if (error) return ko('Le contenu du dossier est illisible.');
+    if (error) return ko(messageStockage(error, 'Le contenu du dossier est illisible.'));
 
     return ok((data ?? []).map((o) => `${prefixe}/${o.name}`));
   },

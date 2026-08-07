@@ -71,6 +71,30 @@ psql "$DATABASE_URL" -f supabase/seed.sql
 L'amorce crée le **Siège** (racine unique de la hiérarchie) et les quatre
 référentiels : grades, nationalités, fonctions, catégories financières.
 
+### Stockage des fichiers
+
+```bash
+pnpm db:bucket
+```
+
+Crée le seau `synod` — **privé**, 5 Mo par fichier — ou le remet en conformité
+s'il a dérivé. Idempotent, et il signale tout seau public du projet : un seau
+public rend chaque photo lisible par quiconque devine son URL.
+
+> **Pourquoi un script et non une migration SQL.** `storage.buckets` et
+> `storage.objects` appartiennent à `supabase_storage_admin` ; le rôle
+> `postgres` de l'éditeur SQL n'en est pas membre et se voit refuser tout
+> `CREATE POLICY` (`42501`). L'API de stockage, elle, accepte la clé de
+> service : c'est l'interface légitime, et le résultat reste **versionné dans
+> le dépôt** — contrairement à des clics dans un tableau de bord que personne
+> ne pourra rejouer.
+
+Le seau ne porte **aucune politique** : il est donc fermé à tout utilisateur.
+Les fichiers ne transitent que par les Server Actions, qui portent déjà le
+contrôle d'habilitation avec sa portée. `SUPABASE_SERVICE_ROLE_KEY` devient
+donc nécessaire aux photos ; sans elle, les avatars à initiales s'affichent et
+le téléversement est refusé avec un message explicite.
+
 ### Premier compte
 
 1. **Supabase > Authentication > Users > Add user** — cocher *Auto Confirm User*.
@@ -95,6 +119,8 @@ table métier n'échappe à la RLS (règle non négociable n° 9).
 | Commande | Rôle |
 |---|---|
 | `pnpm dev` | Serveur de développement |
+| `pnpm db:bundle` | Génère `install.sql` (ou `--depuis <version>`) |
+| `pnpm db:bucket` | Crée ou remet en conformité le seau de stockage |
 | `pnpm lint` | ESLint, garde-fous inclus |
 | `pnpm typecheck` | TypeScript strict |
 | `pnpm test` | Tests unitaires (Vitest) |

@@ -20,9 +20,10 @@ CRUD en pop-up), référentiels.
 **Lot 2 aux deux tiers** : croyants livrés ; transferts et baptêmes ont leur base
 et leur domaine, les écrans restent à construire.
 
-⚠️ Migration `0013` **à appliquer** sur la base de l'utilisateur
-(`supabase/install-incremental.sql`) : sans elle, la création d'entité échoue —
-le formulaire n'envoie plus de code.
+Base à jour jusqu'à la migration `0013`. Le stockage de fichiers ne se
+configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` et
+`postgres` s'y voit refuser `CREATE POLICY` : `pnpm db:bucket` s'en charge par
+l'API.
 
 Historique : [`SESSION_HISTORY.md`](.claude-code-history/SESSION_HISTORY.md) ·
 dernier point d'étape : [`.claude-code-history/2026-08-07_resumes-moi.md`](.claude-code-history/2026-08-07_resumes-moi.md)

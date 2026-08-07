@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "db:bundle": "node scripts/build-install-sql.mjs",
+    "db:bucket": "node scripts/creer-bucket.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "verify": "pnpm check:secrets && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
