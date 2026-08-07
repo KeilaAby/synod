@@ -491,3 +491,60 @@ groupes, panneau qui ne s'enferme pas dans la largeur du déclencheur. Les
 éléments retenus s'affichent en pastilles **sous** le déclencheur — trois noms
 dans un bouton de 40 px les tronquent tous les trois, et l'on ne sait plus qui
 est sélectionné, ce qui est précisément la question qu'on se pose.
+
+### Référentiels en pop-up, et une erreur invisible au build
+
+La page `/referentiels/<slug>` échouait entièrement :
+
+> Only plain objects, and a few built-ins, can be passed to Client Components
+> from Server Components.
+
+La définition d'un référentiel porte un **schéma Zod** — une instance de classe
+— et elle était transmise telle quelle à un composant client. Le composant reçoit
+désormais le **slug** et lit le registre lui-même : celui-ci étant un module pur,
+rien ne traverse la frontière et le problème disparaît au lieu d'être contourné.
+Règle 23.
+
+Les quatre pages ont disparu au passage : la liste et son CRUD s'ouvrent en
+pop-up depuis un menu ⋮. Consulter les grades pour vérifier un libellé ne
+justifiait pas une navigation complète, suivie d'un retour arrière pour
+consulter les fonctions.
+
+### Import d'un lot de croyants — EF-CRO-11
+
+**Correspondance de colonnes, pas de modèle imposé.** Le fichier de
+l'utilisateur existe déjà ; exiger nos entêtes dans notre ordre reviendrait à
+lui faire ressaisir ce qu'il possède. On lit ses colonnes, on propose une
+correspondance d'après les entêtes, il la corrige — une fois pour tout le
+fichier. Les références se résolvent **par libellé ou par code** : un fichier de
+reprise contient « IAVOAMBONY » ou « EGL-0007 », jamais un UUID.
+
+Trois temps — déposer, faire correspondre, lire le rapport — et rien n'est écrit
+avant le dernier. Un aperçu des trois premières lignes montre immédiatement si
+les colonnes ont été décalées d'un cran.
+
+Le serveur **réanalyse tout** : le rapport du navigateur lui appartient, rien
+n'empêche d'envoyer des lignes qui ne l'ont jamais traversé. `croyant.create`
+est exigé **église par église** — un fichier peut couvrir plusieurs paroisses.
+
+Insertion par tranches de cinquante. Une tranche refusée est rejouée ligne à
+ligne pour **situer** la faute, au lieu de rejeter cinquante croyants à cause
+d'un seul.
+
+**Le format retenu est le CSV, sans nouvelle dépendance.** Les deux
+bibliothèques XLSX posent chacune un problème : `xlsx` sur npm est figé depuis
+des années avec des vulnérabilités connues — sa version maintenue vit hors du
+registre — et `exceljs` pèse près d'un mégaoctet pour un besoin de lecture. Un
+tableur exporte en CSV en deux clics. **ARB-6 reste ouvert pour le XLSX seul** :
+la chaîne ne manipule que des tableaux de chaînes, un lecteur se branchera dans
+`lib/domain/csv.ts` sans toucher au reste.
+
+Vingt-neuf tests, centrés sur les **refus** : `03/04/2020` est le 3 avril et non
+le 4 mars, `31/02/2020` est refusé plutôt que décalé au 2 mars, RG-05 et RG-28
+sont rejouées, les doublons internes au fichier détectés, et toutes les erreurs
+d'une ligne signalées d'un coup — les découvrir une par une obligerait à
+relancer l'import autant de fois.
+
+### Qualité
+
+240 tests unitaires. `pnpm verify` vert.

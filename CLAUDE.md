@@ -18,8 +18,9 @@ demande contredit `cdg.md`, signalez-le avant d'implémenter.
 structure à 6 niveaux (organigramme éditable **et** vue liste), référentiels,
 croyants avec photo, **transferts** avec workflow d'approbation, **baptêmes**.
 
-Reste au lot 2 : l'**import Excel** (EF-CRO-11) — c'est là que se posera ARB-6 —
-et la saisie de baptêmes en lot (EF-BAP-07, *Could*).
+**Lot 2 achevé**, hors deux facultatifs : la lecture **XLSX** (dernier reste
+d'ARB-6 — l'import CSV est livré) et la saisie de baptêmes en lot (EF-BAP-07,
+*Could*).
 
 Base à jour jusqu'à la migration `0015`. Le stockage de fichiers ne se
 configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` et

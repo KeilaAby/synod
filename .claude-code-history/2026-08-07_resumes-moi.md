@@ -32,7 +32,8 @@ et les croyants s'enregistrent.
 | Photo de profil — recadrage client, seau privé | ✅ |
 | Transferts — demande, approbation, refus motivé, journal, compteur | ✅ |
 | Baptêmes — saisie créant le croyant, célébrants multiples, registre | ✅ |
-| Import Excel des croyants (EF-CRO-11) | Reste du lot 2 — c'est là que se posera **ARB-6** |
+| Import CSV des croyants — correspondance de colonnes, pré-validation | ✅ |
+| Lecture XLSX | Reportée — **ARB-6**, à trancher sur vos fichiers réels |
 | Saisie de baptêmes en lot (EF-BAP-07) | *Could* — non livré, le champ « session » le prépare |
 | Tableau de bord | Coquille seulement — le moteur configurable est le Lot 5 |
 | Bureaux, Finances, Rapports | À venir |
@@ -127,14 +128,16 @@ Supabase. Tout fichier qui s'y trouve est lisible par quiconque connaît son URL
 
 ## Ce qui reste au Lot 2
 
-**L'import Excel des croyants** (EF-CRO-11, *Should*). C'est là qu'**ARB-6** se
-posera enfin : il faudra voir vos fichiers sources — volume, format, qualité —
-pour caler l'import. La question a été mise de côté depuis le cadrage
-précisément pour être posée à ce moment.
+**Rien de bloquant.** L'import est livré en CSV ; deux points restent ouverts,
+tous deux facultatifs :
 
-La **saisie de baptêmes en lot** (EF-BAP-07) est un *Could* : le champ
-« session ou cérémonie » est déjà saisi, ce qui évitera de revenir sur les
-baptêmes existants le jour où elle sera livrée.
+- **La lecture XLSX** — c'est le seul reste d'**ARB-6**. Envoyez un fichier réel
+  et je tranche : s'il s'agit d'un tableau simple, l'export CSV suffit et il n'y
+  a rien à ajouter. S'il comporte plusieurs feuilles ou des cellules fusionnées,
+  une bibliothèque devient nécessaire, et je choisirai en connaissance de cause.
+- **La saisie de baptêmes en lot** (EF-BAP-07, *Could*) : le champ « session ou
+  cérémonie » est déjà saisi, ce qui évitera de revenir sur les baptêmes
+  existants le jour où elle sera livrée.
 
 ---
 
@@ -153,7 +156,7 @@ baptêmes existants le jour où elle sera livrée.
 ```bash
 pnpm install      # installe aussi le hook pre-commit de détection de secrets
 pnpm dev          # http://localhost:3000
-pnpm verify       # secrets + lint + types + 211 tests + build
+pnpm verify       # secrets + lint + types + 240 tests + build
 ```
 
 Lire avant toute tâche : `CLAUDE.md`, puis `notes/cdg.md` et `notes/plan.md`.
