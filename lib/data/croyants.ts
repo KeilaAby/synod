@@ -18,10 +18,17 @@ import { DataError } from './errors';
  * n'est jamais chargé intégralement côté client.
  */
 
+/**
+ * La ligne porte de quoi REMPLIR le formulaire de modification : ouvrir le
+ * pop-up depuis la liste ne coûte alors aucune requête. Ces quatre champs
+ * supplémentaires (`statut_marital`, `email`, `telephone`, `adresse`) ne
+ * changent pas le nombre de lignes lues — seulement leur largeur.
+ */
 const CHAMPS_LISTE = `
   id, matricule, nom, prenom, sexe, date_naissance, date_bapteme, statut,
   photo_key, eglise_id, cellule_id, grade_id, nationalite_id,
-  eglise:entities!croyants_eglise_id_fkey (id, nom, code),
+  statut_marital, email, telephone, adresse,
+  eglise:entities!croyants_eglise_id_fkey (id, nom, code, path),
   cellule:entities!croyants_cellule_id_fkey (id, nom),
   grade:grades (id, libelle),
   nationalite:nationalites (id, libelle)
@@ -41,7 +48,12 @@ export interface CroyantListe {
   cellule_id: string | null;
   grade_id: string;
   nationalite_id: string;
-  eglise: { id: string; nom: string; code: string } | null;
+  statut_marital: string | null;
+  email: string | null;
+  telephone: string | null;
+  adresse: string;
+  // `path` : l'habilitation de modification s'évalue avec sa portée (RG-25).
+  eglise: { id: string; nom: string; code: string; path: string } | null;
   cellule: { id: string; nom: string } | null;
   grade: { id: string; libelle: string } | null;
   nationalite: { id: string; libelle: string } | null;
@@ -164,10 +176,6 @@ const CHAMPS_FICHE = `
 ` as const;
 
 export interface CroyantFiche extends CroyantListe {
-  statut_marital: string | null;
-  email: string | null;
-  telephone: string | null;
-  adresse: string;
   created_at: string;
   updated_at: string;
   eglise: { id: string; nom: string; code: string; path: string; type: EntityType } | null;
@@ -217,37 +225,3 @@ export async function chercherDoublons(
   );
 }
 
-/** Compteurs de l'en-tête de liste, sans charger les lignes. */
-export async function compterCroyants(entiteId?: string): Promise<{
-  total: number;
-  hommes: number;
-  femmes: number;
-}> {
-  const sb = await createClient();
-  const eglises = await eglisesDuPerimetre(entiteId);
-
-  async function compter(sexe?: 'M' | 'F'): Promise<number> {
-    let q = sb
-      .from('croyants')
-      .select('id', { count: 'exact', head: true })
-      .is('deleted_at', null)
-      .eq('statut', 'ACTIF');
-
-    if (eglises !== null) {
-      if (eglises.length === 0) return 0;
-      q = q.in('eglise_id', eglises);
-    }
-    if (sexe) q = q.eq('sexe', sexe);
-
-    const { count } = await q;
-    return count ?? 0;
-  }
-
-  const [total, hommes, femmes] = await Promise.all([
-    compter(),
-    compter('M'),
-    compter('F'),
-  ]);
-
-  return { total, hommes, femmes };
-}

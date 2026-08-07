@@ -4,7 +4,6 @@ import { notFound } from 'next/navigation';
 import { PageHeader } from '@/components/shared/page-header';
 import { EntityForm } from '@/components/structure/entity-form';
 import { getEntite } from '@/lib/data/entities';
-import { getContexteStructure } from '@/lib/data/entity-options';
 import { ENTITY_LABELS } from '@/lib/domain/hierarchy';
 
 type Params = { params: Promise<{ entityId: string }> };
@@ -26,7 +25,6 @@ export default async function ModifierEntitePage({ params }: Params) {
   if (!fiche) notFound();
 
   const { entite, ancetres } = fiche;
-  const { options, typesCreables } = await getContexteStructure();
 
   return (
     <div className="space-y-8">
@@ -37,7 +35,6 @@ export default async function ModifierEntitePage({ params }: Params) {
       />
 
       <EntityForm
-        mode="modification"
         entite={{
           id: entite.id,
           type: entite.type,
@@ -47,8 +44,6 @@ export default async function ModifierEntitePage({ params }: Params) {
           sans_acces_application: entite.sans_acces_application,
           is_active: entite.is_active,
         }}
-        parents={options}
-        typesDisponibles={typesCreables.length > 0 ? typesCreables : [entite.type]}
       />
     </div>
   );

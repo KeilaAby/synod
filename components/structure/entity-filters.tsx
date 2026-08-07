@@ -1,18 +1,12 @@
 'use client';
 
-import { CircleCheck, CircleSlash, Layers, type LucideIcon, Search, WifiOff, X } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { CircleCheck, CircleSlash, Layers, Search, WifiOff, X } from 'lucide-react';
 
+import { FiltreIcone, GroupeFiltres } from '@/components/shared/filtre-icone';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { ENTITY_LABELS, ENTITY_TYPES, type EntityType } from '@/lib/domain/hierarchy';
-import { cn } from '@/lib/utils';
 import { formatNombre } from '@/lib/utils/format';
 
 import { COULEURS_NIVEAU, ICONES_NIVEAU } from './type-badge';
@@ -21,10 +15,7 @@ import { COULEURS_NIVEAU, ICONES_NIVEAU } from './type-badge';
  * Filtres de la liste des entites — EF-STR-09.
  *
  * Des PICTOGRAMMES et non des listes deroulantes : les six niveaux et les
- * trois statuts sont des ensembles clos et connus. Une liste deroulante
- * demande trois gestes (ouvrir, parcourir, choisir) et cache l'etat courant
- * derriere un libelle ; ici tout est visible d'un coup d'oeil, et changer de
- * niveau ne coute qu'un clic.
+ * trois statuts sont des ensembles clos et connus (voir `FiltreIcone`).
  *
  * Chaque bouton porte l'effectif du niveau : on voit AVANT de cliquer qu'un
  * filtre ne donnera rien, au lieu de tomber sur une liste vide.
@@ -80,12 +71,8 @@ export function EntityFilters({
         </div>
 
         {/* --- Niveau hierarchique --- */}
-        <div
-          role="group"
-          aria-label="Filtrer par niveau"
-          className="flex items-center gap-1 rounded-lg border border-border bg-card p-1"
-        >
-          <BoutonFiltre
+        <GroupeFiltres libelle="Filtrer par niveau">
+          <FiltreIcone
             icone={Layers}
             libelle="Tous les niveaux"
             actif={type === 'tous'}
@@ -93,7 +80,7 @@ export function EntityFilters({
           />
 
           {ENTITY_TYPES.map((t) => (
-            <BoutonFiltre
+            <FiltreIcone
               key={t}
               icone={ICONES_NIVEAU[t]}
               libelle={ENTITY_LABELS[t].pluriel}
@@ -106,22 +93,18 @@ export function EntityFilters({
               onClick={() => onType(type === t ? 'tous' : t)}
             />
           ))}
-        </div>
+        </GroupeFiltres>
 
         {/* --- Statut --- */}
-        <div
-          role="group"
-          aria-label="Filtrer par statut"
-          className="flex items-center gap-1 rounded-lg border border-border bg-card p-1"
-        >
-          <BoutonFiltre
+        <GroupeFiltres libelle="Filtrer par statut">
+          <FiltreIcone
             icone={CircleCheck}
             libelle="Entites actives"
             actif={actif === 'actifs'}
             classeActive="bg-emerald-100 text-emerald-700"
             onClick={() => onActif(actif === 'actifs' ? 'tous' : 'actifs')}
           />
-          <BoutonFiltre
+          <FiltreIcone
             icone={CircleSlash}
             libelle="Entites inactives"
             actif={actif === 'inactifs'}
@@ -130,14 +113,14 @@ export function EntityFilters({
           />
           {/* ARB-2 / EF-STR-10 : reperer les entites dont le Siege saisit les
               mouvements financiers demandait jusqu'ici de parcourir la liste. */}
-          <BoutonFiltre
+          <FiltreIcone
             icone={WifiOff}
             libelle="Sans acces a l'application"
             actif={sansAcces}
             classeActive="bg-amber-100 text-amber-700"
             onClick={() => onSansAcces(!sansAcces)}
           />
-        </div>
+        </GroupeFiltres>
 
         {aDesFiltres && (
           <Button variant="ghost" className="h-10" onClick={onEffacer}>
@@ -154,56 +137,5 @@ export function EntityFilters({
         </span>
       </div>
     </TooltipProvider>
-  );
-}
-
-function BoutonFiltre({
-  icone: Icone,
-  libelle,
-  badge,
-  actif,
-  classeActive = 'bg-slate-900 text-white',
-  desactive = false,
-  onClick,
-}: {
-  icone: LucideIcon;
-  libelle: string;
-  badge?: ReactNode;
-  actif: boolean;
-  classeActive?: string;
-  desactive?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          onClick={onClick}
-          // `aria-pressed` : un lecteur d'ecran annonce l'etat du filtre, que
-          // la couleur seule ne transmet pas (ENF-ACC-02).
-          aria-pressed={actif}
-          aria-label={libelle}
-          disabled={desactive && !actif}
-          className={cn(
-            'flex size-8 items-center justify-center rounded-md transition-colors',
-            'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-            actif
-              ? classeActive
-              : 'text-muted-foreground hover:bg-slate-100 hover:text-foreground',
-            desactive && !actif && 'cursor-not-allowed opacity-40 hover:bg-transparent',
-          )}
-        >
-          <Icone className="size-4" aria-hidden />
-        </button>
-      </TooltipTrigger>
-
-      <TooltipContent side="bottom">
-        {libelle}
-        {badge !== undefined && (
-          <span className="font-mono tabular-nums opacity-70">{badge}</span>
-        )}
-      </TooltipContent>
-    </Tooltip>
   );
 }

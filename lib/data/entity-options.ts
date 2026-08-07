@@ -1,7 +1,12 @@
 import 'server-only';
 
 import type { OptionEntite } from '@/components/structure/entity-picker';
-import { ENTITY_TYPES, type EntityType, typeParentDe } from '@/lib/domain/hierarchy';
+import {
+  ENTITY_TYPES,
+  type EntityType,
+  typeEnfantDe,
+  typeParentDe,
+} from '@/lib/domain/hierarchy';
 
 import {
   type NoeudEntite,
@@ -45,6 +50,20 @@ export function typesCreables(arbre: NoeudEntite[]): EntityType[] {
     if (parentAttendu === null) return false;
     return typesPresents.has(parentAttendu);
   });
+}
+
+/**
+ * Entites pouvant accueillir une sous-entite — cibles du pop-up de creation.
+ *
+ * Une Cellule est une feuille (RG-01) et une entite inactive ne doit plus
+ * recevoir de nouvelle branche : proposer l'une ou l'autre ne produirait qu'un
+ * refus a la validation.
+ */
+export function parentsPossibles(arbre: NoeudEntite[]): OptionEntite[] {
+  return versOptions(
+    arbre.filter((e) => e.is_active && typeEnfantDe(e.type) !== null),
+    arbre,
+  );
 }
 
 /** Arbre + options + types creables, en une seule lecture memoisee. */

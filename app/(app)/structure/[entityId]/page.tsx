@@ -1,15 +1,14 @@
 import type { Metadata } from 'next';
-import { Network, Plus, WifiOff } from 'lucide-react';
+import { Network, WifiOff } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { EmptyState } from '@/components/shared/empty-state';
 import { PageHeader } from '@/components/shared/page-header';
-import { PermissionGate } from '@/components/shared/permission-gate';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EntityActions } from '@/components/structure/entity-actions';
+import { NouvelleEntiteBouton } from '@/components/structure/nouvelle-entite-bouton';
 import { TypeBadge } from '@/components/structure/type-badge';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getArbrePerimetre, getEntite } from '@/lib/data/entities';
@@ -50,6 +49,15 @@ export default async function FicheEntitePage({ params }: Params) {
   const typeEnfant = typeEnfantDe(entite.type);
   const typeParent = typeParentDe(entite.type);
 
+  // Creer depuis cette fiche ne peut produire qu'un enfant DE CETTE entite :
+  // le rattachement est impose, il n'y a rien a choisir (RG-01).
+  const cible = {
+    id: entite.id,
+    nom: entite.nom,
+    code: entite.code,
+    type: entite.type,
+  };
+
   // Destinations valides pour un rattachement : meme niveau que le parent
   // actuel, l'entite elle-meme et son sous-arbre exclus (pas de cycle).
   const parentsValides = versOptions(
@@ -72,14 +80,12 @@ export default async function FicheEntitePage({ params }: Params) {
         actions={
           <>
             {typeEnfant && (
-              <PermissionGate perm="entity.create" scope={entite.path}>
-                <Button asChild variant="outline" className="h-10">
-                  <Link href={`/structure/nouveau?parent=${entite.id}`}>
-                    <Plus className="mr-2 size-4" aria-hidden />
-                    Ajouter {ENTITY_LABELS[typeEnfant].singulier.toLowerCase()}
-                  </Link>
-                </Button>
-              </PermissionGate>
+              <NouvelleEntiteBouton
+                parent={cible}
+                scope={entite.path}
+                variant="outline"
+                libelle={`Ajouter ${ENTITY_LABELS[typeEnfant].singulier.toLowerCase()}`}
+              />
             )}
             <EntityActions
               entite={{
@@ -184,14 +190,11 @@ export default async function FicheEntitePage({ params }: Params) {
               }
               action={
                 typeEnfant ? (
-                  <PermissionGate perm="entity.create" scope={entite.path}>
-                    <Button asChild className="h-10">
-                      <Link href={`/structure/nouveau?parent=${entite.id}`}>
-                        <Plus className="mr-2 size-4" aria-hidden />
-                        Ajouter {ENTITY_LABELS[typeEnfant].singulier.toLowerCase()}
-                      </Link>
-                    </Button>
-                  </PermissionGate>
+                  <NouvelleEntiteBouton
+                    parent={cible}
+                    scope={entite.path}
+                    libelle={`Ajouter ${ENTITY_LABELS[typeEnfant].singulier.toLowerCase()}`}
+                  />
                 ) : undefined
               }
             />

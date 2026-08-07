@@ -1,4 +1,4 @@
-# Résumé — 6 août 2026
+# Résumé — 7 août 2026
 
 > Point d'étape destiné à la reprise de session.
 > Historique : [`SESSION_HISTORY.md`](SESSION_HISTORY.md) ·
@@ -34,17 +34,33 @@ et les croyants s'enregistrent.
 | Tableau de bord | Coquille seulement — le moteur configurable est le Lot 5 |
 | Bureaux, Finances, Rapports | À venir |
 
-**L'organigramme est un éditeur** : glisser une entité sur une autre la rattache,
-tirer un trait depuis le point bas d'une entité mère aussi, et le menu ⋮ ouvre
-création / fiche / modification / suppression — le tout en pop-up, sans quitter la vue.
+---
 
-**La vue liste suit la même philosophie** : cliquer un nom ouvre la fiche sur place,
-la colonne d'options porte le même menu ⋮, et les filtres sont des pictogrammes
-(six niveaux, trois statuts, « sans accès ») portant chacun son effectif.
+## Un seul chemin par opération
 
-Il s'ouvre **replié au niveau Régional** : la vue d'ensemble tient à l'écran, et
-chaque dépliage ne révèle qu'un niveau. La racine du périmètre n'est jamais
-repliée — sans quoi un administrateur de Régional verrait un seul nœud.
+C'est la règle qui a guidé les dernières séances, et elle vaut d'être retenue :
+**deux chemins pour la même opération divergent toujours.** La création d'entité
+existait en page et en pop-up ; le champ Code n'avait été retiré que de l'un des
+deux. La page `/structure/nouveau` a donc été supprimée.
+
+Il en découle la forme actuelle de l'interface :
+
+- **Structure** — l'organigramme et la vue liste partagent le même menu ⋮ et les
+  mêmes quatre pop-up (`useEntityDialogs`, `EntityMenu`). Cliquer un nom ouvre la
+  fiche sur place ; naviguer ferait perdre filtres et défilement pour un simple
+  coup d'œil.
+- **Croyants** — la liste a la même colonne d'options, et « Modifier » rouvre
+  **le pop-up de création** : même formulaire, mêmes trois étapes.
+- Les pages `/structure/[id]`, `/croyants/[id]` et leurs `modifier` restent en
+  place pour le **lien profond et le partage** — c'est leur seule raison d'être.
+
+**Filtres** — le contrôle suit la nature de l'ensemble : pictogrammes pour les
+ensembles clos (niveaux, statuts, sexe, présence en cellule), sélecteur pour les
+ensembles ouverts (églises, grades, nationalités, âge).
+
+**Un filtre ne doit jamais attendre le serveur.** Son état vit côté client, le
+clic le change immédiatement, l'URL suit dans une transition, et la liste reste
+affichée en s'estompant plutôt que de céder la place à un squelette.
 
 ---
 
@@ -84,9 +100,9 @@ et une règle ESLint interdit d'importer le SDK Supabase hors des adaptateurs.
 ## Ce qui vous attend
 
 **1. Appliquer la migration `0013`.** Dans l'éditeur SQL Supabase, exécuter
-`supabase/install-incremental.sql` (régénéré, ne contient que `0013`). Elle crée les
-séquences de codes d'entité, réécrit le générateur de matricule au nouveau format et
-rattrape les compteurs des enregistrements existants. Sans elle, la création
+`supabase/install-incremental.sql` (ne contient que `0013`). Elle crée les
+séquences de codes d'entité, réécrit le générateur de matricule au nouveau format
+et rattrape les compteurs des enregistrements existants. Sans elle, la création
 d'entité échouera : le formulaire n'envoie plus de code.
 
 **2. La rotation de la clé `service_role`** (Supabase > Project Settings > API).
@@ -98,10 +114,16 @@ détaillée dans `README.md`. Un secret exposé ne se retire pas, il se révoque
 
 ## Ce qui reste au Lot 2
 
-- Écrans de **transfert** : demande, file d'approbation, journal — la table, les
-  transitions d'état et la recherche d'approbateur compétent (`RG-12`) sont déjà là.
-- **Saisie des baptêmes** et compteur « nouveaux baptisés » sur 15 jours (ARB-5).
-- Compteurs d'en-tête « en attente » (UI-21).
+Dans cet ordre — chaque étape s'appuie sur la précédente :
+
+1. **Transferts** (EF-TRF-01 à 08) : dialogue de demande, file d'approbation,
+   journal. La table, les transitions d'état et la recherche d'approbateur
+   compétent (`RG-12`, `fn_ancetre_commun`) sont déjà en base et testées ; il ne
+   manque que les écrans.
+2. **Baptêmes** (EF-BAP-01 à 04) : saisie, et fenêtre « nouveaux baptisés » de
+   15 jours (ARB-5).
+3. **Compteurs « en attente »** dans l'en-tête (UI-21) — ils n'ont de sens qu'une
+   fois la file d'approbation existante.
 
 ---
 

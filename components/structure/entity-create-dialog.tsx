@@ -30,19 +30,25 @@ import {
 } from '@/lib/domain/hierarchy';
 import { creerEntiteSchema } from '@/lib/validation/entity';
 
+import { EntityPicker, type OptionEntite } from './entity-picker';
 import { TypeBadge } from './type-badge';
 
 /**
- * Creation d'une sous-entite depuis l'organigramme — EF-STR-01.
+ * Creation d'une entite — EF-STR-01. Unique chemin de creation depuis la
+ * suppression de la page `/structure/nouveau`.
  *
- * Le TYPE et le PARENT sont DEDUITS du noeud d'ou part le geste : cliquer
- * « Nouvelle structure » sur un District ne peut produire qu'une Paroisse
- * rattachee a ce District. Les deux champs sont donc affiches verrouilles
- * plutot que masques — l'utilisateur doit VOIR ce qui a ete decide pour lui,
- * sinon il se demande ou est passe le choix.
+ * Le TYPE se DEDUIT toujours du parent : une sous-entite de District ne peut
+ * etre qu'une Paroisse. RG-01 en devient structurellement inviolable — aucun
+ * chemin d'interface ne produit un rattachement incoherent.
  *
- * RG-01 devient ainsi structurellement inviolable : il n'existe aucun chemin
- * d'interface produisant un rattachement incoherent.
+ * Deux points d'entree, une seule logique :
+ *   - depuis un noeud (organigramme, liste, fiche) le parent est IMPOSE ;
+ *   - depuis l'en-tete d'une page il est CHOISI dans la liste des entites
+ *     pouvant accueillir un enfant.
+ *
+ * Le type et le rattachement sont affiches verrouilles plutot que masques :
+ * l'utilisateur doit VOIR ce qui a ete decide pour lui, sinon il se demande ou
+ * est passe le choix.
  */
 
 export interface ParentCible {
@@ -70,17 +76,20 @@ type Saisie = z.input<typeof saisieSchema>;
 
 export function EntityCreateDialog({
   parent,
+  parentsPossibles,
   ouvert,
   onOuvertChange,
 }: {
+  /** Parent impose par le geste d'origine. `null` : il reste a choisir. */
   parent: ParentCible | null;
+  /** Entites pouvant accueillir un enfant, quand le parent n'est pas impose. */
+  parentsPossibles?: OptionEntite[];
   ouvert: boolean;
   onOuvertChange: (ouvert: boolean) => void;
 }) {
   const router = useRouter();
   const [erreur, setErreur] = useState<string | null>(null);
-
-  const typeEnfant = parent ? typeEnfantDe(parent.type) : null;
+  const [parentChoisi, setParentChoisi] = useState<string | null>(null);
 
   const {
     register,
@@ -94,16 +103,29 @@ export function EntityCreateDialog({
     defaultValues: { nom: '', description: '', sansAccesApplication: false },
   });
 
+  const parentEffectif =
+    parent ?? parentsPossibles?.find((p) => p.id === parentChoisi) ?? null;
+
   // Une Cellule est une feuille : rien a creer en dessous (RG-01).
-  if (!parent || !typeEnfant) return null;
+  const typeEnfant = parentEffectif ? typeEnfantDe(parentEffectif.type) : null;
+
+  if (!parent && !parentsPossibles) return null;
+
+  function fermer() {
+    reset();
+    setErreur(null);
+    setParentChoisi(null);
+    onOuvertChange(false);
+  }
 
   async function envoyer(valeurs: Saisie) {
+    if (!parentEffectif || !typeEnfant) return;
     setErreur(null);
 
     const resultat = await creerEntite({
       ...valeurs,
       type: typeEnfant,
-      parentId: parent!.id,
+      parentId: parentEffectif.id,
     });
 
     if (!resultat.ok) {
@@ -114,29 +136,20 @@ export function EntityCreateDialog({
       return;
     }
 
-    toast.success(`${ENTITY_LABELS[typeEnfant!].singulier} creee.`);
-    reset();
-    onOuvertChange(false);
+    toast.success(`${ENTITY_LABELS[typeEnfant].singulier} creee.`);
+    fermer();
     router.refresh();
   }
 
   return (
-    <Dialog
-      open={ouvert}
-      onOpenChange={(v) => {
-        if (!v) {
-          reset();
-          setErreur(null);
-        }
-        onOuvertChange(v);
-      }}
-    >
+    <Dialog open={ouvert} onOpenChange={(v) => (v ? onOuvertChange(true) : fermer())}>
       <DialogContent className="max-h-[90vh] w-[min(96vw,56rem)] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle className="text-2xl">Nouvelle structure</DialogTitle>
           <DialogDescription>
-            Sous « {parent.nom} ». Le niveau et le rattachement sont determines par la
-            position dans la hierarchie.
+            {parentEffectif
+              ? `Sous « ${parentEffectif.nom} ». Le niveau et le rattachement sont determines par la position dans la hierarchie.`
+              : "Choisissez d'abord l'entite de rattachement : le niveau de la nouvelle structure s'en deduit."}
           </DialogDescription>
         </DialogHeader>
 
@@ -148,45 +161,65 @@ export function EntityCreateDialog({
             </Alert>
           )}
 
+          {/* --- Rattachement : choisi ici, ou impose par le geste d'origine --- */}
+          {!parent && parentsPossibles && (
+            <Field label="Rattachee a" required>
+              {(aria) => (
+                <EntityPicker
+                  {...aria}
+                  options={parentsPossibles}
+                  value={parentChoisi}
+                  onChange={setParentChoisi}
+                  placeholder="Choisir l'entite parente"
+                  emptyMessage="Aucune entite de votre perimetre ne peut accueillir de sous-entite."
+                />
+              )}
+            </Field>
+          )}
+
           {/* --- Champs deduits, verrouilles --- */}
-          <div className="space-y-4 rounded-md border border-border bg-slate-50 p-4">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Lock className="size-3.5" aria-hidden />
-              Determine par la hierarchie
+          {parentEffectif && typeEnfant && (
+            <div className="space-y-4 rounded-md border border-border bg-slate-50 p-4">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Lock className="size-3.5" aria-hidden />
+                Determine par la hierarchie
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Type</p>
+                  <TypeBadge type={typeEnfant} />
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Rattachee a</p>
+                  <p className="flex items-center gap-2 text-sm font-medium text-foreground">
+                    {parentEffectif.nom}
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {parentEffectif.code}
+                    </span>
+                  </p>
+                </div>
+
+                {/* EF-STR-02 — le code n'est plus saisi : la base l'attribue. */}
+                <div className="space-y-1 sm:col-span-2">
+                  <p className="text-xs text-muted-foreground">Code</p>
+                  <p className="font-mono text-sm text-muted-foreground">
+                    {gabaritCode(typeEnfant)} — attribue a l&apos;enregistrement
+                  </p>
+                </div>
+              </div>
             </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Type</p>
-                <TypeBadge type={typeEnfant} />
-              </div>
-
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Rattachee a</p>
-                <p className="flex items-center gap-2 text-sm font-medium text-foreground">
-                  {parent.nom}
-                  <span className="font-mono text-xs text-muted-foreground">
-                    {parent.code}
-                  </span>
-                </p>
-              </div>
-
-              {/* EF-STR-02 — le code n'est plus saisi : la base l'attribue. */}
-              <div className="space-y-1 sm:col-span-2">
-                <p className="text-xs text-muted-foreground">Code</p>
-                <p className="font-mono text-sm text-muted-foreground">
-                  {gabaritCode(typeEnfant)} — attribue a l&apos;enregistrement
-                </p>
-              </div>
-            </div>
-          </div>
+          )}
 
           {/* --- Champs saisis --- */}
           <TextField
             label="Nom"
             required
             autoFocus
-            placeholder={`${ENTITY_LABELS[typeEnfant].singulier} …`}
+            placeholder={
+              typeEnfant ? `${ENTITY_LABELS[typeEnfant].singulier} …` : 'Nom de la structure'
+            }
             error={errors.nom?.message}
             {...register('nom')}
           />
@@ -230,12 +263,17 @@ export function EntityCreateDialog({
               type="button"
               variant="outline"
               className="h-10"
-              onClick={() => onOuvertChange(false)}
+              onClick={fermer}
               disabled={isSubmitting}
             >
               Annuler
             </Button>
-            <Button type="submit" className="h-10" disabled={isSubmitting}>
+            {/* Sans parent il n'y a pas de type, donc rien de valide a envoyer. */}
+            <Button
+              type="submit"
+              className="h-10"
+              disabled={isSubmitting || !parentEffectif || !typeEnfant}
+            >
               {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />}
               Creer
             </Button>

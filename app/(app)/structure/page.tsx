@@ -1,13 +1,14 @@
 import type { Metadata } from 'next';
-import { List, Network, Plus } from 'lucide-react';
+import { List, Network } from 'lucide-react';
 import Link from 'next/link';
 
 import { EmptyState } from '@/components/shared/empty-state';
 import { PageHeader } from '@/components/shared/page-header';
-import { PermissionGate } from '@/components/shared/permission-gate';
 import { EntityFlowLoader } from '@/components/structure/entity-flow-loader';
+import { NouvelleEntiteBouton } from '@/components/structure/nouvelle-entite-bouton';
 import { Button } from '@/components/ui/button';
 import { getArbrePerimetre } from '@/lib/data/entities';
+import { parentsPossibles } from '@/lib/data/entity-options';
 import { ENTITY_LABELS, type EntityType } from '@/lib/domain/hierarchy';
 import { requireSession } from '@/lib/session';
 import { formatNombre } from '@/lib/utils/format';
@@ -24,6 +25,7 @@ export default async function StructurePage() {
   const session = await requireSession();
   const arbre = await getArbrePerimetre();
 
+  const parents = parentsPossibles(arbre);
   const typeEntite = session.entiteType as EntityType;
   const libelleType = ENTITY_LABELS[typeEntite]?.singulier ?? session.entiteType;
 
@@ -46,14 +48,7 @@ export default async function StructurePage() {
               </Link>
             </Button>
 
-            <PermissionGate perm="entity.create">
-              <Button asChild className="h-10">
-                <Link href="/structure/nouveau">
-                  <Plus className="mr-2 size-4" aria-hidden />
-                  Nouvelle entite
-                </Link>
-              </Button>
-            </PermissionGate>
+            <NouvelleEntiteBouton parentsPossibles={parents} />
           </>
         }
       />
@@ -73,14 +68,10 @@ export default async function StructurePage() {
             "L'organigramme apparaitra des qu'il y aura une branche a representer."
           }
           action={
-            <PermissionGate perm="entity.create">
-              <Button asChild className="h-10">
-                <Link href="/structure/nouveau">
-                  <Plus className="mr-2 size-4" aria-hidden />
-                  Creer une entite
-                </Link>
-              </Button>
-            </PermissionGate>
+            <NouvelleEntiteBouton
+              parentsPossibles={parents}
+              libelle="Creer une entite"
+            />
           }
         />
       ) : (

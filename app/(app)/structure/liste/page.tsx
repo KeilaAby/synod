@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
-import { Network, Plus } from 'lucide-react';
+import { Network } from 'lucide-react';
 import Link from 'next/link';
 
 import { PageHeader } from '@/components/shared/page-header';
-import { PermissionGate } from '@/components/shared/permission-gate';
+import { NouvelleEntiteBouton } from '@/components/structure/nouvelle-entite-bouton';
 import { Button } from '@/components/ui/button';
 import { cheminLisible, getArbrePerimetre, indexerParChemin } from '@/lib/data/entities';
+import { parentsPossibles } from '@/lib/data/entity-options';
 import { ENTITY_TYPES, type EntityType } from '@/lib/domain/hierarchy';
 import { formatNombre } from '@/lib/utils/format';
 
@@ -72,14 +73,7 @@ export default async function ListeStructurePage({
                 Organigramme
               </Link>
             </Button>
-            <PermissionGate perm="entity.create">
-              <Button asChild className="h-10">
-                <Link href="/structure/nouveau">
-                  <Plus className="mr-2 size-4" aria-hidden />
-                  Nouvelle entite
-                </Link>
-              </Button>
-            </PermissionGate>
+            <NouvelleEntiteBouton parentsPossibles={parentsPossibles(arbre)} />
           </>
         }
       />

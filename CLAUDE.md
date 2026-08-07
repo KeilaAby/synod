@@ -12,7 +12,7 @@ Application web de gestion d'église. **Lire avant toute tâche** :
 Toute modification doit citer l'exigence ou la règle qu'elle sert. Si une
 demande contredit `cdg.md`, signalez-le avant d'implémenter.
 
-## État — 6 août 2026
+## État — 7 août 2026
 
 **Lots 0 et 1 livrés** : socle, authentification, habilitations avec portée,
 structure hiérarchique à 6 niveaux (organigramme éditable **et** vue liste, même
@@ -25,7 +25,7 @@ et leur domaine, les écrans restent à construire.
 le formulaire n'envoie plus de code.
 
 Historique : [`SESSION_HISTORY.md`](.claude-code-history/SESSION_HISTORY.md) ·
-dernier point d'étape : [`.claude-code-history/2026-08-06_resumes-moi.md`](.claude-code-history/2026-08-06_resumes-moi.md)
+dernier point d'étape : [`.claude-code-history/2026-08-07_resumes-moi.md`](.claude-code-history/2026-08-07_resumes-moi.md)
 
 ## Publication — lire `.agents/rules/gitpush.md` AVANT tout push
 
@@ -75,6 +75,16 @@ Ce qu'il reste à faire est décrit dans le dernier point d'étape
     créations simultanées.
 15. Une absence de données n'est pas un refus de droit. Un périmètre vide
     signale une panne de lecture, pas une entité hors périmètre.
+16. **Un seul chemin par opération.** Deux formulaires pour la même création
+    divergent toujours. Les pages `[id]` et `[id]/modifier` ne subsistent que
+    pour le lien profond ; toute création ou édition déclenchée depuis une liste
+    passe par le pop-up partagé.
+17. Un filtre ne doit **jamais attendre le serveur** : son état vit côté client,
+    le clic le change immédiatement, l'URL suit dans une transition. Une liste
+    déjà juste s'estompe, elle ne cède pas la place à un squelette.
+18. Le contrôle suit la nature de l'ensemble : **pictogrammes** si l'ensemble
+    est clos et connu (niveaux, statuts, sexe), **sélecteur** s'il est ouvert
+    (entités, grades, nationalités).
 
 ## Conventions
 

@@ -1,58 +1,41 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertCircle, Loader2, Lock } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
-import { Controller, useForm, useWatch } from 'react-hook-form';
+import { useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
+import type { z } from 'zod';
 
 import { Field, TextField } from '@/components/shared/field';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { creerEntite, modifierEntite } from '@/lib/actions/entities';
-import {
-  ENTITY_LABELS,
-  type EntityType,
-  gabaritCode,
-  typeParentDe,
-} from '@/lib/domain/hierarchy';
-import { type CreerEntiteInput, creerEntiteSchema } from '@/lib/validation/entity';
+import { modifierEntite } from '@/lib/actions/entities';
+import { ENTITY_LABELS, type EntityType } from '@/lib/domain/hierarchy';
+import { modifierEntiteSchema } from '@/lib/validation/entity';
 
-import { EntityPicker, type OptionEntite } from './entity-picker';
+import { TypeBadge } from './type-badge';
 
 /**
- * Formulaire d'entite — EF-STR-01, EF-STR-02.
+ * Modification d'une entite en pleine page — EF-STR-01, EF-STR-02.
  *
- * Le TYPE est choisi en premier, et la liste des parents est alors restreinte
- * au seul niveau valide (RG-01). L'erreur « une Eglise ne peut pas etre
- * rattachee a un District » devient impossible a commettre, au lieu d'etre
- * rattrapee apres coup par un message.
+ * Ce formulaire ne CREE plus : depuis la suppression de `/structure/nouveau`,
+ * la creation passe exclusivement par `EntityCreateDialog`, ou le type et le
+ * rattachement sont deduits du geste d'origine. Deux formulaires de creation
+ * auraient divergé — le champ Code n'avait deja ete retire que de l'un.
  *
- * Un SEUL schema pilote le formulaire, y compris en modification : faire
- * dependre le resolver du mode produirait un type union impraticable. Le
- * serveur, lui, valide avec le schema exact de l'operation demandee.
+ * Le TYPE et le PARENT ne se modifient pas ici : changer de parent deplace tout
+ * le sous-arbre (EF-STR-07, « Rattacher ») et merite sa propre confirmation ;
+ * changer de type n'a aucun sens metier — une paroisse ne devient pas un
+ * district.
  */
 
-interface Commun {
-  /** Entites du perimetre, filtrees ensuite selon le type choisi. */
-  parents: OptionEntite[];
-  /** Types que l'utilisateur peut effectivement creer. */
-  typesDisponibles: EntityType[];
-}
-
-interface EntiteExistante {
+export interface EntiteExistante {
   id: string;
   type: EntityType;
   code: string;
@@ -62,95 +45,48 @@ interface EntiteExistante {
   is_active: boolean;
 }
 
-type Props =
-  | ({ mode: 'creation'; parentImpose?: string } & Commun)
-  | ({ mode: 'modification'; entite: EntiteExistante } & Commun);
+/** `is_active` est pilote par sa propre case, hors du schema partage. */
+const saisieSchema = modifierEntiteSchema.omit({ id: true, isActive: true });
 
-export function EntityForm(props: Props) {
+type Saisie = z.input<typeof saisieSchema>;
+
+export function EntityForm({ entite }: { entite: EntiteExistante }) {
   const router = useRouter();
   const [erreur, setErreur] = useState<string | null>(null);
-
-  const enCreation = props.mode === 'creation';
-  const existante = props.mode === 'modification' ? props.entite : null;
-
-  // `is_active` vit hors du formulaire : l'ajouter au schema de creation le
-  // polluerait pour un champ qui n'existe qu'en modification.
-  const [actif, setActif] = useState(existante?.is_active ?? true);
+  const [actif, setActif] = useState(entite.is_active);
 
   const {
     register,
     handleSubmit,
     control,
-    setValue,
     setError,
     formState: { errors, isSubmitting },
-  } = useForm<CreerEntiteInput>({
-    resolver: zodResolver(creerEntiteSchema),
+  } = useForm<Saisie>({
+    resolver: zodResolver(saisieSchema),
     defaultValues: {
-      type: existante?.type ?? props.typesDisponibles[0],
-      code: existante?.code ?? '',
-      nom: existante?.nom ?? '',
-      // En modification, le parent ne se change pas ici (voir « Rattacher »).
-      parentId: existante ? null : (props.mode === 'creation' ? props.parentImpose : null) ?? null,
-      description: existante?.description ?? '',
-      sansAccesApplication: existante?.sans_acces_application ?? false,
+      code: entite.code,
+      nom: entite.nom,
+      description: entite.description ?? '',
+      sansAccesApplication: entite.sans_acces_application,
     },
   });
 
-  // `useWatch` plutot que `watch()` : ce dernier retourne une fonction non
-  // memoisable, que le compilateur React refuse d'optimiser.
-  const typeChoisi = useWatch({ control, name: 'type' }) as EntityType | undefined;
-
-  // RG-01 : seuls les parents du niveau immediatement superieur sont proposes.
-  const parentsValides = useMemo(() => {
-    if (!typeChoisi) return [];
-    const typeAttendu = typeParentDe(typeChoisi);
-    if (!typeAttendu) return [];
-    return props.parents.filter((p) => p.type === typeAttendu);
-  }, [typeChoisi, props.parents]);
-
-  /** Les erreurs de champ reviennent se poser sur le champ fautif (ENF-UTI-05). */
-  function traiterEchec(
-    echec: { error: string; fieldErrors?: Record<string, string[]> },
-    valeurs: CreerEntiteInput,
-  ) {
-    for (const [champ, messages] of Object.entries(echec.fieldErrors ?? {})) {
-      if (champ in valeurs) {
-        setError(champ as keyof CreerEntiteInput, { message: messages[0] });
-      }
-    }
-    setErreur(echec.error);
-  }
-
-  async function envoyer(valeurs: CreerEntiteInput) {
+  async function envoyer(valeurs: Saisie) {
     setErreur(null);
 
-    // Les deux branches sont ecrites separement : `creerEntite` retourne un
-    // identifiant, `modifierEntite` non. Les fusionner produirait une union
-    // dont TypeScript ne peut extraire `data.id`.
-    if (existante) {
-      const resultat = await modifierEntite({
-        id: existante.id,
-        code: valeurs.code,
-        nom: valeurs.nom,
-        description: valeurs.description,
-        sansAccesApplication: valeurs.sansAccesApplication,
-        isActive: actif,
-      });
+    const resultat = await modifierEntite({ ...valeurs, id: entite.id, isActive: actif });
 
-      if (!resultat.ok) return traiterEchec(resultat, valeurs);
-
-      toast.success('Modifications enregistrees.');
-      router.push(`/structure/${existante.id}`);
-    } else {
-      const resultat = await creerEntite(valeurs);
-
-      if (!resultat.ok) return traiterEchec(resultat, valeurs);
-
-      toast.success('Entite creee.');
-      router.push(`/structure/${resultat.data.id}`);
+    if (!resultat.ok) {
+      // Les erreurs de champ reviennent se poser sur le champ fautif (ENF-UTI-05).
+      for (const [champ, messages] of Object.entries(resultat.fieldErrors ?? {})) {
+        if (champ in valeurs) setError(champ as keyof Saisie, { message: messages[0] });
+      }
+      setErreur(resultat.error);
+      return;
     }
 
+    toast.success('Modifications enregistrees.');
+    router.push(`/structure/${entite.id}`);
     router.refresh();
   }
 
@@ -163,116 +99,35 @@ export function EntityForm(props: Props) {
         </Alert>
       )}
 
-      {enCreation && (
-        <Card>
-          <CardContent className="space-y-6 p-6">
-            <p className="eyebrow">Position dans la hierarchie</p>
-
-            <div className="grid gap-6 md:grid-cols-2">
-              <Field label="Type" required error={errors.type?.message}>
-                {(aria) => (
-                  <Controller
-                    control={control}
-                    name="type"
-                    render={({ field }) => (
-                      <Select
-                        value={field.value}
-                        onValueChange={(valeur) => {
-                          field.onChange(valeur);
-                          // Le parent precedent devient invalide des que le
-                          // niveau change : on le remet a zero.
-                          setValue('parentId', null);
-                        }}
-                      >
-                        <SelectTrigger {...aria} className="h-10 w-full">
-                          <SelectValue placeholder="Choisir un type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {props.typesDisponibles.map((type) => (
-                            <SelectItem key={type} value={type}>
-                              {ENTITY_LABELS[type].singulier}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                )}
-              </Field>
-
-              <Field
-                label="Rattachee a"
-                required
-                error={errors.parentId?.message}
-                hint={
-                  typeChoisi && typeParentDe(typeChoisi)
-                    ? `Seuls les ${ENTITY_LABELS[typeParentDe(typeChoisi)!].pluriel.toLowerCase()} sont proposes.`
-                    : undefined
-                }
-              >
-                {(aria) => (
-                  <Controller
-                    control={control}
-                    name="parentId"
-                    render={({ field }) => (
-                      <EntityPicker
-                        {...aria}
-                        options={parentsValides}
-                        value={field.value}
-                        onChange={field.onChange}
-                        emptyMessage="Aucun parent disponible a ce niveau."
-                      />
-                    )}
-                  />
-                )}
-              </Field>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       <Card>
         <CardContent className="space-y-6 p-6">
-          <p className="eyebrow">Identification</p>
+          <div className="flex items-center justify-between gap-4">
+            <p className="eyebrow">Identification</p>
+            <TypeBadge type={entite.type} />
+          </div>
 
           <div className="grid gap-6 md:grid-cols-2">
             <TextField
               label="Nom"
               required
-              placeholder="District Avaradrano"
+              placeholder={`${ENTITY_LABELS[entite.type].singulier} …`}
               error={errors.nom?.message}
               {...register('nom')}
             />
 
             {/*
-              EF-STR-02 — en creation le code n'est plus saisi : seule la base
-              peut garantir l'unicite de la sequence face a deux creations
-              simultanees. En modification il existe deja et reste corrigeable.
+              Le code a ete attribue par la base a la creation. Il reste
+              modifiable ici, et seulement ici : pour reprendre un code
+              historique venu d'un registre papier.
             */}
-            {existante ? (
-              <TextField
-                label="Code"
-                required
-                placeholder="DIS-0007"
-                hint="3 a 16 caracteres. Unique dans toute l'application."
-                className="[&_input]:font-mono [&_input]:uppercase"
-                error={errors.code?.message}
-                {...register('code')}
-              />
-            ) : (
-              <div className="space-y-1.5">
-                <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-                  <Lock className="size-3.5 text-muted-foreground" aria-hidden />
-                  Code
-                </p>
-                <p className="font-mono text-sm text-muted-foreground">
-                  {typeChoisi ? gabaritCode(typeChoisi) : '—'}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Attribue automatiquement a l&apos;enregistrement.
-                </p>
-              </div>
-            )}
+            <TextField
+              label="Code"
+              required
+              hint="3 a 16 caracteres. Unique dans toute l'application."
+              className="[&_input]:font-mono [&_input]:uppercase"
+              error={errors.code?.message}
+              {...register('code')}
+            />
           </div>
 
           <Field label="Description" error={errors.description?.message}>
@@ -316,36 +171,32 @@ export function EntityForm(props: Props) {
             )}
           />
 
-          {existante && (
-            <label className="flex cursor-pointer items-start gap-4 border-t border-border pt-6">
-              <Checkbox
-                checked={actif}
-                onCheckedChange={(v) => setActif(v === true)}
-                className="mt-0.5"
-              />
-              <span className="space-y-1">
-                <span className="block text-sm font-medium text-foreground">
-                  Entite active
-                </span>
-                <span className="block text-xs text-muted-foreground">
-                  Une entite inactive reste consultable et conserve son historique, mais
-                  n&apos;est plus proposee dans les listes de selection.
-                </span>
+          <label className="flex cursor-pointer items-start gap-4 border-t border-border pt-6">
+            <Checkbox
+              checked={actif}
+              onCheckedChange={(v) => setActif(v === true)}
+              className="mt-0.5"
+            />
+            <span className="space-y-1">
+              <span className="block text-sm font-medium text-foreground">Entite active</span>
+              <span className="block text-xs text-muted-foreground">
+                Une entite inactive reste consultable et conserve son historique, mais
+                n&apos;est plus proposee dans les listes de selection.
               </span>
-            </label>
-          )}
+            </span>
+          </label>
         </CardContent>
       </Card>
 
       <div className="flex justify-end gap-2">
         <Button asChild variant="outline" className="h-10">
-          <Link href={existante ? `/structure/${existante.id}` : '/structure'}>Annuler</Link>
+          <Link href={`/structure/${entite.id}`}>Annuler</Link>
         </Button>
 
         {/* UI-16 : spinner sur une ACTION ponctuelle. */}
         <Button type="submit" className="h-10" disabled={isSubmitting}>
           {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />}
-          {existante ? 'Enregistrer' : "Creer l'entite"}
+          Enregistrer
         </Button>
       </div>
     </form>

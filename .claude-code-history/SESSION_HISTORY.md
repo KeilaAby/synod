@@ -219,3 +219,77 @@ l'éditeur Supabase n'affiche que le résultat de la dernière instruction.
 ### Qualité
 
 168 tests unitaires, `pnpm verify` vert (secrets, lint, types, tests, build).
+
+---
+
+## 7 août 2026 — Un seul chemin par opération
+
+### `/structure/nouveau` supprimée
+
+La création d'entité passe désormais **exclusivement** par `EntityCreateDialog`.
+Deux formulaires de création coexistaient, et ils avaient déjà divergé : le champ
+Code n'avait été retiré que de l'un des deux. Une saisie de quatre champs ne
+justifiait pas une navigation complète.
+
+Les quatre points d'entrée (en-tête de `/structure`, en-tête de la vue liste,
+état vide, bouton « Ajouter … » d'une fiche) ouvrent le même pop-up via
+`NouvelleEntiteBouton`. Le dialogue accepte les deux situations :
+
+- **parent imposé** par le geste d'origine — depuis une fiche de district, on ne
+  peut créer qu'une paroisse de ce district ;
+- **parent à choisir**, depuis un en-tête de page : un sélecteur arborescent
+  n'offre que les entités pouvant accueillir un enfant, et le niveau s'en déduit.
+
+Dans les deux cas le type reste **déduit**, jamais saisi : RG-01 demeure
+structurellement inviolable.
+
+`EntityForm` ne sert plus qu'à la modification en pleine page. Sa branche
+« création » — sélection du type, filtrage des parents, champ Code — est
+supprimée plutôt que laissée morte.
+
+### Croyants — menu ⋮ et modification en pop-up
+
+La liste gagne une colonne d'options portant le même menu que les entités :
+*Ouvrir la fiche*, *Modifier*, *Supprimer*. « Modifier » rouvre **le même pop-up
+que la création** — même formulaire, mêmes trois étapes, mêmes règles.
+
+La ligne transporte désormais `statut_marital`, `email`, `telephone`, `adresse`
+et le `path` de l'église : le pop-up s'ouvre sans requête, et l'habilitation
+s'évalue avec sa portée (RG-25). Quatre colonnes de plus ne changent pas le
+nombre de lignes lues, seulement leur largeur.
+
+### Croyants — la fin de l'attente aux filtres
+
+Le vrai défaut n'était pas la lenteur du serveur mais **l'absence de réponse
+immédiate** : les contrôles lisaient `useSearchParams()`, qui ne se met à jour
+qu'une fois la navigation terminée. On cliquait, et rien ne bougeait pendant tout
+l'aller-retour.
+
+L'état des filtres vit maintenant en local : le clic le change tout de suite,
+l'URL suit dans une transition. La table, elle, **reste affichée et s'estompe**
+(`aria-busy`) au lieu d'être remplacée par un squelette — effacer des données
+encore justes pour la durée d'un aller-retour faisait clignoter l'écran à chaque
+frappe.
+
+Filtres, table et pop-up sont réunis dans `CroyantsClient` parce qu'ils partagent
+cette transition. La page ne fait plus que lire.
+
+### Filtres en pictogrammes, étendus aux croyants
+
+`FiltreIcone` et `GroupeFiltres` sont désormais partagés. La règle qui décide de
+la forme du contrôle :
+
+- ensemble **clos et connu** — niveaux, statuts, sexe, présence en cellule :
+  pictogrammes, tout visible d'un coup d'œil, bascule en un clic ;
+- ensemble **ouvert** — églises, grades, nationalités, tranches d'âge :
+  sélecteur ou champ, dans le panneau « Plus de filtres ».
+
+### Correctif de compilation React
+
+Une fabrique de gestionnaires (`bascule(cle, valeur)`) était **invoquée pendant
+le rendu** et lisait transitivement le minuteur de débounce : `react-hooks/refs`
+l'a refusée, à juste titre. Remplacée par une fonction pure `alterne()` appelée
+depuis le gestionnaire.
+
+`compterCroyants` supprimée — plus aucun appelant depuis le retrait des trois
+requêtes de comptage.
