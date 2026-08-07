@@ -193,6 +193,7 @@ export function BaptemesClient({
                   grades={options.grades}
                   nationalites={options.nationalites}
                   celebrants={celebrants}
+                  photos={photos}
                   libelle="Enregistrer le premier baptisé"
                 />
               ) : (

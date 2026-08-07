@@ -30,7 +30,13 @@ export default async function BaptemesPage() {
   ]);
 
   const fenetre = parametres.fenetre_nouveaux_baptises_jours;
-  const photos = await signerPhotos(baptemes.map((b) => b.croyant?.photo_key));
+  // Une seule signature pour tout l'ecran : celles des baptises ET celles des
+  // celebrants proposes dans le formulaire. Deux appels auraient double le
+  // cout pour un meme resultat.
+  const photos = await signerPhotos([
+    ...baptemes.map((b) => b.croyant?.photo_key),
+    ...celebrants.map((c) => c.photoKey),
+  ]);
 
   const nouveaux = baptemes.filter((b) =>
     estNouveauBaptise(new Date(b.date_bapteme), fenetre),
@@ -53,6 +59,7 @@ export default async function BaptemesPage() {
             grades={options.grades}
             nationalites={options.nationalites}
             celebrants={celebrants}
+            photos={Object.fromEntries(photos)}
           />
         }
       />

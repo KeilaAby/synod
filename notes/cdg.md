@@ -405,6 +405,9 @@ Les habilitations sont **unitaires**, regroupées par catégorie, et chacune peu
 | **EF-ADM-10** | Consulter et restaurer les éléments de la **corbeille** ; purge définitive réservée au SuperAdmin. | **Must** |
 | **EF-ADM-11** | Configurer les **paramètres généraux** : nom de l'organisation, logo, devise, fuseau horaire, format de matricule, **fenêtre « nouveaux baptisés » (15 jours par défaut)**, **activation du workflow de validation financière**, séparation saisie/validation. | **Must** |
 | **EF-ADM-12** | Déclencher un **export intégral portable** des données (§7.6) et consulter l'historique des exports. | **Must** |
+| **EF-ADM-13** | **Centraliser dans l'administration tout ce qui est paramétrable.** Aucun seuil, aucune liste de valeurs autorisées, aucune option de comportement ne doit rester codée dans un écran ou une migration : ce qu'une organisation peut vouloir régler différemment se règle ici. *(Décidé le 7 août 2026.)* | **Must** |
+| **EF-ADM-14** | Configurer les **grades habilités à célébrer un baptême**. Aujourd'hui codé en dur — `PASTEUR`, `ÉVANGÉLISTE`, `DIACRE` (`CODES_GRADE_CELEBRANT`) : une organisation dont la discipline diffère ne peut pas l'ajuster. | **Should** |
+| **EF-ADM-15** | Rendre les **quatre référentiels** — grades, nationalités, fonctions, catégories financières — accessibles depuis l'administration. Leur CRUD existe depuis le lot 1 (EF-REF-01 à 04) mais rien ne l'y relie : le SuperAdmin ignore qu'il peut créer un grade. **Un renvoi, pas un second écran de saisie.** | **Must** |
 
 ### 5.11 Module **Authentification et compte personnel**
 

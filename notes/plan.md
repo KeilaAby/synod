@@ -2524,6 +2524,30 @@ describe('RG-26 / RG-27 — rapports', () => {
 - [ ] Profils d'habilitation globaux et locaux.
 - [ ] Journal d'audit : triggers d'écriture, écran de consultation.
 - [ ] Corbeille multi-types, paramètres généraux.
+- [ ] **Centralisation des options configurables** — EF-ADM-13. Écran unique
+      `/administration/parametres`, alimenté par `organisation_settings`.
+      Recensement à tenir à jour au fil des lots ; chaque option identifiée en
+      cours de développement y est ajoutée après arbitrage de l'utilisateur.
+
+      **Les quatre référentiels sont DÉJÀ configurables** — grades, nationalités,
+      fonctions, catégories financières ont leur CRUD complet depuis le lot 1
+      (`/referentiels`, EF-REF-01 à 04, droit `referentiel.manage`). Ce qui
+      manque n'est pas la fonctionnalité mais son EMPLACEMENT : rien ne les
+      relie à l'administration, et le SuperAdmin ne sait pas qu'ils existent.
+      À rattacher, sans les réécrire :
+  - [ ] Référentiels accessibles depuis `/administration` — renvoi ou
+        intégration, pas un second CRUD (règle 16 : un seul chemin par opération).
+  - [ ] Grades habilités à célébrer un baptême (EF-ADM-14) — aujourd'hui
+        `CODES_GRADE_CELEBRANT` en dur dans `lib/data/baptemes.ts`. C'est ici
+        que se voit la limite : le référentiel Grade s'enrichit librement, mais
+        un grade nouvellement créé ne pourra jamais célébrer tant que la liste
+        reste dans le code.
+  - [ ] Fenêtre « nouveaux baptisés » — **déjà en base**, écran à construire.
+  - [ ] Auto-approbation des transferts internes — **déjà en base**, idem.
+  - [ ] Workflow de validation financière, séparation saisie/validation —
+        **déjà en base**, idem.
+  - [ ] Plafond de chargement intégral des listes — aujourd'hui constante.
+  - [ ] Durée de vie des URL signées de photos — aujourd'hui constante.
 - [ ] Tests : RG-19 à RG-25, ENF-SEC-11.
 
 ### Lot 8 — Portabilité, recette et mise en production *(3 semaines)*

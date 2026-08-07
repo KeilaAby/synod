@@ -96,6 +96,8 @@ export interface OptionCelebrant {
   prenom: string;
   grade: string;
   egliseId: string;
+  /** Cle relative, jamais une URL : la signature se fait a l'affichage. */
+  photoKey: string | null;
 }
 
 export async function listerCelebrants(): Promise<OptionCelebrant[]> {
@@ -103,7 +105,7 @@ export async function listerCelebrants(): Promise<OptionCelebrant[]> {
 
   const { data, error } = await sb
     .from('croyants')
-    .select('id, nom, prenom, eglise_id, grade:grades!inner (code, libelle)')
+    .select('id, nom, prenom, eglise_id, photo_key, grade:grades!croyants_grade_id_fkey!inner (code, libelle)')
     .is('deleted_at', null)
     .eq('statut', 'ACTIF')
     .in('grade.code', [...CODES_GRADE_CELEBRANT])
@@ -114,6 +116,7 @@ export async function listerCelebrants(): Promise<OptionCelebrant[]> {
         nom: string;
         prenom: string;
         eglise_id: string;
+        photo_key: string | null;
         grade: { code: string; libelle: string } | null;
       }[]
     >();
@@ -128,5 +131,6 @@ export async function listerCelebrants(): Promise<OptionCelebrant[]> {
     prenom: c.prenom,
     grade: c.grade?.libelle ?? '',
     egliseId: c.eglise_id,
+    photoKey: c.photo_key,
   }));
 }
