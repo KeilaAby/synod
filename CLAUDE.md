@@ -101,7 +101,13 @@ Ce qu'il reste à faire est décrit dans le dernier point d'étape
 21. Un paramètre configurable se **lit à chaque rendu**, jamais codé en dur dans
     un écran — sinon le réglage devient décoratif.
 22. Le stockage de fichiers ne se configure pas en SQL : `pnpm db:bucket`.
-23. Ne traverse la frontière serveur → client que des **objets simples**. Un
+23. Toute migration doit être **rejouable** : `create table if not exists`,
+    `create index if not exists`, `create or replace function`, et un
+    `drop … if exists` avant chaque `create policy` ou `create trigger`. Le
+    fichier incrémental est régénéré à chaque nouvelle migration et rien ne
+    garantit qu'il ne recouvre pas du déjà-appliqué ; une migration qui échoue
+    au rejeu bloque toutes les suivantes du même lot.
+24. Ne traverse la frontière serveur → client que des **objets simples**. Un
     schéma Zod, une `Map`, une classe font échouer la page entière. Quand un
     registre pur porte la donnée, passer sa **clé** et laisser le client le
     lire : rien ne traverse, le problème disparaît au lieu d'être contourné.

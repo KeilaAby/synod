@@ -10,7 +10,7 @@
 --         pnpm db:bundle --depuis <derniere version appliquee>
 --     La derniere version appliquee se lit dans supabase/diagnostic.sql.
 --
--- Genere le 2026-08-07T18:29:55.705Z
+-- Genere le 2026-08-07T18:36:07.251Z
 -- Migrations : 17 + amorce
 -- =============================================================================
 
@@ -2073,11 +2073,16 @@ insert into schema_migrations (version) values ('0015')
 -- =============================================================================
 -- Reference : plan.md §3.6 — EF-BUR-01 a 11
 -- Regles : RG-07 (un membre est un croyant), RG-08 (une fonction, un titulaire),
---          RG-09 (le croyant appartient au sous-arbre), RG-10 (un seul bureau
---          actif par entite), RG-31 (membre de finances)
+--          RG-09 (le croyant appartient au sous-arbre), RG-10 (mandats),
+--          RG-31 (membre de finances)
+--
+-- REJOUABLE. Chaque instruction supporte d'etre executee deux fois : le fichier
+-- incremental est regenere a chaque nouvelle migration, et rien ne garantit
+-- qu'il ne recouvre pas ce qui est deja applique. Une migration qui echoue au
+-- rejeu bloque toutes les suivantes du meme lot.
 -- =============================================================================
 
-create table bureaux (
+create table if not exists bureaux (
   id         uuid primary key default gen_random_uuid(),
   entity_id  uuid not null references entities(id) on delete restrict,
   libelle    text not null,                 -- « Bureau District Avaradrano 2026-2029 »
@@ -2095,13 +2100,13 @@ comment on table bureaux is 'Mandat d''un bureau d''entite — EF-BUR-01, EF-BUR
 
 -- RG-10 — au plus un bureau ACTIF par entite. L'index partiel dit la regle
 -- mieux qu'un trigger : elle tient meme si l'application se trompe.
-create unique index bureaux_un_seul_actif on bureaux (entity_id)
+create unique index if not exists bureaux_un_seul_actif on bureaux (entity_id)
   where is_active and deleted_at is null;
 
-create index bureaux_entity_idx on bureaux (entity_id, date_debut desc);
+create index if not exists bureaux_entity_idx on bureaux (entity_id, date_debut desc);
 
 
-create table bureau_membres (
+create table if not exists bureau_membres (
   id          uuid primary key default gen_random_uuid(),
   bureau_id   uuid not null references bureaux(id)   on delete cascade,
   -- RG-07 : un membre de bureau est TOUJOURS un croyant enregistre.
@@ -2122,16 +2127,16 @@ comment on table bureau_membres is
 
 -- RG-08 — une fonction n'a qu'UN titulaire en cours. Les mandats clos
 -- (`date_fin` renseignee) restent : c'est l'historique (EF-BUR-08).
-create unique index membres_fonction_unique on bureau_membres (bureau_id, fonction_id)
+create unique index if not exists membres_fonction_unique on bureau_membres (bureau_id, fonction_id)
   where date_fin is null;
 
 -- Un croyant n'occupe pas deux fonctions dans le MEME bureau : il peut en
 -- occuper dans deux bureaux distincts — tresorier de sa cellule et secretaire
 -- de sa paroisse — ce que rien n'interdit ici.
-create unique index membres_croyant_unique on bureau_membres (bureau_id, croyant_id)
+create unique index if not exists membres_croyant_unique on bureau_membres (bureau_id, croyant_id)
   where date_fin is null;
 
-create index membres_croyant_idx on bureau_membres (croyant_id);   -- EF-BUR-10
+create index if not exists membres_croyant_idx on bureau_membres (croyant_id);   -- EF-BUR-10
 
 
 -- -----------------------------------------------------------------------------
@@ -2195,6 +2200,7 @@ begin
   return new;
 end $$;
 
+drop trigger if exists trg_membre_perimetre on bureau_membres;
 create trigger trg_membre_perimetre
   before insert or update of bureau_id, croyant_id, fonction_id on bureau_membres
   for each row execute function fn_membre_dans_perimetre();
@@ -2292,27 +2298,33 @@ comment on function fn_appliquer_transfert(uuid) is
 alter table bureaux        enable row level security;
 alter table bureau_membres enable row level security;
 
+drop policy if exists bureaux_select on bureaux;
 create policy bureaux_select on bureaux for select to authenticated
   using (entity_in_scope(entity_id));
 
+drop policy if exists bureaux_insert on bureaux;
 create policy bureaux_insert on bureaux for insert to authenticated
   with check (can('bureau.manage', entity_id));
 
+drop policy if exists bureaux_update on bureaux;
 create policy bureaux_update on bureaux for update to authenticated
   using (can('bureau.manage', entity_id))
   with check (entity_in_scope(entity_id));
 
+drop policy if exists bureaux_delete on bureaux;
 create policy bureaux_delete on bureaux for delete to authenticated
   using (is_superadmin());
 
 -- Un membre se voit, et se gere, exactement comme son bureau. La politique
 -- interroge `bureaux` plutot que de recopier sa regle de perimetre : deux
 -- ecritures d'une meme regle finissent toujours par diverger.
+drop policy if exists membres_select on bureau_membres;
 create policy membres_select on bureau_membres for select to authenticated
   using (
     exists (select 1 from bureaux b where b.id = bureau_membres.bureau_id)
   );
 
+drop policy if exists membres_insert on bureau_membres;
 create policy membres_insert on bureau_membres for insert to authenticated
   with check (
     exists (
@@ -2322,6 +2334,7 @@ create policy membres_insert on bureau_membres for insert to authenticated
     )
   );
 
+drop policy if exists membres_update on bureau_membres;
 create policy membres_update on bureau_membres for update to authenticated
   using (
     exists (
@@ -2331,6 +2344,7 @@ create policy membres_update on bureau_membres for update to authenticated
     )
   );
 
+drop policy if exists membres_delete on bureau_membres;
 create policy membres_delete on bureau_membres for delete to authenticated
   using (
     exists (

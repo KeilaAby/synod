@@ -33,7 +33,7 @@ drop index if exists bureaux_un_seul_actif;
  * l'ecart « Comite » / « Comité » reste visible a l'oeil dans la liste — la
  * contrainte protege de l'erreur, elle ne corrige pas la saisie.
  */
-create unique index bureaux_un_actif_par_nom
+create unique index if not exists bureaux_un_actif_par_nom
   on bureaux (entity_id, lower(btrim(libelle)))
   where is_active and deleted_at is null;
 

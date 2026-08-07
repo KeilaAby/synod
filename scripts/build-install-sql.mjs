@@ -127,6 +127,40 @@ if (depuis !== null) {
   }
 }
 
+/**
+ * Preflight — refuse un fichier qui recouvre du deja-applique, en NOMMANT la
+ * commande qui produit le bon.
+ *
+ * Le cas s'est produit : le fichier avait ete regenere `--depuis 0015` alors
+ * que 0016 tournait deja. Postgres repondait « relation "bureaux" already
+ * exists », un code d'erreur qui ne dit pas quoi faire. Le registre savait
+ * pourtant exactement ou en etait la base — il ne servait qu'a s'inscrire, pas
+ * a se defendre.
+ */
+if (depuis !== null && aJouer.length > 0) {
+  const premiere = versionDe(aJouer[0]);
+
+  morceaux.push(
+    section(
+      'Preflight — ce fichier correspond-il a l etat de la base ?',
+      `do $$
+declare v_dernier text;
+begin
+  select max(version) into v_dernier from schema_migrations;
+
+  if v_dernier is not null and v_dernier >= '${premiere}' then
+    raise exception
+      'Ce fichier commence a la migration ${premiere}, mais la base en est deja a %.',
+      v_dernier
+      using hint =
+        'Regenerez le fichier avec :  pnpm db:bundle --depuis ' || v_dernier ||
+        '   puis rejouez-le. Aucune modification n''a ete appliquee.';
+  end if;
+end $$;`,
+    ),
+  );
+}
+
 for (const fichier of aJouer) {
   morceaux.push(
     section(fichier, readFileSync(join(dossierMigrations, fichier), 'utf8')),
