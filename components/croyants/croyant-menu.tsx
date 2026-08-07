@@ -1,6 +1,6 @@
 'use client';
 
-import { ExternalLink, MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeftRight, ExternalLink, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
 import {
@@ -25,16 +25,20 @@ export function CroyantMenu({
   id,
   nom,
   peutModifier,
+  peutTransferer,
   peutSupprimer,
   onModifier,
+  onTransferer,
   onSupprimer,
   className,
 }: {
   id: string;
   nom: string;
   peutModifier: boolean;
+  peutTransferer: boolean;
   peutSupprimer: boolean;
   onModifier: (id: string) => void;
+  onTransferer: (id: string) => void;
   onSupprimer: (id: string) => void;
   className?: string;
 }) {
@@ -65,6 +69,15 @@ export function CroyantMenu({
           <DropdownMenuItem onSelect={() => onModifier(id)}>
             <Pencil className="mr-2 size-4" aria-hidden />
             Modifier
+          </DropdownMenuItem>
+        )}
+
+        {/* EF-TRF-01 — le rattachement ne se change QUE par transfert : il est
+            absent du formulaire de modification, il doit donc etre ici. */}
+        {peutTransferer && (
+          <DropdownMenuItem onSelect={() => onTransferer(id)}>
+            <ArrowLeftRight className="mr-2 size-4" aria-hidden />
+            Transferer
           </DropdownMenuItem>
         )}
 

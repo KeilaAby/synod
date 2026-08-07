@@ -83,7 +83,7 @@ export function CroyantsClient({
   const [filtres, setFiltres] = useState<FiltresListeCroyants>(filtresInitiaux);
   const [page, setPage] = useState(1);
 
-  const { modifier, demanderSuppression, dialogues } = useCroyantDialogs({
+  const { modifier, transferer, demanderSuppression, dialogues } = useCroyantDialogs({
     croyants,
     photos,
     options,
@@ -273,8 +273,12 @@ export function CroyantsClient({
                             id={c.id}
                             nom={nomComplet(c.nom, c.prenom)}
                             peutModifier={portee ? peut('croyant.update', portee) : false}
+                            peutTransferer={
+                              portee ? peut('croyant.transfer', portee) : false
+                            }
                             peutSupprimer={portee ? peut('croyant.delete', portee) : false}
                             onModifier={modifier}
+                            onTransferer={transferer}
                             onSupprimer={demanderSuppression}
                             className="ml-auto"
                           />

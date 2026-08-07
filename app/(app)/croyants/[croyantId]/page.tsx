@@ -1,14 +1,12 @@
 import type { Metadata } from 'next';
-import { ArrowLeftRight, WifiOff } from 'lucide-react';
-import Link from 'next/link';
+import { WifiOff } from 'lucide-react';
 import { notFound } from 'next/navigation';
 
 import { ModifierCroyantDialog } from '@/components/croyants/croyant-dialog';
 import { PhotoUploader } from '@/components/croyants/photo-uploader';
+import { TransfertBouton } from '@/components/transferts/transfert-bouton';
 import { PageHeader } from '@/components/shared/page-header';
-import { PermissionGate } from '@/components/shared/permission-gate';
 import { StatusBadge, TON_CROYANT } from '@/components/shared/status-badge';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { getCroyant } from '@/lib/data/croyants';
 import { getOptionsCroyant } from '@/lib/data/croyant-options';
@@ -66,14 +64,24 @@ export default async function FicheCroyantPage({ params }: Params) {
         actions={
           eglise && (
             <>
-              <PermissionGate perm="croyant.transfer" scope={eglise.path}>
-                <Button asChild variant="outline" className="h-10">
-                  <Link href={`/croyants/${croyant.id}/transferer`}>
-                    <ArrowLeftRight className="mr-2 size-4" aria-hidden />
-                    Transférer
-                  </Link>
-                </Button>
-              </PermissionGate>
+              {/* EF-TRF-01 — en pop-up : la page /transferer n'a jamais existé,
+                  le lien qui y menait était mort. */}
+              <TransfertBouton
+                scope={eglise.path}
+                eglises={options.eglises.filter((e) => e.id !== croyant.eglise_id)}
+                cellules={options.cellules}
+                croyant={{
+                  id: croyant.id,
+                  nom: croyant.nom,
+                  prenom: croyant.prenom,
+                  matricule: croyant.matricule,
+                  egliseId: croyant.eglise_id,
+                  egliseNom: croyant.eglise?.nom ?? '—',
+                  eglisePath: eglise.path,
+                  celluleId: croyant.cellule_id,
+                  celluleNom: croyant.cellule?.nom ?? null,
+                }}
+              />
 
               <ModifierCroyantDialog
                 scope={eglise.path}

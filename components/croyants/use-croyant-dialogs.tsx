@@ -16,6 +16,8 @@ import { supprimerCroyant } from '@/lib/actions/croyants';
 import type { CroyantListe } from '@/lib/data/croyants';
 import { nomComplet } from '@/lib/domain/croyant';
 
+import { TransfertDialog } from '@/components/transferts/transfert-dialog';
+
 import { CroyantForm } from './croyant-form';
 import type { OptionsCroyant } from './croyant-dialog';
 
@@ -43,6 +45,7 @@ export function useCroyantDialogs({
   const router = useRouter();
 
   const [aModifier, setAModifier] = useState<CroyantListe | null>(null);
+  const [aTransferer, setATransferer] = useState<CroyantListe | null>(null);
   const [aSupprimer, setASupprimer] = useState<CroyantListe | null>(null);
 
   const parId = useMemo(() => new Map(croyants.map((c) => [c.id, c])), [croyants]);
@@ -51,6 +54,14 @@ export function useCroyantDialogs({
     (id: string) => {
       const croyant = parId.get(id);
       if (croyant) setAModifier(croyant);
+    },
+    [parId],
+  );
+
+  const transferer = useCallback(
+    (id: string) => {
+      const croyant = parId.get(id);
+      if (croyant) setATransferer(croyant);
     },
     [parId],
   );
@@ -119,6 +130,28 @@ export function useCroyantDialogs({
         </DialogContent>
       </Dialog>
 
+      {/* --- Transfert (EF-TRF-01) : le seul chemin pour changer d'eglise --- */}
+      {aTransferer && (
+        <TransfertDialog
+          key={aTransferer.id}
+          croyant={{
+            id: aTransferer.id,
+            nom: aTransferer.nom,
+            prenom: aTransferer.prenom,
+            matricule: aTransferer.matricule,
+            egliseId: aTransferer.eglise_id,
+            egliseNom: aTransferer.eglise?.nom ?? '—',
+            eglisePath: aTransferer.eglise?.path ?? '',
+            celluleId: aTransferer.cellule_id,
+            celluleNom: aTransferer.cellule?.nom ?? null,
+          }}
+          eglises={options.eglises.filter((e) => e.id !== aTransferer.eglise_id)}
+          cellules={options.cellules}
+          ouvert
+          onOuvertChange={(v) => !v && setATransferer(null)}
+        />
+      )}
+
       {/* --- Suppression (RG-22 : logique, restaurable) --- */}
       {aSupprimer && (
         <ConfirmDialog
@@ -146,5 +179,5 @@ export function useCroyantDialogs({
     </>
   );
 
-  return { modifier, demanderSuppression, dialogues };
+  return { modifier, transferer, demanderSuppression, dialogues };
 }

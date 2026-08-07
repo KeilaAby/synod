@@ -31,6 +31,7 @@ export function versOptions(entites: NoeudEntite[], arbre: NoeudEntite[]): Optio
     type: e.type,
     niveau: e.niveau,
     chemin: cheminLisible(e, index),
+    path: e.path,
   }));
 }
 

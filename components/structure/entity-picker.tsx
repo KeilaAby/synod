@@ -37,6 +37,12 @@ export interface OptionEntite {
   niveau: number;
   /** Chemin lisible « Siege › Regional Nord › District Avaradrano ». */
   chemin: string;
+  /**
+   * Chemin ltree — c'est LUI qui porte les regles : portee d'une habilitation
+   * (RG-25), niveau d'un transfert, detection de cycle. Le chemin lisible ne
+   * sert qu'a l'affichage, les deux ne sont pas interchangeables.
+   */
+  path: string;
 }
 
 export function EntityPicker({
