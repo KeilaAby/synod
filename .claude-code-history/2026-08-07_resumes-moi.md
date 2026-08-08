@@ -36,7 +36,9 @@ et les croyants s'enregistrent.
 | Lecture XLSX | Reportée — **ARB-6**, à trancher sur vos fichiers réels |
 | Saisie de baptêmes en lot (EF-BAP-07) | *Could* — non livré, le champ « session » le prépare |
 | Tableau de bord | Coquille seulement — le moteur configurable est le Lot 5 |
-| Bureaux, Finances, Rapports | À venir |
+| Bureaux — mandats, composition par rang, désignation, remplacement | ✅ |
+| Organigramme de bureau React Flow (EF-BUR-07) | Reste du lot 3 |
+| Finances, Rapports | À venir |
 
 ---
 
@@ -156,7 +158,7 @@ tous deux facultatifs :
 ```bash
 pnpm install      # installe aussi le hook pre-commit de détection de secrets
 pnpm dev          # http://localhost:3000
-pnpm verify       # secrets + lint + types + 240 tests + build
+pnpm verify       # secrets + lint + types + 269 tests + build
 ```
 
 Lire avant toute tâche : `CLAUDE.md`, puis `notes/cdg.md` et `notes/plan.md`.

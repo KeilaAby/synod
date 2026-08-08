@@ -14,7 +14,7 @@ import type { StatutTransfert } from './transfert';
  * frappe.
  */
 
-export type TypeEvenement = 'CREATION' | 'BAPTEME' | 'TRANSFERT';
+export type TypeEvenement = 'CREATION' | 'BAPTEME' | 'TRANSFERT' | 'MANDAT';
 
 export interface EvenementCroyant {
   readonly cle: string;
@@ -50,6 +50,15 @@ export interface CroyantHistorique {
   created_at: string;
   date_bapteme: string | null;
   eglise?: { nom: string } | null;
+}
+
+/** EF-BUR-10 — une fonction occupee, telle qu'elle se lit sur la frise. */
+export interface MandatHistorique {
+  id: string;
+  date_debut: string;
+  date_fin: string | null;
+  fonction: { libelle: string } | null;
+  bureau: { libelle: string; entite: { nom: string } | null } | null;
 }
 
 /**
@@ -122,6 +131,7 @@ function jour(iso: string): string {
 export function construireHistorique(
   croyant: CroyantHistorique,
   transferts: readonly TransfertHistorique[],
+  mandats: readonly MandatHistorique[] = [],
 ): EvenementCroyant[] {
   const evenements: EvenementCroyant[] = [
     {
@@ -156,6 +166,32 @@ export function construireHistorique(
       note: t.motif_refus ?? t.motif ?? undefined,
       statut: t.statut,
       enAttente: t.statut === 'DEMANDE' || t.statut === 'APPROUVE',
+    });
+  }
+
+  /**
+   * EF-BUR-10 — les fonctions occupees.
+   *
+   * Un mandat se situe a sa PRISE DE FONCTION, pas a sa fin : c'est le jour ou
+   * la personne est devenue tresoriere qui fait evenement. La cloture se lit
+   * dans le detail, et un mandat en cours se distingue de celui qui s'est
+   * acheve.
+   */
+  for (const m of mandats) {
+    const fonction = m.fonction?.libelle ?? 'une fonction';
+    const ou = m.bureau?.entite?.nom;
+    const bureau = m.bureau?.libelle;
+
+    evenements.push({
+      cle: `mandat:${m.id}`,
+      date: m.date_debut,
+      type: 'MANDAT',
+      titre: ou ? `${fonction} — ${ou}` : fonction,
+      detail: m.date_fin
+        ? `${bureau ?? 'Bureau'} · mandat clos le ${jour(m.date_fin)}`
+        : `${bureau ?? 'Bureau'} · en cours`,
+      // Un mandat clos n'est pas « en attente » : il a bien eu lieu.
+      enAttente: false,
     });
   }
 

@@ -22,7 +22,11 @@ croyants avec photo, **transferts** avec workflow d'approbation, **baptêmes**.
 d'ARB-6 — l'import CSV est livré) et la saisie de baptêmes en lot (EF-BAP-07,
 *Could*).
 
-Base à jour jusqu'à la migration `0015`. Le stockage de fichiers ne se
+**Lot 3 (bureaux) presque achevé** : mandats, composition par rang avec fonctions
+vacantes, désignation, remplacement, reconduction, et les fonctions occupées dans
+la frise du croyant. Reste l'organigramme React Flow (EF-BUR-07).
+
+Base à jour jusqu'à la migration `0017`. Le stockage de fichiers ne se
 configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` et
 `postgres` s'y voit refuser `CREATE POLICY` : `pnpm db:bucket` s'en charge par
 l'API.

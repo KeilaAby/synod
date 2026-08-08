@@ -548,3 +548,69 @@ relancer l'import autant de fois.
 ### Qualité
 
 240 tests unitaires. `pnpm verify` vert.
+
+---
+
+## 8 août 2026 — Lot 3 : bureaux
+
+### RG-10 était fausse
+
+« Au plus un bureau actif par entité » interdisait au Comité des finances
+d'exister à côté du Bureau exécutif. La règle voulait dire : **au plus un
+mandat actif par bureau**. L'index unique porte désormais sur `(entity_id,
+libellé normalisé)` — casse et espaces écartés, sans quoi la contrainte se
+contournerait d'une majuscule.
+
+Conséquence tranchée : `bureaux.libelle` devient le **nom du bureau** et non
+celui du mandat. La période se lit dans les dates ; la dupliquer produirait un
+intitulé faux le jour où un mandat est clos par anticipation.
+
+**RG-09 reste inchangée**, sur arbitrage : un croyant siège dans le bureau de
+toute entité qui contient son église — il cumule donc les niveaux, et plusieurs
+bureaux d'une même entité — mais jamais dans une branche voisine. La variante
+descendante a été écartée : l'éligibilité aurait dépendu des mandats déjà
+détenus, et changé à la clôture de l'un d'eux.
+
+### Une migration doit être rejouable
+
+`relation "bureaux" already exists`. Le fichier incrémental avait été régénéré
+`--depuis 0015` alors que `0016` tournait déjà. Le registre `schema_migrations`
+savait où en était la base — il ne servait qu'à s'inscrire, jamais à se
+défendre.
+
+Le fichier généré porte maintenant un **preflight** qui compare sa première
+migration au registre et, s'il recouvre du déjà-appliqué, échoue en nommant la
+commande exacte. Éprouvé contre la base réelle. Règle 23 de `CLAUDE.md`.
+
+Détail attrapé à la relecture : `String.replace` interprète `$$` comme un `$`
+échappé, et le bloc `do $$` sortait en `do $`. Le garde-fou lui-même aurait été
+cassé.
+
+### Écrans
+
+**La composition montre les fonctions vacantes, à leur rang.** Un bureau se lit
+autant à ce qui lui manque qu'à ce qu'il a, et c'est le rang qui dit
+l'importance du manque — une vacance reléguée en fin de tableau perdrait cette
+information.
+
+**Un seul composant pour désigner et remplacer** : les deux gestes ne diffèrent
+que par ce qui arrive au titulaire précédent. Deux dialogues jumeaux auraient
+divergé, et la liste des candidats éligibles — qui porte RG-09 — aurait été
+écrite deux fois.
+
+Ce filtre s'applique **à la source de la liste** : proposer un croyant hors
+périmètre pour le refuser ensuite ferait passer une règle de structure pour une
+erreur de saisie.
+
+**Les fonctions occupées rejoignent la frise** du croyant plutôt qu'un onglet
+séparé. Une prise de fonction est un événement de sa vie, au même titre qu'un
+transfert. Un mandat s'y situe à sa **prise de fonction** : c'est le jour où la
+personne est devenue trésorière qui fait événement, pas celui où elle a cessé
+de l'être. La promesse laissée dans le commit de la frise est ainsi tenue.
+
+**EF-BUR-07 — l'organigramme React Flow reste à faire.** La composition
+tabulaire suffit à composer et à corriger ; le graphe servira à présenter.
+
+### Qualité
+
+269 tests unitaires. `pnpm verify` vert.

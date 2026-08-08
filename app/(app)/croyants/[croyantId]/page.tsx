@@ -13,6 +13,7 @@ import { getCroyant } from '@/lib/data/croyants';
 import { getOptionsCroyant } from '@/lib/data/croyant-options';
 import { getArbrePerimetre, cheminLisible, indexerParChemin } from '@/lib/data/entities';
 import { signerPhotos } from '@/lib/data/photos';
+import { fonctionsDuCroyant } from '@/lib/data/bureaux';
 import { transfertsDuCroyant } from '@/lib/data/transferts';
 import { construireHistorique } from '@/lib/domain/historique';
 import {
@@ -44,15 +45,17 @@ export default async function FicheCroyantPage({ params }: Params) {
   const croyant = await getCroyant(croyantId);
   if (!croyant) notFound();
 
-  const [arbre, options, photos, transferts] = await Promise.all([
+  const [arbre, options, photos, transferts, mandats] = await Promise.all([
     getArbrePerimetre(),
     getOptionsCroyant(),
     signerPhotos([croyant.photo_key]),
     // EF-TRF-08 — l'historique complet des transferts du croyant.
     transfertsDuCroyant(croyantId),
+    // EF-BUR-10 — les fonctions occupees, toutes entites confondues.
+    fonctionsDuCroyant(croyantId),
   ]);
 
-  const evenements = construireHistorique(croyant, transferts);
+  const evenements = construireHistorique(croyant, transferts, mandats);
   const index = indexerParChemin(arbre);
   const eglise = arbre.find((e) => e.id === croyant.eglise_id);
 
@@ -226,8 +229,6 @@ export default async function FicheCroyantPage({ params }: Params) {
 
           <p className="border-t border-border pt-4 text-xs text-muted-foreground">
             Dernière modification de la fiche le {formatDateLongue(croyant.updated_at)}.
-            Les fonctions occupées en bureau s&apos;ajouteront à cette frise avec le
-            lot 3.
           </p>
         </CardContent>
       </Card>

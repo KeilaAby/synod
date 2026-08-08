@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   type CroyantHistorique,
+  type MandatHistorique,
   type TransfertHistorique,
   construireHistorique,
 } from '@/lib/domain/historique';
@@ -129,5 +130,60 @@ describe('EF-TRF-08 — un transfert se lit a la date ou il a produit son effet'
     const [transfert] = construireHistorique(croyant, [gabarit({ origine: null })]);
     expect(transfert!.titre).not.toContain('undefined');
     expect(transfert!.titre).toContain('AMBOHITRIMANJAKA');
+  });
+});
+
+describe('EF-BUR-10 — les fonctions occupees rejoignent la frise', () => {
+  const mandat = (p: Partial<MandatHistorique> = {}): MandatHistorique => ({
+    id: 'b1',
+    date_debut: '2026-02-01',
+    date_fin: null,
+    fonction: { libelle: 'Tresorier' },
+    bureau: { libelle: 'Bureau executif', entite: { nom: 'IAVOAMBONY' } },
+    ...p,
+  });
+
+  it('situe un mandat a sa PRISE DE FONCTION', () => {
+    // C'est le jour ou la personne est devenue tresoriere qui fait evenement,
+    // pas celui ou elle a cesse de l'etre.
+    const frise = construireHistorique(croyant, [], [mandat()]);
+    const evenement = frise.find((e) => e.type === 'MANDAT');
+
+    expect(evenement?.date).toBe('2026-02-01');
+    expect(evenement?.titre).toContain('Tresorier');
+    expect(evenement?.titre).toContain('IAVOAMBONY');
+  });
+
+  it('distingue un mandat en cours d un mandat clos', () => {
+    const [enCours] = construireHistorique(croyant, [], [mandat()]).filter(
+      (e) => e.type === 'MANDAT',
+    );
+    expect(enCours?.detail).toContain('en cours');
+
+    const [clos] = construireHistorique(
+      croyant,
+      [],
+      [mandat({ date_fin: '2026-06-30' })],
+    ).filter((e) => e.type === 'MANDAT');
+    expect(clos?.detail).toContain('clos');
+    // Un mandat clos a bien eu lieu : il n'est pas « en attente ».
+    expect(clos?.enAttente).toBe(false);
+  });
+
+  it('s intercale chronologiquement avec les autres evenements', () => {
+    const frise = construireHistorique(croyant, [], [mandat()]);
+    // Creation 15 janvier, mandat 1er fevrier, bapteme 20 mars.
+    expect(frise.map((e) => e.type)).toEqual(['BAPTEME', 'MANDAT', 'CREATION']);
+  });
+
+  it('reste lisible quand une fonction ou une entite a disparu', () => {
+    const [evenement] = construireHistorique(
+      croyant,
+      [],
+      [mandat({ fonction: null, bureau: null })],
+    ).filter((e) => e.type === 'MANDAT');
+
+    expect(evenement?.titre).not.toContain('undefined');
+    expect(evenement?.detail).not.toContain('undefined');
   });
 });

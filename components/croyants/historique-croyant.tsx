@@ -1,6 +1,7 @@
 import {
   ArrowRightLeft,
   Ban,
+  Briefcase,
   Check,
   Clock,
   Droplets,
@@ -32,6 +33,11 @@ function apparence(evenement: EvenementCroyant): { icone: LucideIcon; classe: st
   }
   if (evenement.type === 'BAPTEME') {
     return { icone: Droplets, classe: 'bg-sky-100 text-sky-700 ring-sky-200' };
+  }
+  // EF-BUR-10 — une prise de fonction. Teinte distincte des transferts : ce
+  // n'est pas un mouvement dans la structure, c'est une responsabilite.
+  if (evenement.type === 'MANDAT') {
+    return { icone: Briefcase, classe: 'bg-violet-100 text-violet-700 ring-violet-200' };
   }
 
   switch (evenement.statut) {

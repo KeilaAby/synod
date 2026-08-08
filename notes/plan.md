@@ -2492,8 +2492,13 @@ describe('RG-26 / RG-27 — rapports', () => {
 - [x] EF-TRF-09 — clôture des mandats d'origine à l'application d'un transfert.
 - [x] Mandats : création, clôture, reconduction. Membres : ajout, remplacement,
       retrait. **Server Actions livrées ; écrans à construire.**
-- [ ] `BureauFlow` par rang protocolaire, fonctions vacantes visibles.
-- [ ] Onglet « Fonctions occupées » sur la fiche croyant.
+- [x] Composition par rang protocolaire, fonctions vacantes visibles, en pop-up.
+- [ ] `BureauFlow` — organigramme React Flow (EF-BUR-07). La composition tabulaire
+      le précède : elle suffit à composer et à corriger, le graphe servira à
+      présenter. Import dynamique obligatoire (règle 7).
+- [x] Fonctions occupées sur la fiche croyant — intégrées à la **frise**
+      chronologique plutôt qu'à un onglet séparé : une prise de fonction est un
+      événement de la vie du croyant, au même titre qu'un transfert (EF-BUR-10).
 - [x] Tests : RG-08 à RG-10, RG-31 — 25 tests. *(RG-07 est portée par la clé
       étrangère et le trigger : aucune contrepartie applicative à tester.)*
 
