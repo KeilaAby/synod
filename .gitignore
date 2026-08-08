@@ -55,3 +55,9 @@ next-env.d.ts
 /.claude-code-history/*
 !/.claude-code-history/SESSION_HISTORY.md
 !/.claude-code-history/*_resumes-moi.md
+
+# Jeux d'essai d'import (EF-CRO-11) — donnees nominatives, meme fictives :
+# noms, telephones, adresses. Elles n'ont rien a faire dans le depot, et un
+# `git add -A` les y emmene sans qu'on le remarque.
+/*.csv
+/*.xlsx

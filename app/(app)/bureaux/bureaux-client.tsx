@@ -58,6 +58,7 @@ import {
 } from '@/lib/domain/bureau';
 import { normaliserRecherche } from '@/lib/domain/croyant';
 import type { EntityType } from '@/lib/domain/hierarchy';
+import type { ActionResult } from '@/lib/domain/result';
 import { formatDate, formatNombre } from '@/lib/utils/format';
 
 /**
@@ -138,46 +139,60 @@ export function BureauxClient({
   }, [bureaux]);
 
   /**
+   * Une opération, son LIBELLÉ et son ATTENTE, décidés au même endroit.
+   *
+   * Deux états réglés séparément — « ce qui se passe » et « ça se passe » —
+   * finissent par se contredire : il suffit qu'un chemin oublie le premier
+   * pour que le pop-up annonce l'opération précédente. Les nouer dans une
+   * seule fonction rend cet écart impossible plutôt qu'improbable.
+   *
    * `useTransition` couvre l'action ET le re-rendu serveur qui suit : c'est
    * `router.refresh()` qui prend le plus de temps, et le laisser hors du
    * transition rendrait la main avant que l'écran ne soit à jour.
    */
-  function clore(bureau: BureauComplet) {
-    setOperation({
-      titre: 'Clôture du mandat…',
-      description: `« ${bureau.libelle} » et les mandats de ses titulaires se clôturent ensemble.`,
-    });
+  function lancer(
+    annonce: { titre: string; description: string },
+    executer: () => Promise<ActionResult<void>>,
+    succes: string,
+  ) {
+    setOperation(annonce);
     demarrer(async () => {
-      const resultat = await cloreMandat({
-        bureauId: bureau.id,
-        dateFin: new Date().toISOString().slice(0, 10),
-      });
+      const resultat = await executer();
       if (!resultat.ok) {
         setOperation(null);
         toast.error(resultat.error);
         return;
       }
-      toast.success('Mandat clos. La composition reste consultable.');
+      toast.success(succes);
       router.refresh();
     });
   }
 
+  function clore(bureau: BureauComplet) {
+    lancer(
+      {
+        titre: 'Clôture du mandat…',
+        description: `« ${bureau.libelle} » et les mandats de ses titulaires se clôturent ensemble.`,
+      },
+      () =>
+        cloreMandat({
+          bureauId: bureau.id,
+          dateFin: new Date().toISOString().slice(0, 10),
+        }),
+      'Mandat clos. La composition reste consultable.',
+    );
+  }
+
   function supprimer(bureau: BureauComplet) {
     setASupprimer(null);
-    setOperation({
-      titre: 'Suppression du bureau…',
-      description: `« ${bureau.libelle} » et ses ${formatNombre(bureau.membres.length)} mandat(s) sont effacés.`,
-    });
-    demarrer(async () => {
-      const resultat = await supprimerBureau({ bureauId: bureau.id });
-      if (!resultat.ok) {
-        setOperation(null);
-        toast.error(resultat.error);
-        return;
-      }
-      toast.success('Bureau supprimé, avec son historique.');
-      router.refresh();
-    });
+    lancer(
+      {
+        titre: 'Suppression du bureau…',
+        description: `« ${bureau.libelle} » et ses ${formatNombre(bureau.membres.length)} mandat(s) sont effacés.`,
+      },
+      () => supprimerBureau({ bureauId: bureau.id }),
+      'Bureau supprimé, avec son historique.',
+    );
   }
 
   /** Le mandat rouvert après un rafraîchissement doit rester celui affiché. */
