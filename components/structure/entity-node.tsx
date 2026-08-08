@@ -32,11 +32,17 @@ export interface DonneesNoeudEntite extends Record<string, unknown> {
   actif: boolean;
   replie: boolean;
   peutModifier: boolean;
+  /** EF-BUR-01 — de quoi choisir l'entree « bureau » du menu, sans plus. */
+  bureau: { bureaux: readonly { nbMembres: number }[]; peutGerer: boolean };
+  /** RG-04 — vrai seulement la ou un croyant peut effectivement etre cree. */
+  peutAjouterCroyant: boolean;
   surReplier: (id: string) => void;
   surOuvrir: (id: string) => void;
   surCreerEnfant: (id: string) => void;
   surModifier: (id: string) => void;
   surSupprimer: (id: string) => void;
+  surBureaux: (id: string, action: 'creer' | 'consulter') => void;
+  surAjouterCroyant: (id: string) => void;
 }
 
 function NoeudEntiteBrut({ id, data, selected, dragging }: NodeProps) {
@@ -81,10 +87,14 @@ function NoeudEntiteBrut({ id, data, selected, dragging }: NodeProps) {
             nom={d.nom}
             type={d.type}
             peutModifier={d.peutModifier}
+            bureau={d.bureau}
+            peutAjouterCroyant={d.peutAjouterCroyant}
             onOuvrir={d.surOuvrir}
             onCreerEnfant={d.surCreerEnfant}
             onModifier={d.surModifier}
             onSupprimer={d.surSupprimer}
+            onBureaux={d.surBureaux}
+            onAjouterCroyant={d.surAjouterCroyant}
             repli={{
               replie: d.replie,
               nbEnfants: d.nbEnfants,

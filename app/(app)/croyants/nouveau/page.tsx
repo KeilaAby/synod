@@ -53,7 +53,7 @@ export default async function NouveauCroyantPage({
 
       <CroyantForm
         mode="creation"
-        egliseImposee={eglise}
+        eglisePreselectionnee={eglise}
         eglises={options.eglises}
         cellules={options.cellules}
         grades={options.grades}

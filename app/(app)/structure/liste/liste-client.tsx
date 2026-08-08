@@ -10,7 +10,9 @@ import type { EntiteFlux } from '@/components/structure/entite';
 import { EntityFilters, type FiltreActif } from '@/components/structure/entity-filters';
 import { EntityMenu } from '@/components/structure/entity-menu';
 import { TypeBadge } from '@/components/structure/type-badge';
+import type { OptionsCroyant } from '@/components/croyants/croyant-dialog';
 import { useEntityDialogs } from '@/components/structure/use-entity-dialogs';
+import type { ApercuBureaux } from '@/lib/data/bureaux';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -55,9 +57,15 @@ export interface LigneStructure extends EntiteFlux {
 
 export function ListeStructureClient({
   entites,
+  apercuBureaux,
+  optionsCroyant,
   filtresInitiaux,
 }: {
   entites: LigneStructure[];
+  /** EF-BUR-01 — bureaux actifs par entite, pour l'entree « bureau » du menu. */
+  apercuBureaux: ApercuBureaux;
+  /** EF-CRO-01 — referentiels du formulaire, pour « Ajouter un croyant ». */
+  optionsCroyant: OptionsCroyant;
   filtresInitiaux: {
     recherche: string;
     type: EntityType | 'tous';
@@ -72,8 +80,17 @@ export function ListeStructureClient({
   const [actif, setActif] = useState<FiltreActif>(filtresInitiaux.actif);
   const [sansAcces, setSansAcces] = useState(filtresInitiaux.sansAcces);
 
-  const { ouvrirFiche, modifier, creerEnfant, demanderSuppression, dialogues } =
-    useEntityDialogs(entites);
+  const {
+    ouvrirFiche,
+    modifier,
+    creerEnfant,
+    demanderSuppression,
+    ouvrirBureaux,
+    etatBureau,
+    ajouterCroyant,
+    peutAjouterCroyant,
+    dialogues,
+  } = useEntityDialogs(entites, apercuBureaux, optionsCroyant);
 
   // Deconnecte la frappe du filtrage : la saisie reste fluide meme si le
   // rendu de la table prend quelques millisecondes.
@@ -236,10 +253,14 @@ export function ListeStructureClient({
                         nom={entite.nom}
                         type={entite.type}
                         peutModifier={peut('entity.update', entite.path)}
+                        bureau={etatBureau(entite)}
+                        peutAjouterCroyant={peutAjouterCroyant(entite)}
                         onOuvrir={ouvrirFiche}
                         onCreerEnfant={creerEnfant}
                         onModifier={modifier}
                         onSupprimer={demanderSuppression}
+                        onBureaux={ouvrirBureaux}
+                        onAjouterCroyant={ajouterCroyant}
                         className="ml-auto"
                       />
                     </TableCell>

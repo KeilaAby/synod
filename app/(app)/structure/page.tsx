@@ -7,6 +7,8 @@ import { PageHeader } from '@/components/shared/page-header';
 import { EntityFlowLoader } from '@/components/structure/entity-flow-loader';
 import { NouvelleEntiteBouton } from '@/components/structure/nouvelle-entite-bouton';
 import { Button } from '@/components/ui/button';
+import { apercuBureauxParEntite } from '@/lib/data/bureaux';
+import { getOptionsCroyant } from '@/lib/data/croyant-options';
 import { getArbrePerimetre } from '@/lib/data/entities';
 import { parentsPossibles } from '@/lib/data/entity-options';
 import { ENTITY_LABELS, type EntityType } from '@/lib/domain/hierarchy';
@@ -23,7 +25,14 @@ export const metadata: Metadata = { title: 'Structure' };
  */
 export default async function StructurePage() {
   const session = await requireSession();
-  const arbre = await getArbrePerimetre();
+
+  // En parallele : l'apercu des bureaux ne fait qu'alimenter une entree de
+  // menu, il n'a aucune raison de retarder l'organigramme.
+  const [arbre, apercuBureaux, optionsCroyant] = await Promise.all([
+    getArbrePerimetre(),
+    apercuBureauxParEntite(),
+    getOptionsCroyant(),
+  ]);
 
   const parents = parentsPossibles(arbre);
   const typeEntite = session.entiteType as EntityType;
@@ -76,6 +85,8 @@ export default async function StructurePage() {
         />
       ) : (
         <EntityFlowLoader
+          apercuBureaux={apercuBureaux}
+          optionsCroyant={optionsCroyant}
           entites={arbre.map((e) => ({
             id: e.id,
             nom: e.nom,

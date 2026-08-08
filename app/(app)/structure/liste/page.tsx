@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { PageHeader } from '@/components/shared/page-header';
 import { NouvelleEntiteBouton } from '@/components/structure/nouvelle-entite-bouton';
 import { Button } from '@/components/ui/button';
+import { apercuBureauxParEntite } from '@/lib/data/bureaux';
+import { getOptionsCroyant } from '@/lib/data/croyant-options';
 import { cheminLisible, getArbrePerimetre, indexerParChemin } from '@/lib/data/entities';
 import { parentsPossibles } from '@/lib/data/entity-options';
 import { ENTITY_TYPES, type EntityType } from '@/lib/domain/hierarchy';
@@ -28,7 +30,12 @@ export default async function ListeStructurePage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const params = await searchParams;
-  const arbre = await getArbrePerimetre();
+
+  const [arbre, apercuBureaux, optionsCroyant] = await Promise.all([
+    getArbrePerimetre(),
+    apercuBureauxParEntite(),
+    getOptionsCroyant(),
+  ]);
   const index = indexerParChemin(arbre);
 
   // La ligne porte l'entite COMPLETE : ouvrir la fiche en pop-up depuis la
@@ -80,6 +87,8 @@ export default async function ListeStructurePage({
 
       <ListeStructureClient
         entites={lignes}
+        apercuBureaux={apercuBureaux}
+        optionsCroyant={optionsCroyant}
         filtresInitiaux={{
           recherche: params.q ?? '',
           type:

@@ -19,6 +19,7 @@ import {
   CroyantForm,
   type CelluleOption,
   type OptionReferentiel,
+  type RattachementImpose,
 } from './croyant-form';
 import type { OptionEntite } from '@/components/structure/entity-picker';
 
@@ -65,31 +66,62 @@ interface CroyantAModifier {
 /** Bouton « Nouveau croyant » et son pop-up. */
 export function NouveauCroyantDialog({
   options,
-  egliseImposee,
+  rattachement,
   libelle = 'Nouveau croyant',
+  open,
+  onOpenChange,
+  onCree,
 }: {
   options: OptionsCroyant;
-  egliseImposee?: string;
+  /**
+   * EF-CRO-01 — le geste part d'une église ou d'une cellule de la structure :
+   * le rattachement se lit au lieu de se choisir (`RattachementImpose`).
+   */
+  rattachement?: RattachementImpose;
   libelle?: string;
+  /**
+   * Mode PILOTÉ : le déclencheur est ailleurs — le menu ⋮ d'une entité. Le
+   * pop-up ne rend alors pas son propre bouton.
+   */
+  open?: boolean;
+  onOpenChange?: (ouvert: boolean) => void;
+  /**
+   * Ce qu'on fait après. Par défaut on ouvre la fiche ; depuis la structure,
+   * l'appelant préfère rester où il est — quitter l'organigramme pour une
+   * fiche perdrait la branche déployée.
+   */
+  onCree?: (id: string) => void;
 }) {
   const router = useRouter();
-  const [ouvert, setOuvert] = useState(false);
+  const [ouvertInterne, setOuvertInterne] = useState(false);
+
+  const pilote = open !== undefined;
+  const ouvert = pilote ? open : ouvertInterne;
+
+  function definirOuvert(valeur: boolean) {
+    if (pilote) onOpenChange?.(valeur);
+    else setOuvertInterne(valeur);
+  }
 
   return (
     <>
-      <PermissionGate perm="croyant.create">
-        <Button className="h-10" onClick={() => setOuvert(true)}>
-          <Plus className="mr-2 size-4" aria-hidden />
-          {libelle}
-        </Button>
-      </PermissionGate>
+      {!pilote && (
+        <PermissionGate perm="croyant.create">
+          <Button className="h-10" onClick={() => setOuvertInterne(true)}>
+            <Plus className="mr-2 size-4" aria-hidden />
+            {libelle}
+          </Button>
+        </PermissionGate>
+      )}
 
-      <Dialog open={ouvert} onOpenChange={setOuvert}>
+      <Dialog open={ouvert} onOpenChange={definirOuvert}>
         <DialogContent className="max-h-[92vh] w-[min(96vw,72rem)] overflow-y-auto sm:max-w-5xl">
           <DialogHeader>
             <DialogTitle className="text-2xl">Nouveau croyant</DialogTitle>
             <DialogDescription>
-              Le matricule est attribué automatiquement à l&apos;enregistrement.
+              {rattachement
+                ? `Rattaché à ${rattachement.celluleNom ?? rattachement.egliseNom}. Le matricule est attribué automatiquement.`
+                : "Le matricule est attribué automatiquement à l'enregistrement."}
             </DialogDescription>
           </DialogHeader>
 
@@ -97,14 +129,15 @@ export function NouveauCroyantDialog({
               de la saisie précédente, sans effet de resynchronisation. */}
           {ouvert && (
             <CroyantForm
-              key="creation"
+              key={rattachement?.celluleId ?? rattachement?.egliseId ?? 'creation'}
               mode="creation"
-              egliseImposee={egliseImposee}
+              rattachement={rattachement}
               {...options}
-              onAnnuler={() => setOuvert(false)}
+              onAnnuler={() => definirOuvert(false)}
               onSucces={(id) => {
-                setOuvert(false);
-                router.push(`/croyants/${id}`);
+                definirOuvert(false);
+                if (onCree) onCree(id);
+                else router.push(`/croyants/${id}`);
               }}
             />
           )}

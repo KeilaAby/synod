@@ -25,6 +25,7 @@ import {
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { EmptyState } from '@/components/shared/empty-state';
 import { FiltreIcone, GroupeFiltres } from '@/components/shared/filtre-icone';
+import { OperationDialog } from '@/components/shared/operation-dialog';
 import { useSession } from '@/components/shared/session-provider';
 import { StatusBadge } from '@/components/shared/status-badge';
 import type { OptionEntite } from '@/components/structure/entity-picker';
@@ -86,6 +87,11 @@ export function BureauxClient({
   const [enCours, demarrer] = useTransition();
   const [aModifier, setAModifier] = useState<BureauComplet | null>(null);
   const [aSupprimer, setASupprimer] = useState<BureauComplet | null>(null);
+  /** Ce qui est en train de se faire — alimente le pop-up d'attente. */
+  const [operation, setOperation] = useState<{
+    titre: string;
+    description: string;
+  } | null>(null);
 
   const [recherche, setRecherche] = useState('');
   const [statut, setStatut] = useState<'tous' | 'actifs' | 'clos'>('actifs');
@@ -131,13 +137,23 @@ export function BureauxClient({
     return table;
   }, [bureaux]);
 
+  /**
+   * `useTransition` couvre l'action ET le re-rendu serveur qui suit : c'est
+   * `router.refresh()` qui prend le plus de temps, et le laisser hors du
+   * transition rendrait la main avant que l'écran ne soit à jour.
+   */
   function clore(bureau: BureauComplet) {
+    setOperation({
+      titre: 'Clôture du mandat…',
+      description: `« ${bureau.libelle} » et les mandats de ses titulaires se clôturent ensemble.`,
+    });
     demarrer(async () => {
       const resultat = await cloreMandat({
         bureauId: bureau.id,
         dateFin: new Date().toISOString().slice(0, 10),
       });
       if (!resultat.ok) {
+        setOperation(null);
         toast.error(resultat.error);
         return;
       }
@@ -147,14 +163,19 @@ export function BureauxClient({
   }
 
   function supprimer(bureau: BureauComplet) {
+    setASupprimer(null);
+    setOperation({
+      titre: 'Suppression du bureau…',
+      description: `« ${bureau.libelle} » et ses ${formatNombre(bureau.membres.length)} mandat(s) sont effacés.`,
+    });
     demarrer(async () => {
       const resultat = await supprimerBureau({ bureauId: bureau.id });
       if (!resultat.ok) {
+        setOperation(null);
         toast.error(resultat.error);
         return;
       }
       toast.success('Bureau supprimé, avec son historique.');
-      setASupprimer(null);
       router.refresh();
     });
   }
@@ -427,10 +448,18 @@ export function BureauxClient({
               'rien n’en restera dans leur historique. ' +
               'Pour conserver la trace, clôturez le mandat plutôt que de le supprimer.'
             }
-            confirmLabel={enCours ? 'Suppression…' : 'Supprimer définitivement'}
-            onConfirm={async () => supprimer(aSupprimer)}
+            confirmLabel="Supprimer définitivement"
+            onConfirm={() => supprimer(aSupprimer)}
           />
         )}
+
+        {/* Une opération lancée depuis un menu ⋮ n'a rien pour se signaler : le
+            menu se referme et l'écran redevient identique. */}
+        <OperationDialog
+          ouvert={enCours && operation !== null}
+          titre={operation?.titre ?? ''}
+          description={operation?.description}
+        />
 
         {/* --- Composition, en pop-up --- */}
         <Dialog open={affiche !== null} onOpenChange={(v) => !v && setOuvert(null)}>

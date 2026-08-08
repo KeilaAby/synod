@@ -279,3 +279,35 @@ export function libelleAffichage(
 export function aReconduire(mandats: readonly MandatMembre[]): MandatMembre[] {
   return mandats.filter(estEnCours);
 }
+
+// -----------------------------------------------------------------------------
+// EF-BUR-01 / EF-STR-04 — ce que le menu d'une entite propose de son bureau
+// -----------------------------------------------------------------------------
+
+/**
+ * Une SEULE entree dans le menu de l'entite, et laquelle depend de l'etat :
+ *
+ *   · `creer`     — aucun bureau : l'ouvrir, puis enchainer sur sa composition ;
+ *   · `composer`  — un bureau existe mais n'a aucun titulaire : aller droit aux
+ *                   fonctions a pourvoir, une liste vide de membres n'apprenant
+ *                   rien a personne ;
+ *   · `consulter` — le bureau est compose : en lister les titulaires ;
+ *   · `null`      — rien a proposer : pas de bureau, et pas le droit d'en ouvrir.
+ *
+ * Proposer les trois en permanence obligerait a ouvrir chacune pour savoir
+ * laquelle mene quelque part. Le calcul est ici, et non dans le composant,
+ * parce que c'est une regle — et que c'est le seul moyen de l'eprouver.
+ */
+export type EntreeBureauEntite = 'creer' | 'composer' | 'consulter';
+
+export function entreeBureauDeEntite(
+  bureauxActifs: readonly { nbMembres: number }[],
+  peutGerer: boolean,
+): EntreeBureauEntite | null {
+  if (bureauxActifs.length === 0) return peutGerer ? 'creer' : null;
+
+  // Un seul titulaire, dans un seul des bureaux, suffit a rendre la liste
+  // utile : c'est le total qui compte, pas le detail bureau par bureau.
+  const titulaires = bureauxActifs.reduce((n, b) => n + b.nbMembres, 0);
+  return titulaires === 0 ? 'composer' : 'consulter';
+}

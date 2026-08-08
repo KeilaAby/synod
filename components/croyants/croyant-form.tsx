@@ -101,9 +101,33 @@ interface Presentation {
   urlPhoto?: string | null;
 }
 
+/**
+ * Rattachement DÉCIDÉ AILLEURS — EF-CRO-01, RG-04, RG-05.
+ *
+ * Le geste part du menu d'une église ou d'une cellule dans la structure :
+ * l'utilisateur a déjà désigné le rattachement en ouvrant ce menu. Le champ se
+ * LIT donc au lieu de se choisir — le proposer à nouveau permettrait d'en
+ * changer par inadvertance, et l'écran ne dirait plus de quelle entité on est
+ * parti.
+ *
+ * À distinguer d'`eglisePreselectionnee`, qui n'est qu'une commodité de lien
+ * profond : elle amorce le champ, elle ne le verrouille pas.
+ */
+export interface RattachementImpose {
+  egliseId: string;
+  egliseNom: string;
+  /** RG-05 — présent lorsque le geste part d'une cellule de prière. */
+  celluleId?: string;
+  celluleNom?: string;
+}
+
 type Props = Presentation &
   (
-    | ({ mode: 'creation'; egliseImposee?: string } & Commun)
+    | ({
+        mode: 'creation';
+        eglisePreselectionnee?: string;
+        rattachement?: RattachementImpose;
+      } & Commun)
     | ({ mode: 'modification'; croyant: CroyantExistant } & Commun)
   );
 
@@ -168,14 +192,21 @@ export function CroyantForm(props: Props) {
       adresse: existant?.adresse ?? '',
       egliseId:
         existant?.eglise_id ??
-        (props.mode === 'creation' ? props.egliseImposee : undefined) ??
+        (props.mode === 'creation'
+          ? (props.rattachement?.egliseId ?? props.eglisePreselectionnee)
+          : undefined) ??
         undefined,
-      celluleId: existant?.cellule_id ?? null,
+      celluleId:
+        existant?.cellule_id ??
+        (props.mode === 'creation' ? (props.rattachement?.celluleId ?? null) : null),
       gradeId: existant?.grade_id ?? undefined,
       nationaliteId: existant?.nationalite_id ?? undefined,
       doublonAccepte: false,
     } as Partial<CroyantInput> as CroyantInput,
   });
+
+  /** Rattachement verrouillé par le chemin d'accès — voir `RattachementImpose`. */
+  const impose = props.mode === 'creation' ? props.rattachement : undefined;
 
   const egliseChoisie = useWatch({ control, name: 'egliseId' });
 
@@ -454,6 +485,16 @@ export function CroyantForm(props: Props) {
                   </div>
                 )}
               </Field>
+            ) : impose ? (
+              // Le geste part de cette église : elle se lit, elle ne se choisit
+              // pas. Voir `RattachementImpose`.
+              <Field label="Église d'appartenance" hint="Choisie dans la structure.">
+                {() => (
+                  <div className="flex h-10 items-center rounded-md border border-border bg-slate-50 px-3 text-sm text-muted-foreground">
+                    {impose.egliseNom}
+                  </div>
+                )}
+              </Field>
             ) : (
               <Field label="Église d'appartenance" required error={errors.egliseId?.message}>
                 {(aria) => (
@@ -479,41 +520,53 @@ export function CroyantForm(props: Props) {
               </Field>
             )}
 
-            <Field
-              label="Cellule de prière"
-              error={errors.celluleId?.message}
-              hint={
-                egliseChoisie && cellulesDisponibles.length === 0
-                  ? "Cette église n'a pas encore de cellule."
-                  : 'Facultatif. Liste filtrée selon l’église.'
-              }
-            >
-              {(aria) => (
-                <Controller
-                  control={control}
-                  name="celluleId"
-                  render={({ field }) => (
-                    <Select
-                      value={field.value ?? ''}
-                      onValueChange={(v) => field.onChange(v === '__aucune' ? null : v)}
-                      disabled={cellulesDisponibles.length === 0}
-                    >
-                      <SelectTrigger {...aria} className="h-10 w-full">
-                        <SelectValue placeholder="Aucune" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__aucune">Aucune</SelectItem>
-                        {cellulesDisponibles.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.nom}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              )}
-            </Field>
+            {impose?.celluleNom ? (
+              // Le geste part de la cellule elle-même : RG-05 est déjà tenue
+              // par le chemin d'accès, il n'y a rien à choisir.
+              <Field label="Cellule de prière" hint="Choisie dans la structure.">
+                {() => (
+                  <div className="flex h-10 items-center rounded-md border border-border bg-slate-50 px-3 text-sm text-muted-foreground">
+                    {impose.celluleNom}
+                  </div>
+                )}
+              </Field>
+            ) : (
+              <Field
+                label="Cellule de prière"
+                error={errors.celluleId?.message}
+                hint={
+                  egliseChoisie && cellulesDisponibles.length === 0
+                    ? "Cette église n'a pas encore de cellule."
+                    : 'Facultatif. Liste filtrée selon l’église.'
+                }
+              >
+                {(aria) => (
+                  <Controller
+                    control={control}
+                    name="celluleId"
+                    render={({ field }) => (
+                      <Select
+                        value={field.value ?? ''}
+                        onValueChange={(v) => field.onChange(v === '__aucune' ? null : v)}
+                        disabled={cellulesDisponibles.length === 0}
+                      >
+                        <SelectTrigger {...aria} className="h-10 w-full">
+                          <SelectValue placeholder="Aucune" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__aucune">Aucune</SelectItem>
+                          {cellulesDisponibles.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.nom}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                )}
+              </Field>
+            )}
 
             <Field label="Grade" required error={errors.gradeId?.message}>
               {(aria) => (

@@ -61,10 +61,17 @@ export function MandatDialog({
   bureau,
   open,
   onOpenChange,
+  onCree,
 }: {
   entites: OptionEntite[];
   bureauxActifsParEntite: BureauxActifsParEntite;
-  entiteImposee?: string;
+  /**
+   * Ouverture depuis une entité précise — le menu ⋮ de l'organigramme. Le champ
+   * se LIT alors au lieu de se choisir : l'utilisateur a déjà désigné l'entité
+   * en ouvrant le menu, la redemander lui permettrait d'en changer par
+   * inadvertance.
+   */
+  entiteImposee?: { id: string; nom: string };
   libelle?: string;
   /**
    * Mode ÉDITION. Le composant est alors PILOTÉ par le parent : c'est le menu ⋮
@@ -75,6 +82,11 @@ export function MandatDialog({
   bureau?: BureauModifiable;
   open?: boolean;
   onOpenChange?: (ouvert: boolean) => void;
+  /**
+   * EF-BUR-03 — un bureau vide ne sert à rien : l'appelant enchaîne sur la
+   * composition. Le pop-up ne décide pas de la suite, il la signale.
+   */
+  onCree?: (bureauId: string) => void;
 }) {
   const router = useRouter();
   const edition = bureau !== undefined;
@@ -84,7 +96,7 @@ export function MandatDialog({
   const estOuvert = pilote ? open : ouvertInterne;
 
   const [entityId, setEntityId] = useState<string | null>(
-    bureau?.entity_id ?? entiteImposee ?? null,
+    bureau?.entity_id ?? entiteImposee?.id ?? null,
   );
   const [nom, setNom] = useState(bureau?.libelle ?? '');
   const [dateDebut, setDateDebut] = useState(
@@ -122,7 +134,7 @@ export function MandatDialog({
       return;
     }
     setOuvertInterne(false);
-    setEntityId(entiteImposee ?? null);
+    setEntityId(entiteImposee?.id ?? null);
     setNom('');
     setDateDebut(new Date().toISOString().slice(0, 10));
     setDateFin('');
@@ -134,21 +146,32 @@ export function MandatDialog({
     setEnCours(true);
     setErreur(null);
 
-    const resultat = bureau
-      ? await modifierBureau({
-          bureauId: bureau.id,
-          libelle: nom,
-          dateDebut,
-          dateFin,
-        })
-      : await ouvrirMandat({
-          entityId,
-          libelle: nom,
-          dateDebut,
-          dateFin,
-          reconduire: renouvellement && reconduire,
-        });
+    if (bureau) {
+      const resultat = await modifierBureau({
+        bureauId: bureau.id,
+        libelle: nom,
+        dateDebut,
+        dateFin,
+      });
+      setEnCours(false);
 
+      if (!resultat.ok) {
+        setErreur(resultat.error);
+        return;
+      }
+      toast.success('Bureau modifié.');
+      fermer();
+      router.refresh();
+      return;
+    }
+
+    const resultat = await ouvrirMandat({
+      entityId,
+      libelle: nom,
+      dateDebut,
+      dateFin,
+      reconduire: renouvellement && reconduire,
+    });
     setEnCours(false);
 
     if (!resultat.ok) {
@@ -156,11 +179,13 @@ export function MandatDialog({
       return;
     }
 
-    toast.success(
-      edition ? 'Bureau modifié.' : renouvellement ? 'Mandat renouvelé.' : 'Bureau ouvert.',
-    );
+    toast.success(renouvellement ? 'Mandat renouvelé.' : 'Bureau ouvert.');
     fermer();
     router.refresh();
+
+    // EF-BUR-03 — enchaîner sur la composition : un bureau sans titulaire ne
+    // renseigne personne, et c'est le moment où l'utilisateur y pense.
+    onCree?.(resultat.data.id);
   }
 
   return (
@@ -218,17 +243,21 @@ export function MandatDialog({
               </Field>
             )}
 
-            {/* En édition, l'entité se LIT : elle n'est pas modifiable, mais la
-                masquer laisserait douter du bureau qu'on est en train de
-                changer. Un champ désactivé mentirait — rien ici ne se saisit. */}
-            {bureau && (
+            {/* L'entité se LIT plutôt que de se choisir — en édition parce
+                qu'elle ne se change pas, à l'ouverture depuis l'organigramme
+                parce qu'elle est déjà désignée. La masquer laisserait douter du
+                bureau qu'on est en train de créer ou de modifier ; un champ
+                désactivé mentirait, puisque rien ici ne se saisit. */}
+            {(bureau || entiteImposee) && (
               <div className="flex flex-col gap-2">
                 <p className="text-foreground text-sm font-medium">Entité</p>
                 <p className="border-input bg-muted/40 text-muted-foreground flex h-10 items-center rounded-md border px-3 text-sm">
-                  {bureau.entite_nom}
+                  {bureau ? bureau.entite_nom : entiteImposee?.nom}
                 </p>
                 <p className="text-muted-foreground text-xs">
-                  Fixée à l&apos;ouverture du bureau.
+                  {bureau
+                    ? "Fixée à l'ouverture du bureau."
+                    : 'Entité choisie dans la structure.'}
                 </p>
               </div>
             )}

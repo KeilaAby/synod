@@ -4,7 +4,10 @@ import dynamic from 'next/dynamic';
 
 import { FlowSkeleton } from '@/components/skeletons';
 
-import type { EntiteFlux } from './entity-flow';
+import type { OptionsCroyant } from '@/components/croyants/croyant-dialog';
+import type { ApercuBureaux } from '@/lib/data/bureaux';
+
+import type { EntiteFlux } from './entite';
 
 /**
  * Chargement differe de React Flow — ENF-PRF-09, UI-18.
@@ -21,6 +24,20 @@ const EntityFlow = dynamic(() => import('./entity-flow'), {
   loading: () => <FlowSkeleton />,
 });
 
-export function EntityFlowLoader({ entites }: { entites: EntiteFlux[] }) {
-  return <EntityFlow entites={entites} />;
+export function EntityFlowLoader({
+  entites,
+  apercuBureaux,
+  optionsCroyant,
+}: {
+  entites: EntiteFlux[];
+  apercuBureaux: ApercuBureaux;
+  optionsCroyant: OptionsCroyant;
+}) {
+  return (
+    <EntityFlow
+      entites={entites}
+      apercuBureaux={apercuBureaux}
+      optionsCroyant={optionsCroyant}
+    />
+  );
 }

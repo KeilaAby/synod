@@ -26,6 +26,8 @@ d'ARB-6 — l'import CSV est livré) et la saisie de baptêmes en lot (EF-BAP-07
 composition par rang avec fonctions vacantes, désignation, remplacement,
 reconduction, clôture atomique, **suppression** sous `bureau.delete` (droit
 distinct et non délégable), et les fonctions occupées dans la frise du croyant.
+Le menu ⋮ de la structure ouvre le bureau d'une entité et enregistre un croyant
+sur une église ou une cellule, rattachement verrouillé.
 Reste l'organigramme React Flow (EF-BUR-07).
 
 Base à jour jusqu'à la migration `0020`. Le stockage de fichiers ne se

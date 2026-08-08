@@ -2,16 +2,34 @@
 
 import { revalidatePath } from 'next/cache';
 
-import { listerCandidats, listerFonctions } from '@/lib/data/bureaux';
+import {
+  type BureauComplet,
+  chargerBureauxDeEntite,
+  listerCandidats,
+  listerFonctions,
+} from '@/lib/data/bureaux';
 import { getArbrePerimetre } from '@/lib/data/entities';
-import { aReconduire, memeBureau, validerDesignation } from '@/lib/domain/bureau';
+import { signerPhotos } from '@/lib/data/photos';
+import {
+  type FonctionBureau,
+  aReconduire,
+  candidatsEligibles,
+  memeBureau,
+  validerDesignation,
+} from '@/lib/domain/bureau';
 import { nomComplet } from '@/lib/domain/croyant';
 import { type ActionResult, ko, ok } from '@/lib/domain/result';
-import { auditer, requirePermission, requireSession } from '@/lib/session';
+import {
+  auditer,
+  requireEntityInScope,
+  requirePermission,
+  requireSession,
+} from '@/lib/session';
 import { createClient } from '@/lib/supabase/server';
 import { sanitize } from '@/lib/utils/sanitize';
 import {
   cloreMandatSchema,
+  compositionEntiteSchema,
   designerMembreSchema,
   modifierBureauSchema,
   ouvrirMandatSchema,
@@ -112,6 +130,99 @@ async function contexteBureau(bureauId: string) {
 /** Une date `Date` telle que la base l'attend : le jour, sans fuseau. */
 function jour(d: Date): string {
   return d.toISOString().slice(0, 10);
+}
+
+// -----------------------------------------------------------------------------
+
+/**
+ * EF-BUR-03, EF-STR-04 — la composition des bureaux d'une entite, a la demande.
+ *
+ * Une LECTURE parmi des ecritures, et c'est deliberé : elle sert un pop-up
+ * ouvert depuis l'organigramme, ou la charger avec la page ferait payer a
+ * chaque visiteur de la structure ce dont un seul se sert — jusqu'a deux mille
+ * croyants et autant d'URL signees, pour une entree de menu rarement cliquee.
+ *
+ * Les candidats sont filtres ICI par RG-09 : n'expedier que les eligibles
+ * reduit la charge utile, et evite au client de refaire une regle de perimetre
+ * qu'il n'a pas a connaitre.
+ */
+export interface CompositionEntite {
+  bureaux: BureauComplet[];
+  fonctions: FonctionBureau[];
+  candidats: {
+    id: string;
+    nom: string;
+    prenom: string;
+    matricule: string;
+    photoKey: string | null;
+    statut: string;
+    cheminEglise: string;
+  }[];
+  photos: Record<string, string>;
+}
+
+export async function chargerCompositionEntite(
+  input: unknown,
+): Promise<ActionResult<CompositionEntite>> {
+  return executerAction('chargerCompositionEntite', async () => {
+    const session = await requireSession();
+
+    const analyse = compositionEntiteSchema.safeParse(input);
+    if (!analyse.success) return ko('Requete invalide.');
+
+    const arbre = await getArbrePerimetre();
+    if (arbre.length === 0) {
+      return ko("La structure n'a pas pu etre chargee. Verifiez votre connexion.");
+    }
+
+    const entite = arbre.find((e) => e.id === analyse.data.entityId);
+    if (!entite) return ko('Cette entite est introuvable ou hors de votre perimetre.');
+
+    await requireEntityInScope(session, entite.path);
+
+    const [bureaux, fonctions, candidats] = await Promise.all([
+      chargerBureauxDeEntite(entite.id),
+      listerFonctions(),
+      listerCandidats(),
+    ]);
+
+    // RG-09 — seuls les croyants du sous-arbre de l'entite peuvent y sieger.
+    const eligibles = candidatsEligibles(
+      candidats.map((c) => ({
+        croyantId: c.id,
+        nom: nomComplet(c.nom, c.prenom),
+        cheminEglise: c.eglise?.path ?? '',
+        statut: c.statut,
+      })),
+      entite.path,
+    );
+    const parId = new Map(candidats.map((c) => [c.id, c]));
+
+    const retenus = eligibles
+      .map((e) => parId.get(e.croyantId))
+      .filter((c) => c !== undefined);
+
+    // Une seule signature pour tout le pop-up : titulaires ET candidats.
+    const photos = await signerPhotos([
+      ...bureaux.flatMap((b) => b.membres.map((m) => m.croyant?.photo_key)),
+      ...retenus.map((c) => c.photo_key),
+    ]);
+
+    return ok({
+      bureaux,
+      fonctions,
+      candidats: retenus.map((c) => ({
+        id: c.id,
+        nom: c.nom,
+        prenom: c.prenom,
+        matricule: c.matricule,
+        photoKey: c.photo_key,
+        statut: c.statut,
+        cheminEglise: c.eglise?.path ?? '',
+      })),
+      photos: Object.fromEntries(photos),
+    });
+  });
 }
 
 // -----------------------------------------------------------------------------

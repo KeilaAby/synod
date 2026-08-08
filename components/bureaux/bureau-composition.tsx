@@ -1,13 +1,6 @@
 'use client';
 
-import {
-  CircleSlash,
-  Loader2,
-  MoreVertical,
-  Repeat,
-  UserMinus,
-  UserPlus,
-} from 'lucide-react';
+import { CircleSlash, MoreVertical, Repeat, UserMinus, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
@@ -15,6 +8,7 @@ import { toast } from 'sonner';
 
 import { AvatarCroyant } from '@/components/croyants/avatar-croyant';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
+import { OperationDialog } from '@/components/shared/operation-dialog';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -64,12 +58,20 @@ export function BureauComposition({
   candidats,
   photos,
   peutGerer,
+  onChange,
 }: {
   bureau: BureauComplet;
   fonctions: FonctionBureau[];
   candidats: CandidatOption[];
   photos: Record<string, string>;
   peutGerer: boolean;
+  /**
+   * À fournir quand le bureau ne vient PAS du rendu de la page — depuis
+   * l'organigramme, il est chargé par une action, et `router.refresh()`
+   * rafraîchirait une page qui ne le porte pas. Sans cela, la composition
+   * resterait figée après une désignation.
+   */
+  onChange?: () => void;
 }) {
   const router = useRouter();
   const [enCours, demarrer] = useTransition();
@@ -84,6 +86,7 @@ export function BureauComposition({
     nom: string;
     fonction: string;
   } | null>(null);
+  const [operation, setOperation] = useState<string | null>(null);
 
   const niveau = (bureau.entite?.type ?? 'EGLISE') as EntityType;
 
@@ -109,16 +112,19 @@ export function BureauComposition({
     [bureau.membres],
   );
 
-  function retirer(membreId: string) {
+  function retirer(membre: { id: string; nom: string }) {
+    setARetirer(null);
+    setOperation(`Clôture du mandat de ${membre.nom}…`);
     demarrer(async () => {
-      const resultat = await retirerMembre({ membreId });
+      const resultat = await retirerMembre({ membreId: membre.id });
       if (!resultat.ok) {
+        setOperation(null);
         toast.error(resultat.error);
         return;
       }
       toast.success('Mandat clos. La fonction est vacante.');
-      setARetirer(null);
       router.refresh();
+      onChange?.();
     });
   }
 
@@ -306,6 +312,7 @@ export function BureauComposition({
           candidats={candidats}
           photos={photos}
           fonctionId={aDesigner.fonctionId}
+          onChange={onChange}
           ouvert
           onOuvertChange={(v) => !v && setADesigner(null)}
         />
@@ -320,6 +327,7 @@ export function BureauComposition({
           photos={photos}
           fonctionId={aRemplacer.fonctionId}
           membreId={aRemplacer.membreId}
+          onChange={onChange}
           ouvert
           onOuvertChange={(v) => !v && setARemplacer(null)}
         />
@@ -335,17 +343,16 @@ export function BureauComposition({
             `Son mandat de « ${aRetirer.fonction} » sera clos à ce jour et la fonction ` +
             'deviendra vacante. Le mandat reste dans l’historique : il n’est pas effacé.'
           }
-          confirmLabel={enCours ? 'Clôture…' : 'Retirer'}
-          onConfirm={async () => retirer(aRetirer.id)}
+          confirmLabel="Retirer"
+          onConfirm={() => retirer({ id: aRetirer.id, nom: aRetirer.nom })}
         />
       )}
 
-      {enCours && (
-        <p className="text-muted-foreground flex items-center gap-2 text-xs">
-          <Loader2 className="size-3 animate-spin" aria-hidden />
-          Enregistrement…
-        </p>
-      )}
+      <OperationDialog
+        ouvert={enCours && operation !== null}
+        titre={operation ?? ''}
+        description="La fonction redevient vacante ; le mandat reste dans l’historique."
+      />
     </div>
   );
 }

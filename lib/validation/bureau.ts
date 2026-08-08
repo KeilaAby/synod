@@ -72,6 +72,11 @@ export const cloreMandatSchema = z.object({
   dateFin: dateJour,
 });
 
+/** Lecture a la demande de la composition d'une entite — EF-STR-04. */
+export const compositionEntiteSchema = z.object({
+  entityId: z.uuid(),
+});
+
 export const designerMembreSchema = z.object({
   bureauId: z.uuid(),
   croyantId: z.uuid('Selectionnez un croyant.'),

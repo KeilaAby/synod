@@ -19,7 +19,8 @@ const CHAMPS_MANDAT = `
   membres:bureau_membres!bureau_membres_bureau_id_fkey (
     id, croyant_id, fonction_id, date_debut, date_fin, notes,
     croyant:croyants!bureau_membres_croyant_id_fkey (
-      id, nom, prenom, matricule, photo_key, statut
+      id, nom, prenom, matricule, photo_key, statut,
+      grade:grades!croyants_grade_id_fkey (id, libelle)
     ),
     fonction:fonctions!bureau_membres_fonction_id_fkey (
       id, code, libelle, ordre_protocolaire, est_financiere
@@ -41,6 +42,8 @@ export interface MembreBureau {
     matricule: string;
     photo_key: string | null;
     statut: string;
+    /** EF-BUR-04 — la liste des membres affiche le grade a cote de la fonction. */
+    grade: { id: string; libelle: string } | null;
   } | null;
   fonction: {
     id: string;
@@ -78,6 +81,81 @@ export async function chargerBureaux(): Promise<BureauComplet[]> {
     throw new DataError('Les bureaux sont momentanement illisibles.', error);
   }
   return data ?? [];
+}
+
+/** Les bureaux d'UNE entite, mandats clos compris (EF-BUR-08). */
+export async function chargerBureauxDeEntite(entityId: string): Promise<BureauComplet[]> {
+  const sb = await createClient();
+
+  const { data, error } = await sb
+    .from('bureaux')
+    .select(CHAMPS_MANDAT)
+    .eq('entity_id', entityId)
+    .is('deleted_at', null)
+    .order('is_active', { ascending: false })
+    .order('date_debut', { ascending: false })
+    .returns<BureauComplet[]>();
+
+  if (error) {
+    throw new DataError('Les bureaux de cette entite sont momentanement illisibles.', error);
+  }
+  return data ?? [];
+}
+
+/**
+ * Apercu des bureaux ACTIFS, par entite — EF-BUR-01, EF-STR-04.
+ *
+ * Il alimente le menu de chaque entite dans la structure, qui doit savoir s'il
+ * y a un bureau, et s'il a des membres, pour choisir entre « Composer un
+ * bureau » et « Membres du bureau ».
+ *
+ * Volontairement MAIGRE : un identifiant, un libelle, un compte. La
+ * composition complete — candidats eligibles et photos signees — se charge a
+ * l'ouverture du pop-up. La faire porter a chaque affichage de l'organigramme
+ * ferait payer a tous les visiteurs ce dont un seul se sert.
+ */
+export interface ApercuBureau {
+  id: string;
+  libelle: string;
+  /** Mandats EN COURS, les mandats clos ne comptant pas comme composition. */
+  nbMembres: number;
+}
+
+export type ApercuBureaux = Record<string, ApercuBureau[]>;
+
+export async function apercuBureauxParEntite(): Promise<ApercuBureaux> {
+  const sb = await createClient();
+
+  const { data, error } = await sb
+    .from('bureaux')
+    .select(
+      'id, entity_id, libelle, membres:bureau_membres!bureau_membres_bureau_id_fkey (id, date_fin)',
+    )
+    .eq('is_active', true)
+    .is('deleted_at', null)
+    .order('libelle')
+    .returns<
+      {
+        id: string;
+        entity_id: string;
+        libelle: string;
+        membres: { id: string; date_fin: string | null }[];
+      }[]
+    >();
+
+  // Un menu ne doit pas faire tomber l'organigramme : sans cet apercu, les
+  // entrees « bureau » ne s'affichent simplement pas.
+  if (error) return {};
+
+  const table: ApercuBureaux = {};
+  for (const b of data ?? []) {
+    (table[b.entity_id] ??= []).push({
+      id: b.id,
+      libelle: b.libelle,
+      nbMembres: b.membres.filter((m) => m.date_fin === null).length,
+    });
+  }
+  return table;
 }
 
 /**

@@ -711,3 +711,76 @@ nom déclencherait un conflit avec soi-même.
 ### Qualité
 
 276 tests unitaires. `pnpm verify` vert. Base à jour jusqu'à `0020`.
+
+---
+
+## 8 août 2026 (fin) — Le bureau et le croyant rejoignent la structure
+
+### Une opération lancée depuis un menu ⋮ n'a rien pour se signaler
+
+Clôturer un bureau ne montrait rien : le menu se referme, et l'écran redevient
+**strictement identique** à ce qu'il était. Rien ne distingue « c'est parti »
+de « je n'ai pas cliqué au bon endroit » — alors l'utilisateur reclique.
+
+La suppression semblait couverte par le spinner de `ConfirmDialog`, mais ne
+l'était pas : `onConfirm` déclenchait un `useTransition` du parent et rendait la
+main aussitôt. La boîte se fermait avant que quoi que ce soit ne se passe.
+
+`OperationDialog` **bloque** l'écran, et c'est sa raison d'être : une clôture
+touche deux tables puis attend le re-rendu serveur, et un second envoi pendant
+ce temps n'est pas anodin. Il ne se ferme ni par Échap ni par un clic
+extérieur — ce que l'utilisateur fermerait, ce serait l'affichage, pas
+l'opération. Le `useTransition` couvre l'action **et** `router.refresh()`, qui
+est le plus long des deux.
+
+### Le bureau est une propriété de l'entité, pas une page à part
+
+Le menu ⋮ de chaque entité — organigramme **et** vue liste, le même composant —
+porte désormais une entrée dont le libellé dit ce qui va se passer :
+
+| État | Entrée | Ce qui s'ouvre |
+|---|---|---|
+| Aucun bureau | Composer un bureau | La création, entité verrouillée, puis la composition |
+| Bureau sans titulaire | Composer le bureau | Les fonctions à pourvoir, par rang |
+| Bureau composé | Membres du bureau | Photo, nom, grade, fonction |
+
+Proposer les trois en permanence obligerait à ouvrir chacune pour savoir
+laquelle mène quelque part. La règle est dans le domaine
+(`entreeBureauDeEntite`), pas dans le JSX : c'est le seul moyen de l'éprouver,
+et six tests la couvrent — dont le cas RG-10 de plusieurs bureaux par entité.
+
+**Ce qui se charge, et quand.** L'organigramme reçoit un aperçu *maigre* —
+identifiant, libellé, nombre de titulaires — en une requête. La composition
+complète (candidats éligibles, URL signées) ne se charge qu'à **l'ouverture du
+pop-up**, par une action dédiée. La faire porter à chaque affichage de la
+structure ferait payer à tous les visiteurs jusqu'à deux mille croyants pour
+une entrée de menu rarement cliquée.
+
+Le chargement part du **gestionnaire de clic**, pas d'un effet : au clic, on
+sait déjà ce qu'on veut afficher. Deux écritures d'état encadrent l'attente —
+la première ouvre le pop-up sur son squelette, la seconde le remplit — et une
+réponse périmée est écartée si l'utilisateur a changé d'entité entre-temps.
+
+Conséquence à ne pas manquer : ces données ne viennent **pas** du rendu de la
+page, donc `router.refresh()` ne les rafraîchit pas. `BureauComposition` et
+`DesignationDialog` acceptent un `onChange` pour cela.
+
+### « Ajouter un croyant », aux deux seuls niveaux où c'est vrai
+
+RG-04 rattache un croyant à une **église**, RG-05 à une cellule **de cette
+église**. L'entrée n'apparaît donc que sur ces deux niveaux : la proposer sur un
+district ouvrirait un formulaire dont le rattachement resterait à choisir — ce
+que le geste promettait justement d'éviter.
+
+Sur une cellule, l'église est son **parent** : c'est la structure qui le sait,
+pas l'utilisateur. Le lui redemander après qu'il a ouvert le menu d'une cellule
+reviendrait à lui faire ressaisir ce qu'il vient de désigner.
+
+Le champ verrouillé est distingué du champ **pré-rempli** :
+`RattachementImpose` (le geste a décidé) contre `eglisePreselectionnee` (une
+commodité de lien profond, qui amorce sans contraindre). Les nommer pareil les
+aurait fait fusionner à la première évolution.
+
+### Qualité
+
+282 tests unitaires. `pnpm verify` vert.

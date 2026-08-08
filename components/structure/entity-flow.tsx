@@ -28,6 +28,9 @@ import { type EntityType, validerDeplacement } from '@/lib/domain/hierarchy';
 import { replisParDefaut } from '@/lib/domain/organigramme';
 import { formatNombre } from '@/lib/utils/format';
 
+import type { OptionsCroyant } from '@/components/croyants/croyant-dialog';
+import type { ApercuBureaux } from '@/lib/data/bureaux';
+
 import type { EntiteFlux } from './entite';
 import { NoeudEntite } from './entity-node';
 import { useEntityDialogs } from './use-entity-dialogs';
@@ -101,7 +104,15 @@ function disposer(noeuds: Node[], aretes: Edge[]): Node[] {
   });
 }
 
-function Organigramme({ entites }: { entites: EntiteFlux[] }) {
+function Organigramme({
+  entites,
+  apercuBureaux,
+  optionsCroyant,
+}: {
+  entites: EntiteFlux[];
+  apercuBureaux: ApercuBureaux;
+  optionsCroyant: OptionsCroyant;
+}) {
   const router = useRouter();
   const { fitView, setCenter, getNode, getIntersectingNodes } = useReactFlow();
   const { peut } = useSession();
@@ -121,8 +132,12 @@ function Organigramme({ entites }: { entites: EntiteFlux[] }) {
     modifier,
     creerEnfant,
     demanderSuppression,
+    ouvrirBureaux,
+    etatBureau,
+    ajouterCroyant,
+    peutAjouterCroyant,
     dialogues,
-  } = useEntityDialogs(entites);
+  } = useEntityDialogs(entites, apercuBureaux, optionsCroyant);
 
   // --- Actions du menu de noeud ---------------------------------------------
 
@@ -165,11 +180,15 @@ function Organigramme({ entites }: { entites: EntiteFlux[] }) {
         actif: e.is_active,
         replie: replies.has(e.id),
         peutModifier: peut('entity.update', e.path),
+        bureau: etatBureau(e),
+        peutAjouterCroyant: peutAjouterCroyant(e),
         surReplier: basculerRepli,
         surOuvrir: ouvrirFiche,
         surCreerEnfant: creerEnfant,
         surModifier: modifier,
         surSupprimer: demanderSuppression,
+        surBureaux: ouvrirBureaux,
+        surAjouterCroyant: ajouterCroyant,
       },
     }));
 
@@ -194,6 +213,10 @@ function Organigramme({ entites }: { entites: EntiteFlux[] }) {
     creerEnfant,
     modifier,
     demanderSuppression,
+    etatBureau,
+    ouvrirBureaux,
+    peutAjouterCroyant,
+    ajouterCroyant,
   ]);
 
   /**
@@ -539,10 +562,22 @@ function Organigramme({ entites }: { entites: EntiteFlux[] }) {
 }
 
 /** Le provider doit envelopper le graphe : `useReactFlow` en depend. */
-export default function EntityFlow({ entites }: { entites: EntiteFlux[] }) {
+export default function EntityFlow({
+  entites,
+  apercuBureaux,
+  optionsCroyant,
+}: {
+  entites: EntiteFlux[];
+  apercuBureaux: ApercuBureaux;
+  optionsCroyant: OptionsCroyant;
+}) {
   return (
     <ReactFlowProvider>
-      <Organigramme entites={entites} />
+      <Organigramme
+        entites={entites}
+        apercuBureaux={apercuBureaux}
+        optionsCroyant={optionsCroyant}
+      />
     </ReactFlowProvider>
   );
 }

@@ -38,6 +38,7 @@ la destination.
 | Import CSV des croyants — correspondance de colonnes, pré-validation | ✅ |
 | **Bureaux — ouverture, modification, composition, clôture, suppression** | ✅ |
 | **Fonctions occupées dans la frise du croyant (EF-BUR-10)** | ✅ |
+| **Bureaux et croyants accessibles depuis le menu ⋮ de la structure** | ✅ |
 | Organigramme de bureau React Flow (EF-BUR-07) | **Seul reste du lot 3** |
 | Lecture XLSX | Reportée — **ARB-6**, à trancher sur vos fichiers réels |
 | Saisie de baptêmes en lot (EF-BAP-07) | *Could* — non livré |
@@ -115,6 +116,39 @@ garde ses propres chemins.
 
 ---
 
+## Le menu ⋮ de la structure fait davantage
+
+Le bureau et les croyants sont des **propriétés de l'entité** : on les atteint
+là où on la regarde, sans quitter l'organigramme ni la vue liste — les deux
+partagent le même menu.
+
+| Entrée | Quand elle apparaît | Ce qui s'ouvre |
+|---|---|---|
+| Composer un bureau | Aucun bureau ouvert | La création, entité verrouillée, **puis** la composition |
+| Composer le bureau | Un bureau sans titulaire | Les fonctions à pourvoir, par rang |
+| Membres du bureau | Un bureau composé | Photo, nom et prénom, grade, fonction |
+| Ajouter un croyant | Église ou cellule seulement | Le pop-up en 3 étapes, rattachement verrouillé |
+
+**Pourquoi « église ou cellule seulement »** : RG-04 rattache un croyant à une
+église, RG-05 à une cellule de cette église. Sur un district, le formulaire
+laisserait le rattachement à choisir — ce que le geste promettait d'éviter. Sur
+une cellule, l'église est déduite de son **parent** : la structure le sait,
+inutile de le redemander.
+
+**Ce qui se charge, et quand** — l'organigramme reçoit un aperçu maigre des
+bureaux (une requête). La composition complète, elle, n'arrive qu'à l'ouverture
+du pop-up : la charger avec la page ferait payer à tous les visiteurs de la
+structure jusqu'à deux mille croyants et autant d'URL signées, pour une entrée
+rarement cliquée.
+
+**Une opération lancée depuis un menu ⋮ n'a rien pour se signaler.** Le menu se
+referme et l'écran redevient identique. Clôture, suppression et retrait d'un
+titulaire ouvrent donc un pop-up d'attente qui **bloque** l'écran — ces
+opérations touchent deux tables puis attendent le re-rendu, et un second envoi
+pendant ce temps n'est pas anodin.
+
+---
+
 ## Ce qui reste au Lot 3
 
 **EF-BUR-07 — l'organigramme React Flow d'un bureau.** La composition tabulaire
@@ -142,7 +176,7 @@ c'est leur **rattachement à la page d'administration** qui reste à faire.
 ```bash
 pnpm install      # installe aussi le hook pre-commit de détection de secrets
 pnpm dev          # http://localhost:3000
-pnpm verify       # secrets + lint + types + 276 tests + build
+pnpm verify       # secrets + lint + types + 282 tests + build
 ```
 
 Lire avant toute tâche : `CLAUDE.md`, puis `notes/cdg.md` et `notes/plan.md`.

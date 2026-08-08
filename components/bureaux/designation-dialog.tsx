@@ -54,6 +54,7 @@ export function DesignationDialog({
   photos,
   fonctionId,
   membreId,
+  onChange,
   ouvert,
   onOuvertChange,
 }: {
@@ -64,6 +65,8 @@ export function DesignationDialog({
   photos: Record<string, string>;
   fonctionId: string;
   membreId?: string;
+  /** Le bureau ne vient pas toujours du rendu de la page — voir `BureauComposition`. */
+  onChange?: () => void;
   ouvert: boolean;
   onOuvertChange: (ouvert: boolean) => void;
 }) {
@@ -164,6 +167,7 @@ export function DesignationDialog({
     );
     fermer();
     router.refresh();
+    onChange?.();
   }
 
   return (

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { entreeBureauDeEntite } from '@/lib/domain/bureau';
 import {
   cloreMandatSchema,
   modifierBureauSchema,
@@ -98,6 +99,45 @@ describe('EF-BUR-02 — ce que la modification NE touche pas', () => {
         'libelle',
       ]);
     }
+  });
+});
+
+describe("EF-BUR-01 — l'entree « bureau » du menu d'une entite", () => {
+  it('propose de creer quand aucun bureau n existe, et qu on en a le droit', () => {
+    expect(entreeBureauDeEntite([], true)).toBe('creer');
+  });
+
+  it('ne propose RIEN a qui ne peut ni gerer ni consulter', () => {
+    // Une entree qui ouvrirait sur un refus vaut moins qu'une entree absente.
+    expect(entreeBureauDeEntite([], false)).toBeNull();
+  });
+
+  it('mene droit a la composition quand le bureau est vide', () => {
+    // Lister zero titulaire n'apprend rien : la seule action utile est d'en
+    // nommer un.
+    expect(entreeBureauDeEntite([{ nbMembres: 0 }], true)).toBe('composer');
+  });
+
+  it('laisse consulter un bureau vide sans droit de gestion', () => {
+    // La lecture ne depend pas de `bureau.manage` : la RLS l'ouvre a tout le
+    // perimetre. L'ecran adaptera son libelle, pas sa destination.
+    expect(entreeBureauDeEntite([{ nbMembres: 0 }], false)).toBe('composer');
+  });
+
+  it('bascule sur la liste des membres des qu il y a un titulaire', () => {
+    expect(entreeBureauDeEntite([{ nbMembres: 1 }], true)).toBe('consulter');
+  });
+
+  it('RG-10 : plusieurs bureaux, un seul total de titulaires', () => {
+    // Le comite des finances est compose, la commission des jeunes non :
+    // la liste vaut d'etre ouverte.
+    expect(entreeBureauDeEntite([{ nbMembres: 0 }, { nbMembres: 3 }], true)).toBe(
+      'consulter',
+    );
+    // Aucun des deux n'a de titulaire : on va composer.
+    expect(entreeBureauDeEntite([{ nbMembres: 0 }, { nbMembres: 0 }], true)).toBe(
+      'composer',
+    );
   });
 });
 
