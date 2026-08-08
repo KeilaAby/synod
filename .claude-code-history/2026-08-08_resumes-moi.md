@@ -60,12 +60,15 @@ désormais exclu du dépôt, mais la clé a existé hors du coffre. Procédure d
 maintenant à tout accès au stockage des photos, ce qui rend la rotation plus
 urgente qu'au 7 août.
 
-**3. Supprimer le seau `croyant-photos`**, resté **public** dans le projet
-Supabase. Tout fichier qui s'y trouve est lisible par quiconque connaît son
-URL. `pnpm db:bucket` le signale à chaque exécution.
-
-**4. Un fichier Excel réel** pour trancher ARB-6 : s'il s'agit d'un tableau
+**3. Un fichier Excel réel** pour trancher ARB-6 : s'il s'agit d'un tableau
 simple, l'export CSV suffit et il n'y a rien à ajouter.
+
+### Fait le 8 août 2026
+
+**Le seau public `croyant-photos` est supprimé.** Il datait des tâtonnements sur
+le stockage et laissait ses fichiers lisibles par quiconque en connaissait
+l'URL. `pnpm db:bucket` ne signale plus que `synod`, privé, conforme — c'est
+lui qui fait foi, pas la mémoire qu'on en a.
 
 ---
 
