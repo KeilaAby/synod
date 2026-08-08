@@ -20,6 +20,17 @@ const dateJourOptionnelle = z
   )
   .transform((v) => v ?? null);
 
+/**
+ * La borne est `>=`, comme la contrainte `bureaux_periode` depuis la migration
+ * 0020 : un mandat ne se clot pas AVANT d'avoir commence, mais le jour meme est
+ * permis. Un schema plus strict que la base refuserait ce que la base accepte,
+ * et le message de refus ne viendrait alors ni de l'un ni de l'autre.
+ */
+const finApresDebut = {
+  message: 'La date de fin ne peut pas preceder la date de debut.',
+  path: ['dateFin'],
+};
+
 export const ouvrirMandatSchema = z
   .object({
     entityId: z.uuid("Selectionnez l'entite."),
@@ -29,12 +40,32 @@ export const ouvrirMandatSchema = z
     /** EF-BUR-09 — reprendre la composition du mandat qui se clot. */
     reconduire: z.boolean().default(false),
   })
-  .refine((d) => !d.dateFin || d.dateFin > d.dateDebut, {
-    message: 'La date de fin doit etre posterieure a la date de debut.',
-    path: ['dateFin'],
-  });
+  .refine((d) => !d.dateFin || d.dateFin >= d.dateDebut, finApresDebut);
 
 export type OuvrirMandatInput = z.input<typeof ouvrirMandatSchema>;
+
+/**
+ * EF-BUR-02 — modification d'un bureau : son NOM et ses DATES.
+ *
+ * `entityId` est absent, et ce n'est pas un oubli : deplacer un bureau d'une
+ * entite a une autre invaliderait RG-09 pour chacun de ses titulaires — ils
+ * appartiennent au sous-arbre de l'entite d'origine, pas de la nouvelle. Un tel
+ * deplacement se fait en cloturant ici et en ouvrant la-bas.
+ *
+ * Le CYCLE DE VIE n'y figure pas non plus : ouvrir, clore et supprimer ont
+ * chacun leur chemin. Un formulaire qui modifierait `is_active` en ferait un
+ * quatrieme, muet sur ses consequences.
+ */
+export const modifierBureauSchema = z
+  .object({
+    bureauId: z.uuid(),
+    libelle: z.string().trim().min(3, 'Le libelle est requis.').max(160),
+    dateDebut: dateJour,
+    dateFin: dateJourOptionnelle,
+  })
+  .refine((d) => !d.dateFin || d.dateFin >= d.dateDebut, finApresDebut);
+
+export type ModifierBureauInput = z.input<typeof modifierBureauSchema>;
 
 export const cloreMandatSchema = z.object({
   bureauId: z.uuid(),

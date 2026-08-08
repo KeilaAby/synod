@@ -6,6 +6,7 @@ import {
   CircleSlash,
   List,
   MoreVertical,
+  Pencil,
   Search,
   SquarePen,
   Trash2,
@@ -17,7 +18,10 @@ import { toast } from 'sonner';
 
 import { BureauComposition } from '@/components/bureaux/bureau-composition';
 import type { CandidatOption } from '@/components/bureaux/designation-dialog';
-import { MandatDialog } from '@/components/bureaux/mandat-dialog';
+import {
+  type BureauxActifsParEntite,
+  MandatDialog,
+} from '@/components/bureaux/mandat-dialog';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { EmptyState } from '@/components/shared/empty-state';
 import { FiltreIcone, GroupeFiltres } from '@/components/shared/filtre-icone';
@@ -80,6 +84,7 @@ export function BureauxClient({
   const { peut } = useSession();
   const router = useRouter();
   const [enCours, demarrer] = useTransition();
+  const [aModifier, setAModifier] = useState<BureauComplet | null>(null);
   const [aSupprimer, setASupprimer] = useState<BureauComplet | null>(null);
 
   const [recherche, setRecherche] = useState('');
@@ -111,12 +116,17 @@ export function BureauxClient({
     [bureaux],
   );
 
-  /** Noms des bureaux déjà ouverts, par entité — pilote l'avertissement. */
+  /**
+   * Bureaux déjà ouverts, par entité — pilote l'avertissement de renouvellement.
+   * L'identifiant accompagne le nom : en modification, le bureau doit pouvoir
+   * s'exclure lui-même, sans quoi corriger son propre nom déclencherait un
+   * conflit avec soi.
+   */
   const bureauxActifsParEntite = useMemo(() => {
-    const table: Record<string, string[]> = {};
+    const table: BureauxActifsParEntite = {};
     for (const b of bureaux) {
       if (!b.is_active) continue;
-      (table[b.entity_id] ??= []).push(b.libelle);
+      (table[b.entity_id] ??= []).push({ id: b.id, libelle: b.libelle });
     }
     return table;
   }, [bureaux]);
@@ -311,18 +321,30 @@ export function BureauxClient({
                               </DropdownMenuItem>
 
                               {bureau.entite &&
-                                peut('bureau.manage', bureau.entite.path) &&
-                                bureau.is_active && (
-                                  <DropdownMenuItem
-                                    onSelect={() => clore(bureau)}
-                                    disabled={enCours}
-                                  >
-                                    <SquarePen className="mr-2 size-4" aria-hidden />
-                                    Clore le mandat
-                                    <span className="text-muted-foreground ml-auto text-xs">
-                                      conserve
-                                    </span>
-                                  </DropdownMenuItem>
+                                peut('bureau.manage', bureau.entite.path) && (
+                                  <>
+                                    {/* Règle 16 — la modification rouvre le
+                                        pop-up de création, pré-rempli. */}
+                                    <DropdownMenuItem
+                                      onSelect={() => setAModifier(bureau)}
+                                    >
+                                      <Pencil className="mr-2 size-4" aria-hidden />
+                                      Modifier le bureau
+                                    </DropdownMenuItem>
+
+                                    {bureau.is_active && (
+                                      <DropdownMenuItem
+                                        onSelect={() => clore(bureau)}
+                                        disabled={enCours}
+                                      >
+                                        <SquarePen className="mr-2 size-4" aria-hidden />
+                                        Clore le mandat
+                                        <span className="text-muted-foreground ml-auto text-xs">
+                                          conserve
+                                        </span>
+                                      </DropdownMenuItem>
+                                    )}
+                                  </>
                                 )}
 
                               {/* EF-BUR-08 — droit DISTINCT : clore conserve,
@@ -369,6 +391,27 @@ export function BureauxClient({
               );
             })}
           </div>
+        )}
+
+        {/* Règle 16 — UN SEUL chemin par opération : la modification passe par
+            le pop-up de création. `key` le remonte à chaque bureau, ce qui
+            repart des bonnes valeurs sans effet de synchronisation. */}
+        {aModifier && (
+          <MandatDialog
+            key={aModifier.id}
+            entites={entites}
+            bureauxActifsParEntite={bureauxActifsParEntite}
+            bureau={{
+              id: aModifier.id,
+              entity_id: aModifier.entity_id,
+              entite_nom: aModifier.entite?.nom ?? '—',
+              libelle: aModifier.libelle,
+              date_debut: aModifier.date_debut,
+              date_fin: aModifier.date_fin,
+            }}
+            open
+            onOpenChange={(v) => !v && setAModifier(null)}
+          />
         )}
 
         {/* EF-BUR-08 — la suppression EFFACE : la confirmation doit le dire,

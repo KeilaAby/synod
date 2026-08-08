@@ -12,7 +12,7 @@ Application web de gestion d'église. **Lire avant toute tâche** :
 Toute modification doit citer l'exigence ou la règle qu'elle sert. Si une
 demande contredit `cdg.md`, signalez-le avant d'implémenter.
 
-## État — 7 août 2026
+## État — 8 août 2026
 
 **Lots 0, 1 et 2 livrés** : socle, authentification, habilitations avec portée,
 structure à 6 niveaux (organigramme éditable **et** vue liste), référentiels,
@@ -22,17 +22,19 @@ croyants avec photo, **transferts** avec workflow d'approbation, **baptêmes**.
 d'ARB-6 — l'import CSV est livré) et la saisie de baptêmes en lot (EF-BAP-07,
 *Could*).
 
-**Lot 3 (bureaux) presque achevé** : mandats, composition par rang avec fonctions
-vacantes, désignation, remplacement, reconduction, et les fonctions occupées dans
-la frise du croyant. Reste l'organigramme React Flow (EF-BUR-07).
+**Lot 3 (bureaux) livré à un écran près** : ouverture, **modification**,
+composition par rang avec fonctions vacantes, désignation, remplacement,
+reconduction, clôture atomique, **suppression** sous `bureau.delete` (droit
+distinct et non délégable), et les fonctions occupées dans la frise du croyant.
+Reste l'organigramme React Flow (EF-BUR-07).
 
-Base à jour jusqu'à la migration `0017`. Le stockage de fichiers ne se
+Base à jour jusqu'à la migration `0020`. Le stockage de fichiers ne se
 configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` et
 `postgres` s'y voit refuser `CREATE POLICY` : `pnpm db:bucket` s'en charge par
 l'API.
 
 Historique : [`SESSION_HISTORY.md`](.claude-code-history/SESSION_HISTORY.md) ·
-dernier point d'étape : [`.claude-code-history/2026-08-07_resumes-moi.md`](.claude-code-history/2026-08-07_resumes-moi.md)
+dernier point d'étape : [`.claude-code-history/2026-08-08_resumes-moi.md`](.claude-code-history/2026-08-08_resumes-moi.md)
 
 ## Publication — lire `.agents/rules/gitpush.md` AVANT tout push
 
@@ -115,6 +117,17 @@ Ce qu'il reste à faire est décrit dans le dernier point d'étape
     schéma Zod, une `Map`, une classe font échouer la page entière. Quand un
     registre pur porte la donnée, passer sa **clé** et laisser le client le
     lire : rien ne traverse, le problème disparaît au lieu d'être contourné.
+25. Une donnée dérivée ne se rafraîchit **jamais depuis elle-même**. Recalculer
+    `entities.path` en sélectionnant les descendants *par leur chemin* laissait
+    intact tout descendant déjà faux — définitivement. On repart de la colonne
+    qui fait autorité (`parent_id`), et le recalcul devient auto-réparateur.
+    Un chemin faux ne donne pas un affichage bizarre : il donne des **droits**
+    faux, en silence.
+26. Une contrainte interdit l'**impossible**, pas l'inhabituel. Une période qui
+    commence et finit le même jour est brève, pas fausse : `date_fin >=
+    date_debut`. Et deux tables qui portent la même règle portent le **même
+    opérateur** — `bureaux_periode` en `>` et `membres_periode` en `>=` se sont
+    contredites en une migration.
 
 ## Conventions
 

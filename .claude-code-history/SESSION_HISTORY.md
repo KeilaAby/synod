@@ -579,8 +579,14 @@ savait où en était la base — il ne servait qu'à s'inscrire, jamais à se
 défendre.
 
 Le fichier généré porte maintenant un **preflight** qui compare sa première
-migration au registre et, s'il recouvre du déjà-appliqué, échoue en nommant la
-commande exacte. Éprouvé contre la base réelle. Règle 23 de `CLAUDE.md`.
+migration au registre. Règle 23 de `CLAUDE.md`.
+
+Sa première version punissait le mauvais cas : elle échouait sur un
+**recouvrement**, qui depuis la règle 23 ne coûte rien — les migrations sont
+rejouables. Ce qui est dangereux, c'est un **écart** : lancer `--depuis 0016`
+sur une base à 0014 inscrirait 0015 et 0016 comme appliquées sans les avoir
+jouées. Le contrôle porte désormais là-dessus ; le recouvrement n'est plus
+qu'une `notice`.
 
 Détail attrapé à la relecture : `String.replace` interprète `$$` comme un `$`
 échappé, et le bloc `do $$` sortait en `do $`. Le garde-fou lui-même aurait été
@@ -614,3 +620,94 @@ tabulaire suffit à composer et à corriger ; le graphe servira à présenter.
 ### Qualité
 
 269 tests unitaires. `pnpm verify` vert.
+
+---
+
+## 8 août 2026 (suite) — Trois défauts nés du même réflexe
+
+Le fil de la journée : **une donnée dérivée qu'on croit sur parole, une règle
+écrite deux fois, une opération éclatée en deux appels.** Trois symptômes sans
+rapport apparent, une même origine.
+
+### Un chemin matérialisé qui se rafraîchissait depuis lui-même
+
+Symptôme : dans le bureau du district AVARADRANO, deux croyants proposés sur
+les six du district. Le filtre n'était pas en cause.
+
+Une entité sur 25 avait un `path` en désaccord avec son `parent_id` —
+ANTSAHATSIRESY apparaissait sous AVARADRANO dans l'organigramme, qui se
+construit sur `parent_id`, mais son chemin désignait un autre district. **Un
+chemin faux ne produit pas un affichage bizarre : il produit des droits faux**,
+`entity_in_scope` s'appuyant sur la même colonne.
+
+La cause tenait en une ligne de la propagation héritée du lot 1 :
+
+```sql
+update entities set path = new.path || subpath(path, nlevel(old.path))
+ where path <@ old.path
+```
+
+Le `where` interroge le **chemin stocké**. Un descendant déjà faux ne
+correspond plus au filtre, n'est donc jamais corrigé — et le reste
+indéfiniment. *Une routine de rafraîchissement de cache ne doit jamais supposer
+le cache déjà juste.*
+
+`fn_recalculer_chemins` (migration `0018`) repart de `parent_id`, seule colonne
+faisant autorité. Intégrale plutôt qu'incrémentielle — l'arbre est borné, un
+rattachement est rare — donc **auto-réparatrice** : elle corrige aussi ce qui
+était cassé avant elle.
+
+### Supprimer un bureau n'est pas le clôturer
+
+Le menu ⋮ des cartes gagne le CRUD complet. Deux gestes qu'il aurait été
+tentant de fondre en un :
+
+- **Clore conserve.** Le mandat reste lisible sur la fiche de chaque ancien
+  titulaire.
+- **Supprimer efface.** Les mandats partent en cascade et les fonctions
+  occupées disparaissent des frises — ce que la demande visait explicitement.
+
+D'où `bureau.delete`, droit **distinct** de `bureau.manage` et **non
+délégable** (migration `0019`) : réécrire le passé ne s'accorde pas à quiconque
+gère le présent. La confirmation annonce le nombre de mandats effacés et
+propose la clôture. Le test qui fige `NON_DELEGABLES` a échoué à l'ajout —
+c'est son office.
+
+### Une contrainte interdit l'impossible, pas l'inhabituel
+
+Bureau ouvert le matin, clos l'après-midi : « L'opération n'a pas pu aboutir ».
+`bureaux_periode` exigeait `date_fin > date_debut` — donc **interdisait de
+corriger le jour même une ouverture faite par erreur**. La contrainte sœur sur
+les mandats individuels disait déjà `>=` : la même règle, écrite à deux
+endroits, avait divergé en une migration.
+
+Migration `0020` : borne alignée sur `>=`, et la clôture devient **une**
+opération sur deux tables — `fn_clore_bureau`. En deux appels HTTP, un échec
+entre les deux laissait un bureau clos peuplé de mandats en cours, que rien
+n'affiche et que rien ne rattrape (règle 20). La fonction borne aussi la date
+par `greatest`, ce que deux cas réels réclamaient : un renouvellement clôt le
+précédent *la veille* du nouveau début — antérieure à son ouverture s'il a été
+créé le jour même — et un titulaire désigné après la date de clôture verrait
+son mandat finir avant d'avoir commencé.
+
+`SECURITY INVOKER`, à la différence des fonctions de trigger : elle sert
+l'atomicité et l'arithmétique des dates, pas le contournement de la RLS.
+
+### « Modifier » manquait au menu du bureau
+
+Le nom et les dates se corrigent, dans **le pop-up de création** (règle 16).
+Deux absences volontaires, dites à l'écran :
+
+- **L'entité** se lit, ne se change pas : la déplacer invaliderait RG-09 pour
+  tous ses titulaires, qui appartiennent au sous-arbre de l'entité d'origine.
+- **Le cycle de vie** garde ses propres chemins. Un formulaire qui modifierait
+  `is_active` en ferait un quatrième, muet sur ses conséquences.
+
+Le pop-up se remonte par `key={bureau.id}` : les champs repartent des bonnes
+valeurs sans effet de synchronisation. En édition, le bureau s'exclut de la
+recherche d'homonyme — sans quoi corriger une faute de frappe dans son propre
+nom déclencherait un conflit avec soi-même.
+
+### Qualité
+
+276 tests unitaires. `pnpm verify` vert. Base à jour jusqu'à `0020`.

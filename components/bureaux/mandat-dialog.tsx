@@ -20,11 +20,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { ouvrirMandat } from '@/lib/actions/bureaux';
+import { modifierBureau, ouvrirMandat } from '@/lib/actions/bureaux';
 import { memeBureau } from '@/lib/domain/bureau';
 
 /**
- * Ouverture d'un mandat — EF-BUR-01, EF-BUR-02, EF-BUR-09.
+ * Ouverture ET modification d'un bureau — EF-BUR-01, EF-BUR-02, EF-BUR-09.
+ *
+ * UN SEUL POP-UP pour les deux (règle 16) : deux formulaires pour le même objet
+ * divergent toujours, et c'est celui qu'on ouvre le moins souvent qui prend du
+ * retard.
  *
  * Le LIBELLÉ nomme le bureau — « Bureau exécutif », « Comité des finances » —
  * et non le mandat : la période se lit dans les dates. Une entité peut en avoir
@@ -35,25 +39,58 @@ import { memeBureau } from '@/lib/domain/bureau';
  * clôt et sa composition peut être reconduite en un clic. L'écran le dit avant
  * de le faire, parce que cela démet des gens.
  */
+export interface BureauModifiable {
+  id: string;
+  entity_id: string;
+  /** Le nom vient de la carte, pas d'une recherche dans `entites` : un bureau
+   *  porté par une entité désactivée n'y figure plus, et s'afficherait « — ». */
+  entite_nom: string;
+  libelle: string;
+  date_debut: string;
+  date_fin: string | null;
+}
+
+/** Bureaux ouverts d'une entité — l'identifiant sert à s'exclure soi-même. */
+export type BureauxActifsParEntite = Record<string, { id: string; libelle: string }[]>;
+
 export function MandatDialog({
   entites,
   bureauxActifsParEntite,
   entiteImposee,
   libelle = 'Nouveau bureau',
+  bureau,
+  open,
+  onOpenChange,
 }: {
   entites: OptionEntite[];
-  /** Identifiant d'entité -> noms des bureaux déjà ouverts, pour l'avertissement. */
-  bureauxActifsParEntite: Record<string, string[]>;
+  bureauxActifsParEntite: BureauxActifsParEntite;
   entiteImposee?: string;
   libelle?: string;
+  /**
+   * Mode ÉDITION. Le composant est alors PILOTÉ par le parent : c'est le menu ⋮
+   * de la carte qui l'ouvre, et il faut le remonter avec `key={bureau.id}` pour
+   * que les champs repartent du bureau affiché — un effet de synchronisation
+   * ferait le même travail, plus tard et moins sûrement.
+   */
+  bureau?: BureauModifiable;
+  open?: boolean;
+  onOpenChange?: (ouvert: boolean) => void;
 }) {
   const router = useRouter();
+  const edition = bureau !== undefined;
+  const pilote = open !== undefined;
 
-  const [ouvert, setOuvert] = useState(false);
-  const [entityId, setEntityId] = useState<string | null>(entiteImposee ?? null);
-  const [nom, setNom] = useState('');
-  const [dateDebut, setDateDebut] = useState(new Date().toISOString().slice(0, 10));
-  const [dateFin, setDateFin] = useState('');
+  const [ouvertInterne, setOuvertInterne] = useState(false);
+  const estOuvert = pilote ? open : ouvertInterne;
+
+  const [entityId, setEntityId] = useState<string | null>(
+    bureau?.entity_id ?? entiteImposee ?? null,
+  );
+  const [nom, setNom] = useState(bureau?.libelle ?? '');
+  const [dateDebut, setDateDebut] = useState(
+    bureau?.date_debut ?? new Date().toISOString().slice(0, 10),
+  );
+  const [dateFin, setDateFin] = useState(bureau?.date_fin ?? '');
   const [reconduire, setReconduire] = useState(true);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
@@ -64,14 +101,27 @@ export function MandatDialog({
    * La comparaison passe par `memeBureau`, la même que celle de l'index unique
    * en base : sans quoi l'avertissement dirait « nouveau bureau » là où la base
    * verrait un renouvellement.
+   *
+   * En édition, le bureau se compare aux AUTRES : sans l'exclusion par
+   * identifiant, corriger une faute de frappe dans son propre nom déclencherait
+   * un avertissement de conflit avec lui-même.
    */
-  const dejaOuvert =
+  const homonyme =
     entityId && nom.trim()
-      ? (bureauxActifsParEntite[entityId] ?? []).find((b) => memeBureau(b, nom))
+      ? (bureauxActifsParEntite[entityId] ?? [])
+          .filter((b) => b.id !== bureau?.id)
+          .find((b) => memeBureau(b.libelle, nom))
       : undefined;
 
+  /** Un renouvellement démet des titulaires ; une simple modification, non. */
+  const renouvellement = !edition && homonyme !== undefined;
+
   function fermer() {
-    setOuvert(false);
+    if (pilote) {
+      onOpenChange?.(false);
+      return;
+    }
+    setOuvertInterne(false);
     setEntityId(entiteImposee ?? null);
     setNom('');
     setDateDebut(new Date().toISOString().slice(0, 10));
@@ -84,13 +134,20 @@ export function MandatDialog({
     setEnCours(true);
     setErreur(null);
 
-    const resultat = await ouvrirMandat({
-      entityId,
-      libelle: nom,
-      dateDebut,
-      dateFin,
-      reconduire: Boolean(dejaOuvert) && reconduire,
-    });
+    const resultat = bureau
+      ? await modifierBureau({
+          bureauId: bureau.id,
+          libelle: nom,
+          dateDebut,
+          dateFin,
+        })
+      : await ouvrirMandat({
+          entityId,
+          libelle: nom,
+          dateDebut,
+          dateFin,
+          reconduire: renouvellement && reconduire,
+        });
 
     setEnCours(false);
 
@@ -99,29 +156,42 @@ export function MandatDialog({
       return;
     }
 
-    toast.success(dejaOuvert ? 'Mandat renouvelé.' : 'Bureau ouvert.');
+    toast.success(
+      edition ? 'Bureau modifié.' : renouvellement ? 'Mandat renouvelé.' : 'Bureau ouvert.',
+    );
     fermer();
     router.refresh();
   }
 
   return (
     <>
-      <PermissionGate perm="bureau.manage">
-        <Button className="h-10" onClick={() => setOuvert(true)}>
-          <Plus className="mr-2 size-4" aria-hidden />
-          {libelle}
-        </Button>
-      </PermissionGate>
+      {/* Piloté par le parent : le déclencheur est ailleurs (le menu ⋮). */}
+      {!pilote && (
+        <PermissionGate perm="bureau.manage">
+          <Button className="h-10" onClick={() => setOuvertInterne(true)}>
+            <Plus className="mr-2 size-4" aria-hidden />
+            {libelle}
+          </Button>
+        </PermissionGate>
+      )}
 
-      <Dialog open={ouvert} onOpenChange={(v) => (v ? setOuvert(true) : fermer())}>
+      <Dialog
+        open={estOuvert}
+        onOpenChange={(v) => (v ? setOuvertInterne(true) : fermer())}
+      >
         <DialogContent className="max-h-[90vh] w-[min(96vw,42rem)] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="text-2xl">
-              {dejaOuvert ? 'Renouveler le mandat' : 'Ouvrir un bureau'}
+              {edition
+                ? 'Modifier le bureau'
+                : renouvellement
+                  ? 'Renouveler le mandat'
+                  : 'Ouvrir un bureau'}
             </DialogTitle>
             <DialogDescription>
-              Une entité peut avoir plusieurs bureaux — exécutif, finances, jeunesse —
-              mais un seul mandat en cours par nom.
+              {edition
+                ? "Le nom et les dates se corrigent ici. L'entité de rattachement, non : la changer démettrait tous les titulaires (RG-09)."
+                : 'Une entité peut avoir plusieurs bureaux — exécutif, finances, jeunesse — mais un seul mandat en cours par nom.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -133,7 +203,7 @@ export function MandatDialog({
               </Alert>
             )}
 
-            {!entiteImposee && (
+            {!entiteImposee && !edition && (
               <Field label="Entité" required>
                 {(aria) => (
                   <EntityPicker
@@ -146,6 +216,21 @@ export function MandatDialog({
                   />
                 )}
               </Field>
+            )}
+
+            {/* En édition, l'entité se LIT : elle n'est pas modifiable, mais la
+                masquer laisserait douter du bureau qu'on est en train de
+                changer. Un champ désactivé mentirait — rien ici ne se saisit. */}
+            {bureau && (
+              <div className="flex flex-col gap-2">
+                <p className="text-foreground text-sm font-medium">Entité</p>
+                <p className="border-input bg-muted/40 text-muted-foreground flex h-10 items-center rounded-md border px-3 text-sm">
+                  {bureau.entite_nom}
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  Fixée à l&apos;ouverture du bureau.
+                </p>
+              </div>
             )}
 
             <TextField
@@ -187,12 +272,12 @@ export function MandatDialog({
             </div>
 
             {/* Dire ce qui va se passer AVANT de le faire : cela démet des gens. */}
-            {dejaOuvert && (
+            {!edition && homonyme && (
               <div className="space-y-4 rounded-md border border-amber-200 bg-amber-50 p-4">
                 <p className="text-sm text-amber-900">
-                  Un bureau nommé « {dejaOuvert} » est déjà ouvert pour cette entité. Son
-                  mandat sera <strong>clos la veille</strong> de la nouvelle date de
-                  début, et les mandats individuels en cours avec lui.
+                  Un bureau nommé « {homonyme.libelle} » est déjà ouvert pour cette
+                  entité. Son mandat sera <strong>clos la veille</strong> de la nouvelle
+                  date de début, et les mandats individuels en cours avec lui.
                 </p>
 
                 <label className="flex cursor-pointer items-start gap-3">
@@ -213,6 +298,18 @@ export function MandatDialog({
                 </label>
               </div>
             )}
+
+            {/* En édition, un homonyme n'est pas un renouvellement : c'est un
+                refus à venir de l'index unique. Autant le dire tout de suite. */}
+            {bureau && homonyme && (
+              <Alert variant="destructive" role="alert">
+                <AlertCircle className="size-4" aria-hidden />
+                <AlertDescription>
+                  Un autre bureau nommé « {homonyme.libelle} » est déjà ouvert pour cette
+                  entité (RG-10). Choisissez un nom différent.
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
 
           <DialogFooter>
@@ -227,10 +324,15 @@ export function MandatDialog({
             <Button
               className="h-10"
               onClick={envoyer}
-              disabled={enCours || !entityId || nom.trim().length < 3}
+              disabled={
+                enCours ||
+                !entityId ||
+                nom.trim().length < 3 ||
+                (edition && homonyme !== undefined)
+              }
             >
               {enCours && <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />}
-              {dejaOuvert ? 'Renouveler' : 'Ouvrir'}
+              {edition ? 'Enregistrer' : renouvellement ? 'Renouveler' : 'Ouvrir'}
             </Button>
           </DialogFooter>
         </DialogContent>

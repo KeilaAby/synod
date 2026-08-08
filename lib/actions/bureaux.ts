@@ -13,6 +13,7 @@ import { sanitize } from '@/lib/utils/sanitize';
 import {
   cloreMandatSchema,
   designerMembreSchema,
+  modifierBureauSchema,
   ouvrirMandatSchema,
   remplacerMembreSchema,
   retirerMembreSchema,
@@ -48,10 +49,39 @@ function messageErreurSql(erreur: { code?: string; message?: string }): string {
     }
     return 'Cette valeur existe deja.';
   }
+
   // Les triggers RG-* levent avec un message deja redige pour l'utilisateur.
   if (erreur.message?.includes('RG-') || erreur.message?.includes('fonction')) {
     return erreur.message.split('\n')[0] ?? 'Operation refusee.';
   }
+
+  /**
+   * Un nom de contrainte n'est pas un message : « bureaux_periode » ne dit rien
+   * a qui a simplement saisi deux dates dans le mauvais ordre. Le tri se fait
+   * sur le NOM de la contrainte, jamais sur la forme du texte, qui depend de la
+   * langue du serveur.
+   */
+  if (erreur.code === '23514') {
+    if (
+      erreur.message?.includes('bureaux_periode') ||
+      erreur.message?.includes('membres_periode')
+    ) {
+      return 'La date de fin ne peut pas preceder la date de debut.';
+    }
+  }
+
+  /**
+   * `fn_clore_bureau` leve avec des messages deja rediges. La RLS emprunte le
+   * meme code 42501 avec un texte technique — il faut donc les distinguer,
+   * plutot que de tout laisser passer ou de tout masquer.
+   */
+  if (erreur.code === '02000' || erreur.code === '42501') {
+    if (erreur.message && !erreur.message.includes('row-level security')) {
+      return erreur.message.split('\n')[0]!;
+    }
+    return "Vous n'avez pas l'autorisation d'effectuer cette action.";
+  }
+
   return "L'operation n'a pas pu aboutir.";
 }
 
@@ -61,18 +91,27 @@ async function contexteBureau(bureauId: string) {
 
   const { data, error } = await sb
     .from('bureaux')
-    .select('id, entity_id, libelle, is_active, entite:entities!bureaux_entity_id_fkey (path, nom, type)')
+    .select(
+      'id, entity_id, libelle, date_debut, date_fin, is_active, entite:entities!bureaux_entity_id_fkey (path, nom, type)',
+    )
     .eq('id', bureauId)
     .is('deleted_at', null)
     .maybeSingle<{
       id: string;
       entity_id: string;
       libelle: string;
+      date_debut: string;
+      date_fin: string | null;
       is_active: boolean;
       entite: { path: string; nom: string; type: string } | null;
     }>();
 
   return error || !data?.entite ? null : data;
+}
+
+/** Une date `Date` telle que la base l'attend : le jour, sans fuseau. */
+function jour(d: Date): string {
+  return d.toISOString().slice(0, 10);
 }
 
 // -----------------------------------------------------------------------------
@@ -138,17 +177,22 @@ export async function ouvrirMandat(input: unknown): Promise<ActionResult<{ id: s
       const veille = new Date(data.dateDebut);
       veille.setDate(veille.getDate() - 1);
 
-      await sb
-        .from('bureaux')
-        .update({ is_active: false, date_fin: veille.toISOString().slice(0, 10) })
-        .eq('id', precedent.id);
+      /**
+       * La cloture passe par la fonction : elle borne la date au debut du
+       * mandat. Renouveler le jour meme de l'ouverture donnerait sinon une
+       * veille anterieure au debut, que la contrainte de periode refuse.
+       *
+       * L'ordre — clore puis creer — est impose par l'index unique, qui
+       * n'admet pas deux bureaux actifs du meme nom. Si la creation echouait
+       * ensuite, le precedent resterait clos sans successeur : etat visible a
+       * l'ecran et rattrapable en rouvrant, donc laisse tel quel (regle 20).
+       */
+      const { error: erreurCloture } = await sb.rpc('fn_clore_bureau', {
+        p_bureau: precedent.id,
+        p_date: jour(veille),
+      });
 
-      // Les mandats individuels suivent le mandat du bureau.
-      await sb
-        .from('bureau_membres')
-        .update({ date_fin: veille.toISOString().slice(0, 10) })
-        .eq('bureau_id', precedent.id)
-        .is('date_fin', null);
+      if (erreurCloture) return ko(messageErreurSql(erreurCloture));
     }
 
     const { data: cree, error } = await sb
@@ -156,8 +200,8 @@ export async function ouvrirMandat(input: unknown): Promise<ActionResult<{ id: s
       .insert({
         entity_id: data.entityId,
         libelle: sanitize(data.libelle),
-        date_debut: data.dateDebut.toISOString().slice(0, 10),
-        date_fin: data.dateFin ? data.dateFin.toISOString().slice(0, 10) : null,
+        date_debut: jour(data.dateDebut),
+        date_fin: data.dateFin ? jour(data.dateFin) : null,
         created_by: session.profileId,
       })
       .select('id')
@@ -186,7 +230,7 @@ export async function ouvrirMandat(input: unknown): Promise<ActionResult<{ id: s
             bureau_id: cree.id,
             croyant_id: m.croyantId,
             fonction_id: m.fonctionId,
-            date_debut: data.dateDebut.toISOString().slice(0, 10),
+            date_debut: jour(data.dateDebut),
             created_by: session.profileId,
           })),
         );
@@ -200,7 +244,7 @@ export async function ouvrirMandat(input: unknown): Promise<ActionResult<{ id: s
       recordId: cree.id,
       entityId: data.entityId,
       diff: {
-        apres: { libelle: data.libelle, debut: data.dateDebut.toISOString().slice(0, 10) },
+        apres: { libelle: data.libelle, debut: jour(data.dateDebut) },
         avant: precedent ? { bureauClos: precedent.id } : undefined,
       },
     });
@@ -227,22 +271,23 @@ export async function cloreMandat(input: unknown): Promise<ActionResult<void>> {
 
     await requirePermission(session, 'bureau.manage', contexte.entite!.path);
 
-    const jour = analyse.data.dateFin.toISOString().slice(0, 10);
+    const demande = jour(analyse.data.dateFin);
     const sb = await createClient();
 
-    const { error } = await sb
-      .from('bureaux')
-      .update({ is_active: false, date_fin: jour })
-      .eq('id', contexte.id);
+    /**
+     * Clore le bureau ET les mandats de ses titulaires est UNE operation. En
+     * deux appels HTTP, un echec entre les deux laisserait un bureau clos
+     * peuple de mandats en cours : rien ne l'afficherait, rien ne le
+     * rattraperait (regle 20). La fonction borne aussi la date au debut du
+     * mandat — clore le jour de l'ouverture est legitime, la veille ne l'est
+     * pas.
+     */
+    const { data: mandatsClos, error } = await sb.rpc('fn_clore_bureau', {
+      p_bureau: contexte.id,
+      p_date: demande,
+    });
 
     if (error) return ko(messageErreurSql(error));
-
-    // Les mandats individuels ne survivent pas au mandat du bureau.
-    await sb
-      .from('bureau_membres')
-      .update({ date_fin: jour })
-      .eq('bureau_id', contexte.id)
-      .is('date_fin', null);
 
     await auditer({
       session,
@@ -250,10 +295,80 @@ export async function cloreMandat(input: unknown): Promise<ActionResult<void>> {
       table: 'bureaux',
       recordId: contexte.id,
       entityId: contexte.entity_id,
-      diff: { apres: { statut: 'clos', date_fin: jour } },
+      diff: {
+        avant: { statut: 'en cours', date_fin: contexte.date_fin },
+        apres: { statut: 'clos', date_fin: demande, mandatsClos: mandatsClos ?? 0 },
+      },
     });
 
     revalidatePath('/bureaux');
+    revalidatePath('/croyants');
+    return ok();
+  });
+}
+
+// -----------------------------------------------------------------------------
+
+/**
+ * EF-BUR-02 — modification d'un bureau : son nom et ses dates.
+ *
+ * Le meme pop-up que la creation le porte (regle 16). Ce qui n'y figure pas
+ * n'est pas un oubli : l'entite de rattachement est fixee a l'ouverture — la
+ * deplacer invaliderait RG-09 pour tous ses titulaires — et le cycle de vie a
+ * ses propres chemins, clore et supprimer.
+ */
+export async function modifierBureau(input: unknown): Promise<ActionResult<void>> {
+  return executerAction('modifierBureau', async () => {
+    const session = await requireSession();
+
+    const analyse = modifierBureauSchema.safeParse(input);
+    if (!analyse.success) {
+      return ko('Formulaire invalide.', champsEnErreur(analyse.error));
+    }
+    const data = analyse.data;
+
+    const contexte = await contexteBureau(data.bureauId);
+    if (!contexte) return ko('Ce bureau est introuvable ou hors de votre perimetre.');
+
+    await requirePermission(session, 'bureau.manage', contexte.entite!.path);
+
+    const sb = await createClient();
+
+    // Regle 19 — l'action n'ecrit QUE les champs dont le formulaire est la
+    // source. `entity_id`, `is_active` et `deleted_at` n'en font pas partie.
+    const { error } = await sb
+      .from('bureaux')
+      .update({
+        libelle: sanitize(data.libelle),
+        date_debut: jour(data.dateDebut),
+        date_fin: data.dateFin ? jour(data.dateFin) : null,
+      })
+      .eq('id', contexte.id);
+
+    if (error) return ko(messageErreurSql(error));
+
+    await auditer({
+      session,
+      action: 'UPDATE',
+      table: 'bureaux',
+      recordId: contexte.id,
+      entityId: contexte.entity_id,
+      diff: {
+        avant: {
+          libelle: contexte.libelle,
+          date_debut: contexte.date_debut,
+          date_fin: contexte.date_fin,
+        },
+        apres: {
+          libelle: data.libelle,
+          date_debut: jour(data.dateDebut),
+          date_fin: data.dateFin ? jour(data.dateFin) : null,
+        },
+      },
+    });
+
+    revalidatePath('/bureaux');
+    revalidatePath(`/structure/${contexte.entity_id}`);
     return ok();
   });
 }
