@@ -108,6 +108,20 @@ export const PERMISSIONS = {
     group: 'Bureaux',
     description: 'Ouvrir un mandat, designer, remplacer ou retirer un membre.',
   },
+  /**
+   * Droit DISTINCT de `bureau.manage` — EF-BUR-08.
+   *
+   * Clore un mandat le conserve : c'est l'histoire du bureau. SUPPRIMER
+   * l'efface, avec les mandats individuels qui en dependent, et les fonctions
+   * occupees disparaissent des fiches des croyants concernes. Une operation qui
+   * reecrit le passe ne s'accorde pas avec celle qui gere le present.
+   */
+  'bureau.delete': {
+    label: 'Supprimer un bureau',
+    group: 'Bureaux',
+    description:
+      "Effacer un bureau et son historique. Irreversible : preferez la cloture, qui conserve.",
+  },
 
   // --- Finances (ARB-2 / ARB-3) ---------------------------------------------
   'finance.read': {
@@ -229,6 +243,8 @@ export function permissionsDuGroupe(groupe: PermissionGroup): Permission[] {
  */
 export const NON_DELEGABLES: readonly Permission[] = [
   'entity.delete',
+  // Effacer l'histoire d'un bureau se decide au Siege, pas en cascade.
+  'bureau.delete',
   'referentiel.manage',
   'settings.manage',
   'finance.delegate',

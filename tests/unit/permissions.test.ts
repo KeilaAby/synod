@@ -249,8 +249,14 @@ describe('RG-24 — delegation : on ne delegue que ce que l on detient', () => {
     expect(r.ok).toBe(true);
   });
 
-  it('marque comme non delegables exactement les quatre droits reserves', () => {
+  it('marque comme non delegables exactement les droits reserves au Siege', () => {
+    // Liste FIGEE volontairement : un droit qui y entre ou qui en sort change
+    // ce qu'une entite peut accorder a ses propres comptes. Ce test n'est pas
+    // une redite du code, c'est le point ou une telle decision doit se voir.
     expect([...NON_DELEGABLES].sort()).toEqual([
+      // Effacer l'histoire d'un bureau : les fonctions occupees disparaissent
+      // des fiches des croyants concernes (EF-BUR-08).
+      'bureau.delete',
       'entity.delete',
       'finance.delegate',
       'referentiel.manage',
@@ -258,6 +264,10 @@ describe('RG-24 — delegation : on ne delegue que ce que l on detient', () => {
     ]);
     expect(estDelegable('croyant.create')).toBe(true);
     expect(estDelegable('settings.manage')).toBe(false);
+    // `bureau.manage` reste delegable : gerer le present n'est pas reecrire
+    // le passe.
+    expect(estDelegable('bureau.manage')).toBe(true);
+    expect(estDelegable('bureau.delete')).toBe(false);
   });
 });
 

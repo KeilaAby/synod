@@ -1,11 +1,24 @@
 'use client';
 
-import { Briefcase, CircleCheck, CircleSlash, Search, X } from 'lucide-react';
-import { useDeferredValue, useMemo, useState } from 'react';
+import {
+  Briefcase,
+  CircleCheck,
+  CircleSlash,
+  List,
+  MoreVertical,
+  Search,
+  SquarePen,
+  Trash2,
+  X,
+} from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useDeferredValue, useMemo, useState, useTransition } from 'react';
+import { toast } from 'sonner';
 
 import { BureauComposition } from '@/components/bureaux/bureau-composition';
 import type { CandidatOption } from '@/components/bureaux/designation-dialog';
 import { MandatDialog } from '@/components/bureaux/mandat-dialog';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { EmptyState } from '@/components/shared/empty-state';
 import { FiltreIcone, GroupeFiltres } from '@/components/shared/filtre-icone';
 import { useSession } from '@/components/shared/session-provider';
@@ -21,8 +34,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { cloreMandat, supprimerBureau } from '@/lib/actions/bureaux';
 import type { BureauComplet } from '@/lib/data/bureaux';
 import {
   type FonctionBureau,
@@ -57,6 +78,9 @@ export function BureauxClient({
   entites: OptionEntite[];
 }) {
   const { peut } = useSession();
+  const router = useRouter();
+  const [enCours, demarrer] = useTransition();
+  const [aSupprimer, setASupprimer] = useState<BureauComplet | null>(null);
 
   const [recherche, setRecherche] = useState('');
   const [statut, setStatut] = useState<'tous' | 'actifs' | 'clos'>('actifs');
@@ -96,6 +120,34 @@ export function BureauxClient({
     }
     return table;
   }, [bureaux]);
+
+  function clore(bureau: BureauComplet) {
+    demarrer(async () => {
+      const resultat = await cloreMandat({
+        bureauId: bureau.id,
+        dateFin: new Date().toISOString().slice(0, 10),
+      });
+      if (!resultat.ok) {
+        toast.error(resultat.error);
+        return;
+      }
+      toast.success('Mandat clos. La composition reste consultable.');
+      router.refresh();
+    });
+  }
+
+  function supprimer(bureau: BureauComplet) {
+    demarrer(async () => {
+      const resultat = await supprimerBureau({ bureauId: bureau.id });
+      if (!resultat.ok) {
+        toast.error(resultat.error);
+        return;
+      }
+      toast.success('Bureau supprimé, avec son historique.');
+      setASupprimer(null);
+      router.refresh();
+    });
+  }
 
   /** Le mandat rouvert après un rafraîchissement doit rester celui affiché. */
   const affiche = ouvert ? (bureaux.find((b) => b.id === ouvert.id) ?? null) : null;
@@ -216,21 +268,81 @@ export function BureauxClient({
                   }
                 >
                   <CardContent className="space-y-4 p-6">
-                    <button
-                      type="button"
-                      onClick={() => setOuvert(bureau)}
-                      className="w-full space-y-3 text-left"
-                    >
+                    {/*
+                      La carte n'est plus un bouton géant : le menu ⋮ en porte
+                      un, et un bouton dans un bouton est un HTML invalide que
+                      les lecteurs d'écran ne restituent pas. Seul le TITRE
+                      ouvre la composition.
+                    */}
+                    <div className="space-y-3">
                       <div className="flex items-start justify-between gap-3">
                         <span className="min-w-0 space-y-1">
-                          <span className="text-foreground block truncate text-sm font-semibold transition-colors hover:text-indigo-700">
+                          <button
+                            type="button"
+                            onClick={() => setOuvert(bureau)}
+                            className="text-foreground block max-w-full truncate text-left text-sm font-semibold transition-colors hover:text-indigo-700"
+                          >
                             {bureau.libelle}
-                          </span>
+                          </button>
                           <span className="text-muted-foreground block truncate text-xs">
                             {bureau.entite?.nom}
                           </span>
                         </span>
-                        {bureau.entite && <TypeBadge type={bureau.entite.type} />}
+
+                        <span className="flex shrink-0 items-center gap-2">
+                          {bureau.entite && <TypeBadge type={bureau.entite.type} />}
+
+                          {/* Le même menu ⋮ que partout ailleurs. */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                type="button"
+                                aria-label={`Actions sur ${bureau.libelle}`}
+                                className="text-muted-foreground hover:text-foreground flex size-6 items-center justify-center rounded-md transition-colors hover:bg-slate-100"
+                              >
+                                <MoreVertical className="size-4" aria-hidden />
+                              </button>
+                            </DropdownMenuTrigger>
+
+                            <DropdownMenuContent align="end" className="w-64">
+                              <DropdownMenuItem onSelect={() => setOuvert(bureau)}>
+                                <List className="mr-2 size-4" aria-hidden />
+                                Voir la composition
+                              </DropdownMenuItem>
+
+                              {bureau.entite &&
+                                peut('bureau.manage', bureau.entite.path) &&
+                                bureau.is_active && (
+                                  <DropdownMenuItem
+                                    onSelect={() => clore(bureau)}
+                                    disabled={enCours}
+                                  >
+                                    <SquarePen className="mr-2 size-4" aria-hidden />
+                                    Clore le mandat
+                                    <span className="text-muted-foreground ml-auto text-xs">
+                                      conserve
+                                    </span>
+                                  </DropdownMenuItem>
+                                )}
+
+                              {/* EF-BUR-08 — droit DISTINCT : clore conserve,
+                                  supprimer efface l'historique des titulaires. */}
+                              {bureau.entite &&
+                                peut('bureau.delete', bureau.entite.path) && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      className="text-destructive focus:text-destructive"
+                                      onSelect={() => setASupprimer(bureau)}
+                                    >
+                                      <Trash2 className="mr-2 size-4" aria-hidden />
+                                      Supprimer le bureau
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </span>
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2">
@@ -251,12 +363,30 @@ export function BureauxClient({
                         {formatDate(bureau.date_debut)}
                         {bureau.date_fin && ` → ${formatDate(bureau.date_fin)}`}
                       </p>
-                    </button>
+                    </div>
                   </CardContent>
                 </Card>
               );
             })}
           </div>
+        )}
+
+        {/* EF-BUR-08 — la suppression EFFACE : la confirmation doit le dire,
+            et proposer la clôture qui, elle, conserve. */}
+        {aSupprimer && (
+          <ConfirmDialog
+            open
+            onOpenChange={(v) => !v && setASupprimer(null)}
+            title={`Supprimer « ${aSupprimer.libelle} » ?`}
+            description={
+              `Ce bureau et ses ${aSupprimer.membres.length} mandat(s) seront EFFACÉS. ` +
+              'Les fonctions occupées disparaîtront des fiches des croyants concernés — ' +
+              'rien n’en restera dans leur historique. ' +
+              'Pour conserver la trace, clôturez le mandat plutôt que de le supprimer.'
+            }
+            confirmLabel={enCours ? 'Suppression…' : 'Supprimer définitivement'}
+            onConfirm={async () => supprimer(aSupprimer)}
+          />
         )}
 
         {/* --- Composition, en pop-up --- */}

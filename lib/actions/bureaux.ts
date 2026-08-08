@@ -16,6 +16,7 @@ import {
   ouvrirMandatSchema,
   remplacerMembreSchema,
   retirerMembreSchema,
+  supprimerBureauSchema,
 } from '@/lib/validation/bureau';
 import { champsEnErreur } from '@/lib/validation/zod-errors';
 
@@ -253,6 +254,61 @@ export async function cloreMandat(input: unknown): Promise<ActionResult<void>> {
     });
 
     revalidatePath('/bureaux');
+    return ok();
+  });
+}
+
+// -----------------------------------------------------------------------------
+
+/**
+ * EF-BUR-08 — SUPPRESSION d'un bureau, a distinguer de la cloture.
+ *
+ * Clore conserve : l'historique reste lisible sur la fiche de chaque ancien
+ * titulaire. Supprimer efface — les mandats individuels partent en cascade et
+ * les fonctions occupees disparaissent des frises. C'est pourquoi l'operation
+ * exige `bureau.delete`, un droit distinct et non delegable.
+ */
+export async function supprimerBureau(input: unknown): Promise<ActionResult<void>> {
+  return executerAction('supprimerBureau', async () => {
+    const session = await requireSession();
+
+    const analyse = supprimerBureauSchema.safeParse(input);
+    if (!analyse.success) return ko('Requete invalide.');
+
+    const contexte = await contexteBureau(analyse.data.bureauId);
+    if (!contexte) return ko('Ce bureau est introuvable ou hors de votre perimetre.');
+
+    await requirePermission(session, 'bureau.delete', contexte.entite!.path);
+
+    const sb = await createClient();
+
+    // L'audit est ecrit AVANT la suppression : apres, il n'y aurait plus rien
+    // a decrire, et c'est precisement le genre d'operation dont on veut
+    // retrouver la trace.
+    const { count } = await sb
+      .from('bureau_membres')
+      .select('id', { count: 'exact', head: true })
+      .eq('bureau_id', contexte.id);
+
+    await auditer({
+      session,
+      action: 'DELETE',
+      table: 'bureaux',
+      recordId: contexte.id,
+      entityId: contexte.entity_id,
+      diff: {
+        avant: {
+          libelle: contexte.libelle,
+          mandatsIndividuelsEffaces: count ?? 0,
+        },
+      },
+    });
+
+    const { error } = await sb.from('bureaux').delete().eq('id', contexte.id);
+    if (error) return ko(messageErreurSql(error));
+
+    revalidatePath('/bureaux');
+    revalidatePath('/croyants');
     return ok();
   });
 }

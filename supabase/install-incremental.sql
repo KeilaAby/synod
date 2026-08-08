@@ -2,14 +2,15 @@
 -- SYNOD — Mise a jour de la base
 -- =============================================================================
 -- FICHIER GENERE — ne pas editer a la main.
--- Regenerer avec : pnpm db:bundle --depuis 0016
+-- Regenerer avec : pnpm db:bundle --depuis 0017
 --
--- Contient uniquement les migrations POSTERIEURES a « 0016 » :
---   · 0017_bureaux_multiples.sql
+-- Contient uniquement les migrations POSTERIEURES a « 0017 » :
+--   · 0018_reparer_chemins.sql
+--   · 0019_bureau_suppression.sql
 --
 -- L'amorce (seed) n'est PAS incluse : elle a deja ete appliquee.
 --
--- Genere le 2026-08-07T18:38:49.358Z
+-- Genere le 2026-08-08T15:51:01.251Z
 -- =============================================================================
 
 
@@ -59,11 +60,12 @@ insert into schema_migrations (version) values
   ('0013'),
   ('0014'),
   ('0015'),
-  ('0016')
+  ('0016'),
+  ('0017')
   on conflict (version) do nothing;
 
 -- #############################################################################
--- ## Preflight — ce fichier correspond-il a l etat de la base ?
+-- ## Preflight — la base est-elle bien a jour jusqu a ce point ?
 -- #############################################################################
 
 do $$
@@ -71,82 +73,183 @@ declare v_dernier text;
 begin
   select max(version) into v_dernier from schema_migrations;
 
-  if v_dernier is not null and v_dernier >= '0017' then
+  -- Un trou : des migrations seraient inscrites sans avoir ete jouees.
+  if v_dernier is null or v_dernier < '0017' then
     raise exception
-      'Ce fichier commence a la migration 0017, mais la base en est deja a %.',
-      v_dernier
+      'Ce fichier suppose la base a jour jusqu a 0017, or elle en est a %.',
+      coalesce(v_dernier, 'aucune migration')
       using hint =
-        'Regenerez le fichier avec :  pnpm db:bundle --depuis ' || v_dernier ||
-        '   puis rejouez-le. Aucune modification n''a ete appliquee.';
+        'Regenerez le fichier avec :  pnpm db:bundle --depuis ' ||
+        coalesce(v_dernier, '0000') ||
+        '   Sans cela, les migrations manquantes seraient inscrites comme ' ||
+        'appliquees sans avoir ete jouees.';
+  end if;
+
+  -- Recouvrement : sans gravite, les migrations sont rejouables (regle 23).
+  if v_dernier >= '0018' then
+    raise notice 'Migrations % et suivantes deja appliquees : elles sont rejouees sans effet.', '0018';
   end if;
 end $$;
 
 -- #############################################################################
--- ## 0017_bureaux_multiples.sql
+-- ## 0018_reparer_chemins.sql
 -- #############################################################################
 
 -- =============================================================================
--- SYNOD — 0017 — Une entite peut avoir PLUSIEURS bureaux
+-- SYNOD — 0018 — Le chemin materialise se recalcule depuis parent_id
 -- =============================================================================
--- Correction de RG-10 — arbitrage du 7 aout 2026.
+-- EF-STR-07, DA-2. Corrige un defaut de propagation constate le 8 aout 2026.
 --
--- CE QUI ETAIT FAUX
+-- LE SYMPTOME
 --
--- La migration 0016 posait « au plus un bureau actif par entite ». C'est trop
--- strict : une meme entite fait coexister un « Bureau executif », un « Comite
--- des finances », une « Commission des jeunes ». L'index unique sur
--- `entity_id` seul refusait le second.
+-- Une eglise (ANTSAHATSIRESY) apparaissait sous le district AVARADRANO dans
+-- l'organigramme — qui se construit sur `parent_id` — mais son `path` designait
+-- un autre district. Consequence : ses croyants n'etaient pas proposes pour le
+-- bureau du district, et surtout `entity_in_scope` les excluait du perimetre.
+-- Un chemin faux ne produit pas un affichage bizarre : il produit des DROITS
+-- faux, silencieusement.
 --
--- CE QUI EST VRAI
+-- LA CAUSE
 --
--- Une entite a au plus un mandat actif PAR BUREAU. Deux « Bureau executif »
--- ouverts en meme temps pour la meme entite restent une erreur — c'est ce que
--- la regle voulait dire.
+-- `path` est un CACHE derive de `parent_id`. L'ancienne propagation
+-- rafraichissait ce cache a partir de lui-meme :
 --
--- `bureaux.libelle` devient donc le NOM DU BUREAU (« Bureau executif ») et non
--- celui du mandat : la periode se lit deja dans `date_debut` et `date_fin`.
--- L'affichage compose les deux (`libelleAffichage`), la base ne stocke pas ce
--- qu'elle sait deriver.
+--     update entities set path = new.path || subpath(path, nlevel(old.path))
+--      where path <@ old.path
+--
+-- Le `where` s'appuie sur le chemin STOCKE. Un descendant dont le chemin etait
+-- deja errone ne correspondait plus au filtre, donc n'etait pas corrige — et
+-- restait errone pour toujours. Une routine de rafraichissement de cache ne
+-- doit jamais supposer le cache deja juste.
+--
+-- LA CORRECTION
+--
+-- Le recalcul repart de `parent_id`, seule colonne qui fasse autorite. Il est
+-- integral plutot qu'incrementiel : l'arbre est borne a quelques milliers
+-- d'entites (ENF-PRF-05) et un rattachement est rare. Le cout est negligeable,
+-- et la fonction devient AUTO-REPARATRICE — elle corrige aussi ce qui etait
+-- casse avant elle.
 -- =============================================================================
 
-drop index if exists bureaux_un_seul_actif;
+create or replace function fn_recalculer_chemins() returns integer
+language plpgsql as $$
+declare v_corriges integer;
+begin
+  with recursive arbre as (
+    -- RG-03 : le Siege est la racine unique, sans parent.
+    select e.id,
+           fn_ltree_label(e.id)::ltree as chemin,
+           1::smallint                 as profondeur
+      from entities e
+     where e.parent_id is null
 
-/**
- * Comparaison sur le libelle NORMALISE : « Bureau Executif » et
- * « bureau executif  » designent le meme organe. Sans cette normalisation, la
- * contrainte se contournerait d'une majuscule.
- *
- * Les accents ne sont pas replies : `unaccent` n'est pas garantie presente, et
- * l'ecart « Comite » / « Comité » reste visible a l'oeil dans la liste — la
- * contrainte protege de l'erreur, elle ne corrige pas la saisie.
- */
-create unique index if not exists bureaux_un_actif_par_nom
-  on bureaux (entity_id, lower(btrim(libelle)))
-  where is_active and deleted_at is null;
+    union all
 
-comment on column bureaux.libelle is
-  'NOM du bureau (« Bureau executif »), pas du mandat : la periode se lit dans les dates.';
+    select f.id,
+           a.chemin || fn_ltree_label(f.id),
+           (a.profondeur + 1)::smallint
+      from entities f
+      join arbre a on f.parent_id = a.id
+  )
+  update entities e
+     set path   = a.chemin,
+         niveau = a.profondeur
+    from arbre a
+   where e.id = a.id
+     -- Seules les lignes REELLEMENT fausses sont ecrites : sans ce filtre,
+     -- chaque appel declencherait la propagation sur tout l'arbre.
+     and (e.path is distinct from a.chemin or e.niveau is distinct from a.profondeur);
 
-comment on table bureaux is
-  'Bureau d''une entite et son mandat courant — EF-BUR-01, EF-BUR-02. '
-  'Une entite peut en avoir plusieurs, de noms differents (RG-10).';
+  get diagnostics v_corriges = row_count;
+  return v_corriges;
+end $$;
 
-/**
- * RG-09 reste INCHANGEE — arbitrage du 7 aout 2026.
- *
- * Un croyant siege dans le bureau de toute entite qui CONTIENT son eglise :
- * son eglise, sa paroisse, son district, son regional, le Siege. Il peut donc
- * cumuler plusieurs mandats, dans une meme entite comme dans plusieurs, tant
- * qu'elles sont sur sa chaine d'ancetres.
- *
- * La variante examinee — sieger au regional ouvrirait ses sous-entites — a ete
- * ecartee : l'eligibilite dependrait alors des mandats deja detenus, et
- * changerait a la cloture de l'un d'eux.
- *
- * EF-TRF-09 est confirme dans la foulee : un transfert DEMET des mandats de
- * l'origine et n'en accorde AUCUN a la destination, qui designe si elle le
- * souhaite. Le comportement de la migration 0016 est donc conserve tel quel.
- */
+comment on function fn_recalculer_chemins() is
+  'Recalcule path et niveau depuis parent_id, la seule colonne faisant autorite. '
+  'Retourne le nombre de lignes corrigees. Idempotente : 0 si tout est coherent.';
 
-insert into schema_migrations (version) values ('0017')
+
+-- -----------------------------------------------------------------------------
+-- La propagation delegue desormais au recalcul integral
+-- -----------------------------------------------------------------------------
+
+create or replace function fn_entities_propagate_path() returns trigger
+language plpgsql as $$
+begin
+  -- Le recalcul reecrit des chemins, ce qui redeclenche ce trigger : le garde
+  -- de profondeur assure qu'une seule passe s'execute.
+  if pg_trigger_depth() > 1 then
+    return null;
+  end if;
+
+  if new.path is distinct from old.path then
+    perform fn_recalculer_chemins();
+  end if;
+
+  return null;
+end $$;
+
+drop trigger if exists trg_entities_aiu on entities;
+create trigger trg_entities_aiu
+  after update of path on entities
+  for each row execute function fn_entities_propagate_path();
+
+
+-- -----------------------------------------------------------------------------
+-- Reparation de l'existant
+-- -----------------------------------------------------------------------------
+
+do $$
+declare v_corriges integer;
+begin
+  v_corriges := fn_recalculer_chemins();
+
+  if v_corriges > 0 then
+    raise notice 'Chemins reconstruits : % entite(s) corrigee(s).', v_corriges;
+  else
+    raise notice 'Chemins deja coherents : aucune correction.';
+  end if;
+end $$;
+
+insert into schema_migrations (version) values ('0018')
+  on conflict (version) do nothing;
+
+-- #############################################################################
+-- ## 0019_bureau_suppression.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0019 — Suppression d'un bureau, sous droit dedie
+-- =============================================================================
+-- EF-BUR-08, EF-ADM-13.
+--
+-- Jusqu'ici seul le SuperAdmin pouvait supprimer un bureau. Le droit devient
+-- ATTRIBUABLE — ce que EF-ADM-13 demande de tout ce qui est parametrable —
+-- mais reste DISTINCT de `bureau.manage`.
+--
+-- POURQUOI DEUX DROITS ET NON UN
+--
+-- Clore un mandat le CONSERVE : c'est l'histoire du bureau, et elle se lit sur
+-- la fiche de chaque ancien titulaire. Supprimer l'EFFACE — les mandats
+-- individuels partent en cascade, et les fonctions occupees disparaissent des
+-- frises des croyants concernes. Une operation qui reecrit le passe ne
+-- s'accorde pas avec celle qui gere le present ; les confondre reviendrait a
+-- offrir la premiere a quiconque peut faire la seconde.
+--
+-- `bureau.delete` est par ailleurs NON DELEGABLE (voir `lib/domain/permissions`) :
+-- effacer de l'historique se decide au Siege, pas en cascade.
+-- =============================================================================
+
+drop policy if exists bureaux_delete on bureaux;
+
+create policy bureaux_delete on bureaux
+  for delete to authenticated
+  using (can('bureau.delete', entity_id));
+
+-- `bureau_membres` suit son bureau par `on delete cascade` : la politique de
+-- suppression des membres reste celle de `bureau.manage`, qui sert au retrait
+-- individuel. C'est la contrainte de cle etrangere qui emporte les lignes lors
+-- d'une suppression de bureau, pas cette politique.
+
+insert into schema_migrations (version) values ('0019')
   on conflict (version) do nothing;

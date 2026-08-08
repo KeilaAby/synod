@@ -128,39 +128,50 @@ if (depuis !== null) {
 }
 
 /**
- * Preflight — refuse un fichier qui recouvre du deja-applique, en NOMMANT la
- * commande qui produit le bon.
+ * Preflight — detecte le cas DANGEREUX, tolere le cas benin.
  *
- * Le cas s'est produit : le fichier avait ete regenere `--depuis 0015` alors
- * que 0016 tournait deja. Postgres repondait « relation "bureaux" already
- * exists », un code d'erreur qui ne dit pas quoi faire. Le registre savait
- * pourtant exactement ou en etait la base — il ne servait qu'a s'inscrire, pas
- * a se defendre.
+ * Premiere version : le fichier refusait tout recouvrement du deja-applique.
+ * C'etait le mauvais critere. Depuis la regle 23, chaque migration est
+ * REJOUABLE — la rejouer ne coute rien. Le garde punissait donc le cas benin,
+ * et l'utilisateur se retrouvait bloque devant un fichier parfaitement sain.
+ *
+ * Ce qui est reellement dangereux, c'est un ECART : lancer un fichier
+ * `--depuis 0016` sur une base qui n'en est qu'a 0014. Le rattrapage du
+ * registre inscrirait alors 0015 et 0016 comme appliquees SANS les avoir
+ * jouees, et le trou deviendrait invisible. Le controle passe donc AVANT ce
+ * rattrapage.
  */
 if (depuis !== null && aJouer.length > 0) {
   const premiere = versionDe(aJouer[0]);
 
   morceaux.push(
     section(
-      'Preflight — ce fichier correspond-il a l etat de la base ?',
+      'Preflight — la base est-elle bien a jour jusqu a ce point ?',
       `do $$
 declare v_dernier text;
 begin
   select max(version) into v_dernier from schema_migrations;
 
-  if v_dernier is not null and v_dernier >= '${premiere}' then
+  -- Un trou : des migrations seraient inscrites sans avoir ete jouees.
+  if v_dernier is null or v_dernier < '${depuis}' then
     raise exception
-      'Ce fichier commence a la migration ${premiere}, mais la base en est deja a %.',
-      v_dernier
+      'Ce fichier suppose la base a jour jusqu a ${depuis}, or elle en est a %.',
+      coalesce(v_dernier, 'aucune migration')
       using hint =
-        'Regenerez le fichier avec :  pnpm db:bundle --depuis ' || v_dernier ||
-        '   puis rejouez-le. Aucune modification n''a ete appliquee.';
+        'Regenerez le fichier avec :  pnpm db:bundle --depuis ' ||
+        coalesce(v_dernier, '0000') ||
+        '   Sans cela, les migrations manquantes seraient inscrites comme ' ||
+        'appliquees sans avoir ete jouees.';
+  end if;
+
+  -- Recouvrement : sans gravite, les migrations sont rejouables (regle 23).
+  if v_dernier >= '${premiere}' then
+    raise notice 'Migrations % et suivantes deja appliquees : elles sont rejouees sans effet.', '${premiere}';
   end if;
 end $$;`,
     ),
   );
 }
-
 for (const fichier of aJouer) {
   morceaux.push(
     section(fichier, readFileSync(join(dossierMigrations, fichier), 'utf8')),

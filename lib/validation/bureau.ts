@@ -74,3 +74,13 @@ export const remplacerMembreSchema = z.object({
 export const retirerMembreSchema = z.object({
   membreId: z.uuid(),
 });
+
+/**
+ * EF-BUR-08 — suppression, a distinguer de la cloture.
+ *
+ * Aucun champ de plus : rien ne se saisit, la confirmation se fait a l'ecran.
+ * Le droit `bureau.delete`, distinct et non delegable, porte la protection.
+ */
+export const supprimerBureauSchema = z.object({
+  bureauId: z.uuid(),
+});
