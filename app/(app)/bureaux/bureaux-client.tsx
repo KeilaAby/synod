@@ -175,6 +175,9 @@ export function BureauxClient({
       }
       toast.success(succes);
       router.refresh();
+      // Ferme QUAND l'écran rafraîchi arrive : `router.refresh()` appartient à
+      // la transition, cette écriture est donc validée avec elle.
+      setOperation(null);
     });
   }
 
@@ -508,10 +511,18 @@ export function BureauxClient({
           />
         )}
 
-        {/* Une opération lancée depuis un menu ⋮ n'a rien pour se signaler : le
-            menu se referme et l'écran redevient identique. */}
+        {/*
+          Une opération lancée depuis un menu ⋮ n'a rien pour se signaler : le
+          menu se referme et l'écran redevient identique.
+
+          L'ouverture ne dépend QUE de `operation`, jamais de `isPending` :
+          clore et supprimer partent de `ConfirmDialog`, qui exécute
+          `onConfirm` dans SA propre transition — la nôtre s'y fond et
+          `enCours` ne bascule pas. Un indicateur d'attente ne doit pas
+          dépendre de l'endroit d'où l'opération a été lancée.
+        */}
         <OperationDialog
-          ouvert={enCours && operation !== null}
+          ouvert={operation !== null}
           titre={operation?.titre ?? ''}
           description={operation?.description}
         />

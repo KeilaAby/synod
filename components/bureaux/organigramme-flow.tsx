@@ -240,6 +240,7 @@ function Editeur({
         }
         toast.success(succes);
         router.refresh();
+        setOperation(null);
       });
     },
     [router],
@@ -793,7 +794,9 @@ function Editeur({
           rien ne bouge tant que la base n'a pas répondu. Le pop-up dit ce qui
           se passe et empêche de recommencer par-dessus. */}
       <OperationDialog
-        ouvert={enCours && operation !== null}
+        // Ne depend QUE de `operation` : une designation partie du glisser-deposer
+        // ou de `ConfirmDialog` ne fait pas toujours basculer `isPending`.
+        ouvert={operation !== null}
         titre={operation?.titre ?? ''}
         description={operation?.description}
       />

@@ -144,6 +144,9 @@ export function ReferentielTable({
       }
       toast.success(succes(resultat));
       router.refresh();
+      // Ferme QUAND l'ecran rafraichi arrive : `router.refresh()` fait partie
+      // de la transition, cette ecriture est donc validee avec elle.
+      setOperation(null);
     });
   }
 
@@ -289,8 +292,15 @@ export function ReferentielTable({
         </CardContent>
       </Card>
 
+      {/*
+        L'ouverture ne depend QUE de `operation`, jamais de `isPending`.
+        La suppression part de `ConfirmDialog`, qui execute `onConfirm` dans SA
+        propre transition : la notre s'y fond, `enCours` ne bascule pas, et le
+        pop-up ne s'ouvrait jamais. Un indicateur d'attente ne doit pas dependre
+        de l'endroit d'ou l'operation a ete lancee.
+      */}
       <OperationDialog
-        ouvert={enCours && operation !== null}
+        ouvert={operation !== null}
         titre={operation?.titre ?? ''}
         description={operation?.description}
       />

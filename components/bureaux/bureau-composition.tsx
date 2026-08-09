@@ -84,7 +84,7 @@ export function BureauComposition({
   onChange?: () => void;
 }) {
   const router = useRouter();
-  const [enCours, demarrer] = useTransition();
+  const [, demarrer] = useTransition();
 
   const [aDesigner, setADesigner] = useState<{ fonctionId: string } | null>(null);
   const [aRemplacer, setARemplacer] = useState<{
@@ -137,6 +137,7 @@ export function BureauComposition({
       toast.success('Mandat clos. La fonction est vacante.');
       router.refresh();
       onChange?.();
+      setOperation(null);
     });
   }
 
@@ -416,7 +417,9 @@ export function BureauComposition({
       )}
 
       <OperationDialog
-        ouvert={enCours && operation !== null}
+        // Ne depend QUE de `operation` : le retrait part de `ConfirmDialog`, qui
+        // execute `onConfirm` dans SA transition — la notre s'y fondrait.
+        ouvert={operation !== null}
         titre={operation ?? ''}
         description="La fonction redevient vacante ; le mandat reste dans l’historique."
       />
