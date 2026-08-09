@@ -572,7 +572,7 @@ function Editeur({
     setNoeuds(suivants);
     setLiens(suivantsLiens);
     enregistrer(suivants, suivantsLiens);
-    toast.success('Toutes les fonctions posées, par rang protocolaire.');
+    toast.success('Toutes les fonctions applicables sont posées.');
   }, [postes, parFonction, construireNoeud, setNoeuds, enregistrer]);
 
   // --- Croyants éligibles ------------------------------------------------------
@@ -652,7 +652,7 @@ function Editeur({
           {modifiable && (
             <Button variant="outline" className="h-9 w-full" onClick={reinitialiser}>
               <RotateCcw className="mr-2 size-4" aria-hidden />
-              Tout poser par rang
+              Tout poser
             </Button>
           )}
 

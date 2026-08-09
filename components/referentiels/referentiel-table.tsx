@@ -6,6 +6,8 @@ import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
+import { MessageDialog } from '@/components/shared/message-dialog';
+import { OperationDialog } from '@/components/shared/operation-dialog';
 import { Field, TextField } from '@/components/shared/field';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { Button } from '@/components/ui/button';
@@ -104,43 +106,71 @@ export function ReferentielTable({
   );
   const [enCours, demarrer] = useTransition();
   const [aSupprimer, setASupprimer] = useState<Ligne | null>(null);
+  const [operation, setOperation] = useState<{ titre: string; description: string } | null>(
+    null,
+  );
+  const [refus, setRefus] = useState<string | null>(null);
 
-  function supprimer(ligne: Ligne) {
+  /**
+   * Une operation, son libelle et son attente, noues au meme endroit.
+   *
+   * Ces gestes touchent la base puis attendent le re-rendu : sans pop-up,
+   * l'ecran reste identique plusieurs secondes et l'utilisateur recommence.
+   * Deux etats regles separement — « ce qui se passe » et « ca se passe » —
+   * finiraient par se contredire.
+   */
+  function lancer(
+    annonce: { titre: string; description: string },
+    executer: () => Promise<{ ok: boolean; error?: string }>,
+    succes: (resultat: unknown) => string,
+  ) {
+    setOperation(annonce);
     demarrer(async () => {
-      const resultat = await supprimerValeurReferentiel({
-        slug: definition.slug,
-        id: ligne.id,
-      });
+      const resultat = await executer();
 
       if (!resultat.ok) {
-        // Le refus NOMME ce qui s'y rattache : c'est le message le plus utile
-        // de cet ecran, il ne doit pas se perdre dans une notification breve.
-        toast.error(resultat.error, { duration: 10_000 });
+        setOperation(null);
+        /**
+         * Un refus MOTIVE va dans un pop-up, pas dans une notification.
+         *
+         * « Loholona est utilise par 4 croyants : la suppression effacerait une
+         * information encore vraie. Desactivez cette valeur… » enonce une
+         * raison ET une alternative — et s'efface avant qu'on en soit a la
+         * deuxieme ligne. L'utilisateur n'en retiendrait que « ca n'a pas
+         * marche », precisement ce que le message evitait.
+         */
+        setRefus(resultat.error ?? "L'operation a echoue.");
         return;
       }
-      toast.success(`${definition.singulier} supprime.`);
-      setASupprimer(null);
+      toast.success(succes(resultat));
       router.refresh();
     });
   }
 
+  function supprimer(ligne: Ligne) {
+    setASupprimer(null);
+    lancer(
+      {
+        titre: 'Suppression en cours…',
+        description: `« ${String(ligne.libelle ?? '')} » quitte le referentiel ${definition.titre}.`,
+      },
+      () => supprimerValeurReferentiel({ slug: definition.slug, id: ligne.id }),
+      () => `${definition.singulier} supprime.`,
+    );
+  }
+
   function basculer(ligne: Ligne) {
-    demarrer(async () => {
-      const resultat = await basculerActivationReferentiel({
-        slug: definition.slug,
-        id: ligne.id,
-      });
-      if (!resultat.ok) {
-        toast.error(resultat.error);
-        return;
-      }
-      toast.success(
-        resultat.data.actif
+    lancer(
+      {
+        titre: ligne.is_active ? 'Desactivation…' : 'Reactivation…',
+        description: `« ${String(ligne.libelle ?? '')} » — les fiches qui la portent ne changent pas.`,
+      },
+      () => basculerActivationReferentiel({ slug: definition.slug, id: ligne.id }),
+      (resultat) =>
+        (resultat as { data: { actif: boolean } }).data.actif
           ? 'Valeur reactivee.'
           : 'Valeur desactivee : elle disparait des nouvelles saisies mais reste dans l historique.',
-      );
-      router.refresh();
-    });
+    );
   }
 
   return (
@@ -258,6 +288,19 @@ export function ReferentielTable({
           </Table>
         </CardContent>
       </Card>
+
+      <OperationDialog
+        ouvert={enCours && operation !== null}
+        titre={operation?.titre ?? ''}
+        description={operation?.description}
+      />
+
+      <MessageDialog
+        ouvert={refus !== null}
+        titre="Operation refusee"
+        message={refus ?? ''}
+        onFermer={() => setRefus(null)}
+      />
 
       {/* EF-REF-05 — desactiver conserve, supprimer efface. La confirmation
           rappelle l'alternative, parce que c'est presque toujours celle qu'on

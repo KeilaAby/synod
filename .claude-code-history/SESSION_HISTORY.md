@@ -1146,3 +1146,49 @@ dirait pas **pourquoi**, et c'est précisément ce qu'on vient apprendre.
 ### Qualité
 
 340 tests unitaires. `pnpm verify` vert.
+
+---
+
+## 9 août 2026 (fin de journée) — L'ordre protocolaire disparaît
+
+### Un champ qui ne décide plus de rien devient un piège
+
+Il servait à **déduire** l'organigramme : rang 10 en racine, rang 20 en
+dessous. C'était la seule façon de dessiner un organigramme que personne
+n'avait dessiné.
+
+Depuis la migration `0021`, l'organigramme se dessine. Le rang ne décidait donc
+plus de rien — il restait une colonne à saisir, à maintenir et à expliquer, et
+quelqu'un aurait fini par croire qu'elle comptait encore.
+
+**Ce qui contredisait `cdg.md`** — EF-BUR-07 disait « ordonné par rang
+protocolaire ». Signalé, puis tranché par l'utilisateur : l'exigence a été
+réécrite à la même date.
+
+**Ce qui le remplace** : l'ordre alphabétique dans les listes, et **rien** dans
+l'organigramme. La disposition par défaut pose les blocs en grille, tous
+racines, sans un seul trait. C'est la bonne réponse : sans le rang, plus aucune
+donnée ne dit qui dépend de qui, et en dessiner un affirmerait une organisation
+que personne n'a décrite — le défaut le plus coûteux d'un organigramme, parce
+qu'il se lit comme un fait.
+
+**Une simplification en cascade** : le graphe en lecture avait sa propre mise
+en place, calquée sur les rangs. Il emprunte désormais `dispositionParDefaut`,
+la même que l'éditeur — une seule règle, deux écrans, plus de divergence
+possible.
+
+### Un refus motivé n'est pas une notification
+
+« *Loholona est utilisé par 4 croyants : la suppression effacerait une
+information encore vraie. Désactivez cette valeur…* » — trois lignes qui
+énoncent une raison **et** une alternative, dans une notification qui s'efface
+avant la deuxième. L'utilisateur n'en retient que « ça n'a pas marché »,
+précisément ce que le message évitait.
+
+`MessageDialog` attend d'être fermé. C'est le seul cas où l'on impose ce
+geste : quand le texte porte la seule information utile de l'opération.
+
+### Qualité
+
+337 tests unitaires — trois de moins, les rangs n'existant plus. `pnpm verify`
+vert. Base à jour jusqu'à `0022`.

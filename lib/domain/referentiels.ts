@@ -197,13 +197,12 @@ export const REFERENTIELS: Record<SlugReferentiel, DefinitionReferentiel> = {
     titre: 'Fonctions',
     singulier: 'fonction',
     description:
-      "Role occupe au sein d'un bureau. L'ordre protocolaire pilote la disposition de l'organigramme.",
-    triPar: 'ordre_protocolaire',
+      "Role occupe au sein d'un bureau. La hierarchie ne vit pas ici : elle est propre a chaque bureau, dessinee dans son organigramme.",
+    triPar: 'libelle',
     colonnes: [
       { cle: 'libelle', label: 'Libelle' },
       { cle: 'code', label: 'Code', mono: true },
       { cle: 'categorie', label: 'Categorie' },
-      { cle: 'ordre_protocolaire', label: 'Rang', mono: true, alignementDroite: true },
     ],
     champs: [
       { cle: 'libelle', label: 'Libelle', type: 'texte', requis: true },
@@ -229,12 +228,6 @@ export const REFERENTIELS: Record<SlugReferentiel, DefinitionReferentiel> = {
         hint: "Son titulaire sera compte parmi les « membres de finances » des tableaux de bord.",
       },
       {
-        cle: 'ordre_protocolaire',
-        label: 'Rang protocolaire',
-        type: 'nombre',
-        hint: "Determine la position dans l'organigramme du bureau. 10 = President.",
-      },
-      {
         cle: 'niveaux_applicables',
         label: 'Niveaux concernes',
         type: 'choix-multiple',
@@ -248,7 +241,6 @@ export const REFERENTIELS: Record<SlugReferentiel, DefinitionReferentiel> = {
       libelle,
       categorie: z.enum(['DIRECTION', 'FINANCE', 'COMMUNICATION', 'OEUVRES', 'AUTRE']),
       est_financiere: z.boolean().default(false),
-      ordre_protocolaire: z.coerce.number().int().min(0).max(9999).default(100),
       niveaux_applicables: z
         .array(z.enum(ENTITY_TYPES))
         .min(1, 'Selectionnez au moins un niveau.'),

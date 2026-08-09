@@ -13,12 +13,11 @@ import {
 import { useMemo } from 'react';
 
 import type { MembreBureau } from '@/lib/data/bureaux';
+import { type PosteBureau, ancienneteMandat } from '@/lib/domain/bureau';
 import {
-  type PosteBureau,
-  ancienneteMandat,
-  rangsProtocolaires,
-} from '@/lib/domain/bureau';
-import type { DispositionPoste } from '@/lib/domain/organigramme-bureau';
+  type DispositionPoste,
+  dispositionParDefaut,
+} from '@/lib/domain/organigramme-bureau';
 
 import { NoeudPoste } from './bureau-node';
 
@@ -29,28 +28,25 @@ import '@xyflow/react/dist/style.css';
  *
  * CE QUE LE GRAPHE DIT
  *
- * Une **préséance**, pas une chaîne de commandement. Rien dans le modèle ne dit
- * qu'un trésorier rend compte au secrétaire : les traits reliant les rangs
- * expriment l'ordre protocolaire, et l'écran le précise sous le graphe. Un
- * organigramme qui laisse croire à une subordination invente une organisation.
+ * **Ce que l'utilisateur a dessiné**, et rien de plus. Les traits viennent de
+ * `bureau_postes`, propre à ce bureau : ils expriment la dépendance telle
+ * qu'elle a été décrite.
+ *
+ * Tant que rien n'a été dessiné, les blocs sont posés en grille et **sans
+ * aucun trait**. C'est délibéré : depuis le retrait de l'ordre protocolaire
+ * (9 août 2026), plus aucune donnée ne dit qui dépend de qui, et en dessiner
+ * un l'inventerait — le défaut le plus coûteux d'un organigramme, parce qu'il
+ * se lit comme un fait.
  *
  * POURQUOI PAS DAGRE, ICI
  *
  * L'organigramme de structure emprunte Dagre parce que son arbre est
- * quelconque. Celui d'un bureau ne l'est pas : c'est une liste ordonnée, dont
- * les rangs forment des bandes horizontales. Poser les coordonnées directement
- * tient en dix lignes, donne un rendu stable d'un affichage à l'autre — Dagre
- * peut réordonner des frères de même rang — et économise le moteur de
- * disposition.
+ * quelconque. Ici les positions sont DONNÉES — enregistrées ou calculées en
+ * grille : il n'y a rien à résoudre, et Dagre déplacerait ce que l'utilisateur
+ * a placé.
  *
  * Chargé en différé par `bureau-flow-loader` (règle 7).
  */
-
-/** Grille de 8 px, jusque dans la disposition (UI-01). */
-const LARGEUR = 224; // w-56, comme les nœuds de structure
-const HAUTEUR = 140;
-const ESPACEMENT_X = 32;
-const ESPACEMENT_Y = 88;
 
 const TYPES_NOEUDS = { poste: NoeudPoste };
 
@@ -139,7 +135,7 @@ function Graphe({
 }: {
   postes: PosteBureau[];
   membres: MembreBureau[];
-  /** Plan dessiné dans l'éditeur. Vide : on retombe sur le rang protocolaire. */
+  /** Plan dessiné dans l'éditeur. Vide : les blocs sont posés en grille. */
   plan: DispositionPoste[];
   photos: Record<string, string>;
   peutGerer: boolean;
@@ -149,77 +145,23 @@ function Graphe({
     const parMandat = new Map(membres.map((m) => [m.id, m]));
 
     /**
-     * Le plan DESSINE l'emporte sur le rang.
+     * Le plan DESSINE, ou la disposition par défaut à défaut.
      *
-     * Sans cela, « Définir l'organigramme » produirait une disposition que
-     * personne ne verrait ailleurs — deux représentations d'un même bureau,
-     * contradictoires, et l'utilisateur croirait son travail perdu.
+     * UNE SEULE règle de mise en place, partagée avec l'éditeur : cet écran
+     * avait la sienne, calquée sur le rang protocolaire, et les deux se sont
+     * mises à diverger le jour où le rang a disparu.
      *
-     * Le rang reste le repli : tant qu'aucun plan n'a été dessiné, il donne une
-     * lecture juste plutôt qu'un cadre vide.
+     * Sans plan, les blocs sont posés en grille et sans aucun trait — plus
+     * aucune donnée ne dit qui dépend de qui, et en dessiner un l'inventerait.
      */
-    if (plan.length > 0) {
-      return dessinerPlan(plan, postes, parMandat, photos, peutGerer, onDesigner);
-    }
-
-    const rangs = rangsProtocolaires(postes);
-    const noeuds: Node[] = [];
-    const aretes: Edge[] = [];
-
-    rangs.forEach((rang, niveau) => {
-      // Chaque bande est CENTREE sur l'axe : un rang à un seul titulaire reste
-      // dans l'alignement du président, et l'œil suit la préséance de haut en
-      // bas sans chercher où elle continue.
-      const largeurBande = rang.postes.length * LARGEUR + (rang.postes.length - 1) * ESPACEMENT_X;
-
-      rang.postes.forEach((poste, index) => {
-        const membre = poste.mandat ? parMandat.get(poste.mandat.id) : undefined;
-        const croyant = membre?.croyant ?? null;
-
-        noeuds.push({
-          id: poste.fonction.id,
-          type: 'poste',
-          position: {
-            x: -largeurBande / 2 + index * (LARGEUR + ESPACEMENT_X),
-            y: niveau * (HAUTEUR + ESPACEMENT_Y),
-          },
-          data: {
-            fonctionId: poste.fonction.id,
-            fonction: poste.fonction.libelle,
-            estFinanciere: poste.fonction.estFinanciere,
-            titulaire: croyant
-              ? {
-                  nom: croyant.nom,
-                  prenom: croyant.prenom,
-                  matricule: croyant.matricule,
-                  photoUrl: croyant.photo_key ? (photos[croyant.photo_key] ?? null) : null,
-                }
-              : null,
-            anciennete: poste.mandat ? ancienneteMandat(poste.mandat.dateDebut) : '',
-            peutGerer,
-            surDesigner: onDesigner,
-          },
-        });
-      });
-
-      // Le trait part du poste PRINCIPAL du rang précédent — le premier dans
-      // l'ordre protocolaire. Relier chacun à chacun produirait un treillis
-      // illisible qui, lui, affirmerait vraiment quelque chose de faux.
-      const precedent = rangs[niveau - 1]?.postes[0];
-      if (!precedent) return;
-
-      for (const poste of rang.postes) {
-        aretes.push({
-          id: `${precedent.fonction.id}-${poste.fonction.id}`,
-          source: precedent.fonction.id,
-          target: poste.fonction.id,
-          type: 'smoothstep',
-          style: { stroke: '#cbd5e1', strokeWidth: 1.5 },
-        });
-      }
-    });
-
-    return { noeuds, aretes };
+    return dessinerPlan(
+      plan.length > 0 ? plan : dispositionParDefaut(postes),
+      postes,
+      parMandat,
+      photos,
+      peutGerer,
+      onDesigner,
+    );
   }, [postes, membres, plan, photos, peutGerer, onDesigner]);
 
   return (

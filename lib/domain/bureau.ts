@@ -18,7 +18,6 @@ export interface FonctionBureau {
   readonly id: string;
   readonly code: string;
   readonly libelle: string;
-  readonly ordreProtocolaire: number;
   /** RG-31 — un titulaire de cette fonction est « membre de finances ». */
   readonly estFinanciere: boolean;
   readonly niveauxApplicables: readonly EntityType[];
@@ -38,17 +37,24 @@ export function fonctionApplicable(
   return fonction.isActive && fonction.niveauxApplicables.includes(niveau);
 }
 
+/**
+ * Les fonctions applicables, par ORDRE ALPHABETIQUE.
+ *
+ * L'ordre protocolaire a ete retire le 9 aout 2026 : depuis que l'organigramme
+ * se dessine (migration 0021), plus rien n'en dependait — il restait une
+ * colonne a saisir et a maintenir pour un usage disparu, et un champ qui ne
+ * decide de rien finit par tromper.
+ *
+ * L'alphabet ne pretend rien dire de la preseance, et c'est voulu : la
+ * hierarchie reelle vit dans la disposition propre a chaque bureau.
+ */
 export function fonctionsDuNiveau(
   fonctions: readonly FonctionBureau[],
   niveau: EntityType,
 ): FonctionBureau[] {
   return fonctions
     .filter((f) => fonctionApplicable(f, niveau))
-    .sort(
-      (a, b) =>
-        a.ordreProtocolaire - b.ordreProtocolaire ||
-        a.libelle.localeCompare(b.libelle, 'fr'),
-    );
+    .sort((a, b) => a.libelle.localeCompare(b.libelle, 'fr'));
 }
 
 // -----------------------------------------------------------------------------
@@ -95,43 +101,6 @@ export function composerBureau(
     fonction,
     mandat: enCours.get(fonction.id) ?? null,
   }));
-}
-
-/**
- * EF-BUR-07 — les postes groupes par RANG, pour l'organigramme.
- *
- * Deux fonctions de meme `ordre_protocolaire` sont de meme rang : elles
- * s'affichent cote a cote, sans que l'une paraisse superieure a l'autre. Le
- * tri vient de `composerBureau`, qui a deja applique l'ordre.
- *
- * CE QUE LE GRAPHE DIT, ET CE QU'IL NE DIT PAS
- *
- * Il rend une PRESEANCE, pas un lien de subordination : rien dans le modele ne
- * dit qu'un tresorier rend compte au secretaire. Les traits relient donc
- * chaque rang au rang qui le precede, et l'ecran le precise — un organigramme
- * qui laisse croire a une chaine de commandement invente une organisation.
- */
-export interface RangProtocolaire {
-  readonly ordre: number;
-  readonly postes: readonly PosteBureau[];
-}
-
-export function rangsProtocolaires(
-  postes: readonly PosteBureau[],
-): RangProtocolaire[] {
-  const rangs: RangProtocolaire[] = [];
-
-  for (const poste of postes) {
-    const dernier = rangs[rangs.length - 1];
-
-    if (dernier && dernier.ordre === poste.fonction.ordreProtocolaire) {
-      (dernier.postes as PosteBureau[]).push(poste);
-    } else {
-      rangs.push({ ordre: poste.fonction.ordreProtocolaire, postes: [poste] });
-    }
-  }
-
-  return rangs;
 }
 
 /**

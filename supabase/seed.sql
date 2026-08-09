@@ -47,22 +47,22 @@ on conflict (code_iso) do nothing;
 
 -- -----------------------------------------------------------------------------
 -- Fonctions de bureau — EF-REF-03
--- `ordre_protocolaire` pilote la disposition de l'organigramme (EF-BUR-07).
+-- La hierarchie ne vit pas ici : elle est propre a chaque bureau (bureau_postes).
 -- `est_financiere` alimente l'indicateur « membres de finances » (RG-31).
 -- -----------------------------------------------------------------------------
-insert into fonctions (code, libelle, categorie, est_financiere, ordre_protocolaire) values
-  ('PRESIDENT',           'President',                  'DIRECTION',     false,  10),
-  ('VICE_PRESIDENT',      'Vice-President',             'DIRECTION',     false,  20),
-  ('SECRETAIRE',          'Secretaire',                 'DIRECTION',     false,  30),
-  ('SECRETAIRE_ADJOINT',  'Secretaire adjoint',         'DIRECTION',     false,  40),
-  ('TRESORIER',           'Tresorier',                  'FINANCE',       true,   50),
-  ('TRESORIER_ADJOINT',   'Tresorier adjoint',          'FINANCE',       true,   60),
-  ('DIR_FINANCES',        'Directeur des finances',     'FINANCE',       true,   70),
-  ('COMMISSAIRE_COMPTES', 'Commissaire aux comptes',    'FINANCE',       true,   80),
-  ('DIR_COMMUNICATIONS',  'Directeur des communications','COMMUNICATION', false,  90),
-  ('DIR_OEUVRES',         'Directeur des oeuvres',      'OEUVRES',       false, 100),
-  ('DIR_JEUNESSE',        'Directeur de la jeunesse',   'OEUVRES',       false, 110),
-  ('CONSEILLER',          'Conseiller',                 'AUTRE',         false, 120)
+insert into fonctions (code, libelle, categorie, est_financiere) values
+  ('PRESIDENT',           'President',                   'DIRECTION',     false),
+  ('VICE_PRESIDENT',      'Vice-President',              'DIRECTION',     false),
+  ('SECRETAIRE',          'Secretaire',                  'DIRECTION',     false),
+  ('SECRETAIRE_ADJOINT',  'Secretaire adjoint',          'DIRECTION',     false),
+  ('TRESORIER',           'Tresorier',                   'FINANCE',       true),
+  ('TRESORIER_ADJOINT',   'Tresorier adjoint',           'FINANCE',       true),
+  ('DIR_FINANCES',        'Directeur des finances',      'FINANCE',       true),
+  ('COMMISSAIRE_COMPTES', 'Commissaire aux comptes',     'FINANCE',       true),
+  ('DIR_COMMUNICATIONS',  'Directeur des communications','COMMUNICATION', false),
+  ('DIR_OEUVRES',         'Directeur des oeuvres',       'OEUVRES',       false),
+  ('DIR_JEUNESSE',        'Directeur de la jeunesse',    'OEUVRES',       false),
+  ('CONSEILLER',          'Conseiller',                  'AUTRE',         false)
 on conflict (code) do nothing;
 
 -- Le Commissaire aux comptes n'a de sens qu'a partir de la Paroisse.

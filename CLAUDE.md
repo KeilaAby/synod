@@ -37,7 +37,7 @@ sur une église ou une cellule, rattachement verrouillé.
 
 **Prochain lot : 4 — Finances.**
 
-Base à jour jusqu'à la migration `0021`. Le stockage de fichiers ne se
+Base à jour jusqu'à la migration `0022`. Le stockage de fichiers ne se
 configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` et
 `postgres` s'y voit refuser `CREATE POLICY` : `pnpm db:bucket` s'en charge par
 l'API.

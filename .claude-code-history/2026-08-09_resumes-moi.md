@@ -48,9 +48,9 @@ la question a cessé de se poser.
 
 ## Ce qui vous attend
 
-**1. Appliquer la migration `0021`** — `supabase/install-incremental.sql`,
-régénéré `--depuis 0020`. Elle crée `bureau_postes`, sans laquelle l'éditeur
-d'organigramme ne peut rien enregistrer.
+**1. Appliquer la migration `0022`** — `supabase/install-incremental.sql`,
+régénéré `--depuis 0021`. Elle supprime `fonctions.ordre_protocolaire`, devenu
+sans usage depuis que l'organigramme se dessine.
 
 **2. La rotation de la clé `service_role`** — Supabase > Project Settings > API.
 Pas d'échéance technique, seulement une échéance de risque.
@@ -129,8 +129,8 @@ recalcule à chaque rendu. Ici elle porte votre mise en page — un rattachement
 déclenché par un simple survol la rendrait impraticable.
 
 **Un bureau jamais dessiné démarre sur un plan vide**, palette pleine : c'est
-vous qui décidez des blocs. « Tout poser par rang » les place tous d'un coup si
-vous préférez partir de là.
+vous qui décidez des blocs. « Tout poser » les place tous d'un coup, en grille
+et sans lien, si vous préférez partir de là.
 
 **Le plan est un dessin, pas la définition des postes.** La composition
 tabulaire continue de lister toutes les fonctions applicables et d'en compter
@@ -138,8 +138,9 @@ les vacances : une fonction non posée reste à pourvoir. Retirer un bloc ne
 touche **jamais** le référentiel — la fonction retourne dans la palette.
 
 Le graphe de la composition affiche désormais **votre plan** dès qu'il en existe
-un, et retombe sur le rang protocolaire sinon ; la légende dit lequel des deux
-vous regardez. Sans cela, votre dessin n'aurait été visible que dans l'éditeur.
+un ; sinon les blocs sont posés en grille, sans aucun trait. La légende dit
+lequel des deux vous regardez. Sans cela, votre dessin n'aurait été visible que
+dans l'éditeur.
 
 Chaque bloc porte le **menu ⋮** habituel : *Retirer le titulaire* — son mandat
 se clôt et reste dans son historique — puis *Ôter du plan*, dans cet ordre
@@ -189,6 +190,31 @@ librement jusqu'au lot 4.
 
 ---
 
+## L'ordre protocolaire a disparu
+
+Il servait à **déduire** l'organigramme — rang 10 en racine, rang 20 en
+dessous — du temps où personne ne le dessinait. Depuis l'éditeur, il ne
+décidait plus de rien : une colonne à saisir et à maintenir pour un usage
+disparu, que quelqu'un aurait fini par croire encore utile.
+
+Les listes de fonctions sont désormais **alphabétiques**, et l'organigramme
+par défaut pose les blocs en **grille, sans aucun trait**. C'est délibéré :
+sans le rang, plus aucune donnée ne dit qui dépend de qui, et en dessiner un
+affirmerait une organisation que personne n'a décrite.
+
+*Cela contredisait EF-BUR-07 — signalé, puis tranché par vous ; l'exigence a
+été réécrite dans `cdg.md`.*
+
+---
+
+## La liste d'attente
+
+- **EF-BUR-11** — export **Excel** de la composition d'un bureau. L'impression
+  de l'organigramme est livrée ; l'export tabulaire reste à faire.
+- **EF-BAP-07** — saisie de baptêmes **en lot**. *Prochaine tâche.*
+
+---
+
 ## Le Lot 4 — Finances, ce qui vous attendra
 
 Trois points à décider avant d'écrire une ligne, tous déjà notés dans
@@ -207,7 +233,7 @@ Trois points à décider avant d'écrire une ligne, tous déjà notés dans
 ```bash
 pnpm install      # installe aussi le hook pre-commit de détection de secrets
 pnpm dev          # http://localhost:3000
-pnpm verify       # secrets + lint + types + 340 tests + build
+pnpm verify       # secrets + lint + types + 337 tests + build
 ```
 
 Lire avant toute tâche : `CLAUDE.md`, puis `notes/cdg.md` et `notes/plan.md`.

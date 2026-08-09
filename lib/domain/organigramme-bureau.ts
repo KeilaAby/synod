@@ -1,4 +1,4 @@
-import { type PosteBureau, rangsProtocolaires } from './bureau';
+import type { PosteBureau } from './bureau';
 import { type ActionResult, ko, ok } from './result';
 
 /**
@@ -34,36 +34,33 @@ export const HAUTEUR_BLOC = 140;
 const ESPACEMENT_X = 32;
 const ESPACEMENT_Y = 88;
 
+/** Blocs par rangee : au-dela, la grille deborde de l'ecran avant de se lire. */
+const PAR_RANGEE = 4;
+
 /**
- * Disposition de depart, deduite du rang protocolaire.
+ * Disposition de depart : une GRILLE, sans aucun lien.
  *
- * Un organigramme vide n'invite pas a l'organiser : il donne l'impression d'un
- * outil casse. On part donc de la preseance — le premier rang en racine, les
- * suivants rattaches au poste principal du rang precedent — et l'utilisateur
- * REARRANGE au lieu de tout construire.
+ * Elle deduisait la hierarchie du rang protocolaire, retire le 9 aout 2026.
+ * Rien ne la remplace, et c'est la bonne reponse : sans le rang, plus aucune
+ * donnee ne dit qui depend de qui. Inventer des traits reviendrait a affirmer
+ * une organisation que personne n'a decrite — le defaut le plus couteux d'un
+ * organigramme, parce qu'il se lit comme un fait.
+ *
+ * La grille pose donc les blocs a portee de main, tous racines, et laisse les
+ * traits a l'utilisateur.
  */
 export function dispositionParDefaut(
   postes: readonly PosteBureau[],
 ): DispositionPoste[] {
-  const rangs = rangsProtocolaires(postes);
-  const disposition: DispositionPoste[] = [];
+  const rangee = Math.min(postes.length, PAR_RANGEE);
+  const largeur = rangee * LARGEUR_BLOC + (rangee - 1) * ESPACEMENT_X;
 
-  rangs.forEach((rang, niveau) => {
-    const largeur =
-      rang.postes.length * LARGEUR_BLOC + (rang.postes.length - 1) * ESPACEMENT_X;
-    const principalPrecedent = rangs[niveau - 1]?.postes[0]?.fonction.id ?? null;
-
-    rang.postes.forEach((poste, index) => {
-      disposition.push({
-        fonctionId: poste.fonction.id,
-        parentFonctionId: principalPrecedent,
-        x: -largeur / 2 + index * (LARGEUR_BLOC + ESPACEMENT_X),
-        y: niveau * (HAUTEUR_BLOC + ESPACEMENT_Y),
-      });
-    });
-  });
-
-  return disposition;
+  return postes.map((poste, index) => ({
+    fonctionId: poste.fonction.id,
+    parentFonctionId: null,
+    x: -largeur / 2 + (index % PAR_RANGEE) * (LARGEUR_BLOC + ESPACEMENT_X),
+    y: Math.floor(index / PAR_RANGEE) * (HAUTEUR_BLOC + ESPACEMENT_Y),
+  }));
 }
 
 /**

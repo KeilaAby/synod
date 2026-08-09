@@ -2269,7 +2269,7 @@ Les entités marquées `sans_acces_application` portent une icône `WifiOff` en 
 
 ### 13.2 `<BureauFlow />` — organigramme de bureau *(EF-BUR-07)*
 
-Disposition hiérarchique par **rang protocolaire** (`fonctions.ordre_protocolaire`) : le Président en racine, les autres fonctions réparties par niveau de rang. Chaque nœud affiche la photo du croyant (`Avatar` avec initiales en repli), son nom, sa fonction et son ancienneté dans le mandat. Les fonctions **vacantes** apparaissent en nœud `border-dashed` avec une action « Désigner un membre » — le taux de couverture devient immédiatement lisible.
+Disposition **dessinée par l'utilisateur** — voir l'éditeur ci-dessous. Tant que rien n'a été dessiné, les blocs sont posés en **grille et sans aucun trait** : depuis le retrait de l'ordre protocolaire (migration `0022`), plus aucune donnée ne dit qui dépend de qui, et en dessiner un l'inventerait. Chaque nœud affiche la photo du croyant (`Avatar` avec initiales en repli), son nom, sa fonction et son ancienneté dans le mandat. Les fonctions **vacantes** apparaissent en nœud `border-dashed` avec une action « Désigner un membre » — le taux de couverture devient immédiatement lisible.
 
 **Le graphe rend une préséance, pas une subordination.** Rien dans le modèle ne dit qu'un trésorier rend compte au secrétaire : les traits relient chaque rang au précédent, par son poste principal, et l'écran le précise sous le graphe. Deux fonctions de **même** `ordre_protocolaire` forment une bande horizontale — les empiler laisserait croire à une primauté que le référentiel n'exprime pas. Un organigramme qui suggère une chaîne de commandement invente une organisation.
 
@@ -2287,7 +2287,7 @@ La préséance ne dit pas comment une entité s'organise *réellement*. `bureau_
 
 **Pourquoi séparer déplacement et rattachement**, alors que `/structure` rattache en lâchant un nœud sur un autre : là-bas la position ne veut rien dire, ici elle porte la mise en page. Un rattachement déclenché par un simple survol la rendrait impraticable.
 
-**La palette *(9 août, révision)*** — colonne de gauche : les fonctions applicables au niveau (EF-REF-03) qui ne sont pas encore posées. `bureau_postes` énumère donc les **blocs du plan**, et un bureau jamais dessiné démarre sur un plan vide. Le rang protocolaire ne sert plus qu'à un raccourci explicite, « Tout poser par rang ».
+**La palette *(9 août, révision)*** — colonne de gauche : les fonctions applicables au niveau (EF-REF-03) qui ne sont pas encore posées. `bureau_postes` énumère donc les **blocs du plan**, et un bureau jamais dessiné démarre sur un plan vide. Le bouton « Tout poser » place d'un coup toutes les fonctions applicables, en grille et sans lien.
 
 **Ce que `bureau_postes` ne décide toujours pas** : la composition tabulaire continue de lister toutes les fonctions applicables et d'en compter les vacances. Le plan est un **dessin**, pas la définition des postes — une fonction non posée reste à pourvoir. Retirer un bloc ne touche jamais le référentiel : la fonction retourne dans la palette.
 
@@ -2521,7 +2521,7 @@ describe('RG-26 / RG-27 — rapports', () => {
 - [x] EF-TRF-09 — clôture des mandats d'origine à l'application d'un transfert.
 - [x] Mandats : création, clôture, reconduction. Membres : ajout, remplacement,
       retrait. **Server Actions livrées ; écrans à construire.**
-- [x] Composition par rang protocolaire, fonctions vacantes visibles, en pop-up.
+- [x] Composition tabulaire, fonctions vacantes visibles, en pop-up.
 - [x] `BureauFlow` — organigramme React Flow (EF-BUR-07), en **seconde
       représentation** de la composition et non en second écran : le tableau
       pour composer, le graphe pour présenter. Import dynamique (règle 7),

@@ -21,7 +21,6 @@ const fonction = (p: Partial<FonctionBureau>): FonctionBureau => ({
   id: 'f1',
   code: 'PRESIDENT',
   libelle: 'President',
-  ordreProtocolaire: 10,
   estFinanciere: false,
   niveauxApplicables: ['SIEGE', 'REGIONAL', 'DISTRICT', 'PAROISSE', 'EGLISE', 'CELLULE'],
   isActive: true,
@@ -29,32 +28,42 @@ const fonction = (p: Partial<FonctionBureau>): FonctionBureau => ({
 });
 
 const FONCTIONS = [
-  fonction({ id: 'f1', libelle: 'President', ordreProtocolaire: 10 }),
-  fonction({ id: 'f2', libelle: 'Vice-president', ordreProtocolaire: 20 }),
-  fonction({ id: 'f3', libelle: 'Secretaire', ordreProtocolaire: 30 }),
-  fonction({ id: 'f4', libelle: 'Tresorier', ordreProtocolaire: 30, estFinanciere: true }),
+  fonction({ id: 'f1', libelle: 'President' }),
+  fonction({ id: 'f2', libelle: 'Vice-president' }),
+  fonction({ id: 'f3', libelle: 'Secretaire' }),
+  fonction({ id: 'f4', libelle: 'Tresorier', estFinanciere: true }),
 ];
 
 const postesVides = () => composerBureau(FONCTIONS, [] as MandatMembre[], 'EGLISE');
 
-describe('Disposition de depart — le rang protocolaire', () => {
-  it('rattache chaque rang au poste PRINCIPAL du rang precedent', () => {
-    const disposition = dispositionParDefaut(postesVides());
-
-    const par = new Map(disposition.map((d) => [d.fonctionId, d]));
-    expect(par.get('f1')?.parentFonctionId).toBeNull();
-    expect(par.get('f2')?.parentFonctionId).toBe('f1');
-    expect(par.get('f3')?.parentFonctionId).toBe('f2');
-    expect(par.get('f4')?.parentFonctionId).toBe('f2');
+describe('Disposition de depart — une grille, et AUCUN lien', () => {
+  it("n'invente aucune dependance", () => {
+    // C'est le point de la revision du 9 aout : l'ordre protocolaire retire,
+    // plus aucune donnee ne dit qui depend de qui. Dessiner un trait
+    // affirmerait une organisation que personne n'a decrite — et un
+    // organigramme se lit comme un fait.
+    expect(
+      dispositionParDefaut(postesVides()).every((d) => d.parentFonctionId === null),
+    ).toBe(true);
   });
 
-  it('aligne les fonctions de MEME rang sur une bande', () => {
-    // Secretaire et Tresorier partagent l'ordre 30 : meme hauteur, abscisses
-    // differentes. Les empiler ferait croire que l'un prime sur l'autre.
-    const par = new Map(dispositionParDefaut(postesVides()).map((d) => [d.fonctionId, d]));
+  it('pose tous les postes applicables, cote a cote', () => {
+    const disposition = dispositionParDefaut(postesVides());
 
-    expect(par.get('f3')?.y).toBe(par.get('f4')?.y);
-    expect(par.get('f3')?.x).not.toBe(par.get('f4')?.x);
+    expect(disposition.map((d) => d.fonctionId).sort()).toEqual(['f1', 'f2', 'f3', 'f4']);
+    // Quatre blocs sur une meme rangee : meme ordonnee, abscisses distinctes.
+    expect(new Set(disposition.map((d) => d.y)).size).toBe(1);
+    expect(new Set(disposition.map((d) => d.x)).size).toBe(4);
+  });
+
+  it('passe a la rangee suivante au-dela de quatre blocs', () => {
+    // Une rangee interminable deborde de l'ecran avant de se lire.
+    const large = Array.from({ length: 6 }, (_, i) =>
+      fonction({ id: `g${i}`, libelle: `Fonction ${i}` }),
+    );
+    const disposition = dispositionParDefaut(composerBureau(large, [], 'EGLISE'));
+
+    expect(new Set(disposition.map((d) => d.y)).size).toBe(2);
   });
 
   it('ne propose rien pour un bureau sans fonction applicable', () => {
@@ -128,7 +137,19 @@ describe("Retrait d'un bloc — le referentiel n'est jamais touche", () => {
 });
 
 describe('EF-BUR-07 — un organigramme reste un ARBRE', () => {
-  const disposition = () => dispositionParDefaut(postesVides());
+  /**
+   * Une chaine f1 → f2 → f3, dessinee a la main.
+   *
+   * La disposition par defaut ne porte plus de lien depuis le retrait de
+   * l'ordre protocolaire : elle ne peut plus servir de terrain aux tests de
+   * boucle, qui ont besoin d'une hierarchie a fermer.
+   */
+  const disposition = (): DispositionPoste[] => [
+    { fonctionId: 'f1', parentFonctionId: null, x: 0, y: 0 },
+    { fonctionId: 'f2', parentFonctionId: 'f1', x: 0, y: 100 },
+    { fonctionId: 'f3', parentFonctionId: 'f2', x: 0, y: 200 },
+    { fonctionId: 'f4', parentFonctionId: null, x: 300, y: 0 },
+  ];
 
   it('refuse qu une fonction depende d elle-meme', () => {
     const verdict = validerLien(
@@ -179,8 +200,8 @@ describe('EF-BUR-07 — un organigramme reste un ARBRE', () => {
   });
 
   it('accepte un rattachement lateral entre deux branches', () => {
-    // Tresorier sous Secretaire : rien ne l'interdit, ce sont deux postes de
-    // meme rang mais l'organisation reelle peut le vouloir.
+    // Tresorier sous Secretaire : rien ne l'interdit, l'organisation reelle
+    // peut le vouloir.
     const verdict = validerLien(
       { id: 'f4', libelle: 'Tresorier' },
       { id: 'f3', libelle: 'Secretaire' },
@@ -203,13 +224,3 @@ describe('EF-BUR-07 — un organigramme reste un ARBRE', () => {
   });
 });
 
-describe('« Tout poser par rang » — le raccourci, pas la regle', () => {
-  it('pose toutes les fonctions applicables, reliees de rang en rang', () => {
-    // C'est le seul endroit ou le rang protocolaire decide encore d'un plan :
-    // un bouton, explicite, que l'utilisateur peut ensuite defaire bloc a bloc.
-    const defaut = dispositionParDefaut(postesVides());
-
-    expect(defaut).toHaveLength(4);
-    expect(racines(defaut).map((d) => d.fonctionId)).toEqual(['f1']);
-  });
-});

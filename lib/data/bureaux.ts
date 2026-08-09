@@ -24,7 +24,7 @@ const CHAMPS_MANDAT = `
       grade:grades!croyants_grade_id_fkey (id, libelle)
     ),
     fonction:fonctions!bureau_membres_fonction_id_fkey (
-      id, code, libelle, ordre_protocolaire, est_financiere
+      id, code, libelle, est_financiere
     )
   ),
   postes:bureau_postes!bureau_postes_bureau_id_fkey (
@@ -53,7 +53,6 @@ export interface MembreBureau {
     id: string;
     code: string;
     libelle: string;
-    ordre_protocolaire: number;
     est_financiere: boolean;
   } | null;
 }
@@ -70,7 +69,7 @@ export interface BureauComplet {
   membres: MembreBureau[];
   /**
    * EF-BUR-07 — plan dessine dans l'editeur. Vide tant qu'aucun n'a ete
-   * dessine : l'affichage retombe alors sur le rang protocolaire.
+   * dessine : les blocs sont alors poses en grille, sans trait.
    */
   postes: {
     fonction_id: string;
@@ -135,8 +134,8 @@ export async function chargerDisposition(bureauId: string): Promise<DispositionP
       }[]
     >();
 
-  // Une disposition illisible n'empeche pas de composer : l'ecran retombe sur
-  // le rang protocolaire, ce qui reste vrai.
+  // Une disposition illisible n'empeche pas de composer : l'ecran pose les
+  // blocs en grille, ce qui reste vrai — il n'affirme simplement aucun lien.
   if (error) return [];
 
   return (data ?? []).map((p) => ({
@@ -269,14 +268,13 @@ export async function listerFonctions(): Promise<FonctionBureau[]> {
 
   const { data, error } = await sb
     .from('fonctions')
-    .select('id, code, libelle, ordre_protocolaire, est_financiere, niveaux_applicables, is_active')
-    .order('ordre_protocolaire')
+    .select('id, code, libelle, est_financiere, niveaux_applicables, is_active')
+    .order('libelle')
     .returns<
       {
         id: string;
         code: string;
         libelle: string;
-        ordre_protocolaire: number;
         est_financiere: boolean;
         niveaux_applicables: EntityType[];
         is_active: boolean;
@@ -289,7 +287,6 @@ export async function listerFonctions(): Promise<FonctionBureau[]> {
     id: f.id,
     code: f.code,
     libelle: f.libelle,
-    ordreProtocolaire: f.ordre_protocolaire,
     estFinanciere: f.est_financiere,
     niveauxApplicables: f.niveaux_applicables,
     isActive: f.is_active,
