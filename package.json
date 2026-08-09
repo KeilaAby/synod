@@ -5,6 +5,7 @@
   "description": "SYNOD — plateforme de gestion et de pilotage d'une organisation ecclesiale",
   "scripts": {
     "dev": "next dev",
+    "dev:propre": "node -e \"require('node:fs').rmSync('.next', { recursive: true, force: true })\" && next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

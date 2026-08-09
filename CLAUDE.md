@@ -150,3 +150,10 @@ Ce qu'il reste à faire est décrit dans le dernier point d'étape
 ## Vérification
 
 `pnpm verify` = lint + typecheck + test + build. Bloquant en CI.
+
+**`pnpm dev:propre` après une série de modifications.** Turbopack a servi trois
+fois des versions MÉLANGÉES de modules — un composant récent lié à un hook
+ancien —, ce qui se manifeste par des fonctionnalités « absentes » ou des
+`X is not defined` sur du code correct. Symptôme reconnaissable : `pnpm verify`
+passe alors que l'écran ne suit pas. Le diagnostic se confirme en comptant les
+versions d'un même module dans `.next/dev/static/chunks/`.

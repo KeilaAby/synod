@@ -233,6 +233,7 @@ Trois points à décider avant d'écrire une ligne, tous déjà notés dans
 ```bash
 pnpm install      # installe aussi le hook pre-commit de détection de secrets
 pnpm dev          # http://localhost:3000
+pnpm dev:propre   # meme chose, cache Turbopack vide au prealable
 pnpm verify       # secrets + lint + types + 337 tests + build
 ```
 
