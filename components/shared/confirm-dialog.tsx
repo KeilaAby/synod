@@ -62,11 +62,31 @@ export function ConfirmDialog({
     else setOuvertInterne(valeur);
   }
 
+  /**
+   * La transition couvre l'ATTENTE, jamais l'APPEL.
+   *
+   * `onConfirm` etait invoque a l'interieur de `startTransition`. Toutes ses
+   * ecritures d'etat devenaient donc des mises a jour de transition — que React
+   * est libre de fondre avec les suivantes, sans jamais rendre l'etat
+   * intermediaire. Un appelant qui ouvrait un pop-up d'attente puis le fermait
+   * a la fin de la meme sequence ne le voyait donc JAMAIS s'afficher.
+   *
+   * Le geste est desormais appele hors transition : ses ecritures sont
+   * urgentes, et l'ecran suit. Seule l'attente d'une promesse — quand
+   * `onConfirm` en rend une — reste dans la transition, ce qui est tout ce
+   * qu'on lui demandait : garder la boite ouverte et son bouton occupe.
+   */
   function confirmer(evenement: React.MouseEvent) {
-    // On garde la boite ouverte pendant l'action pour montrer sa progression.
     evenement.preventDefault();
+    const resultat = onConfirm();
+
+    if (!(resultat instanceof Promise)) {
+      definirOuvert(false);
+      return;
+    }
+
     demarrer(async () => {
-      await onConfirm();
+      await resultat;
       definirOuvert(false);
     });
   }
