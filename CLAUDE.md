@@ -25,14 +25,16 @@ dépendance — ARB-6 clos). Reste hors périmètre la saisie de baptêmes en lo
 **Lot 3 (bureaux) livré** : ouverture, **modification**, composition par rang
 avec fonctions vacantes, désignation, remplacement, reconduction, clôture
 atomique, **suppression** sous `bureau.delete` (droit distinct et non
-délégable), **organigramme React Flow** (EF-BUR-07) en seconde représentation
-de la composition, et les fonctions occupées dans la frise du croyant.
+délégable), **organigramme React Flow** (EF-BUR-07) — en lecture comme seconde
+représentation de la composition, et en **édition** sur
+`/bureaux/[id]/organigramme` : déplacer, relier, désigner au glisser-déposer.
+Les fonctions occupées figurent dans la frise du croyant.
 Le menu ⋮ de la structure ouvre le bureau d'une entité et enregistre un croyant
 sur une église ou une cellule, rattachement verrouillé.
 
 **Prochain lot : 4 — Finances.**
 
-Base à jour jusqu'à la migration `0020`. Le stockage de fichiers ne se
+Base à jour jusqu'à la migration `0021`. Le stockage de fichiers ne se
 configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` et
 `postgres` s'y voit refuser `CREATE POLICY` : `pnpm db:bucket` s'en charge par
 l'API.

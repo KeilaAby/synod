@@ -38,6 +38,7 @@ la question a cessé de se poser.
 | **Import CSV *et* XLSX** — correspondance de colonnes, pré-validation | ✅ |
 | Bureaux — ouverture, modification, composition, clôture, suppression | ✅ |
 | **Organigramme de bureau React Flow (EF-BUR-07)** | ✅ |
+| **Éditeur d'organigramme — déplacer, relier, désigner au glisser-déposer** | ✅ |
 | Bureaux et croyants depuis le menu ⋮ de la structure | ✅ |
 | Saisie de baptêmes en lot (EF-BAP-07) | *Could* — non livré |
 | Tableau de bord | Coquille — le moteur configurable est le Lot 5 |
@@ -47,10 +48,12 @@ la question a cessé de se poser.
 
 ## Ce qui vous attend
 
-**Il n'en reste qu'une**, et elle n'a pas d'échéance technique — seulement une
-échéance de risque.
+**1. Appliquer la migration `0021`** — `supabase/install-incremental.sql`,
+régénéré `--depuis 0020`. Elle crée `bureau_postes`, sans laquelle l'éditeur
+d'organigramme ne peut rien enregistrer.
 
-**La rotation de la clé `service_role`** — Supabase > Project Settings > API.
+**2. La rotation de la clé `service_role`** — Supabase > Project Settings > API.
+Pas d'échéance technique, seulement une échéance de risque.
 Elle a figuré en clair dans un transcript local ; le dossier est désormais
 exclu du dépôt, mais la clé a existé hors du coffre. Cette clé **contourne
 intégralement la RLS** : c'est le seul secret dont la fuite annule tout le
@@ -106,6 +109,35 @@ défaut : c'est lui qui sert à composer, le graphe sert à présenter.
 
 ---
 
+## L'éditeur d'organigramme — `Définir l'organigramme`
+
+Le menu ⋮ d'une carte de bureau y mène. C'est une **page**, pas un pop-up : la
+règle 16 vise les formulaires, or ceci est un plan de travail — il lui faut la
+largeur, le zoom et une liste de croyants à côté. Même choix que `/structure`.
+
+| Geste | Ce qu'il signifie |
+|---|---|
+| **Déplacer** un bloc | De la mise en page, librement sur le plan. N'engage rien. |
+| **Tirer un trait** d'une poignée à l'autre | La dépendance — le seul geste qui la décide. |
+| **Faire glisser un croyant** sur un bloc | La désignation, dans le périmètre de l'entité (RG-09). |
+
+**Pourquoi déplacer ne rattache pas**, alors que dans `/structure` lâcher un
+nœud sur un autre le rattache : là-bas la position ne veut rien dire, Dagre la
+recalcule à chaque rendu. Ici elle porte votre mise en page — un rattachement
+déclenché par un simple survol la rendrait impraticable.
+
+**Ce que l'éditeur n'invente pas** : il n'énumère pas les postes. Ce sont les
+fonctions applicables au niveau de l'entité. Une fonction laissée sur le côté
+du plan reste un poste du bureau — sans quoi un trésorier oublié cesserait
+d'exister et le bureau paraîtrait complet.
+
+L'enregistrement est **automatique** à la fin de chaque geste : rien à valider,
+rien à perdre. « Replacer par rang » revient à la disposition protocolaire.
+Sélectionner un trait puis Suppr. détache un bloc : il redevient une racine, il
+ne disparaît pas.
+
+---
+
 ## Le Lot 4 — Finances, ce qui vous attendra
 
 Trois points à décider avant d'écrire une ligne, tous déjà notés dans
@@ -124,7 +156,7 @@ Trois points à décider avant d'écrire une ligne, tous déjà notés dans
 ```bash
 pnpm install      # installe aussi le hook pre-commit de détection de secrets
 pnpm dev          # http://localhost:3000
-pnpm verify       # secrets + lint + types + 301 tests + build
+pnpm verify       # secrets + lint + types + 317 tests + build
 ```
 
 Lire avant toute tâche : `CLAUDE.md`, puis `notes/cdg.md` et `notes/plan.md`.

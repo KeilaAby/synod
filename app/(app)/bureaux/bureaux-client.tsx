@@ -6,12 +6,14 @@ import {
   CircleSlash,
   List,
   MoreVertical,
+  Network,
   Pencil,
   Search,
   SquarePen,
   Trash2,
   X,
 } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useDeferredValue, useMemo, useState, useTransition } from 'react';
 import { toast } from 'sonner';
@@ -354,6 +356,15 @@ export function BureauxClient({
                               <DropdownMenuItem onSelect={() => setOuvert(bureau)}>
                                 <List className="mr-2 size-4" aria-hidden />
                                 Voir la composition
+                              </DropdownMenuItem>
+
+                              {/* EF-BUR-07 — un plan de travail, pas un
+                                  formulaire : il lui faut la page entière. */}
+                              <DropdownMenuItem asChild>
+                                <Link href={`/bureaux/${bureau.id}/organigramme`}>
+                                  <Network className="mr-2 size-4" aria-hidden />
+                                  Définir l&apos;organigramme
+                                </Link>
                               </DropdownMenuItem>
 
                               {bureau.entite &&

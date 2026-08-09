@@ -2273,6 +2273,24 @@ Disposition hiérarchique par **rang protocolaire** (`fonctions.ordre_protocolai
 
 **Le graphe rend une préséance, pas une subordination.** Rien dans le modèle ne dit qu'un trésorier rend compte au secrétaire : les traits relient chaque rang au précédent, par son poste principal, et l'écran le précise sous le graphe. Deux fonctions de **même** `ordre_protocolaire` forment une bande horizontale — les empiler laisserait croire à une primauté que le référentiel n'exprime pas. Un organigramme qui suggère une chaîne de commandement invente une organisation.
 
+#### L'éditeur — `/bureaux/[id]/organigramme` *(9 août 2026)*
+
+La préséance ne dit pas comment une entité s'organise *réellement*. `bureau_postes` (migration `0021`) porte donc, **par bureau**, un `parent_fonction_id` et une position libre. Le rang reste ce qu'il est : l'ordre du référentiel, valable partout, et il fournit la disposition de départ — un plan vierge n'invite pas à l'organiser, il donne l'impression d'un outil cassé.
+
+| Geste | Ce qu'il signifie |
+|---|---|
+| Déplacer un bloc | De la mise en page. N'engage rien. |
+| Tirer un trait d'une poignée à l'autre | La dépendance — et c'est le **seul** geste qui la décide. |
+| Faire glisser un croyant sur un bloc | La désignation (RG-09 filtre la liste à la source). |
+
+**Pourquoi séparer déplacement et rattachement**, alors que `/structure` rattache en lâchant un nœud sur un autre : là-bas la position ne veut rien dire, ici elle porte la mise en page. Un rattachement déclenché par un simple survol la rendrait impraticable.
+
+`bureau_postes` **n'énumère pas les postes** : ce sont les fonctions applicables au niveau (EF-REF-03). Une fonction sans ligne y reste un poste, placée à son rang — sans quoi un trésorier laissé sur le côté du plan cesserait d'exister, et le bureau paraîtrait complet.
+
+Enregistrement automatique en fin de geste, **tout le plan à la fois** : un bouton « Enregistrer » créerait un travail à perdre, des écritures bloc par bloc laisseraient un trait pointer vers une position non enregistrée. Le cycle est refusé par le domaine (message) *et* par un trigger `SECURITY DEFINER` (garantie).
+
+**Une page et non un pop-up** : la règle 16 vise les formulaires, or ceci est un plan de travail — largeur, zoom, liste de croyants à côté. Même choix que `/structure`, pour la même raison.
+
 *Livré le 9 août 2026 : `bureau-flow.tsx`, `bureau-node.tsx`, `bureau-flow-loader.tsx` ; règles pures `rangsProtocolaires` et `ancienneteMandat`.*
 
 ---

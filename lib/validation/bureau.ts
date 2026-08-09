@@ -77,6 +77,33 @@ export const compositionEntiteSchema = z.object({
   entityId: z.uuid(),
 });
 
+/**
+ * EF-BUR-07 — disposition de l'organigramme, enregistree D'UN BLOC.
+ *
+ * Un seul appel pour tout le plan, et non un par bloc deplace : les gestes
+ * s'enchainent — on deplace, on relie, on redeplace — et une suite d'ecritures
+ * independantes laisserait des etats intermediaires ou un trait pointe vers un
+ * bloc dont la position n'est pas encore enregistree.
+ *
+ * Le plafond protege d'un envoi absurde : un bureau compte quelques dizaines de
+ * fonctions, jamais deux cents.
+ */
+export const dispositionSchema = z.object({
+  bureauId: z.uuid(),
+  postes: z
+    .array(
+      z.object({
+        fonctionId: z.uuid(),
+        parentFonctionId: z.uuid().nullable(),
+        // Bornees : une coordonnee absurde placerait un bloc hors de portee du
+        // cadrage automatique, et l'organigramme paraitrait vide.
+        x: z.number().min(-100_000).max(100_000),
+        y: z.number().min(-100_000).max(100_000),
+      }),
+    )
+    .max(200, 'Cet organigramme comporte trop de postes.'),
+});
+
 export const designerMembreSchema = z.object({
   bureauId: z.uuid(),
   croyantId: z.uuid('Selectionnez un croyant.'),

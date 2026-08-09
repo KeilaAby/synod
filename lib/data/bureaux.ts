@@ -2,6 +2,7 @@ import 'server-only';
 
 import type { FonctionBureau } from '@/lib/domain/bureau';
 import type { EntityType } from '@/lib/domain/hierarchy';
+import type { DispositionPoste } from '@/lib/domain/organigramme-bureau';
 import { createClient } from '@/lib/supabase/server';
 
 import { DataError } from './errors';
@@ -81,6 +82,55 @@ export async function chargerBureaux(): Promise<BureauComplet[]> {
     throw new DataError('Les bureaux sont momentanement illisibles.', error);
   }
   return data ?? [];
+}
+
+/** Un bureau precis, avec sa composition — EF-BUR-07. */
+export async function chargerBureau(bureauId: string): Promise<BureauComplet | null> {
+  const sb = await createClient();
+
+  const { data, error } = await sb
+    .from('bureaux')
+    .select(CHAMPS_MANDAT)
+    .eq('id', bureauId)
+    .is('deleted_at', null)
+    .maybeSingle<BureauComplet>();
+
+  if (error) throw new DataError('Ce bureau est momentanement illisible.', error);
+  return data;
+}
+
+/**
+ * EF-BUR-07 — disposition enregistree de l'organigramme.
+ *
+ * Elle ARRANGE des postes, elle ne les enumere pas : une fonction applicable
+ * sans ligne ici reste un poste du bureau (voir `fusionnerDisposition`).
+ */
+export async function chargerDisposition(bureauId: string): Promise<DispositionPoste[]> {
+  const sb = await createClient();
+
+  const { data, error } = await sb
+    .from('bureau_postes')
+    .select('fonction_id, parent_fonction_id, pos_x, pos_y')
+    .eq('bureau_id', bureauId)
+    .returns<
+      {
+        fonction_id: string;
+        parent_fonction_id: string | null;
+        pos_x: number;
+        pos_y: number;
+      }[]
+    >();
+
+  // Une disposition illisible n'empeche pas de composer : l'ecran retombe sur
+  // le rang protocolaire, ce qui reste vrai.
+  if (error) return [];
+
+  return (data ?? []).map((p) => ({
+    fonctionId: p.fonction_id,
+    parentFonctionId: p.parent_fonction_id,
+    x: p.pos_x,
+    y: p.pos_y,
+  }));
 }
 
 /** Les bureaux d'UNE entite, mandats clos compris (EF-BUR-08). */

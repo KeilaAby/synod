@@ -1,0 +1,173 @@
+import { type PosteBureau, rangsProtocolaires } from './bureau';
+import { type ActionResult, ko, ok } from './result';
+
+/**
+ * Disposition de l'organigramme d'un bureau — EF-BUR-07.
+ *
+ * Module PUR : contrepartie applicative de `0021_organigramme_bureau.sql`. Le
+ * domaine EXPLIQUE le refus a l'utilisateur, la base l'EMPECHE quoi qu'il
+ * arrive — et les tests verrouillent l'accord entre les deux.
+ *
+ * DEUX CHOSES A NE PAS CONFONDRE
+ *
+ * Le RANG protocolaire vient du referentiel : il vaut pour toutes les entites,
+ * et personne ne le redessine. La DISPOSITION appartient au bureau : elle dit
+ * qui depend de qui ICI, et ou chaque bloc se trouve sur le plan.
+ *
+ * Une fonction sans disposition enregistree reste un poste du bureau, placee a
+ * son rang. C'est le point le plus important de ce module : la disposition
+ * ARRANGE des postes, elle ne les enumere pas. Sans cela, oublier de poser un
+ * bloc ferait disparaitre le tresorier, et le bureau paraitrait complet.
+ */
+
+export interface DispositionPoste {
+  readonly fonctionId: string;
+  /** Superieur DANS CE BUREAU. `null` : racine de l'organigramme. */
+  readonly parentFonctionId: string | null;
+  readonly x: number;
+  readonly y: number;
+}
+
+/** Grille de 8 px, jusque dans la disposition par defaut (UI-01). */
+export const LARGEUR_BLOC = 224;
+export const HAUTEUR_BLOC = 140;
+const ESPACEMENT_X = 32;
+const ESPACEMENT_Y = 88;
+
+/**
+ * Disposition de depart, deduite du rang protocolaire.
+ *
+ * Un organigramme vide n'invite pas a l'organiser : il donne l'impression d'un
+ * outil casse. On part donc de la preseance — le premier rang en racine, les
+ * suivants rattaches au poste principal du rang precedent — et l'utilisateur
+ * REARRANGE au lieu de tout construire.
+ */
+export function dispositionParDefaut(
+  postes: readonly PosteBureau[],
+): DispositionPoste[] {
+  const rangs = rangsProtocolaires(postes);
+  const disposition: DispositionPoste[] = [];
+
+  rangs.forEach((rang, niveau) => {
+    const largeur =
+      rang.postes.length * LARGEUR_BLOC + (rang.postes.length - 1) * ESPACEMENT_X;
+    const principalPrecedent = rangs[niveau - 1]?.postes[0]?.fonction.id ?? null;
+
+    rang.postes.forEach((poste, index) => {
+      disposition.push({
+        fonctionId: poste.fonction.id,
+        parentFonctionId: principalPrecedent,
+        x: -largeur / 2 + index * (LARGEUR_BLOC + ESPACEMENT_X),
+        y: niveau * (HAUTEUR_BLOC + ESPACEMENT_Y),
+      });
+    });
+  });
+
+  return disposition;
+}
+
+/**
+ * Ce qui est enregistre l'emporte ; ce qui manque prend sa place par defaut.
+ *
+ * Le cas courant n'est pas l'organigramme vierge mais l'organigramme
+ * INCOMPLET : une fonction vient d'etre ajoutee au referentiel, ou le niveau de
+ * l'entite en rend une nouvelle applicable. Elle doit apparaitre, pas
+ * disparaitre.
+ */
+export function fusionnerDisposition(
+  postes: readonly PosteBureau[],
+  enregistrees: readonly DispositionPoste[],
+): DispositionPoste[] {
+  const parFonction = new Map(enregistrees.map((d) => [d.fonctionId, d]));
+  const applicables = new Set(postes.map((p) => p.fonction.id));
+
+  return dispositionParDefaut(postes).map((defaut) => {
+    const enregistree = parFonction.get(defaut.fonctionId);
+    if (!enregistree) return defaut;
+
+    return {
+      fonctionId: defaut.fonctionId,
+      // Un parent devenu inapplicable — fonction desactivee, entite changee de
+      // niveau — laisserait un trait vers un bloc absent. On retombe sur la
+      // racine plutot que de dessiner dans le vide.
+      parentFonctionId:
+        enregistree.parentFonctionId && applicables.has(enregistree.parentFonctionId)
+          ? enregistree.parentFonctionId
+          : null,
+      x: enregistree.x,
+      y: enregistree.y,
+    };
+  });
+}
+
+// -----------------------------------------------------------------------------
+
+/** Remonte la chaine des superieurs. Bornee : un cycle deja en base ne doit pas figer l'ecran. */
+function ancetres(
+  fonctionId: string,
+  disposition: readonly DispositionPoste[],
+): Set<string> {
+  const parFonction = new Map(disposition.map((d) => [d.fonctionId, d]));
+  const vus = new Set<string>();
+
+  let courant = parFonction.get(fonctionId)?.parentFonctionId ?? null;
+  while (courant && !vus.has(courant)) {
+    vus.add(courant);
+    courant = parFonction.get(courant)?.parentFonctionId ?? null;
+  }
+  return vus;
+}
+
+/**
+ * EF-BUR-07 — un rattachement est-il recevable ?
+ *
+ * Trois refus, et le message doit dire lequel : un geste rejete sans raison se
+ * relit comme une panne, et l'utilisateur recommence a l'identique.
+ */
+export function validerLien(
+  fonction: { id: string; libelle: string },
+  parent: { id: string; libelle: string },
+  disposition: readonly DispositionPoste[],
+): ActionResult<void> {
+  if (fonction.id === parent.id) {
+    return ko('Une fonction ne peut pas dependre d elle-meme.');
+  }
+
+  const actuel = disposition.find((d) => d.fonctionId === fonction.id);
+  if (actuel?.parentFonctionId === parent.id) {
+    return ko(`« ${fonction.libelle} » depend deja de « ${parent.libelle} ».`);
+  }
+
+  // Rattacher un superieur sous l'un de ses propres subordonnes detacherait la
+  // branche : plus personne ne remonterait a la racine.
+  if (ancetres(parent.id, disposition).has(fonction.id)) {
+    return ko(
+      `« ${parent.libelle} » depend deja de « ${fonction.libelle} » : ` +
+        'ce rattachement creerait une boucle.',
+    );
+  }
+
+  return ok();
+}
+
+/** Applique un rattachement — le parent `null` remet le bloc en racine. */
+export function rattacherPoste(
+  disposition: readonly DispositionPoste[],
+  fonctionId: string,
+  parentFonctionId: string | null,
+): DispositionPoste[] {
+  return disposition.map((d) =>
+    d.fonctionId === fonctionId ? { ...d, parentFonctionId } : d,
+  );
+}
+
+/**
+ * Racines de l'organigramme.
+ *
+ * Il peut y en avoir PLUSIEURS, et c'est voulu : un bureau se compose parfois
+ * de plusieurs branches sans sommet commun — un comite et une commission cote
+ * a cote. Imposer une racine unique obligerait a inventer un poste.
+ */
+export function racines(disposition: readonly DispositionPoste[]): DispositionPoste[] {
+  return disposition.filter((d) => d.parentFonctionId === null);
+}

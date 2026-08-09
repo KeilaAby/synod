@@ -2,6 +2,7 @@
 
 import { Handle, type NodeProps, Position } from '@xyflow/react';
 import { CircleSlash, UserPlus } from 'lucide-react';
+import { useState } from 'react';
 
 import { AvatarCroyant } from '@/components/croyants/avatar-croyant';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -25,18 +26,55 @@ export interface DonneesNoeudPoste extends Record<string, unknown> {
   anciennete: string;
   peutGerer: boolean;
   surDesigner: (fonctionId: string) => void;
+  /**
+   * EF-BUR-07 — désignation par glisser-déposer depuis la liste des croyants
+   * éligibles. Absent en lecture seule : le bloc n'est alors pas une cible, et
+   * rien ne laisse croire qu'on peut y déposer quelque chose.
+   */
+  surDeposerCroyant?: (fonctionId: string, croyantId: string) => void;
 }
+
+/** Le format d'échange du glisser-déposer — un seul endroit le connaît. */
+export const TYPE_CROYANT_GLISSE = 'application/x-synod-croyant';
 
 export function NoeudPoste({ data }: NodeProps) {
   const d = data as unknown as DonneesNoeudPoste;
+  const [survole, setSurvole] = useState(false);
+
+  const accepteDepot = d.surDeposerCroyant !== undefined && d.peutGerer;
 
   return (
     <div
+      onDragOver={
+        accepteDepot
+          ? (e) => {
+              // Sans `preventDefault`, le navigateur refuse le dépôt : c'est ce
+              // qui distingue une cible d'une zone quelconque.
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'move';
+              setSurvole(true);
+            }
+          : undefined
+      }
+      onDragLeave={accepteDepot ? () => setSurvole(false) : undefined}
+      onDrop={
+        accepteDepot
+          ? (e) => {
+              e.preventDefault();
+              setSurvole(false);
+              const croyantId = e.dataTransfer.getData(TYPE_CROYANT_GLISSE);
+              if (croyantId) d.surDeposerCroyant!(d.fonctionId, croyantId);
+            }
+          : undefined
+      }
       className={cn(
         'w-56 rounded-xl border bg-card p-4 transition-colors',
         d.titulaire
           ? 'border-border hover:border-slate-300'
           : 'border-dashed border-amber-300 bg-amber-50/40',
+        // La cible se signale PENDANT le geste : un survol qui ne change rien
+        // laisse douter que le dépôt sera pris.
+        survole && 'border-solid border-indigo-500 ring-2 ring-indigo-200',
       )}
     >
       <Handle

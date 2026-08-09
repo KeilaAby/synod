@@ -42,15 +42,31 @@ function fichiersDeDonnees(): string[] {
     .map((f) => join(DOSSIER, f));
 }
 
-/** Extrait les chaines de selection : `const X = \`…\`` et `.select('…')`. */
+/**
+ * Extrait les chaines de selection.
+ *
+ * Chaque motif est ANCRE sur ce qui precede la chaine — une affectation, ou
+ * l'ouverture de `.select(`. La premiere version cherchait n'importe quel
+ * gabarit entre deux accents graves ; le 9 aout, un `\`fusionnerDisposition\``
+ * ecrit dans un COMMENTAIRE a decale les paires, et tout le code compris entre
+ * ce commentaire et le gabarit suivant a ete lu comme une chaine de selection.
+ * Le test a signale `if`, `return`, `for` comme des embeds anonymes.
+ *
+ * Un garde-fou qui crie a tort est un garde-fou qu'on finit par desactiver.
+ */
 function chainesDeSelection(source: string): string[] {
   const chaines: string[] = [];
 
-  for (const m of source.matchAll(/`([^`]*?:[a-z_]+[^`]*?)`/g)) {
-    if (m[1] && m[1].includes('(')) chaines.push(m[1]);
-  }
-  for (const m of source.matchAll(/\.select\(\s*'([^']*)'/g)) {
-    if (m[1] && m[1].includes('(')) chaines.push(m[1]);
+  const motifs = [
+    /(?:=|\.select\(\s*)\s*`([^`]*)`/g, // gabarit affecte ou passe a select()
+    /\.select\(\s*'([^']*)'/g, // chaine simple
+    /\.select\(\s*"([^"]*)"/g,
+  ];
+
+  for (const motif of motifs) {
+    for (const m of source.matchAll(motif)) {
+      if (m[1] && m[1].includes('(')) chaines.push(m[1]);
+    }
   }
   return chaines;
 }
@@ -61,6 +77,20 @@ describe('PGRST201 — les embeds nomment leur cle etrangere', () => {
   it('trouve bien les modules de lecture', () => {
     // Sans cette garde, un renommage de dossier rendrait le test vert a vide.
     expect(fichiers.length).toBeGreaterThan(3);
+  });
+
+  it('voit encore les embeds — un extracteur aveugle passerait pour vert', () => {
+    // Le test ne prouve rien s'il n'extrait plus rien : la garde precedente
+    // couvre le dossier, celle-ci couvre l'EXTRACTION elle-meme.
+    const source = readFileSync(join(DOSSIER, 'bureaux.ts'), 'utf8');
+    const embeds = chainesDeSelection(source).flatMap((chaine) => [
+      ...chaine.matchAll(EMBED),
+    ]);
+
+    expect(embeds.length).toBeGreaterThan(3);
+    // Et il n'extrait QUE des chaines de selection : du code JavaScript lu par
+    // erreur amenerait des mots-cles dans la liste.
+    expect(embeds.map((m) => m[2])).not.toContain('if');
   });
 
   for (const fichier of fichiers) {

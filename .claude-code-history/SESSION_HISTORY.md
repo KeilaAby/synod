@@ -849,3 +849,75 @@ comble : le taux de couverture se lit d'un coup d'œil.
 ### Qualité
 
 301 tests unitaires. `pnpm verify` vert. **Lot 3 clos.**
+
+---
+
+## 9 août 2026 (suite) — L'organigramme du bureau se dessine
+
+Le graphe livré le matin *déduisait* tout du rang protocolaire. C'est une
+**préséance** — l'ordre du référentiel, le même partout — et elle ne dit rien
+de la façon dont une entité s'organise réellement : quel adjoint dépend de quel
+responsable, quelle commission relève de quel poste.
+
+`bureau_postes` (migration `0021`) porte donc, **par bureau**, un
+`parent_fonction_id` et une position libre. Par bureau, et non sur `fonctions` :
+porter le parent sur le référentiel imposerait le même organigramme à toutes
+les entités de tous les niveaux, alors qu'un district et une cellule n'ont ni
+les mêmes fonctions ni les mêmes usages.
+
+### La table n'énumère pas les postes
+
+C'est le point qui a décidé du reste. Les postes d'un bureau restent les
+**fonctions applicables au niveau** (EF-REF-03) ; la table les *arrange*. Une
+fonction sans ligne y garde sa place, à son rang.
+
+L'alternative — « poser un bloc crée le poste » — donnait une porte dérobée à
+RG-08 : un trésorier laissé sur le côté du plan aurait cessé d'exister, et le
+compteur de vacances aurait affiché un bureau complet. Un organigramme est une
+mise en page ; il ne décide pas de ce qui existe.
+
+### Déplacer et rattacher sont deux gestes
+
+Dans `/structure`, lâcher un nœud sur un autre le rattache : la position n'y
+veut rien dire, elle est recalculée par Dagre à chaque rendu. Ici elle porte la
+mise en page voulue par l'utilisateur — un rattachement déclenché par un simple
+survol la rendrait impraticable.
+
+Le trait est donc le **seul** geste qui décide d'une dépendance ; le
+déplacement n'engage rien ; et la désignation se fait en faisant glisser un
+croyant de la liste sur un bloc. Trois gestes, trois significations.
+
+L'enregistrement porte **tout le plan** à la fin de chaque geste. Un bouton
+« Enregistrer » créerait un travail à perdre ; des écritures bloc par bloc
+laisseraient un trait pointer vers une position pas encore enregistrée.
+
+Le cycle est refusé deux fois, et ce n'est pas une redondance : le domaine
+l'explique à l'écran en nommant les deux fonctions, le trigger `SECURITY
+DEFINER` l'empêche quoi qu'il arrive. `validerLien` borne aussi sa remontée —
+un cycle déjà présent en base ne doit pas figer l'écran qui permettrait de le
+défaire.
+
+**Une page, pas un pop-up.** La règle 16 vise les formulaires : deux
+formulaires pour le même objet divergent. Ceci est un plan de travail — il lui
+faut la largeur, le zoom, une liste de croyants à côté. Même choix que
+`/structure`, pour la même raison. La composition tabulaire, elle, reste dans
+son pop-up.
+
+### Un garde-fou qui criait à tort
+
+Le test des embeds PostgREST a signalé `if`, `return`, `for` comme des embeds
+anonymes. Son extracteur cherchait n'importe quel gabarit entre deux accents
+graves ; un `` `fusionnerDisposition` `` écrit dans un **commentaire** a décalé
+les paires, et tout le code compris entre ce commentaire et le gabarit suivant
+a été lu comme une chaîne de sélection.
+
+Les motifs sont désormais **ancrés** sur ce qui précède la chaîne — une
+affectation, ou l'ouverture de `.select(`. Un second test vérifie que
+l'extracteur *voit encore* des embeds : un extracteur devenu aveugle passerait
+pour vert. Le défaut réintroduit à la main est bien détecté.
+
+Un garde-fou qui crie à tort est un garde-fou qu'on finit par désactiver.
+
+### Qualité
+
+317 tests unitaires. `pnpm verify` vert. Base à jour jusqu'à `0021`.

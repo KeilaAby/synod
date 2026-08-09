@@ -31,6 +31,7 @@ import {
   cloreMandatSchema,
   compositionEntiteSchema,
   designerMembreSchema,
+  dispositionSchema,
   modifierBureauSchema,
   ouvrirMandatSchema,
   remplacerMembreSchema,
@@ -535,6 +536,78 @@ export async function supprimerBureau(input: unknown): Promise<ActionResult<void
 
     revalidatePath('/bureaux');
     revalidatePath('/croyants');
+    return ok();
+  });
+}
+
+// -----------------------------------------------------------------------------
+
+/**
+ * EF-BUR-07 — enregistrement de la disposition de l'organigramme.
+ *
+ * TOUT LE PLAN D'UN COUP, et non un appel par bloc deplace. Les gestes
+ * s'enchainent — deplacer, relier, redeplacer — et des ecritures independantes
+ * laisseraient des etats ou un trait pointe vers un bloc dont la position n'est
+ * pas encore enregistree. Un seul `upsert` rend l'ensemble coherent ou rien.
+ *
+ * Ce n'est PAS une mutation metier : elle ne change ni qui siege, ni depuis
+ * quand. L'audit garde donc une seule ligne par enregistrement, sans detailler
+ * des coordonnees que personne ne relira.
+ */
+export async function enregistrerDisposition(input: unknown): Promise<ActionResult<void>> {
+  return executerAction('enregistrerDisposition', async () => {
+    const session = await requireSession();
+
+    const analyse = dispositionSchema.safeParse(input);
+    if (!analyse.success) {
+      return ko('Disposition invalide.', champsEnErreur(analyse.error));
+    }
+    const data = analyse.data;
+
+    const contexte = await contexteBureau(data.bureauId);
+    if (!contexte) return ko('Ce bureau est introuvable ou hors de votre perimetre.');
+
+    await requirePermission(session, 'bureau.manage', contexte.entite!.path);
+
+    // Le domaine a deja refuse les boucles a l'ecran ; le trigger les refuse en
+    // base. Ce controle-ci ecarte le cas ou les deux auraient ete contournes —
+    // un appel direct a l'action.
+    const vus = new Set<string>();
+    for (const poste of data.postes) {
+      if (vus.has(poste.fonctionId)) {
+        return ko('Une fonction ne peut figurer deux fois dans un organigramme.');
+      }
+      vus.add(poste.fonctionId);
+    }
+
+    const sb = await createClient();
+
+    const { error } = await sb.from('bureau_postes').upsert(
+      data.postes.map((poste) => ({
+        bureau_id: contexte.id,
+        fonction_id: poste.fonctionId,
+        parent_fonction_id: poste.parentFonctionId,
+        pos_x: poste.x,
+        pos_y: poste.y,
+        updated_by: session.profileId,
+        updated_at: new Date().toISOString(),
+      })),
+      { onConflict: 'bureau_id,fonction_id' },
+    );
+
+    if (error) return ko(messageErreurSql(error));
+
+    await auditer({
+      session,
+      action: 'UPDATE',
+      table: 'bureau_postes',
+      recordId: contexte.id,
+      entityId: contexte.entity_id,
+      diff: { apres: { postes: data.postes.length } },
+    });
+
+    revalidatePath(`/bureaux/${contexte.id}/organigramme`);
+    revalidatePath('/bureaux');
     return ok();
   });
 }
