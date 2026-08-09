@@ -45,6 +45,25 @@ export interface ColonneReferentiel {
   readonly alignementDroite?: boolean;
 }
 
+/**
+ * Ou une valeur de referentiel est employee — EF-REF-05.
+ *
+ * Sert a REFUSER une suppression en la motivant : « ce grade est porte par
+ * 42 croyants » vaut mieux qu'un code d'erreur de cle etrangere. La cle
+ * etrangere reste la garantie ; ceci n'est que l'explication.
+ *
+ * Cette liste peut vieillir — une table ajoutee plus tard referencera un
+ * referentiel sans qu'on pense a l'inscrire ici. C'est pourquoi la suppression
+ * intercepte AUSSI la violation 23503 : le message perd en precision, jamais
+ * la base en integrite.
+ */
+export interface UsageReferentiel {
+  readonly table: string;
+  readonly colonne: string;
+  /** Ce qu'on compte, au singulier : « croyant », « mandat ». */
+  readonly quoi: string;
+}
+
 export interface DefinitionReferentiel {
   readonly slug: string;
   readonly table: string;
@@ -56,6 +75,8 @@ export interface DefinitionReferentiel {
   readonly colonnes: readonly ColonneReferentiel[];
   readonly champs: readonly ChampReferentiel[];
   readonly schema: z.ZodType<Record<string, unknown>>;
+  /** Tables qui referencent cette valeur. Vide : rien ne l'empeche de partir. */
+  readonly usages: readonly UsageReferentiel[];
 }
 
 // -----------------------------------------------------------------------------
@@ -132,6 +153,7 @@ export const REFERENTIELS: Record<SlugReferentiel, DefinitionReferentiel> = {
       libelle,
       ordre: z.coerce.number().int().min(0).max(9999).default(100),
     }),
+    usages: [{ table: 'croyants', colonne: 'grade_id', quoi: 'croyant' }],
   },
 
   nationalites: {
@@ -166,6 +188,7 @@ export const REFERENTIELS: Record<SlugReferentiel, DefinitionReferentiel> = {
         .refine((v) => /^[A-Z]{3}$/.test(v), { message: 'Trois lettres majuscules attendues.' }),
       libelle,
     }),
+    usages: [{ table: 'croyants', colonne: 'nationalite_id', quoi: 'croyant' }],
   },
 
   fonctions: {
@@ -230,6 +253,12 @@ export const REFERENTIELS: Record<SlugReferentiel, DefinitionReferentiel> = {
         .array(z.enum(ENTITY_TYPES))
         .min(1, 'Selectionnez au moins un niveau.'),
     }),
+    usages: [
+      { table: 'bureau_membres', colonne: 'fonction_id', quoi: 'mandat' },
+      // EF-BUR-07 — un bloc pose sur un organigramme compte : le retirer de la
+      // base laisserait un plan avec un trou qu'aucun ecran n'explique.
+      { table: 'bureau_postes', colonne: 'fonction_id', quoi: 'organigramme' },
+    ],
   },
 
   'categories-finance': {
@@ -271,6 +300,10 @@ export const REFERENTIELS: Record<SlugReferentiel, DefinitionReferentiel> = {
       sens: z.enum(['RECETTE', 'DEPENSE']),
       ordre: z.coerce.number().int().min(0).max(9999).default(100),
     }),
+    // Rien ne les reference encore : les mouvements financiers arrivent au
+    // lot 4. Cette liste devra grandir avec eux — d'ou l'interception de la
+    // violation de cle etrangere, qui protege meme si on l'oublie.
+    usages: [],
   },
 };
 

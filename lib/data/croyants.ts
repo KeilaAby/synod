@@ -158,7 +158,7 @@ const CHAMPS_FICHE = `
   cellule:entities!croyants_cellule_id_fkey (id, nom, code),
   grade:grades!croyants_grade_id_fkey (id, libelle, code),
   nationalite:nationalites!croyants_nationalite_id_fkey (id, libelle, code_iso),
-  createur:profiles!croyants_created_by_fkey (id, nom_complet)
+  createur:profiles!croyants_saisi_par_fkey (id, nom_complet)
 ` as const;
 
 export interface CroyantFiche extends CroyantListe {

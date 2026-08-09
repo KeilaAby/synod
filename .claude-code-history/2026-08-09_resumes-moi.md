@@ -172,6 +172,23 @@ porte le genre de chaque niveau et l'élision devant voyelle. Sans elle, les
 
 ---
 
+## Référentiels — supprimer, et pourquoi c'est parfois refusé
+
+Le menu ⋮ remplace les deux pictogrammes : *Modifier*, *Désactiver*,
+*Supprimer*.
+
+**Désactiver conserve** — la valeur quitte les listes, les fiches qui la
+portent restent justes. **Supprimer efface**, et n'est possible que si rien ne
+s'y rattache : un grade créé par erreur, jamais employé, n'a pas à polluer un
+référentiel pour toujours.
+
+Quand c'est refusé, le message **nomme** ce qui bloque — « utilisé par 42
+croyants » — parce qu'un refus qui ne dit pas pourquoi renvoie au support. Les
+catégories financières n'ont encore aucune dépendance : elles se suppriment
+librement jusqu'au lot 4.
+
+---
+
 ## Le Lot 4 — Finances, ce qui vous attendra
 
 Trois points à décider avant d'écrire une ligne, tous déjà notés dans
@@ -190,7 +207,7 @@ Trois points à décider avant d'écrire une ligne, tous déjà notés dans
 ```bash
 pnpm install      # installe aussi le hook pre-commit de détection de secrets
 pnpm dev          # http://localhost:3000
-pnpm verify       # secrets + lint + types + 337 tests + build
+pnpm verify       # secrets + lint + types + 340 tests + build
 ```
 
 Lire avant toute tâche : `CLAUDE.md`, puis `notes/cdg.md` et `notes/plan.md`.

@@ -89,6 +89,14 @@ export function BureauxClient({
   const router = useRouter();
   const [enCours, demarrer] = useTransition();
   const [aModifier, setAModifier] = useState<BureauComplet | null>(null);
+  /**
+   * Clore demande confirmation, comme supprimer.
+   *
+   * Ce n'est pas la même perte — l'historique reste — mais c'est la même
+   * irréversibilité côté écran : rien ne rouvre un mandat clos, et le geste
+   * partait d'une entrée de menu, sans retour possible.
+   */
+  const [aClore, setAClore] = useState<BureauComplet | null>(null);
   const [aSupprimer, setASupprimer] = useState<BureauComplet | null>(null);
   /** Ce qui est en train de se faire — alimente le pop-up d'attente. */
   const [operation, setOperation] = useState<{
@@ -171,6 +179,7 @@ export function BureauxClient({
   }
 
   function clore(bureau: BureauComplet) {
+    setAClore(null);
     lancer(
       {
         titre: 'Clôture du mandat…',
@@ -381,7 +390,7 @@ export function BureauxClient({
 
                                     {bureau.is_active && (
                                       <DropdownMenuItem
-                                        onSelect={() => clore(bureau)}
+                                        onSelect={() => setAClore(bureau)}
                                         disabled={enCours}
                                       >
                                         <SquarePen className="mr-2 size-4" aria-hidden />
@@ -458,6 +467,26 @@ export function BureauxClient({
             }}
             open
             onOpenChange={(v) => !v && setAModifier(null)}
+          />
+        )}
+
+        {/* Clore ne se rattrape pas depuis l'écran : la confirmation dit ce
+            qui reste — l'historique — et ce qui cesse. */}
+        {aClore && (
+          <ConfirmDialog
+            open
+            onOpenChange={(v) => !v && setAClore(null)}
+            title={`Clore le mandat « ${aClore.libelle} » ?`}
+            description={
+              `Ce bureau et les ${formatNombre(
+                aClore.membres.filter((m) => m.date_fin === null).length,
+              )} mandat(s) en cours de ses titulaires seront clos à ce jour. ` +
+              'La composition reste consultable et figure toujours dans leur historique — ' +
+              'mais elle ne se modifie plus, et rien ne rouvre un mandat clos.'
+            }
+            confirmLabel="Clore le mandat"
+            destructive={false}
+            onConfirm={() => clore(aClore)}
           />
         )}
 

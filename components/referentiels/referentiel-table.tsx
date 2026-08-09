@@ -1,15 +1,23 @@
 'use client';
 
-import { Loader2, Pencil, Plus, Power } from 'lucide-react';
+import { Loader2, MoreVertical, Pencil, Plus, Power, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Field, TextField } from '@/components/shared/field';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Dialog,
   DialogContent,
@@ -38,6 +46,7 @@ import {
   basculerActivationReferentiel,
   creerValeurReferentiel,
   modifierValeurReferentiel,
+  supprimerValeurReferentiel,
 } from '@/lib/actions/referentiels';
 import {
   type ChampReferentiel,
@@ -94,6 +103,26 @@ export function ReferentielTable({
     ajoutImmediat && peutGerer ? { ligne: null } : null,
   );
   const [enCours, demarrer] = useTransition();
+  const [aSupprimer, setASupprimer] = useState<Ligne | null>(null);
+
+  function supprimer(ligne: Ligne) {
+    demarrer(async () => {
+      const resultat = await supprimerValeurReferentiel({
+        slug: definition.slug,
+        id: ligne.id,
+      });
+
+      if (!resultat.ok) {
+        // Le refus NOMME ce qui s'y rattache : c'est le message le plus utile
+        // de cet ecran, il ne doit pas se perdre dans une notification breve.
+        toast.error(resultat.error, { duration: 10_000 });
+        return;
+      }
+      toast.success(`${definition.singulier} supprime.`);
+      setASupprimer(null);
+      router.refresh();
+    });
+  }
 
   function basculer(ligne: Ligne) {
     demarrer(async () => {
@@ -170,37 +199,57 @@ export function ReferentielTable({
 
                   {peutGerer && (
                     <TableCell className="text-right">
-                      <span className="flex justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-8"
-                          aria-label={`Modifier ${String(ligne.libelle ?? '')}`}
-                          onClick={() => setEdition({ ligne })}
-                        >
-                          <Pencil className="size-4" aria-hidden />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-8"
-                          disabled={enCours}
-                          aria-label={
-                            ligne.is_active
-                              ? `Desactiver ${String(ligne.libelle ?? '')}`
-                              : `Reactiver ${String(ligne.libelle ?? '')}`
-                          }
-                          onClick={() => basculer(ligne)}
-                        >
-                          <Power
-                            className={cn(
-                              'size-4',
-                              ligne.is_active ? 'text-emerald-600' : 'text-slate-400',
-                            )}
-                            aria-hidden
-                          />
-                        </Button>
-                      </span>
+                      {/* Le MEME menu ⋮ que partout ailleurs. Deux
+                          pictogrammes cote a cote obligeaient a les survoler
+                          pour savoir lequel desactive et lequel modifie. */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label={`Actions sur ${String(ligne.libelle ?? '')}`}
+                            className="text-muted-foreground hover:text-foreground ml-auto flex size-8 items-center justify-center rounded-md transition-colors hover:bg-slate-100"
+                          >
+                            <MoreVertical className="size-4" aria-hidden />
+                          </button>
+                        </DropdownMenuTrigger>
+
+                        <DropdownMenuContent align="end" className="w-60">
+                          <DropdownMenuItem onSelect={() => setEdition({ ligne })}>
+                            <Pencil className="mr-2 size-4" aria-hidden />
+                            Modifier
+                          </DropdownMenuItem>
+
+                          <DropdownMenuItem
+                            disabled={enCours}
+                            onSelect={() => basculer(ligne)}
+                          >
+                            <Power
+                              className={cn(
+                                'mr-2 size-4',
+                                ligne.is_active ? 'text-emerald-600' : 'text-slate-400',
+                              )}
+                              aria-hidden
+                            />
+                            {ligne.is_active ? 'Desactiver' : 'Reactiver'}
+                            <span className="text-muted-foreground ml-auto text-xs">
+                              {ligne.is_active ? 'conserve' : ''}
+                            </span>
+                          </DropdownMenuItem>
+
+                          {/* EF-REF-05 — desactiver conserve, supprimer efface.
+                              L'action reste proposee meme quand la valeur est
+                              utilisee : le refus, lui, NOMME ce qui s'y
+                              rattache, ce qu'une entree grisee ne dirait pas. */}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onSelect={() => setASupprimer(ligne)}
+                          >
+                            <Trash2 className="mr-2 size-4" aria-hidden />
+                            Supprimer
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   )}
                 </TableRow>
@@ -209,6 +258,25 @@ export function ReferentielTable({
           </Table>
         </CardContent>
       </Card>
+
+      {/* EF-REF-05 — desactiver conserve, supprimer efface. La confirmation
+          rappelle l'alternative, parce que c'est presque toujours celle qu'on
+          voulait. */}
+      {aSupprimer && (
+        <ConfirmDialog
+          open
+          onOpenChange={(v) => !v && setASupprimer(null)}
+          title={`Supprimer « ${String(aSupprimer.libelle ?? '')} » ?`}
+          description={
+            `Cette valeur sera effacee du referentiel « ${definition.titre} ». ` +
+            'La suppression est refusee si quoi que ce soit s’y rattache encore — ' +
+            'dans ce cas, desactivez-la : elle disparait des listes sans toucher a ' +
+            'ce qui existe deja.'
+          }
+          confirmLabel={enCours ? 'Suppression…' : 'Supprimer'}
+          onConfirm={() => supprimer(aSupprimer)}
+        />
+      )}
 
       {edition && (
         <FormulaireReferentiel

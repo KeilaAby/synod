@@ -125,17 +125,15 @@ export function EntityPicker({
       </PopoverTrigger>
 
       {/*
-        Le panneau part de la largeur du declencheur mais ne s'y ENFERME pas :
-        un filtre etroit tronquait « ANTSAHATSIRESY » en « ANTSAHATS… », et
-        deux eglises voisines devenaient indiscernables. Le nom d'entite est
-        precisement ce qu'on vient lire ici.
+        Le panneau fait au MOINS la largeur de son declencheur, et jamais moins.
+        Un panneau plus etroit que le champ tronquait « ANTSAHATSIRESY » en
+        « ANTSAHATS… », et deux eglises voisines devenaient indiscernables — le
+        nom d'entite est precisement ce qu'on vient lire ici.
 
-        `min-width` plutot qu'une largeur fixe : le panneau ne devient jamais
-        plus etroit que son declencheur, et `max-width` le borne sur un ecran
-        de telephone.
+        `max-width` ne le borne que sur un ecran de telephone.
       */}
       <PopoverContent
-        className="w-(--radix-popover-trigger-width) min-w-80 max-w-[min(28rem,90vw)] p-0"
+        className="w-(--radix-popover-trigger-width) min-w-(--radix-popover-trigger-width) max-w-[92vw] p-0"
         align="start"
       >
         <Command
@@ -147,7 +145,13 @@ export function EntityPicker({
         >
           <CommandInput placeholder="Rechercher par nom ou par code…" className="h-10" />
 
-          <CommandList>
+          {/*
+            La barre de defilement est RENDUE VISIBLE : `CommandList` porte
+            `no-scrollbar` par defaut, si bien que la liste defilait sans que
+            rien ne l'annonce — un perimetre de trente entites paraissait
+            s'arreter a la cinquieme.
+          */}
+          <CommandList className="max-h-80 [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar]:block [&::-webkit-scrollbar]:w-2">
             <CommandEmpty>Aucun resultat.</CommandEmpty>
 
             {groupes.map(([type, entites]) => (

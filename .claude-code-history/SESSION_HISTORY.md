@@ -1091,3 +1091,58 @@ la fiche l'embarque désormais pour nommer qui a enregistré le croyant.
 ### Qualité
 
 337 tests unitaires. `pnpm verify` vert.
+
+---
+
+## 9 août 2026 (tard) — Trois retouches, et un embed inventé
+
+### Un embed nommé de mémoire
+
+La fiche croyant est tombée : `Cette fiche est momentanement illisible`. J'avais
+écrit `croyants_created_by_fkey` — or la colonne s'appelle **`saisi_par`**, et
+la contrainte `croyants_saisi_par_fkey`.
+
+Le test des embeds vérifie qu'une clé est **nommée**, pas qu'elle **existe** :
+il ne pouvait rien voir. Le nom a été relu dans `0010_croyants.sql` puis
+l'embed corrigé a été **exécuté contre la base réelle** avant d'être livré.
+Nommer une contrainte de mémoire, c'est écrire une requête qui ne compile
+nulle part.
+
+### Clore demande maintenant confirmation
+
+Ce n'est pas la même perte qu'une suppression — l'historique reste — mais c'est
+la même irréversibilité à l'écran : rien ne rouvre un mandat clos, et le geste
+partait d'une entrée de menu. La confirmation annonce le nombre de mandats
+individuels clos avec lui, et n'est pas marquée destructive : elle conserve.
+
+### Une liste qui défilait sans le dire
+
+Le sélecteur d'entité était plus étroit que son champ, et `CommandList` porte
+`no-scrollbar` par défaut : la liste défilait, mais **rien ne l'annonçait**. Un
+périmètre de trente entités paraissait s'arrêter à la cinquième. Le panneau
+prend désormais au minimum la largeur du déclencheur, et la barre de défilement
+est rendue visible.
+
+### Référentiels — désactiver conserve, supprimer efface
+
+Deux pictogrammes côte à côte obligeaient à les survoler pour savoir lequel
+faisait quoi : ils cèdent la place au menu ⋮ habituel, où *Supprimer* rejoint
+*Modifier* et *Désactiver*.
+
+La suppression n'est licite que si **rien ne s'y rattache** — une valeur créée
+par erreur n'a pas à polluer un référentiel pour toujours. Le registre déclare
+donc où chaque référentiel est employé (`usages`), et le refus **nomme** :
+« ce grade est utilisé par 42 croyants » se corrige, un code 23503 ne se
+comprend pas.
+
+Ce décompte peut vieillir — les mouvements financiers du lot 4 référenceront
+les catégories sans qu'on pense à l'inscrire. C'est pourquoi la violation de
+clé étrangère reste interceptée : *le message perd en précision, jamais la base
+en intégrité.*
+
+L'entrée reste proposée même sur une valeur utilisée : une entrée grisée ne
+dirait pas **pourquoi**, et c'est précisément ce qu'on vient apprendre.
+
+### Qualité
+
+340 tests unitaires. `pnpm verify` vert.

@@ -159,3 +159,37 @@ describe('Schemas des referentiels', () => {
     );
   });
 });
+
+describe('EF-REF-05 — ou chaque referentiel est employe', () => {
+  it('declare un usage pour tout referentiel deja reference', () => {
+    // Le decompte prealable sert a MOTIVER un refus : « ce grade est porte par
+    // 42 croyants » se corrige, un code 23503 ne se comprend pas.
+    expect(REFERENTIELS.grades.usages).toContainEqual({
+      table: 'croyants',
+      colonne: 'grade_id',
+      quoi: 'croyant',
+    });
+    expect(REFERENTIELS.nationalites.usages.map((u) => u.table)).toEqual(['croyants']);
+    expect(REFERENTIELS.fonctions.usages.map((u) => u.table)).toEqual([
+      'bureau_membres',
+      'bureau_postes',
+    ]);
+  });
+
+  it('laisse vide ce que rien ne reference encore', () => {
+    // Les mouvements financiers arrivent au lot 4 : cette liste devra grandir
+    // avec eux. La cle etrangere protege meme si on l'oublie.
+    expect(REFERENTIELS['categories-finance'].usages).toEqual([]);
+  });
+
+  it('nomme une colonne et un libelle pour chaque usage declare', () => {
+    for (const slug of SLUGS_REFERENTIELS) {
+      for (const usage of REFERENTIELS[slug].usages) {
+        expect(usage.table.length, slug).toBeGreaterThan(0);
+        expect(usage.colonne.endsWith('_id'), `${slug} → ${usage.colonne}`).toBe(true);
+        // Le libelle est au SINGULIER : l'action accorde selon le decompte.
+        expect(usage.quoi.endsWith('s'), `${slug} → ${usage.quoi}`).toBe(false);
+      }
+    }
+  });
+});
