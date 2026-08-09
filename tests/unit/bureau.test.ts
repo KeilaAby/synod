@@ -5,6 +5,7 @@ import {
   type FonctionBureau,
   type Mandat,
   type MandatMembre,
+  ancienneteMandat,
   aReconduire,
   bureauxActifs,
   candidatsEligibles,
@@ -17,6 +18,7 @@ import {
   mandatActifDe,
   memeBureau,
   membresDeFinances,
+  rangsProtocolaires,
   validerDesignation,
   validerPeriodeMandat,
 } from '@/lib/domain/bureau';
@@ -162,6 +164,71 @@ describe('EF-BUR-07 — la composition montre les fonctions VACANTES', () => {
 });
 
 // -----------------------------------------------------------------------------
+
+describe("EF-BUR-07 — les rangs de l'organigramme", () => {
+  const fonctions = [
+    fonction({ id: 'f1', libelle: 'President', ordreProtocolaire: 10 }),
+    fonction({ id: 'f2', libelle: 'Vice-president', ordreProtocolaire: 20 }),
+    fonction({ id: 'f3', libelle: 'Secretaire', ordreProtocolaire: 30 }),
+    fonction({ id: 'f4', libelle: 'Tresorier', ordreProtocolaire: 30, estFinanciere: true }),
+  ];
+
+  it('groupe en une bande les fonctions de MEME rang', () => {
+    // Secretaire et Tresorier partagent l'ordre 30 : les empiler ferait croire
+    // que l'un prime sur l'autre, ce que le referentiel ne dit pas.
+    const rangs = rangsProtocolaires(composerBureau(fonctions, [], 'EGLISE'));
+
+    expect(rangs.map((r) => r.ordre)).toEqual([10, 20, 30]);
+    expect(rangs[2]?.postes.map((p) => p.fonction.libelle)).toEqual([
+      'Secretaire',
+      'Tresorier',
+    ]);
+  });
+
+  it('garde les fonctions VACANTES a leur rang', () => {
+    // C'est le rang qui dit l'importance du manque : un poste vacant relegue
+    // en fin de graphe perdrait cette information.
+    const rangs = rangsProtocolaires(
+      composerBureau(fonctions, [mandat({ fonctionId: 'f3' })], 'EGLISE'),
+    );
+
+    expect(rangs).toHaveLength(3);
+    expect(rangs[0]?.postes[0]?.mandat).toBeNull();
+    expect(rangs[0]?.postes[0]?.fonction.libelle).toBe('President');
+  });
+
+  it('ne rend aucun rang pour un bureau sans fonction applicable', () => {
+    expect(rangsProtocolaires([])).toEqual([]);
+  });
+});
+
+describe("EF-BUR-07 — anciennete affichee sur chaque noeud", () => {
+  const le9aout = new Date('2026-08-09T12:00:00Z');
+
+  it('compte en ANNEES des qu il y en a une', () => {
+    // « 2 ans » se retient ; « 27 mois » se recalcule.
+    expect(ancienneteMandat('2024-01-01', le9aout)).toBe('2 ans');
+    expect(ancienneteMandat('2025-06-01', le9aout)).toBe('1 an');
+  });
+
+  it('descend au mois, puis au jour', () => {
+    expect(ancienneteMandat('2026-05-01', le9aout)).toBe('3 mois');
+    expect(ancienneteMandat('2026-07-25', le9aout)).toBe('15 jours');
+  });
+
+  it('distingue une designation du jour d un affichage casse', () => {
+    expect(ancienneteMandat('2026-08-09', le9aout)).toBe("depuis aujourd'hui");
+  });
+
+  it('nomme un mandat qui n a pas encore commence', () => {
+    // Une date de debut future est licite : le bureau est ouvert a l'avance.
+    expect(ancienneteMandat('2026-12-01', le9aout)).toBe('a venir');
+  });
+
+  it('ne rend rien plutot qu une valeur fausse sur une date illisible', () => {
+    expect(ancienneteMandat('pas une date', le9aout)).toBe('');
+  });
+});
 
 describe('RG-09 — le membre appartient au sous-arbre de l entite', () => {
   const cheminDistrict = 'nSIEGE.nDIS';

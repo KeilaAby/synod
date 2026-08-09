@@ -784,3 +784,68 @@ aurait fait fusionner à la première évolution.
 ### Qualité
 
 282 tests unitaires. `pnpm verify` vert.
+
+---
+
+## 9 août 2026 — Lot 3 clos, et ARB-6 avec lui
+
+### ARB-6 : la question a cessé de se poser
+
+Elle attendait des fichiers réels depuis le 7 août — « faut-il une
+bibliothèque XLSX, et laquelle ? ». Les deux candidates étaient mauvaises :
+`xlsx` est figé sur npm avec des vulnérabilités connues, sa version maintenue
+vivant hors du registre ; `exceljs` pèse près d'un mégaoctet pour un besoin de
+**lecture**.
+
+La troisième voie était sous le nez : **un .xlsx est une archive ZIP de XML**,
+et le navigateur sait déjà décompresser (`DecompressionStream('deflate-raw')`).
+`lib/domain/xlsx.ts` fait le reste — catalogue ZIP, trois entrées, un XML lu à
+l'expression régulière parce qu'il est écrit par une machine et qu'aucun des
+éléments cherchés ne s'imbrique dans un homonyme.
+
+Deux pièges méritaient le détour :
+
+- **Les dates.** Excel ne stocke pas une date mais un nombre de jours, et c'est
+  le *format* de la cellule qui dit que ce nombre en est une. Sans lire
+  `styles.xml`, une date de naissance arriverait sous la forme « 32248 » et la
+  pré-validation la refuserait sans que personne comprenne pourquoi. Le
+  décalage de 1900 est du même ordre : Excel tient 1900 pour bissextile —
+  héritage de Lotus 1-2-3 — et toute conversion qui l'ignore se trompe d'un
+  jour sur l'avant-mars-1900.
+- **La feuille lue.** La *première déclarée par le classeur*, pas
+  `sheet1.xml` : déplacer un onglet ne renomme pas son fichier, et importer la
+  mauvaise feuille sans le dire serait pire qu'échouer.
+
+Les classeurs de test sont **fabriqués octet par octet** dans le fichier de
+test. Déposer un .xlsx binaire dans le dépôt rendrait la couverture opaque : on
+ne saurait plus ce qu'elle vérifie sans ouvrir Excel.
+
+La promesse de `lib/domain/csv.ts` tient : CSV et XLSX rendent le même
+`string[][]`, et la chaîne d'import n'a pas bougé d'une ligne.
+
+### EF-BUR-07 — un organigramme qui n'affirme que ce qu'il sait
+
+**Une seconde représentation, pas un second écran** (règle 16) : un
+pictogramme bascule le tableau en graphe dans le même pop-up. Le tableau reste
+par défaut — c'est lui qui sert à composer.
+
+Le point de conception : **le graphe rend une préséance, pas une
+subordination.** Rien dans le modèle ne dit qu'un trésorier rend compte au
+secrétaire. Deux fonctions de même `ordre_protocolaire` forment donc une bande
+horizontale — les empiler suggérerait une primauté que le référentiel
+n'exprime pas — et une ligne sous le graphe dit ce que les traits signifient.
+Un organigramme qui laisse croire à une chaîne de commandement invente une
+organisation.
+
+**Pas de Dagre ici**, contrairement à l'organigramme de structure. Cet arbre-là
+est quelconque ; celui d'un bureau est une liste ordonnée dont les rangs sont
+des bandes. Poser les coordonnées directement tient en dix lignes et donne un
+rendu **stable** — Dagre réordonnerait des frères de même rang d'un affichage à
+l'autre.
+
+Les fonctions vacantes gardent leur rang, en pointillé, avec l'action qui les
+comble : le taux de couverture se lit d'un coup d'œil.
+
+### Qualité
+
+301 tests unitaires. `pnpm verify` vert. **Lot 3 clos.**

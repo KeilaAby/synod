@@ -1,6 +1,14 @@
 'use client';
 
-import { CircleSlash, MoreVertical, Repeat, UserMinus, UserPlus } from 'lucide-react';
+import {
+  CircleSlash,
+  MoreVertical,
+  Network,
+  Repeat,
+  Table as TableIcon,
+  UserMinus,
+  UserPlus,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
@@ -8,6 +16,7 @@ import { toast } from 'sonner';
 
 import { AvatarCroyant } from '@/components/croyants/avatar-croyant';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
+import { FiltreIcone, GroupeFiltres } from '@/components/shared/filtre-icone';
 import { OperationDialog } from '@/components/shared/operation-dialog';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -38,6 +47,7 @@ import { nomComplet } from '@/lib/domain/croyant';
 import type { EntityType } from '@/lib/domain/hierarchy';
 import { formatDate, formatNombre } from '@/lib/utils/format';
 
+import { BureauFlowLoader } from './bureau-flow-loader';
 import { DesignationDialog } from './designation-dialog';
 import type { CandidatOption } from './designation-dialog';
 
@@ -87,6 +97,8 @@ export function BureauComposition({
     fonction: string;
   } | null>(null);
   const [operation, setOperation] = useState<string | null>(null);
+  /** EF-BUR-07 — le tableau d'abord : c'est lui qui sert à composer. */
+  const [vue, setVue] = useState<'table' | 'graphe'>('table');
 
   const niveau = (bureau.entite?.type ?? 'EGLISE') as EntityType;
 
@@ -148,6 +160,26 @@ export function BureauComposition({
             </span>
           )}
         </span>
+
+        {/* EF-BUR-07 — deux REPRÉSENTATIONS d'une même composition, pas deux
+            écrans : le tableau pour composer, le graphe pour présenter. Le
+            tableau reste par défaut, c'est ce qu'on vient faire ici. */}
+        <GroupeFiltres libelle="Représentation">
+          <FiltreIcone
+            icone={TableIcon}
+            libelle="Tableau"
+            actif={vue === 'table'}
+            classeActive="bg-indigo-100 text-indigo-700"
+            onClick={() => setVue('table')}
+          />
+          <FiltreIcone
+            icone={Network}
+            libelle="Organigramme"
+            actif={vue === 'graphe'}
+            classeActive="bg-indigo-100 text-indigo-700"
+            onClick={() => setVue('graphe')}
+          />
+        </GroupeFiltres>
       </div>
 
       {postes.length === 0 ? (
@@ -158,6 +190,22 @@ export function BureauComposition({
             sur chaque fonction, dans les référentiels.
           </CardContent>
         </Card>
+      ) : vue === 'graphe' ? (
+        <div className="space-y-3">
+          <BureauFlowLoader
+            postes={postes}
+            membres={bureau.membres}
+            photos={photos}
+            peutGerer={peutGerer && bureau.is_active}
+            onDesigner={(fonctionId) => setADesigner({ fonctionId })}
+          />
+          {/* Un organigramme qui laisse croire à une chaîne de commandement
+              invente une organisation : le dire vaut mieux que l'espérer. */}
+          <p className="text-muted-foreground text-xs">
+            Les traits expriment le <strong>rang protocolaire</strong>, non un lien de
+            subordination. Les fonctions vacantes gardent leur rang, en pointillé.
+          </p>
+        </div>
       ) : (
         <Card>
           <CardContent className="p-0">

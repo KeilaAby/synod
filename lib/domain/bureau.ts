@@ -97,6 +97,69 @@ export function composerBureau(
   }));
 }
 
+/**
+ * EF-BUR-07 — les postes groupes par RANG, pour l'organigramme.
+ *
+ * Deux fonctions de meme `ordre_protocolaire` sont de meme rang : elles
+ * s'affichent cote a cote, sans que l'une paraisse superieure a l'autre. Le
+ * tri vient de `composerBureau`, qui a deja applique l'ordre.
+ *
+ * CE QUE LE GRAPHE DIT, ET CE QU'IL NE DIT PAS
+ *
+ * Il rend une PRESEANCE, pas un lien de subordination : rien dans le modele ne
+ * dit qu'un tresorier rend compte au secretaire. Les traits relient donc
+ * chaque rang au rang qui le precede, et l'ecran le precise — un organigramme
+ * qui laisse croire a une chaine de commandement invente une organisation.
+ */
+export interface RangProtocolaire {
+  readonly ordre: number;
+  readonly postes: readonly PosteBureau[];
+}
+
+export function rangsProtocolaires(
+  postes: readonly PosteBureau[],
+): RangProtocolaire[] {
+  const rangs: RangProtocolaire[] = [];
+
+  for (const poste of postes) {
+    const dernier = rangs[rangs.length - 1];
+
+    if (dernier && dernier.ordre === poste.fonction.ordreProtocolaire) {
+      (dernier.postes as PosteBureau[]).push(poste);
+    } else {
+      rangs.push({ ordre: poste.fonction.ordreProtocolaire, postes: [poste] });
+    }
+  }
+
+  return rangs;
+}
+
+/**
+ * Anciennete dans la fonction — EF-BUR-07.
+ *
+ * En ANNEES des qu'il y en a une : « 2 ans » se retient, « 27 mois » se
+ * recalcule. En dessous, le mois ; en dessous encore, le jour, parce qu'une
+ * designation du matin doit se lire autrement qu'une erreur d'affichage.
+ */
+export function ancienneteMandat(
+  dateDebut: string,
+  aujourdHui: Date = new Date(),
+): string {
+  const debut = new Date(dateDebut);
+  if (Number.isNaN(debut.getTime())) return '';
+
+  const jours = Math.floor((aujourdHui.getTime() - debut.getTime()) / 86_400_000);
+  if (jours < 0) return 'a venir';
+  if (jours === 0) return "depuis aujourd'hui";
+  if (jours < 31) return `${jours} jour${jours > 1 ? 's' : ''}`;
+
+  const mois = Math.floor(jours / 30.4375);
+  if (mois < 12) return `${mois} mois`;
+
+  const annees = Math.floor(jours / 365.25);
+  return `${annees} an${annees > 1 ? 's' : ''}`;
+}
+
 export function comptePostes(postes: readonly PosteBureau[]): {
   total: number;
   pourvus: number;

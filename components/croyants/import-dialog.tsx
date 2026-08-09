@@ -106,8 +106,20 @@ export function ImportCroyantsDialog() {
     setErreur(null);
 
     try {
-      const texte = await fichier.text();
-      const { entetes: e, donnees: d } = separerEntetes(lireCsv(texte));
+      /**
+       * ARB-6 — CSV et XLSX aboutissent au MÊME `string[][]`, et tout ce qui
+       * suit — correspondance de colonnes, pré-validation, rapport — ignore
+       * d'où viennent les lignes. C'était la promesse laissée dans
+       * `lib/domain/csv.ts` : brancher un lecteur sans toucher au reste.
+       *
+       * Le lecteur XLSX est chargé en différé (règle 7) : il ne pèse rien dans
+       * le bundle de qui importe un CSV, c'est-à-dire la plupart des gens.
+       */
+      const lignes = /\.xlsx$/i.test(fichier.name)
+        ? await (await import('@/lib/domain/xlsx')).lireXlsx(await fichier.arrayBuffer())
+        : lireCsv(await fichier.text());
+
+      const { entetes: e, donnees: d } = separerEntetes(lignes);
 
       if (e.length === 0 || d.length === 0) {
         setErreur('Ce fichier ne contient aucune ligne exploitable.');
@@ -120,8 +132,14 @@ export function ImportCroyantsDialog() {
       // Une proposition, jamais une décision : elle se corrige à l'écran.
       setCorrespondance(deviner(e));
       setEtape('correspondance');
-    } catch {
-      setErreur("Ce fichier n'a pas pu être lu. Enregistrez-le au format CSV.");
+    } catch (erreur) {
+      // Le lecteur XLSX explique ce qu'il refuse et propose une sortie : son
+      // message vaut mieux que le nôtre, qui ne saurait dire que « illisible ».
+      setErreur(
+        erreur instanceof Error && erreur.name === 'ErreurXlsx'
+          ? erreur.message
+          : "Ce fichier n'a pas pu être lu. Enregistrez-le au format CSV ou XLSX.",
+      );
     }
   }
 
@@ -187,16 +205,16 @@ export function ImportCroyantsDialog() {
                   <FileSpreadsheet className="text-muted-foreground size-8" aria-hidden />
                   <span className="space-y-1">
                     <span className="text-foreground block text-sm font-medium">
-                      Choisir un fichier CSV
+                      Choisir un fichier Excel ou CSV
                     </span>
                     <span className="text-muted-foreground block text-xs">
-                      Depuis Excel : Fichier › Enregistrer sous › CSV UTF-8.
+                      .xlsx, .csv — la première feuille du classeur est lue.
                     </span>
                   </span>
                   <input
                     ref={champFichier}
                     type="file"
-                    accept=".csv,text/csv"
+                    accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     className="sr-only"
                     onChange={(e) => {
                       const fichier = e.target.files?.[0];

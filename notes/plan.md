@@ -2269,7 +2269,11 @@ Les entités marquées `sans_acces_application` portent une icône `WifiOff` en 
 
 ### 13.2 `<BureauFlow />` — organigramme de bureau *(EF-BUR-07)*
 
-Disposition hiérarchique par **rang protocolaire** (`fonctions.ordre_protocolaire`) : le Président en racine, les autres fonctions réparties par niveau de rang. Chaque nœud affiche la photo du croyant (`Avatar` avec initiales en repli), son nom, sa fonction et son ancienneté dans le mandat. Les fonctions **vacantes** apparaissent en nœud `border-dashed border-slate-300` avec une action « Désigner un membre » — le taux de couverture devient immédiatement lisible.
+Disposition hiérarchique par **rang protocolaire** (`fonctions.ordre_protocolaire`) : le Président en racine, les autres fonctions réparties par niveau de rang. Chaque nœud affiche la photo du croyant (`Avatar` avec initiales en repli), son nom, sa fonction et son ancienneté dans le mandat. Les fonctions **vacantes** apparaissent en nœud `border-dashed` avec une action « Désigner un membre » — le taux de couverture devient immédiatement lisible.
+
+**Le graphe rend une préséance, pas une subordination.** Rien dans le modèle ne dit qu'un trésorier rend compte au secrétaire : les traits relient chaque rang au précédent, par son poste principal, et l'écran le précise sous le graphe. Deux fonctions de **même** `ordre_protocolaire` forment une bande horizontale — les empiler laisserait croire à une primauté que le référentiel n'exprime pas. Un organigramme qui suggère une chaîne de commandement invente une organisation.
+
+*Livré le 9 août 2026 : `bureau-flow.tsx`, `bureau-node.tsx`, `bureau-flow-loader.tsx` ; règles pures `rangsProtocolaires` et `ancienneteMandat`.*
 
 ---
 
@@ -2480,9 +2484,10 @@ describe('RG-26 / RG-27 — rapports', () => {
 - [ ] Fiche croyant, détection de doublons, corbeille.
 - [ ] **Workflow d'approbation des transferts** : table, `fn_ancetre_commun`, actions, file d'attente, auto-approbation intra-périmètre, notifications.
 - [x] Import CSV avec correspondance de colonnes et pré-validation (EF-CRO-11).
-- [ ] Lecture XLSX — à trancher sur les fichiers réels (ARB-6). La chaîne ne
-      manipule que des tableaux de chaînes : un lecteur se branche dans
-      `lib/domain/csv.ts` sans toucher au reste.
+- [x] Lecture XLSX (ARB-6) — `lib/domain/xlsx.ts`, **sans dépendance** : un
+      .xlsx est une archive ZIP de XML, et `DecompressionStream` est déjà là.
+      Chargé en différé (règle 7). La promesse tient : CSV et XLSX rendent le
+      même `string[][]`, le reste de la chaîne n'a pas bougé d'une ligne.
 - [ ] Tests : RG-04 à RG-06, RG-11, RG-12, RG-28, RG-29.
 
 ### Lot 3 — Bureaux *(2 semaines)*
@@ -2493,9 +2498,12 @@ describe('RG-26 / RG-27 — rapports', () => {
 - [x] Mandats : création, clôture, reconduction. Membres : ajout, remplacement,
       retrait. **Server Actions livrées ; écrans à construire.**
 - [x] Composition par rang protocolaire, fonctions vacantes visibles, en pop-up.
-- [ ] `BureauFlow` — organigramme React Flow (EF-BUR-07). La composition tabulaire
-      le précède : elle suffit à composer et à corriger, le graphe servira à
-      présenter. Import dynamique obligatoire (règle 7).
+- [x] `BureauFlow` — organigramme React Flow (EF-BUR-07), en **seconde
+      représentation** de la composition et non en second écran : le tableau
+      pour composer, le graphe pour présenter. Import dynamique (règle 7),
+      squelette aux dimensions définitives. Disposition posée directement —
+      les rangs sont des bandes, Dagre n'a rien à y résoudre et réordonnerait
+      des frères de même rang d'un affichage à l'autre.
 - [x] Fonctions occupées sur la fiche croyant — intégrées à la **frise**
       chronologique plutôt qu'à un onglet séparé : une prise de fonction est un
       événement de la vie du croyant, au même titre qu'un transfert (EF-BUR-10).

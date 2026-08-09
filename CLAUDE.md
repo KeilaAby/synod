@@ -12,23 +12,25 @@ Application web de gestion d'église. **Lire avant toute tâche** :
 Toute modification doit citer l'exigence ou la règle qu'elle sert. Si une
 demande contredit `cdg.md`, signalez-le avant d'implémenter.
 
-## État — 8 août 2026
+## État — 9 août 2026
 
 **Lots 0, 1 et 2 livrés** : socle, authentification, habilitations avec portée,
 structure à 6 niveaux (organigramme éditable **et** vue liste), référentiels,
 croyants avec photo, **transferts** avec workflow d'approbation, **baptêmes**.
 
-**Lot 2 achevé**, hors deux facultatifs : la lecture **XLSX** (dernier reste
-d'ARB-6 — l'import CSV est livré) et la saisie de baptêmes en lot (EF-BAP-07,
-*Could*).
+**Lot 2 achevé**, y compris la lecture **XLSX** (`lib/domain/xlsx.ts`, sans
+dépendance — ARB-6 clos). Reste hors périmètre la saisie de baptêmes en lot
+(EF-BAP-07, *Could*).
 
-**Lot 3 (bureaux) livré à un écran près** : ouverture, **modification**,
-composition par rang avec fonctions vacantes, désignation, remplacement,
-reconduction, clôture atomique, **suppression** sous `bureau.delete` (droit
-distinct et non délégable), et les fonctions occupées dans la frise du croyant.
+**Lot 3 (bureaux) livré** : ouverture, **modification**, composition par rang
+avec fonctions vacantes, désignation, remplacement, reconduction, clôture
+atomique, **suppression** sous `bureau.delete` (droit distinct et non
+délégable), **organigramme React Flow** (EF-BUR-07) en seconde représentation
+de la composition, et les fonctions occupées dans la frise du croyant.
 Le menu ⋮ de la structure ouvre le bureau d'une entité et enregistre un croyant
 sur une église ou une cellule, rattachement verrouillé.
-Reste l'organigramme React Flow (EF-BUR-07).
+
+**Prochain lot : 4 — Finances.**
 
 Base à jour jusqu'à la migration `0020`. Le stockage de fichiers ne se
 configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` et
@@ -36,7 +38,7 @@ configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` 
 l'API.
 
 Historique : [`SESSION_HISTORY.md`](.claude-code-history/SESSION_HISTORY.md) ·
-dernier point d'étape : [`.claude-code-history/2026-08-08_resumes-moi.md`](.claude-code-history/2026-08-08_resumes-moi.md)
+dernier point d'étape : [`.claude-code-history/2026-08-09_resumes-moi.md`](.claude-code-history/2026-08-09_resumes-moi.md)
 
 ## Publication — lire `.agents/rules/gitpush.md` AVANT tout push
 
