@@ -137,6 +137,12 @@ Ce qu'il reste à faire est décrit dans le dernier point d'étape
     date_debut`. Et deux tables qui portent la même règle portent le **même
     opérateur** — `bureaux_periode` en `>` et `membres_periode` en `>=` se sont
     contredites en une migration.
+27. **Une transition couvre l'attente, jamais l'appel.** Tout `setState` fait
+    dans `startTransition` est une mise à jour de transition, que React peut
+    fondre avec les suivantes **sans rendre l'état intermédiaire** : ouvrir
+    puis fermer un indicateur dans la même séquence revient à ne rien
+    afficher. Un composant qui reçoit un gestionnaire l'appelle donc en dehors
+    de sa transition, et n'y met que l'`await`.
 
 ## Conventions
 

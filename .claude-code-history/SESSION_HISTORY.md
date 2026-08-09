@@ -1192,3 +1192,47 @@ geste : quand le texte porte la seule information utile de l'opération.
 
 337 tests unitaires — trois de moins, les rangs n'existant plus. `pnpm verify`
 vert. Base à jour jusqu'à `0022`.
+
+---
+
+## 9 août 2026 (nuit) — Un pop-up qu'on ne voyait pas, et trois diagnostics
+
+Le pop-up d'attente de la suppression d'un référentiel ne s'affichait pas.
+**J'ai proposé deux causes fausses avant la bonne** ; elles valent d'être
+notées, parce que chacune était vraie *en soi* et qu'aucune n'expliquait le
+symptôme.
+
+**1. Le cache Turbopack.** Trois fois de suite dans la journée, des versions
+mélangées de modules avaient été servies — un composant récent lié à un hook
+ancien. Le diagnostic se pose en comptant les copies d'un même module dans
+`.next/dev/static/chunks/`. C'était réel, d'où `pnpm dev:propre`, mais ce
+n'était pas ça.
+
+**2. L'empilement.** `DialogOverlay` porte `isolate z-50`, `DialogContent`
+porte `z-50` : toutes les couches partagent le même plan, et la liste des
+référentiels est elle-même un pop-up. `OperationDialog` et `MessageDialog`
+passent en `z-[60]` — correct sur le fond, insuffisant ici.
+
+**3. La vraie.** `ouvert={enCours && operation !== null}`, où `enCours` est le
+`isPending` du composant. Or `ConfirmDialog` invoquait `onConfirm` **à
+l'intérieur** de `startTransition` : la transition de l'appelant s'y fondait,
+et `isPending` ne basculait jamais. Le pop-up attendait un signal que rien
+n'émettait.
+
+Passer à `ouvert={operation !== null}` n'a pas suffi non plus — et c'est le
+point qui mérite d'être retenu : **toutes les écritures d'état faites dans une
+transition sont des mises à jour de transition, et React est libre de les
+fondre sans jamais rendre l'état intermédiaire.** Ouvrir puis fermer dans la
+même séquence revient à ne rien afficher.
+
+`ConfirmDialog` appelle désormais `onConfirm` **hors** transition ; seule
+l'attente d'une promesse y reste. *La transition couvre l'attente, jamais
+l'appel.*
+
+Effet de bord instructif : en déplaçant la clôture d'un mandat derrière une
+confirmation, j'avais cassé son indicateur d'attente sans m'en apercevoir — il
+fonctionnait avant, précisément parce qu'il ne passait pas par `ConfirmDialog`.
+
+### Qualité
+
+337 tests unitaires. `pnpm verify` vert.

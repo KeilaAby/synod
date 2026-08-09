@@ -48,11 +48,9 @@ la question a cessé de se poser.
 
 ## Ce qui vous attend
 
-**1. Appliquer la migration `0022`** — `supabase/install-incremental.sql`,
-régénéré `--depuis 0021`. Elle supprime `fonctions.ordre_protocolaire`, devenu
-sans usage depuis que l'organigramme se dessine.
+**Il n'en reste qu'une** — les migrations `0021` et `0022` sont appliquées.
 
-**2. La rotation de la clé `service_role`** — Supabase > Project Settings > API.
+**La rotation de la clé `service_role`** — Supabase > Project Settings > API.
 Pas d'échéance technique, seulement une échéance de risque.
 Elle a figuré en clair dans un transcript local ; le dossier est désormais
 exclu du dépôt, mais la clé a existé hors du coffre. Cette clé **contourne
@@ -204,6 +202,20 @@ affirmerait une organisation que personne n'a décrite.
 
 *Cela contredisait EF-BUR-07 — signalé, puis tranché par vous ; l'exigence a
 été réécrite dans `cdg.md`.*
+
+---
+
+## Deux réflexes acquis ce soir
+
+**`pnpm dev:propre`** après une série de modifications. Turbopack a servi trois
+fois des versions mélangées de modules. Le signe : `pnpm verify` passe alors
+que l'écran ne suit pas.
+
+**La transition couvre l'attente, jamais l'appel.** `ConfirmDialog` appelait
+`onConfirm` dans son `startTransition` : toutes les écritures d'état de
+l'appelant devenaient des mises à jour de transition, que React fond sans
+jamais rendre l'état intermédiaire. Un pop-up d'attente ouvert puis refermé
+dans la même séquence ne s'affichait donc **jamais**.
 
 ---
 
