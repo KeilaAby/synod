@@ -157,6 +157,21 @@ valider, rien à perdre. Une désignation, elle, ouvre le pop-up d'attente.
 
 ---
 
+## La frise du croyant se lit sans se reconstituer
+
+« President — ANTSAHATSIRESY · Bureau Eglise Antsahatsiresy · mandat clos le
+9 août 2026 » : tout y était, rien ne s'y lisait. Chaque ligne dit maintenant
+**ce qu'on était** en titre et **quand, à quel titre** en détail —
+« Membre de bureau du District AVARADRANO », « du 1 février 2026 au 30 juin
+2026 : Trésorier ». La création nomme son auteur, et le rattachement dit le
+niveau : « Rattache a l'Eglise ANTSAHATSIRESY ».
+
+Écrire du français correct est une **règle du domaine** : `designerEntite`
+porte le genre de chaque niveau et l'élision devant voyelle. Sans elle, les
+écrans se rabattent sur un tiret, et une frise cesse d'être un récit.
+
+---
+
 ## Le Lot 4 — Finances, ce qui vous attendra
 
 Trois points à décider avant d'écrire une ligne, tous déjà notés dans
@@ -175,7 +190,7 @@ Trois points à décider avant d'écrire une ligne, tous déjà notés dans
 ```bash
 pnpm install      # installe aussi le hook pre-commit de détection de secrets
 pnpm dev          # http://localhost:3000
-pnpm verify       # secrets + lint + types + 330 tests + build
+pnpm verify       # secrets + lint + types + 337 tests + build
 ```
 
 Lire avant toute tâche : `CLAUDE.md`, puis `notes/cdg.md` et `notes/plan.md`.

@@ -7,6 +7,7 @@ import {
   ancetreCommun,
   construireChemin,
   creeraitUnCycle,
+  designerEntite,
   estAncetre,
   estDescendant,
   etiquetteLtree,
@@ -307,5 +308,39 @@ describe('EF-STR-07 — un rattachement ne doit jamais creer de cycle', () => {
 
   it('accepte un rattachement vers une autre branche', () => {
     expect(creeraitUnCycle('n1.n2', 'n1.n9')).toBe(false);
+  });
+});
+
+describe("Designer une entite en francais — EF-CRO-06, EF-BUR-10", () => {
+  it('contracte l article selon le GENRE du niveau', () => {
+    // « Membre de bureau de District AVARADRANO » n'est pas une phrase.
+    expect(designerEntite('DISTRICT', 'AVARADRANO', 'de')).toBe('du District AVARADRANO');
+    expect(designerEntite('PAROISSE', 'EBENEZER', 'de')).toBe('de la Paroisse EBENEZER');
+  });
+
+  it('ELIDE devant une voyelle, sans seconde table a tenir', () => {
+    // L'elision se deduit du libelle : deux tables a tenir d'accord finissent
+    // toujours par se contredire.
+    expect(designerEntite('EGLISE', 'ANTSAHATSIRESY', 'a')).toBe(
+      "a l'Eglise ANTSAHATSIRESY",
+    );
+    expect(designerEntite('EGLISE', 'ANTSAHATSIRESY', 'de')).toBe(
+      "de l'Eglise ANTSAHATSIRESY",
+    );
+  });
+
+  it('accorde aussi la preposition « a »', () => {
+    expect(designerEntite('DISTRICT', 'AVARADRANO', 'a')).toBe('au District AVARADRANO');
+    expect(designerEntite('CELLULE', 'SHALOM', 'a')).toBe(
+      'a la Cellule de priere SHALOM',
+    );
+  });
+
+  it('couvre les six niveaux sans produire d article vide', () => {
+    for (const type of ENTITY_TYPES) {
+      const texte = designerEntite(type, 'X', 'de');
+      expect(texte).toMatch(/^(du |de la |de l')/);
+      expect(texte.endsWith(' X')).toBe(true);
+    }
   });
 });

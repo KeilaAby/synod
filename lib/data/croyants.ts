@@ -157,13 +157,16 @@ const CHAMPS_FICHE = `
   eglise:entities!croyants_eglise_id_fkey (id, nom, code, path, type),
   cellule:entities!croyants_cellule_id_fkey (id, nom, code),
   grade:grades!croyants_grade_id_fkey (id, libelle, code),
-  nationalite:nationalites!croyants_nationalite_id_fkey (id, libelle, code_iso)
+  nationalite:nationalites!croyants_nationalite_id_fkey (id, libelle, code_iso),
+  createur:profiles!croyants_created_by_fkey (id, nom_complet)
 ` as const;
 
 export interface CroyantFiche extends CroyantListe {
   created_at: string;
   updated_at: string;
   eglise: { id: string; nom: string; code: string; path: string; type: EntityType } | null;
+  /** EF-CRO-06 — qui a enregistre la fiche. `null` : compte depuis supprime. */
+  createur: { id: string; nom_complet: string } | null;
 }
 
 export const getCroyant = cache(async (id: string): Promise<CroyantFiche | null> => {

@@ -18,7 +18,8 @@ import {
 const croyant: CroyantHistorique = {
   created_at: '2026-01-15T09:00:00Z',
   date_bapteme: '2026-03-20',
-  eglise: { nom: 'IAVOAMBONY' },
+  eglise: { nom: 'IAVOAMBONY', type: 'EGLISE' },
+  createur: { nom_complet: 'Christian' },
 };
 
 const gabarit = (p: Partial<TransfertHistorique>): TransfertHistorique => ({
@@ -139,7 +140,10 @@ describe('EF-BUR-10 — les fonctions occupees rejoignent la frise', () => {
     date_debut: '2026-02-01',
     date_fin: null,
     fonction: { libelle: 'Tresorier' },
-    bureau: { libelle: 'Bureau executif', entite: { nom: 'IAVOAMBONY' } },
+    bureau: {
+      libelle: 'Bureau executif',
+      entite: { nom: 'AVARADRANO', type: 'DISTRICT' },
+    },
     ...p,
   });
 
@@ -150,24 +154,47 @@ describe('EF-BUR-10 — les fonctions occupees rejoignent la frise', () => {
     const evenement = frise.find((e) => e.type === 'MANDAT');
 
     expect(evenement?.date).toBe('2026-02-01');
-    expect(evenement?.titre).toContain('Tresorier');
-    expect(evenement?.titre).toContain('IAVOAMBONY');
   });
 
-  it('distingue un mandat en cours d un mandat clos', () => {
-    const [enCours] = construireHistorique(croyant, [], [mandat()]).filter(
+  it('dit CE QU ON ETAIT, avec le niveau de l entite', () => {
+    // « President — ANTSAHATSIRESY » obligeait a deviner : president de quoi,
+    // et ANTSAHATSIRESY est-il une eglise ou un district ?
+    const [evenement] = construireHistorique(croyant, [], [mandat()]).filter(
       (e) => e.type === 'MANDAT',
     );
-    expect(enCours?.detail).toContain('en cours');
 
+    expect(evenement?.titre).toBe('Membre de bureau du District AVARADRANO');
+  });
+
+  it('porte la PERIODE et la fonction dans le detail', () => {
     const [clos] = construireHistorique(
       croyant,
       [],
       [mandat({ date_fin: '2026-06-30' })],
     ).filter((e) => e.type === 'MANDAT');
-    expect(clos?.detail).toContain('clos');
+
+    expect(clos?.detail).toBe('du 1 février 2026 au 30 juin 2026 : Tresorier');
     // Un mandat clos a bien eu lieu : il n'est pas « en attente ».
     expect(clos?.enAttente).toBe(false);
+  });
+
+  it('distingue un mandat EN COURS, qui n a pas de fin a annoncer', () => {
+    const [enCours] = construireHistorique(croyant, [], [mandat()]).filter(
+      (e) => e.type === 'MANDAT',
+    );
+
+    expect(enCours?.detail).toBe('depuis le 1 février 2026 : Tresorier');
+  });
+
+  it('reste lisible quand l entite du bureau est illisible', () => {
+    const [sansEntite] = construireHistorique(
+      croyant,
+      [],
+      [mandat({ bureau: { libelle: 'Bureau', entite: null } })],
+    ).filter((e) => e.type === 'MANDAT');
+
+    expect(sansEntite?.titre).toBe('Membre de bureau');
+    expect(sansEntite?.titre).not.toContain('undefined');
   });
 
   it('s intercale chronologiquement avec les autres evenements', () => {

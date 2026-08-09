@@ -1055,3 +1055,39 @@ taille, c'est le texte qui cède.
 ### Qualité
 
 330 tests unitaires. `pnpm verify` vert.
+
+---
+
+## 9 août 2026 (nuit) — Une frise qui se lit sans se reconstituer
+
+La frise d'un croyant affichait « **President — ANTSAHATSIRESY** ·
+9 août 2026 · Bureau Eglise Antsahatsiresy · mandat clos le 9 août 2026 ». Tout
+y était, et rien ne s'y lisait : président de quoi, ANTSAHATSIRESY est-il une
+église ou un district, et pourquoi la date de fin apparaît-elle deux fois ?
+
+Chaque ligne dit maintenant **ce qu'on était** en titre, **quand et à quel
+titre** en détail :
+
+| Avant | Après |
+|---|---|
+| President — ANTSAHATSIRESY | Membre de bureau du District AVARADRANO |
+| Bureau … · mandat clos le 9 août 2026 | du 1 février 2026 au 30 juin 2026 : Trésorier |
+| Fiche creee | Fiche creee par Christian |
+| Rattache a ANTSAHATSIRESY | Rattache a l'Eglise ANTSAHATSIRESY |
+
+### Écrire du français est une règle, pas une ficelle d'affichage
+
+« de District » n'est pas une phrase. `designerEntite(type, nom, 'de' | 'a')`
+vit donc dans le domaine, avec le **genre** de chaque niveau — Siège et District
+masculins, Paroisse, Église et Cellule féminins.
+
+L'**élision** se déduit de la première lettre du libellé, et non d'une seconde
+table : deux tables à tenir d'accord finissent toujours par se contredire, et
+celle-ci n'apprendrait rien que le mot ne montre déjà.
+
+`created_by` existait sur `croyants` depuis le lot 2 mais n'était jamais lu :
+la fiche l'embarque désormais pour nommer qui a enregistré le croyant.
+
+### Qualité
+
+337 tests unitaires. `pnpm verify` vert.

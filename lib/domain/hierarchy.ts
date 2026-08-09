@@ -42,6 +42,48 @@ export const ENTITY_LABELS: Record<EntityType, { singulier: string; pluriel: str
   CELLULE: { singulier: 'Cellule de priere', pluriel: 'Cellules de priere' },
 };
 
+/**
+ * Le genre grammatical de chaque niveau — necessaire pour ecrire du francais.
+ *
+ * « Membre de bureau de District AVARADRANO » n'est pas une phrase : il faut
+ * « du District », « de la Paroisse », « de l'Eglise ». Sans cette table, les
+ * ecrans se rabattent sur un tiret ou une parenthese, et la frise d'un croyant
+ * cesse de se lire comme un recit.
+ */
+const GENRE: Record<EntityType, 'masculin' | 'feminin'> = {
+  SIEGE: 'masculin',
+  REGIONAL: 'masculin',
+  DISTRICT: 'masculin',
+  PAROISSE: 'feminin',
+  EGLISE: 'feminin',
+  CELLULE: 'feminin',
+};
+
+/**
+ * Nomme une entite avec son article : « du District AVARADRANO »,
+ * « a l'Eglise ANTSAHATSIRESY », « de la Cellule de priere SHALOM ».
+ *
+ * L'ELISION se deduit de la premiere lettre du libelle plutot que d'une seconde
+ * table : deux tables a tenir d'accord finissent par se contredire, et celle-ci
+ * n'apprendrait rien de plus que ce que le mot montre deja.
+ */
+export function designerEntite(
+  type: EntityType,
+  nom: string,
+  preposition: 'de' | 'a',
+): string {
+  const libelle = ENTITY_LABELS[type].singulier;
+  const elide = /^[aeiouy]/i.test(libelle);
+
+  const article = elide
+    ? `${preposition === 'de' ? 'de' : 'a'} l'`
+    : GENRE[type] === 'feminin'
+      ? `${preposition === 'de' ? 'de la' : 'a la'} `
+      : `${preposition === 'de' ? 'du' : 'au'} `;
+
+  return `${article}${libelle} ${nom}`;
+}
+
 /** Le croyant se rattache obligatoirement a une Eglise — RG-04. */
 export const NIVEAU_RATTACHEMENT_CROYANT: EntityType = 'EGLISE';
 

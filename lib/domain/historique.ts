@@ -1,3 +1,4 @@
+import { type EntityType, designerEntite } from './hierarchy';
 import type { StatutTransfert } from './transfert';
 
 /**
@@ -49,7 +50,9 @@ export interface TransfertHistorique {
 export interface CroyantHistorique {
   created_at: string;
   date_bapteme: string | null;
-  eglise?: { nom: string } | null;
+  eglise?: { nom: string; type: EntityType } | null;
+  /** Qui a enregistre la fiche. `null` : compte depuis supprime. */
+  createur?: { nom_complet: string } | null;
 }
 
 /** EF-BUR-10 — une fonction occupee, telle qu'elle se lit sur la frise. */
@@ -58,7 +61,7 @@ export interface MandatHistorique {
   date_debut: string;
   date_fin: string | null;
   fonction: { libelle: string } | null;
-  bureau: { libelle: string; entite: { nom: string } | null } | null;
+  bureau: { libelle: string; entite: { nom: string; type: EntityType } | null } | null;
 }
 
 /**
@@ -138,8 +141,18 @@ export function construireHistorique(
       cle: 'creation',
       date: croyant.created_at,
       type: 'CREATION',
-      titre: 'Fiche creee',
-      detail: croyant.eglise?.nom ? `Rattache a ${croyant.eglise.nom}` : undefined,
+      // QUI a enregistre la fiche. Un compte peut avoir ete supprime depuis
+      // (`on delete set null`) : on le dit plutot que d'afficher un blanc, qui
+      // ferait croire a une donnee manquante.
+      titre: croyant.createur
+        ? `Fiche creee par ${croyant.createur.nom_complet}`
+        : 'Fiche creee',
+      // Le TYPE avec le nom : « ANTSAHATSIRESY » seul ne dit pas si c'est une
+      // eglise, une paroisse ou un district — or c'est justement ce que le
+      // rattachement d'un croyant designe (RG-04).
+      detail: croyant.eglise
+        ? `Rattache ${designerEntite(croyant.eglise.type, croyant.eglise.nom, 'a')}`
+        : undefined,
       enAttente: false,
     },
   ];
@@ -179,17 +192,25 @@ export function construireHistorique(
    */
   for (const m of mandats) {
     const fonction = m.fonction?.libelle ?? 'une fonction';
-    const ou = m.bureau?.entite?.nom;
-    const bureau = m.bureau?.libelle;
+    const entite = m.bureau?.entite;
 
+    /**
+     * Le titre dit CE QU'ON ETAIT, le detail dit QUAND et A QUEL TITRE.
+     *
+     * « President — ANTSAHATSIRESY » obligeait a deviner : president de quoi,
+     * et ANTSAHATSIRESY est-il une eglise ou un district ? La frise raconte une
+     * vie, et une ligne d'histoire se lit sans avoir a la reconstituer.
+     */
     evenements.push({
       cle: `mandat:${m.id}`,
       date: m.date_debut,
       type: 'MANDAT',
-      titre: ou ? `${fonction} — ${ou}` : fonction,
+      titre: entite
+        ? `Membre de bureau ${designerEntite(entite.type, entite.nom, 'de')}`
+        : 'Membre de bureau',
       detail: m.date_fin
-        ? `${bureau ?? 'Bureau'} · mandat clos le ${jour(m.date_fin)}`
-        : `${bureau ?? 'Bureau'} · en cours`,
+        ? `du ${jour(m.date_debut)} au ${jour(m.date_fin)} : ${fonction}`
+        : `depuis le ${jour(m.date_debut)} : ${fonction}`,
       // Un mandat clos n'est pas « en attente » : il a bien eu lieu.
       enAttente: false,
     });
