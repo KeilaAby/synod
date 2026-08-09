@@ -26,6 +26,9 @@ const CHAMPS_MANDAT = `
     fonction:fonctions!bureau_membres_fonction_id_fkey (
       id, code, libelle, ordre_protocolaire, est_financiere
     )
+  ),
+  postes:bureau_postes!bureau_postes_bureau_id_fkey (
+    fonction_id, parent_fonction_id, pos_x, pos_y
   )
 ` as const;
 
@@ -65,6 +68,16 @@ export interface BureauComplet {
   created_at: string;
   entite: { id: string; nom: string; code: string; type: EntityType; path: string } | null;
   membres: MembreBureau[];
+  /**
+   * EF-BUR-07 — plan dessine dans l'editeur. Vide tant qu'aucun n'a ete
+   * dessine : l'affichage retombe alors sur le rang protocolaire.
+   */
+  postes: {
+    fonction_id: string;
+    parent_fonction_id: string | null;
+    pos_x: number;
+    pos_y: number;
+  }[];
 }
 
 /** Tous les bureaux du perimetre, mandats clos compris (EF-BUR-08). */
@@ -102,8 +115,9 @@ export async function chargerBureau(bureauId: string): Promise<BureauComplet | n
 /**
  * EF-BUR-07 — disposition enregistree de l'organigramme.
  *
- * Elle ARRANGE des postes, elle ne les enumere pas : une fonction applicable
- * sans ligne ici reste un poste du bureau (voir `fusionnerDisposition`).
+ * Depuis la palette du 9 aout, elle ENUMERE les blocs du plan : une fonction
+ * applicable sans ligne ici n'est pas dessinee — elle attend dans la palette.
+ * Elle reste en revanche un poste du bureau pour la composition tabulaire.
  */
 export async function chargerDisposition(bureauId: string): Promise<DispositionPoste[]> {
   const sb = await createClient();

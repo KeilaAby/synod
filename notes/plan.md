@@ -2279,13 +2279,19 @@ La préséance ne dit pas comment une entité s'organise *réellement*. `bureau_
 
 | Geste | Ce qu'il signifie |
 |---|---|
-| Déplacer un bloc | De la mise en page. N'engage rien. |
-| Tirer un trait d'une poignée à l'autre | La dépendance — et c'est le **seul** geste qui la décide. |
-| Faire glisser un croyant sur un bloc | La désignation (RG-09 filtre la liste à la source). |
+| **Poser** une fonction, glissée de la palette | Le bloc entre dans le plan. |
+| **Déplacer** un bloc | De la mise en page. N'engage rien. |
+| **Tirer un trait** d'une poignée à l'autre | La dépendance — et c'est le **seul** geste qui la décide. |
+| **Glisser un croyant** sur un bloc | La désignation (RG-09 filtre la liste à la source). |
+| **Suppr.** sur un bloc | Il quitte le plan et retourne dans la palette. Refusé s'il a un titulaire. |
 
 **Pourquoi séparer déplacement et rattachement**, alors que `/structure` rattache en lâchant un nœud sur un autre : là-bas la position ne veut rien dire, ici elle porte la mise en page. Un rattachement déclenché par un simple survol la rendrait impraticable.
 
-`bureau_postes` **n'énumère pas les postes** : ce sont les fonctions applicables au niveau (EF-REF-03). Une fonction sans ligne y reste un poste, placée à son rang — sans quoi un trésorier laissé sur le côté du plan cesserait d'exister, et le bureau paraîtrait complet.
+**La palette *(9 août, révision)*** — colonne de gauche : les fonctions applicables au niveau (EF-REF-03) qui ne sont pas encore posées. `bureau_postes` énumère donc les **blocs du plan**, et un bureau jamais dessiné démarre sur un plan vide. Le rang protocolaire ne sert plus qu'à un raccourci explicite, « Tout poser par rang ».
+
+**Ce que `bureau_postes` ne décide toujours pas** : la composition tabulaire continue de lister toutes les fonctions applicables et d'en compter les vacances. Le plan est un **dessin**, pas la définition des postes — une fonction non posée reste à pourvoir. Retirer un bloc ne touche jamais le référentiel : la fonction retourne dans la palette.
+
+Le graphe de la composition affiche le **plan dessiné** dès qu'il en existe un, et retombe sur le rang sinon — deux représentations du même bureau ne doivent pas se contredire. La légende dit laquelle des deux on regarde.
 
 Enregistrement automatique en fin de geste, **tout le plan à la fois** : un bouton « Enregistrer » créerait un travail à perdre, des écritures bloc par bloc laisseraient un trait pointer vers une position non enregistrée. Le cycle est refusé par le domaine (message) *et* par un trigger `SECURITY DEFINER` (garantie).
 

@@ -117,24 +117,32 @@ largeur, le zoom et une liste de croyants à côté. Même choix que `/structure
 
 | Geste | Ce qu'il signifie |
 |---|---|
-| **Déplacer** un bloc | De la mise en page, librement sur le plan. N'engage rien. |
+| **Poser** une fonction, glissée de la palette de gauche | Le bloc entre dans le plan. |
+| **Déplacer** un bloc | De la mise en page, librement. N'engage rien. |
 | **Tirer un trait** d'une poignée à l'autre | La dépendance — le seul geste qui la décide. |
-| **Faire glisser un croyant** sur un bloc | La désignation, dans le périmètre de l'entité (RG-09). |
+| **Glisser un croyant** sur un bloc | La désignation, dans le périmètre (RG-09). |
+| **Suppr.** sur un bloc | Il retourne dans la palette. Refusé s'il a un titulaire. |
 
 **Pourquoi déplacer ne rattache pas**, alors que dans `/structure` lâcher un
 nœud sur un autre le rattache : là-bas la position ne veut rien dire, Dagre la
 recalcule à chaque rendu. Ici elle porte votre mise en page — un rattachement
 déclenché par un simple survol la rendrait impraticable.
 
-**Ce que l'éditeur n'invente pas** : il n'énumère pas les postes. Ce sont les
-fonctions applicables au niveau de l'entité. Une fonction laissée sur le côté
-du plan reste un poste du bureau — sans quoi un trésorier oublié cesserait
-d'exister et le bureau paraîtrait complet.
+**Un bureau jamais dessiné démarre sur un plan vide**, palette pleine : c'est
+vous qui décidez des blocs. « Tout poser par rang » les place tous d'un coup si
+vous préférez partir de là.
+
+**Le plan est un dessin, pas la définition des postes.** La composition
+tabulaire continue de lister toutes les fonctions applicables et d'en compter
+les vacances : une fonction non posée reste à pourvoir. Retirer un bloc ne
+touche **jamais** le référentiel — la fonction retourne dans la palette.
+
+Le graphe de la composition affiche désormais **votre plan** dès qu'il en existe
+un, et retombe sur le rang protocolaire sinon ; la légende dit lequel des deux
+vous regardez. Sans cela, votre dessin n'aurait été visible que dans l'éditeur.
 
 L'enregistrement est **automatique** à la fin de chaque geste : rien à valider,
-rien à perdre. « Replacer par rang » revient à la disposition protocolaire.
-Sélectionner un trait puis Suppr. détache un bloc : il redevient une racine, il
-ne disparaît pas.
+rien à perdre.
 
 ---
 
@@ -156,7 +164,7 @@ Trois points à décider avant d'écrire une ligne, tous déjà notés dans
 ```bash
 pnpm install      # installe aussi le hook pre-commit de détection de secrets
 pnpm dev          # http://localhost:3000
-pnpm verify       # secrets + lint + types + 317 tests + build
+pnpm verify       # secrets + lint + types + 319 tests + build
 ```
 
 Lire avant toute tâche : `CLAUDE.md`, puis `notes/cdg.md` et `notes/plan.md`.

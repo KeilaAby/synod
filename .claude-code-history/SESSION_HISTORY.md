@@ -921,3 +921,66 @@ Un garde-fou qui crie à tort est un garde-fou qu'on finit par désactiver.
 ### Qualité
 
 317 tests unitaires. `pnpm verify` vert. Base à jour jusqu'à `0021`.
+
+---
+
+## 9 août 2026 (fin) — La palette, et un éditeur qui se battait contre React Flow
+
+### Le défaut de fond : deux propriétaires pour la même chose
+
+L'éditeur reconstruisait ses nœuds à partir de son propre état à **chaque
+changement de position** — donc à chaque image d'un déplacement. React Flow
+recevait des objets neufs en continu, perdait ses mesures
+(« trying to drag a node that is not initialized », des centaines de fois), le
+geste devenait saccadé, et chaque micro-mouvement partait en écriture.
+
+*Ce qui bouge en continu appartient à la bibliothèque qui l'anime ; on ne le lui
+reprend qu'à la fin du geste.* React Flow possède désormais les **positions**
+(`useNodesState`) ; le composant garde les **liens** et la liste des blocs
+posés, et ne relit les positions qu'au `onNodeDragStop`.
+
+### Et le vrai coût de l'enregistrement
+
+`enregistrerDisposition` prenait 2,5 à 5 secondes. La cause n'était pas la
+requête : c'étaient les deux `revalidatePath` qui forçaient un rendu serveur
+complet de la page **après chaque geste**. Une disposition ne s'affiche que
+dans l'éditeur, qui la porte déjà à l'écran : *on ne revalide pas ce que
+personne d'autre ne regarde.* Une signature du dernier plan écrit écarte en
+plus les gestes qui ne changent rien.
+
+### La palette : le plan ne se devine plus
+
+Une colonne de gauche liste les fonctions applicables **non encore posées** ;
+on les fait glisser sur le plan. Un bureau jamais dessiné démarre donc vide.
+
+Cela renverse la décision du matin : `bureau_postes` énumère maintenant les
+**blocs du plan**. La garde reste : la composition tabulaire continue de lister
+toutes les fonctions applicables et d'en compter les vacances — le plan est un
+*dessin*, pas la définition des postes. Une fonction non posée reste à pourvoir,
+et retirer un bloc ne touche jamais le référentiel : elle retourne dans la
+palette.
+
+`fusionnerDisposition` — qui plaçait d'office toutes les fonctions — n'est pas
+devenue inutilisée, elle est devenue **fausse** : elle a été retirée, avec ses
+tests, au profit de `nettoyerDisposition` (écarter ce qui n'a plus de sens) et
+`retirerPoste` (ôter un bloc **en racinant ses subordonnés** — les emporter
+effacerait une branche entière que le geste ne visait pas).
+
+### Deux vues qui se contredisaient
+
+Le graphe de la composition dessinait toujours par rang, ignorant le plan. « Définir
+l'organigramme » aurait produit une disposition que personne n'aurait revue
+ailleurs. Il lit désormais le plan dès qu'il en existe un, retombe sur le rang
+sinon, et **la légende dit laquelle des deux on regarde** : un repli automatique
+et un dessin n'ont pas la même autorité, et rien ne les distingue à l'œil.
+
+### Un journal qui disait `{}`
+
+`DataError` ne relevait que les quatre champs de PostgREST. Quand la panne
+venait d'ailleurs — requête interrompue, coupure réseau — aucun n'était
+renseigné et la trace se réduisait à `{}`. Elle retombe maintenant sur le type,
+le message et les clés de l'objet.
+
+### Qualité
+
+319 tests unitaires. `pnpm verify` vert.

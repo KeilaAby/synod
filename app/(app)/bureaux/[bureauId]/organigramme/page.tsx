@@ -94,6 +94,13 @@ export default async function OrganigrammeBureauPage({
       />
 
       <OrganigrammeLoader
+        /**
+         * Remonte l'éditeur quand la COMPOSITION change — après une
+         * désignation. Les positions vivent alors dans l'état de React Flow,
+         * et rien ne les rafraîchirait sans un effet de synchronisation ;
+         * elles sont déjà enregistrées, le remontage est donc sans perte.
+         */
+        key={bureau.membres.map((m) => `${m.id}:${m.date_fin ?? ''}`).join('|')}
         bureau={bureau}
         fonctions={fonctions}
         candidats={retenus.map((c) => ({

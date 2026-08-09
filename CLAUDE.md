@@ -27,7 +27,10 @@ avec fonctions vacantes, désignation, remplacement, reconduction, clôture
 atomique, **suppression** sous `bureau.delete` (droit distinct et non
 délégable), **organigramme React Flow** (EF-BUR-07) — en lecture comme seconde
 représentation de la composition, et en **édition** sur
-`/bureaux/[id]/organigramme` : déplacer, relier, désigner au glisser-déposer.
+`/bureaux/[id]/organigramme` : palette de fonctions à poser, déplacement libre,
+traits de dépendance, désignation au glisser-déposer. Le plan est un **dessin**,
+pas la définition des postes : la composition tabulaire reste la source des
+vacances, et ôter un bloc ne touche jamais le référentiel.
 Les fonctions occupées figurent dans la frise du croyant.
 Le menu ⋮ de la structure ouvre le bureau d'une entité et enregistre un croyant
 sur une église ou une cellule, rattachement verrouillé.

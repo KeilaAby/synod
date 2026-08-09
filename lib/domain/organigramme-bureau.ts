@@ -67,37 +67,48 @@ export function dispositionParDefaut(
 }
 
 /**
- * Ce qui est enregistre l'emporte ; ce qui manque prend sa place par defaut.
+ * Ecarte d'un plan enregistre ce qui n'a plus de sens.
  *
- * Le cas courant n'est pas l'organigramme vierge mais l'organigramme
- * INCOMPLET : une fonction vient d'etre ajoutee au referentiel, ou le niveau de
- * l'entite en rend une nouvelle applicable. Elle doit apparaitre, pas
- * disparaitre.
+ * Un plan vit plus longtemps que le referentiel qui l'a nourri : une fonction
+ * se desactive, une entite change de niveau, et le plan garde un bloc dont
+ * plus rien ne repond. On retire ces blocs, et l'on RACINE ceux qui en
+ * dependaient — un trait vers un bloc absent laisserait un organigramme
+ * incoherent a l'ecran, sans que rien n'explique pourquoi.
  */
-export function fusionnerDisposition(
+export function nettoyerDisposition(
   postes: readonly PosteBureau[],
-  enregistrees: readonly DispositionPoste[],
+  enregistree: readonly DispositionPoste[],
 ): DispositionPoste[] {
-  const parFonction = new Map(enregistrees.map((d) => [d.fonctionId, d]));
   const applicables = new Set(postes.map((p) => p.fonction.id));
 
-  return dispositionParDefaut(postes).map((defaut) => {
-    const enregistree = parFonction.get(defaut.fonctionId);
-    if (!enregistree) return defaut;
-
-    return {
-      fonctionId: defaut.fonctionId,
-      // Un parent devenu inapplicable — fonction desactivee, entite changee de
-      // niveau — laisserait un trait vers un bloc absent. On retombe sur la
-      // racine plutot que de dessiner dans le vide.
+  return enregistree
+    .filter((d) => applicables.has(d.fonctionId))
+    .map((d) => ({
+      ...d,
       parentFonctionId:
-        enregistree.parentFonctionId && applicables.has(enregistree.parentFonctionId)
-          ? enregistree.parentFonctionId
+        d.parentFonctionId && applicables.has(d.parentFonctionId)
+          ? d.parentFonctionId
           : null,
-      x: enregistree.x,
-      y: enregistree.y,
-    };
-  });
+    }));
+}
+
+/**
+ * Retire un bloc du plan.
+ *
+ * Ses subordonnes ne partent PAS avec lui : ils remontent en racine. Les faire
+ * disparaitre effacerait d'un geste une branche entiere qu'on ne voulait pas
+ * toucher — et le geste, lui, ne demande rien.
+ *
+ * Le referentiel n'est jamais concerne : ce qui sort du plan retourne dans la
+ * palette, la fonction continue d'exister.
+ */
+export function retirerPoste(
+  disposition: readonly DispositionPoste[],
+  fonctionId: string,
+): DispositionPoste[] {
+  return disposition
+    .filter((d) => d.fonctionId !== fonctionId)
+    .map((d) => (d.parentFonctionId === fonctionId ? { ...d, parentFonctionId: null } : d));
 }
 
 // -----------------------------------------------------------------------------
@@ -150,23 +161,12 @@ export function validerLien(
   return ok();
 }
 
-/** Applique un rattachement — le parent `null` remet le bloc en racine. */
-export function rattacherPoste(
-  disposition: readonly DispositionPoste[],
-  fonctionId: string,
-  parentFonctionId: string | null,
-): DispositionPoste[] {
-  return disposition.map((d) =>
-    d.fonctionId === fonctionId ? { ...d, parentFonctionId } : d,
-  );
-}
-
 /**
- * Racines de l'organigramme.
+ * Racines du plan.
  *
  * Il peut y en avoir PLUSIEURS, et c'est voulu : un bureau se compose parfois
- * de plusieurs branches sans sommet commun — un comite et une commission cote
- * a cote. Imposer une racine unique obligerait a inventer un poste.
+ * de branches sans sommet commun — un comite et une commission cote a cote.
+ * Imposer une racine unique obligerait a inventer un poste qui n'existe pas.
  */
 export function racines(disposition: readonly DispositionPoste[]): DispositionPoste[] {
   return disposition.filter((d) => d.parentFonctionId === null);

@@ -582,20 +582,34 @@ export async function enregistrerDisposition(input: unknown): Promise<ActionResu
 
     const sb = await createClient();
 
-    const { error } = await sb.from('bureau_postes').upsert(
-      data.postes.map((poste) => ({
-        bureau_id: contexte.id,
-        fonction_id: poste.fonctionId,
-        parent_fonction_id: poste.parentFonctionId,
-        pos_x: poste.x,
-        pos_y: poste.y,
-        updated_by: session.profileId,
-        updated_at: new Date().toISOString(),
-      })),
-      { onConflict: 'bureau_id,fonction_id' },
-    );
+    if (data.postes.length > 0) {
+      const { error } = await sb.from('bureau_postes').upsert(
+        data.postes.map((poste) => ({
+          bureau_id: contexte.id,
+          fonction_id: poste.fonctionId,
+          parent_fonction_id: poste.parentFonctionId,
+          pos_x: poste.x,
+          pos_y: poste.y,
+          updated_by: session.profileId,
+          updated_at: new Date().toISOString(),
+        })),
+        { onConflict: 'bureau_id,fonction_id' },
+      );
 
-    if (error) return ko(messageErreurSql(error));
+      if (error) return ko(messageErreurSql(error));
+    }
+
+    // Un bloc retire du plan doit disparaitre de la base : sans cela, il
+    // reviendrait au prochain chargement, et l'utilisateur croirait son geste
+    // perdu.
+    const conserves = data.postes.map((p) => p.fonctionId);
+    const retrait = sb.from('bureau_postes').delete().eq('bureau_id', contexte.id);
+
+    const { error: erreurRetrait } = await (conserves.length > 0
+      ? retrait.not('fonction_id', 'in', `(${conserves.join(',')})`)
+      : retrait);
+
+    if (erreurRetrait) return ko(messageErreurSql(erreurRetrait));
 
     await auditer({
       session,
@@ -606,8 +620,15 @@ export async function enregistrerDisposition(input: unknown): Promise<ActionResu
       diff: { apres: { postes: data.postes.length } },
     });
 
-    revalidatePath(`/bureaux/${contexte.id}/organigramme`);
-    revalidatePath('/bureaux');
+    /**
+     * PAS de `revalidatePath` — et c'est la correction du 9 aout.
+     *
+     * Une disposition ne s'affiche que dans l'editeur, qui la porte deja a
+     * l'ecran : revalider forcait un rendu serveur complet de la page APRES
+     * chaque geste, et l'enregistrement passait de quelques centaines de
+     * millisecondes a plusieurs secondes. On ne revalide pas ce que personne
+     * d'autre ne regarde.
+     */
     return ok();
   });
 }

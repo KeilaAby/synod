@@ -9,33 +9,40 @@ import {
   type EdgeChange,
   MiniMap,
   type Node,
-  type NodeChange,
   ReactFlow,
   ReactFlowProvider,
+  useNodesState,
+  useReactFlow,
 } from '@xyflow/react';
-import { Loader2, RotateCcw, Search, Unlink } from 'lucide-react';
+import { GripVertical, Loader2, RotateCcw, Search, Unlink } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useCallback, useMemo, useState, useTransition } from 'react';
+import { useCallback, useMemo, useRef, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
 import { AvatarCroyant } from '@/components/croyants/avatar-croyant';
+import { StatusBadge } from '@/components/shared/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { designerMembre, enregistrerDisposition } from '@/lib/actions/bureaux';
-import type { BureauComplet } from '@/lib/data/bureaux';
-import { type FonctionBureau, ancienneteMandat, composerBureau } from '@/lib/domain/bureau';
+import type { BureauComplet, MembreBureau } from '@/lib/data/bureaux';
+import {
+  type FonctionBureau,
+  type PosteBureau,
+  ancienneteMandat,
+  composerBureau,
+} from '@/lib/domain/bureau';
 import { nomComplet, normaliserRecherche } from '@/lib/domain/croyant';
 import type { EntityType } from '@/lib/domain/hierarchy';
-import { cn } from '@/lib/utils';
 import {
   type DispositionPoste,
   dispositionParDefaut,
-  fusionnerDisposition,
-  rattacherPoste,
+  nettoyerDisposition,
+  retirerPoste,
   validerLien,
 } from '@/lib/domain/organigramme-bureau';
+import { cn } from '@/lib/utils';
 
-import { NoeudPoste, TYPE_CROYANT_GLISSE } from './bureau-node';
+import { NoeudPoste, TYPE_CROYANT_GLISSE, TYPE_FONCTION_GLISSE } from './bureau-node';
 import { DesignationDialog, type CandidatOption } from './designation-dialog';
 
 import '@xyflow/react/dist/style.css';
@@ -43,34 +50,74 @@ import '@xyflow/react/dist/style.css';
 /**
  * Éditeur d'organigramme de bureau — EF-BUR-07.
  *
- * TROIS GESTES, ET CE QUE CHACUN SIGNIFIE
+ * QUI POSSÈDE QUOI
  *
- *   · **déplacer** un bloc — librement, sur tout le plan : c'est de la mise en
- *     page, cela n'engage rien ;
- *   · **tirer un trait** d'une poignée à l'autre — c'est là, et là seulement,
- *     que se décide la dépendance. Séparer les deux gestes est délibéré : dans
- *     l'organigramme de structure, lâcher un nœud sur un autre le rattache,
- *     parce que la position n'y veut rien dire. Ici elle veut dire quelque
- *     chose, et un rattachement déclenché par un simple survol rendrait la mise
- *     en page impraticable ;
+ * React Flow possède les **positions** pendant toute l'interaction ; ce
+ * composant possède les **liens** et la liste des blocs posés. La première
+ * version reconstruisait les nœuds à partir de son propre état à chaque
+ * changement de position — donc à chaque image d'un déplacement. React Flow
+ * perdait ses mesures (« trying to drag a node that is not initialized »), le
+ * geste devenait saccadé, et chaque micro-mouvement partait en écriture.
+ *
+ * Règle qui en découle : *ce qui bouge en continu appartient à la bibliothèque
+ * qui l'anime ; on ne le lui reprend qu'à la fin du geste.*
+ *
+ * TROIS GESTES, TROIS SENS
+ *
+ *   · **poser** une fonction en la faisant glisser de la palette sur le plan ;
+ *   · **tirer un trait** d'une poignée à l'autre — le seul geste qui décide
+ *     d'une dépendance. Déplacer un bloc n'est que de la mise en page, et un
+ *     rattachement déclenché par un simple survol la rendrait impraticable ;
  *   · **faire glisser un croyant** de la liste sur un bloc — la désignation.
- *
- * CE QUE L'ÉDITEUR N'INVENTE PAS
- *
- * Il n'énumère pas les postes : ce sont les fonctions applicables au niveau de
- * l'entité (EF-REF-03). Une fonction n'y disparaît jamais — elle se place, elle
- * ne s'ajoute ni ne se retire. Sans cela, un trésorier laissé sur le côté du
- * plan cesserait d'être un poste, et le bureau paraîtrait complet.
- *
- * L'enregistrement est AUTOMATIQUE à la fin de chaque geste, et porte tout le
- * plan : un bouton « Enregistrer » créerait un travail à perdre, et des
- * écritures bloc par bloc laisseraient un trait pointer vers une position pas
- * encore enregistrée.
  *
  * Chargé en différé par `organigramme-loader` (règle 7).
  */
 
 const TYPES_NOEUDS = { poste: NoeudPoste };
+
+/** Ce que le plan enregistre : les blocs posés, avec leur position et leur lien. */
+type Liens = Record<string, string | null>;
+
+/** Ce que porte un bloc. Hors du composant : une donnée de nœud n'a pas d'état. */
+function donneesNoeud(
+  poste: PosteBureau,
+  membre: MembreBureau | null,
+  urls: Record<string, string>,
+  actions: {
+    modifiable: boolean;
+    surDesigner: (fonctionId: string) => void;
+    surDeposerCroyant: (fonctionId: string, croyantId: string) => void;
+  },
+) {
+  const croyant = membre?.croyant ?? null;
+
+  return {
+    fonctionId: poste.fonction.id,
+    fonction: poste.fonction.libelle,
+    estFinanciere: poste.fonction.estFinanciere,
+    titulaire: croyant
+      ? {
+          nom: croyant.nom,
+          prenom: croyant.prenom,
+          matricule: croyant.matricule,
+          photoUrl: croyant.photo_key ? (urls[croyant.photo_key] ?? null) : null,
+        }
+      : null,
+    anciennete: poste.mandat ? ancienneteMandat(poste.mandat.dateDebut) : '',
+    peutGerer: actions.modifiable,
+    surDesigner: actions.surDesigner,
+    surDeposerCroyant: actions.surDeposerCroyant,
+  };
+}
+
+function plan(noeuds: Node[], liens: Liens): DispositionPoste[] {
+  return noeuds.map((noeud) => ({
+    fonctionId: noeud.id,
+    parentFonctionId: liens[noeud.id] ?? null,
+    x: noeud.position.x,
+    y: noeud.position.y,
+  }));
+}
 
 function Editeur({
   bureau,
@@ -88,6 +135,7 @@ function Editeur({
   peutGerer: boolean;
 }) {
   const router = useRouter();
+  const { screenToFlowPosition } = useReactFlow();
   const [enCours, demarrer] = useTransition();
 
   const [recherche, setRecherche] = useState('');
@@ -112,39 +160,19 @@ function Editeur({
     [fonctions, bureau.membres, bureau.entite?.type],
   );
 
-  const [disposition, setDisposition] = useState<DispositionPoste[]>(() =>
-    fusionnerDisposition(postes, dispositionInitiale),
+  const parMandat = useMemo(
+    () => new Map(bureau.membres.map((m) => [m.id, m])),
+    [bureau.membres],
   );
-
-  const libelleDe = useCallback(
-    (fonctionId: string) =>
-      postes.find((p) => p.fonction.id === fonctionId)?.fonction.libelle ??
-      'cette fonction',
+  const parFonction = useMemo(
+    () => new Map(postes.map((p) => [p.fonction.id, p])),
     [postes],
   );
 
-  /** Écrit tout le plan. L'écran est déjà à jour : on ne l'attend pas. */
-  const enregistrer = useCallback(
-    (suivante: DispositionPoste[]) => {
-      demarrer(async () => {
-        const resultat = await enregistrerDisposition({
-          bureauId: bureau.id,
-          postes: suivante,
-        });
-
-        if (!resultat.ok) {
-          toast.error(resultat.error);
-          // L'écran montrait un état que la base a refusé : le remettre
-          // conforme vaut mieux que de laisser croire au succès.
-          setDisposition(fusionnerDisposition(postes, dispositionInitiale));
-        }
-      });
-    },
-    [bureau.id, postes, dispositionInitiale],
-  );
-
-  // --- Désignation -----------------------------------------------------------
-
+  /**
+   * Désignation. Le rafraîchissement remonte la page, dont l'éditeur repart
+   * avec la composition à jour — voir la clé de remontage dans la page.
+   */
   const designer = useCallback(
     (fonctionId: string, croyantId: string) => {
       demarrer(async () => {
@@ -154,9 +182,8 @@ function Editeur({
           fonctionId,
           notes: '',
         });
-
         if (!resultat.ok) {
-          // RG-08, RG-09 — le refus est explicite, il ne se devine pas d'un
+          // RG-08, RG-09 — le refus est explicite ; il ne se devine pas d'un
           // bloc resté vacant.
           toast.error(resultat.error);
           return;
@@ -168,89 +195,125 @@ function Editeur({
     [bureau.id, router],
   );
 
-  // --- Le graphe -------------------------------------------------------------
-
-  const parMandat = useMemo(
-    () => new Map(bureau.membres.map((m) => [m.id, m])),
-    [bureau.membres],
+  const construireNoeud = useCallback(
+    (poste: PosteBureau, x: number, y: number): Node => ({
+      id: poste.fonction.id,
+      type: 'poste',
+      position: { x, y },
+      data: donneesNoeud(
+        poste,
+        (poste.mandat ? parMandat.get(poste.mandat.id) : undefined) ?? null,
+        photos,
+        { modifiable, surDesigner: setADesigner, surDeposerCroyant: designer },
+      ),
+    }),
+    [parMandat, photos, modifiable, designer],
   );
 
-  const noeuds: Node[] = useMemo(
-    () =>
-      disposition.map((place) => {
-        const poste = postes.find((p) => p.fonction.id === place.fonctionId)!;
-        const membre = poste.mandat ? parMandat.get(poste.mandat.id) : undefined;
-        const croyant = membre?.croyant ?? null;
-
-        return {
-          id: place.fonctionId,
-          type: 'poste',
-          position: { x: place.x, y: place.y },
-          draggable: modifiable,
-          data: {
-            fonctionId: place.fonctionId,
-            fonction: poste.fonction.libelle,
-            estFinanciere: poste.fonction.estFinanciere,
-            titulaire: croyant
-              ? {
-                  nom: croyant.nom,
-                  prenom: croyant.prenom,
-                  matricule: croyant.matricule,
-                  photoUrl: croyant.photo_key ? (photos[croyant.photo_key] ?? null) : null,
-                }
-              : null,
-            anciennete: poste.mandat ? ancienneteMandat(poste.mandat.dateDebut) : '',
-            peutGerer: modifiable,
-            surDesigner: setADesigner,
-            surDeposerCroyant: designer,
-          },
-        };
-      }),
-    [disposition, postes, parMandat, photos, modifiable, designer],
+  /**
+   * État INITIAL seulement : la suite appartient à React Flow.
+   *
+   * Un bureau jamais dessiné démarre sur un plan VIDE et une palette pleine —
+   * c'est l'utilisateur qui décide des blocs, pas une disposition devinée.
+   */
+  const planInitial = useMemo(
+    () => nettoyerDisposition(postes, dispositionInitiale),
+    [postes, dispositionInitiale],
   );
+
+  const [noeuds, setNoeuds, surChangementNoeuds] = useNodesState<Node>(
+    planInitial.map((place) =>
+      construireNoeud(parFonction.get(place.fonctionId)!, place.x, place.y),
+    ),
+  );
+
+  const [liens, setLiens] = useState<Liens>(() =>
+    Object.fromEntries(planInitial.map((d) => [d.fonctionId, d.parentFonctionId])),
+  );
+
+  /**
+   * Dernier plan écrit. Un déplacement qui revient à sa place, un lien refait
+   * à l'identique : sans cette signature, chaque geste partirait en écriture,
+   * y compris ceux qui ne changent rien.
+   */
+  const dernierEcrit = useRef(JSON.stringify(planInitial));
+
+  const enregistrer = useCallback(
+    (noeudsAEcrire: Node[], liensAEcrire: Liens) => {
+      const suivant = plan(noeudsAEcrire, liensAEcrire);
+      const signature = JSON.stringify(suivant);
+      if (signature === dernierEcrit.current) return;
+      dernierEcrit.current = signature;
+
+      demarrer(async () => {
+        const resultat = await enregistrerDisposition({
+          bureauId: bureau.id,
+          postes: suivant,
+        });
+        if (!resultat.ok) {
+          // La base a refusé : la signature ne doit pas rester, sinon le
+          // prochain geste identique se croirait déjà enregistré.
+          dernierEcrit.current = '';
+          toast.error(resultat.error);
+        }
+      });
+    },
+    [bureau.id],
+  );
+
+  const libelleDe = useCallback(
+    (fonctionId: string) => parFonction.get(fonctionId)?.fonction.libelle ?? 'cette fonction',
+    [parFonction],
+  );
+
+  // --- Palette : les fonctions applicables PAS ENCORE posées -------------------
+
+  const poses = useMemo(() => new Set(noeuds.map((n) => n.id)), [noeuds]);
+  const palette = useMemo(
+    () => postes.filter((p) => !poses.has(p.fonction.id)),
+    [postes, poses],
+  );
+
+  const poser = useCallback(
+    (fonctionId: string, position: { x: number; y: number }) => {
+      const poste = parFonction.get(fonctionId);
+      if (!poste || poses.has(fonctionId)) return;
+
+      const suivants = [...noeuds, construireNoeud(poste, position.x, position.y)];
+      const suivantsLiens = { ...liens, [fonctionId]: null };
+      setNoeuds(suivants);
+      setLiens(suivantsLiens);
+      enregistrer(suivants, suivantsLiens);
+    },
+    [parFonction, poses, noeuds, liens, construireNoeud, setNoeuds, enregistrer],
+  );
+
+  // --- Le plan ----------------------------------------------------------------
 
   const aretes: Edge[] = useMemo(
     () =>
-      disposition
-        .filter((d) => d.parentFonctionId !== null)
-        .map((d) => {
-          const id = `${d.parentFonctionId}-${d.fonctionId}`;
+      Object.entries(liens)
+        .filter(([fonctionId, parent]) => parent !== null && poses.has(fonctionId))
+        .map(([fonctionId, parent]) => {
+          const id = `${parent}-${fonctionId}`;
+          const choisie = aretesSelectionnees.includes(id);
           return {
             id,
-            source: d.parentFonctionId!,
-            target: d.fonctionId,
+            source: parent!,
+            target: fonctionId,
             type: 'smoothstep',
-            // La sélection est tenue ICI : les arêtes sont recalculées à chaque
-            // changement de disposition, et une sélection laissée au magasin
-            // interne de React Flow disparaîtrait au premier déplacement — la
-            // touche Suppr. n'aurait alors plus rien à supprimer.
-            selected: aretesSelectionnees.includes(id),
+            // La sélection est tenue ICI : les arêtes sont recalculées quand un
+            // lien change, et une sélection laissée au magasin interne
+            // disparaîtrait — la touche Suppr. n'aurait plus rien à supprimer.
+            selected: choisie,
             style: {
-              stroke: aretesSelectionnees.includes(id) ? '#4f46e5' : '#cbd5e1',
-              strokeWidth: aretesSelectionnees.includes(id) ? 2.5 : 1.5,
+              stroke: choisie ? '#4f46e5' : '#cbd5e1',
+              strokeWidth: choisie ? 2.5 : 1.5,
             },
           };
         }),
-    [disposition, aretesSelectionnees],
+    [liens, poses, aretesSelectionnees],
   );
-
-  // --- Gestes ----------------------------------------------------------------
-
-  /** Seules les POSITIONS nous intéressent : elles vivent dans `disposition`. */
-  const surChangementNoeuds = useCallback((changements: NodeChange[]) => {
-    setDisposition((precedente) => {
-      let suivante = precedente;
-
-      for (const changement of changements) {
-        if (changement.type !== 'position' || !changement.position) continue;
-        const position = changement.position;
-        suivante = suivante.map((d) =>
-          d.fonctionId === changement.id ? { ...d, x: position.x, y: position.y } : d,
-        );
-      }
-      return suivante;
-    });
-  }, []);
 
   const surChangementAretes = useCallback((changements: EdgeChange[]) => {
     setAretesSelectionnees((precedente) => {
@@ -264,24 +327,10 @@ function Editeur({
     });
   }, []);
 
-  /**
-   * Fin de déplacement : on enregistre à partir des positions que React Flow
-   * donne pour ACQUISES, et non de l'état local — rien ne garantit qu'il ait
-   * déjà été rafraîchi quand cet événement survient.
-   */
+  /** Fin de déplacement : c'est LÀ qu'on reprend les positions, et pas avant. */
   const surFinDeplacement = useCallback(
-    // React Flow transmet l'événement DOM natif, pas un événement synthétique.
-    (_evenement: MouseEvent | TouchEvent, __noeud: Node, deplaces: Node[]) => {
-      const positions = new Map(deplaces.map((n) => [n.id, n.position]));
-      const suivante = disposition.map((d) => {
-        const position = positions.get(d.fonctionId);
-        return position ? { ...d, x: position.x, y: position.y } : d;
-      });
-
-      setDisposition(suivante);
-      enregistrer(suivante);
-    },
-    [disposition, enregistrer],
+    () => enregistrer(noeuds, liens),
+    [noeuds, liens, enregistrer],
   );
 
   const relier = useCallback(
@@ -290,7 +339,7 @@ function Editeur({
         const verdict = validerLien(
           { id: fonctionId, libelle: libelleDe(fonctionId) },
           { id: parentId, libelle: libelleDe(parentId) },
-          disposition,
+          plan(noeuds, liens),
         );
         if (!verdict.ok) {
           toast.error(verdict.error);
@@ -298,55 +347,95 @@ function Editeur({
         }
       }
 
-      const suivante = rattacherPoste(disposition, fonctionId, parentId);
-      setDisposition(suivante);
-      enregistrer(suivante);
+      const suivants = { ...liens, [fonctionId]: parentId };
+      setLiens(suivants);
+      enregistrer(noeuds, suivants);
     },
-    [disposition, libelleDe, enregistrer],
+    [noeuds, liens, libelleDe, enregistrer],
   );
 
-  const surConnexion = useCallback(
-    (connexion: Connection) => {
-      if (connexion.source && connexion.target) relier(connexion.target, connexion.source);
-    },
-    [relier],
-  );
-
-  /** Écarte la cible invalide AVANT le relâchement : le trait ne s'accroche pas. */
   const connexionValide = useCallback(
-    (connexion: Connection | Edge) => {
-      if (!connexion.source || !connexion.target) return false;
-      return validerLien(
+    (connexion: Connection | Edge) =>
+      Boolean(connexion.source && connexion.target) &&
+      validerLien(
         { id: connexion.target, libelle: libelleDe(connexion.target) },
         { id: connexion.source, libelle: libelleDe(connexion.source) },
-        disposition,
-      ).ok;
-    },
-    [disposition, libelleDe],
+        plan(noeuds, liens),
+      ).ok,
+    [noeuds, liens, libelleDe],
   );
 
-  /** Détacher un trait ne supprime pas le bloc : il redevient une racine. */
+  /** Retirer un trait détache le bloc : il redevient une racine. */
   const surSuppressionAretes = useCallback(
     (supprimees: Edge[]) => {
-      let suivante = disposition;
-      for (const arete of supprimees) {
-        suivante = rattacherPoste(suivante, arete.target, null);
-      }
-      setDisposition(suivante);
+      const suivants = { ...liens };
+      for (const arete of supprimees) suivants[arete.target] = null;
+      setLiens(suivants);
       setAretesSelectionnees([]);
-      enregistrer(suivante);
+      enregistrer(noeuds, suivants);
     },
-    [disposition, enregistrer],
+    [noeuds, liens, enregistrer],
+  );
+
+  /**
+   * Retirer un bloc du plan. Un poste OCCUPÉ ne se retire pas ainsi : cela
+   * reviendrait à démettre quelqu'un par un raccourci clavier, sans trace et
+   * sans le dire. Le retrait du titulaire a son propre geste (EF-BUR-08).
+   */
+  const surAvantSuppression = useCallback(
+    async ({ nodes }: { nodes: Node[] }) => {
+      const occupe = nodes.find((n) => parFonction.get(n.id)?.mandat);
+      if (occupe) {
+        toast.error(
+          `« ${libelleDe(occupe.id)} » a un titulaire en fonction. Retirez-le du bureau avant d'ôter son bloc du plan.`,
+        );
+        return false;
+      }
+      return true;
+    },
+    [parFonction, libelleDe],
+  );
+
+  const surSuppressionNoeuds = useCallback(
+    (supprimes: Node[]) => {
+      // `retirerPoste` racine les subordonnés du bloc ôté : les emporter avec
+      // lui effacerait une branche entière que le geste ne visait pas.
+      let restant = plan(noeuds, liens);
+      for (const noeud of supprimes) restant = retirerPoste(restant, noeud.id);
+
+      const retires = new Set(supprimes.map((n) => n.id));
+      const suivantsLiens = Object.fromEntries(
+        restant.map((d) => [d.fonctionId, d.parentFonctionId]),
+      );
+
+      setLiens(suivantsLiens);
+      enregistrer(
+        noeuds.filter((n) => !retires.has(n.id)),
+        suivantsLiens,
+      );
+    },
+    [noeuds, liens, enregistrer],
   );
 
   const reinitialiser = useCallback(() => {
     const defaut = dispositionParDefaut(postes);
-    setDisposition(defaut);
-    enregistrer(defaut);
-    toast.success('Organigramme replacé selon le rang protocolaire.');
-  }, [postes, enregistrer]);
+    const suivants = defaut
+      .map((d) => {
+        const poste = parFonction.get(d.fonctionId);
+        return poste ? construireNoeud(poste, d.x, d.y) : null;
+      })
+      .filter((n) => n !== null);
+    const suivantsLiens = Object.fromEntries(
+      defaut.map((d) => [d.fonctionId, d.parentFonctionId]),
+    );
 
-  // --- Croyants éligibles, à faire glisser ------------------------------------
+    setNoeuds(suivants);
+    setLiens(suivantsLiens);
+    enregistrer(suivants, suivantsLiens);
+    toast.success('Toutes les fonctions posées, par rang protocolaire.');
+  }, [postes, parFonction, construireNoeud, setNoeuds, enregistrer]);
+
+  // --- Croyants éligibles ------------------------------------------------------
 
   const eligibles = useMemo(() => {
     const terme = normaliserRecherche(recherche);
@@ -365,8 +454,84 @@ function Editeur({
   }, [candidats, bureau.membres, recherche]);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
-      <div className="border-border h-[38rem] overflow-hidden rounded-xl border bg-slate-50/60">
+    <div className="grid gap-6 lg:grid-cols-[19rem_1fr_19rem]">
+      {/* --- Palette des fonctions --------------------------------------------- */}
+      <aside className="space-y-3">
+        <div className="border-border space-y-3 rounded-xl border p-4">
+          <div className="flex items-center justify-between gap-2">
+            <p className="eyebrow">Fonctions à poser</p>
+            <span className="text-muted-foreground font-mono text-xs tabular-nums">
+              {palette.length}
+            </span>
+          </div>
+
+          <p className="text-muted-foreground text-xs">
+            EF-REF-03 — celles qui s&apos;appliquent au niveau{' '}
+            {bureau.entite?.type.toLocaleLowerCase('fr')}. Faites-en glisser une sur le
+            plan pour l&apos;y placer.
+          </p>
+
+          <ul className="max-h-[30rem] space-y-1 overflow-y-auto">
+            {palette.length === 0 && (
+              <li className="text-muted-foreground py-4 text-center text-xs">
+                Toutes les fonctions applicables sont posées.
+              </li>
+            )}
+
+            {palette.map((poste) => (
+              <li key={poste.fonction.id}>
+                <div
+                  draggable={modifiable}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData(TYPE_FONCTION_GLISSE, poste.fonction.id);
+                    e.dataTransfer.effectAllowed = 'move';
+                  }}
+                  className={cn(
+                    'flex items-center gap-2 rounded-md border border-dashed p-2 transition-colors',
+                    modifiable
+                      ? 'cursor-grab border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/50 active:cursor-grabbing'
+                      : 'border-slate-200 opacity-70',
+                  )}
+                >
+                  <GripVertical className="text-muted-foreground size-4 shrink-0" aria-hidden />
+                  <span className="min-w-0 flex-1">
+                    <span className="text-foreground block truncate text-sm">
+                      {poste.fonction.libelle}
+                    </span>
+                  </span>
+                  {poste.fonction.estFinanciere && (
+                    <StatusBadge tone="accent">Fin.</StatusBadge>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {modifiable && (
+          <Button variant="outline" className="h-9 w-full" onClick={reinitialiser}>
+            <RotateCcw className="mr-2 size-4" aria-hidden />
+            Tout poser par rang
+          </Button>
+        )}
+      </aside>
+
+      {/* --- Le plan ------------------------------------------------------------ */}
+      <div
+        className="border-border h-[38rem] overflow-hidden rounded-xl border bg-slate-50/60"
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+        }}
+        onDrop={(e) => {
+          const fonctionId = e.dataTransfer.getData(TYPE_FONCTION_GLISSE);
+          if (!fonctionId) return;
+          e.preventDefault();
+          // Le bloc se pose LÀ où on le lâche : convertir les coordonnées de
+          // l'écran vers celles du plan tient compte du zoom et du décalage.
+          poser(fonctionId, screenToFlowPosition({ x: e.clientX, y: e.clientY }));
+        }}
+      >
         <ReactFlow
           nodes={noeuds}
           edges={aretes}
@@ -374,9 +539,12 @@ function Editeur({
           onNodesChange={surChangementNoeuds}
           onNodeDragStop={surFinDeplacement}
           onEdgesChange={surChangementAretes}
-          onConnect={surConnexion}
+          onConnect={(c) => c.source && c.target && relier(c.target, c.source)}
           isValidConnection={connexionValide}
+          onBeforeDelete={surAvantSuppression}
+          onNodesDelete={surSuppressionNoeuds}
           onEdgesDelete={surSuppressionAretes}
+          nodesDraggable={modifiable}
           nodesConnectable={modifiable}
           edgesReconnectable={false}
           deleteKeyCode={modifiable ? ['Backspace', 'Delete'] : null}
@@ -392,24 +560,16 @@ function Editeur({
         </ReactFlow>
       </div>
 
-      <aside className="space-y-4">
-        {modifiable && (
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" className="h-9" onClick={reinitialiser}>
-              <RotateCcw className="mr-2 size-4" aria-hidden />
-              Replacer par rang
-            </Button>
+      {/* --- Croyants éligibles -------------------------------------------------- */}
+      <aside className="space-y-3">
+        <div className="border-border space-y-3 rounded-xl border p-4">
+          <div className="flex items-center justify-between gap-2">
+            <p className="eyebrow">Croyants éligibles</p>
             {enCours && (
-              <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
-                <Loader2 className="size-3 animate-spin" aria-hidden />
-                Enregistrement…
-              </span>
+              <Loader2 className="text-muted-foreground size-3 animate-spin" aria-hidden />
             )}
           </div>
-        )}
 
-        <div className="border-border space-y-3 rounded-xl border p-4">
-          <p className="eyebrow">Croyants éligibles</p>
           <p className="text-muted-foreground text-xs">
             RG-09 — le périmètre de {bureau.entite?.nom}. Faites glisser un nom sur un
             bloc pour l&apos;y désigner.
@@ -429,7 +589,7 @@ function Editeur({
             />
           </div>
 
-          <ul className="max-h-[24rem] space-y-1 overflow-y-auto">
+          <ul className="max-h-[26rem] space-y-1 overflow-y-auto">
             {eligibles.length === 0 && (
               <li className="text-muted-foreground py-4 text-center text-xs">
                 Aucun croyant éligible ne correspond.
@@ -473,14 +633,13 @@ function Editeur({
         {modifiable && (
           <p className="text-muted-foreground flex items-start gap-2 text-xs">
             <Unlink className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-            Cliquez un trait puis pressez Suppr. pour détacher un bloc : il redevient une
-            racine, il ne disparaît pas.
+            Sélectionnez un trait ou un bloc, puis Suppr. Un trait détaché rend le bloc
+            racine ; un bloc ôté retourne dans la palette.
           </p>
         )}
       </aside>
 
-      {/* Le MÊME dialogue que la vue tabulaire (règle 16) : désigner ici ou
-          là-bas doit poser les mêmes questions et appliquer les mêmes règles. */}
+      {/* Le MÊME dialogue que la vue tabulaire (règle 16). */}
       {aDesigner && (
         <DesignationDialog
           mode="designer"

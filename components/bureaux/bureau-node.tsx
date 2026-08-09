@@ -34,8 +34,15 @@ export interface DonneesNoeudPoste extends Record<string, unknown> {
   surDeposerCroyant?: (fonctionId: string, croyantId: string) => void;
 }
 
-/** Le format d'échange du glisser-déposer — un seul endroit le connaît. */
+/**
+ * Les formats d'échange du glisser-déposer, tenus au même endroit.
+ *
+ * Deux formats DISTINCTS et non un seul avec un discriminant : c'est le format
+ * qui décide de la cible. Un croyant ne se dépose que sur un bloc, une fonction
+ * que sur le plan — et le navigateur écarte tout seul ce qui ne correspond pas.
+ */
 export const TYPE_CROYANT_GLISSE = 'application/x-synod-croyant';
+export const TYPE_FONCTION_GLISSE = 'application/x-synod-fonction';
 
 export function NoeudPoste({ data }: NodeProps) {
   const d = data as unknown as DonneesNoeudPoste;

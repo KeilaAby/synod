@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { MembreBureau } from '@/lib/data/bureaux';
 import type { PosteBureau } from '@/lib/domain/bureau';
+import type { DispositionPoste } from '@/lib/domain/organigramme-bureau';
 
 /**
  * Chargement différé de l'organigramme de bureau — EF-BUR-07, ENF-PRF-09,
@@ -36,6 +37,7 @@ const BureauFlow = dynamic(() => import('./bureau-flow'), {
 export function BureauFlowLoader(props: {
   postes: PosteBureau[];
   membres: MembreBureau[];
+  plan: DispositionPoste[];
   photos: Record<string, string>;
   peutGerer: boolean;
   onDesigner: (fonctionId: string) => void;

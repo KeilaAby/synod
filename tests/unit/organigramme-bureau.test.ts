@@ -4,9 +4,9 @@ import { type FonctionBureau, type MandatMembre, composerBureau } from '@/lib/do
 import {
   type DispositionPoste,
   dispositionParDefaut,
-  fusionnerDisposition,
+  nettoyerDisposition,
   racines,
-  rattacherPoste,
+  retirerPoste,
   validerLien,
 } from '@/lib/domain/organigramme-bureau';
 
@@ -62,44 +62,68 @@ describe('Disposition de depart — le rang protocolaire', () => {
   });
 });
 
-describe('Fusion — la disposition ARRANGE des postes, elle ne les enumere pas', () => {
-  it('conserve une fonction applicable qui n a jamais ete placee', () => {
-    // C'est le point le plus important du module : sans lui, une fonction
-    // ajoutee au referentiel apres coup disparaitrait du bureau, qui
-    // paraitrait complet.
-    const enregistrees: DispositionPoste[] = [
+describe('Nettoyage — un plan survit au referentiel qui l a nourri', () => {
+  it('ne pose QUE ce qui a ete dessine', () => {
+    // Depuis la palette (9 aout), c'est l'utilisateur qui decide des blocs :
+    // une fonction applicable mais jamais posee n'apparait pas sur le plan.
+    // Elle reste dans la palette, prete a l'etre.
+    const plan = nettoyerDisposition(postesVides(), [
       { fonctionId: 'f1', parentFonctionId: null, x: 100, y: 200 },
-    ];
-
-    const fusion = fusionnerDisposition(postesVides(), enregistrees);
-
-    expect(fusion).toHaveLength(4);
-    expect(fusion.find((d) => d.fonctionId === 'f1')).toEqual({
-      fonctionId: 'f1',
-      parentFonctionId: null,
-      x: 100,
-      y: 200,
-    });
-    // La nouvelle venue prend sa place par defaut, pas (0, 0).
-    expect(fusion.find((d) => d.fonctionId === 'f4')?.parentFonctionId).toBe('f2');
-  });
-
-  it('ecarte un parent devenu INAPPLICABLE plutot que de dessiner dans le vide', () => {
-    // La fonction f9 n'est plus applicable au niveau de l'entite : un trait
-    // vers un bloc absent laisserait un organigramme incoherent a l'ecran.
-    const fusion = fusionnerDisposition(postesVides(), [
-      { fonctionId: 'f3', parentFonctionId: 'f9', x: 0, y: 0 },
     ]);
 
-    expect(fusion.find((d) => d.fonctionId === 'f3')?.parentFonctionId).toBeNull();
+    expect(plan).toEqual([{ fonctionId: 'f1', parentFonctionId: null, x: 100, y: 200 }]);
   });
 
-  it('ignore une disposition portant une fonction qui n existe plus', () => {
-    const fusion = fusionnerDisposition(postesVides(), [
+  it('ecarte un bloc dont la fonction n est plus applicable', () => {
+    // Fonction desactivee, ou entite changee de niveau : on ne dessine pas un
+    // bloc dont plus rien ne dit le libelle.
+    const plan = nettoyerDisposition(postesVides(), [
+      { fonctionId: 'f1', parentFonctionId: null, x: 0, y: 0 },
       { fonctionId: 'disparue', parentFonctionId: null, x: 5, y: 5 },
     ]);
 
-    expect(fusion.map((d) => d.fonctionId)).toEqual(['f1', 'f2', 'f3', 'f4']);
+    expect(plan.map((d) => d.fonctionId)).toEqual(['f1']);
+  });
+
+  it('RACINE un bloc dont le parent a disparu, au lieu de le laisser pendu', () => {
+    const plan = nettoyerDisposition(postesVides(), [
+      { fonctionId: 'f3', parentFonctionId: 'disparue', x: 0, y: 0 },
+    ]);
+
+    expect(plan[0]?.parentFonctionId).toBeNull();
+  });
+});
+
+describe("Retrait d'un bloc — le referentiel n'est jamais touche", () => {
+  const plan: DispositionPoste[] = [
+    { fonctionId: 'f1', parentFonctionId: null, x: 0, y: 0 },
+    { fonctionId: 'f2', parentFonctionId: 'f1', x: 0, y: 100 },
+    { fonctionId: 'f3', parentFonctionId: 'f2', x: 0, y: 200 },
+  ];
+
+  it('ote le bloc du plan', () => {
+    expect(retirerPoste(plan, 'f2').map((d) => d.fonctionId)).toEqual(['f1', 'f3']);
+  });
+
+  it('RACINE ses subordonnes plutot que de les emporter', () => {
+    // Les faire disparaitre effacerait d'un geste une branche entiere que le
+    // geste ne visait pas — et il ne demande rien.
+    expect(
+      retirerPoste(plan, 'f2').find((d) => d.fonctionId === 'f3')?.parentFonctionId,
+    ).toBeNull();
+  });
+
+  it('laisse intact ce qui ne le concerne pas', () => {
+    expect(retirerPoste(plan, 'f3').find((d) => d.fonctionId === 'f2')).toEqual(plan[1]);
+  });
+
+  it('admet PLUSIEURS racines apres retrait', () => {
+    // Un bureau se compose parfois de branches sans sommet commun. Imposer une
+    // racine unique obligerait a inventer un poste.
+    expect(racines(retirerPoste(plan, 'f2')).map((d) => d.fonctionId)).toEqual([
+      'f1',
+      'f3',
+    ]);
   });
 });
 
@@ -179,27 +203,13 @@ describe('EF-BUR-07 — un organigramme reste un ARBRE', () => {
   });
 });
 
-describe('Rattachement et racines', () => {
-  it('detache un bloc sans le supprimer', () => {
-    const apres = rattacherPoste(dispositionParDefaut(postesVides()), 'f3', null);
+describe('« Tout poser par rang » — le raccourci, pas la regle', () => {
+  it('pose toutes les fonctions applicables, reliees de rang en rang', () => {
+    // C'est le seul endroit ou le rang protocolaire decide encore d'un plan :
+    // un bouton, explicite, que l'utilisateur peut ensuite defaire bloc a bloc.
+    const defaut = dispositionParDefaut(postesVides());
 
-    expect(apres).toHaveLength(4);
-    expect(apres.find((d) => d.fonctionId === 'f3')?.parentFonctionId).toBeNull();
-  });
-
-  it('admet PLUSIEURS racines', () => {
-    // Un bureau se compose parfois de branches sans sommet commun. Imposer une
-    // racine unique obligerait a inventer un poste.
-    const apres = rattacherPoste(dispositionParDefaut(postesVides()), 'f3', null);
-    expect(racines(apres).map((d) => d.fonctionId)).toEqual(['f1', 'f3']);
-  });
-
-  it('laisse intacts les blocs que le rattachement ne concerne pas', () => {
-    const avant = dispositionParDefaut(postesVides());
-    const apres = rattacherPoste(avant, 'f3', 'f1');
-
-    expect(apres.find((d) => d.fonctionId === 'f4')).toEqual(
-      avant.find((d) => d.fonctionId === 'f4'),
-    );
+    expect(defaut).toHaveLength(4);
+    expect(racines(defaut).map((d) => d.fonctionId)).toEqual(['f1']);
   });
 });

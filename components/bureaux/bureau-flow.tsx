@@ -18,6 +18,7 @@ import {
   ancienneteMandat,
   rangsProtocolaires,
 } from '@/lib/domain/bureau';
+import type { DispositionPoste } from '@/lib/domain/organigramme-bureau';
 
 import { NoeudPoste } from './bureau-node';
 
@@ -53,23 +54,115 @@ const ESPACEMENT_Y = 88;
 
 const TYPES_NOEUDS = { poste: NoeudPoste };
 
+/** Ce que porte un bloc — la même donnée que dans l'éditeur, un seul format. */
+function donnees(
+  poste: PosteBureau,
+  membre: MembreBureau | undefined,
+  photos: Record<string, string>,
+  peutGerer: boolean,
+  onDesigner: (fonctionId: string) => void,
+) {
+  const croyant = membre?.croyant ?? null;
+
+  return {
+    fonctionId: poste.fonction.id,
+    fonction: poste.fonction.libelle,
+    estFinanciere: poste.fonction.estFinanciere,
+    titulaire: croyant
+      ? {
+          nom: croyant.nom,
+          prenom: croyant.prenom,
+          matricule: croyant.matricule,
+          photoUrl: croyant.photo_key ? (photos[croyant.photo_key] ?? null) : null,
+        }
+      : null,
+    anciennete: poste.mandat ? ancienneteMandat(poste.mandat.dateDebut) : '',
+    peutGerer,
+    surDesigner: onDesigner,
+  };
+}
+
+/** Le plan tel qu'il a été dessiné : positions et traits viennent de la base. */
+function dessinerPlan(
+  plan: DispositionPoste[],
+  postes: PosteBureau[],
+  parMandat: Map<string, MembreBureau>,
+  photos: Record<string, string>,
+  peutGerer: boolean,
+  onDesigner: (fonctionId: string) => void,
+): { noeuds: Node[]; aretes: Edge[] } {
+  const parFonction = new Map(postes.map((p) => [p.fonction.id, p]));
+
+  const noeuds: Node[] = [];
+  const aretes: Edge[] = [];
+
+  for (const place of plan) {
+    const poste = parFonction.get(place.fonctionId);
+    // Une fonction sortie du référentiel depuis le dessin : on ne dessine pas
+    // un bloc dont plus rien ne dit le libellé.
+    if (!poste) continue;
+
+    noeuds.push({
+      id: place.fonctionId,
+      type: 'poste',
+      position: { x: place.x, y: place.y },
+      data: donnees(
+        poste,
+        poste.mandat ? parMandat.get(poste.mandat.id) : undefined,
+        photos,
+        peutGerer,
+        onDesigner,
+      ),
+    });
+
+    if (place.parentFonctionId && parFonction.has(place.parentFonctionId)) {
+      aretes.push({
+        id: `${place.parentFonctionId}-${place.fonctionId}`,
+        source: place.parentFonctionId,
+        target: place.fonctionId,
+        type: 'smoothstep',
+        style: { stroke: '#cbd5e1', strokeWidth: 1.5 },
+      });
+    }
+  }
+
+  return { noeuds, aretes };
+}
+
 function Graphe({
   postes,
   membres,
+  plan,
   photos,
   peutGerer,
   onDesigner,
 }: {
   postes: PosteBureau[];
   membres: MembreBureau[];
+  /** Plan dessiné dans l'éditeur. Vide : on retombe sur le rang protocolaire. */
+  plan: DispositionPoste[];
   photos: Record<string, string>;
   peutGerer: boolean;
   onDesigner: (fonctionId: string) => void;
 }) {
   const { noeuds, aretes } = useMemo(() => {
     const parMandat = new Map(membres.map((m) => [m.id, m]));
-    const rangs = rangsProtocolaires(postes);
 
+    /**
+     * Le plan DESSINE l'emporte sur le rang.
+     *
+     * Sans cela, « Définir l'organigramme » produirait une disposition que
+     * personne ne verrait ailleurs — deux représentations d'un même bureau,
+     * contradictoires, et l'utilisateur croirait son travail perdu.
+     *
+     * Le rang reste le repli : tant qu'aucun plan n'a été dessiné, il donne une
+     * lecture juste plutôt qu'un cadre vide.
+     */
+    if (plan.length > 0) {
+      return dessinerPlan(plan, postes, parMandat, photos, peutGerer, onDesigner);
+    }
+
+    const rangs = rangsProtocolaires(postes);
     const noeuds: Node[] = [];
     const aretes: Edge[] = [];
 
@@ -127,7 +220,7 @@ function Graphe({
     });
 
     return { noeuds, aretes };
-  }, [postes, membres, photos, peutGerer, onDesigner]);
+  }, [postes, membres, plan, photos, peutGerer, onDesigner]);
 
   return (
     <div className="border-border h-[28rem] w-full overflow-hidden rounded-xl border bg-slate-50/60">
@@ -160,6 +253,7 @@ function Graphe({
 export default function BureauFlow(props: {
   postes: PosteBureau[];
   membres: MembreBureau[];
+  plan: DispositionPoste[];
   photos: Record<string, string>;
   peutGerer: boolean;
   onDesigner: (fonctionId: string) => void;

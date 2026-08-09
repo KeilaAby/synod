@@ -195,15 +195,34 @@ export function BureauComposition({
           <BureauFlowLoader
             postes={postes}
             membres={bureau.membres}
+            // Le plan dessiné dans l'éditeur, s'il existe : deux
+            // représentations du même bureau ne doivent pas se contredire.
+            plan={(bureau.postes ?? []).map((p) => ({
+              fonctionId: p.fonction_id,
+              parentFonctionId: p.parent_fonction_id,
+              x: p.pos_x,
+              y: p.pos_y,
+            }))}
             photos={photos}
             peutGerer={peutGerer && bureau.is_active}
             onDesigner={(fonctionId) => setADesigner({ fonctionId })}
           />
-          {/* Un organigramme qui laisse croire à une chaîne de commandement
-              invente une organisation : le dire vaut mieux que l'espérer. */}
+          {/* Dire d'où vient ce qu'on regarde : un plan dessiné et un repli
+              automatique n'ont pas la même autorité, et rien ne les distingue
+              à l'œil. */}
           <p className="text-muted-foreground text-xs">
-            Les traits expriment le <strong>rang protocolaire</strong>, non un lien de
-            subordination. Les fonctions vacantes gardent leur rang, en pointillé.
+            {(bureau.postes ?? []).length > 0 ? (
+              <>
+                Organigramme <strong>dessiné</strong> pour ce bureau. Modifiez-le depuis
+                le menu ⋮ de sa carte, « Définir l&apos;organigramme ».
+              </>
+            ) : (
+              <>
+                Aucun organigramme n&apos;a été dessiné : les blocs suivent le{' '}
+                <strong>rang protocolaire</strong>, qui exprime une préséance et non un
+                lien de subordination.
+              </>
+            )}
           </p>
         </div>
       ) : (
