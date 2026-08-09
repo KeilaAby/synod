@@ -1,6 +1,8 @@
 import 'server-only';
 
+import { DataError } from '@/lib/data/errors';
 import { ko, ok } from '@/lib/domain/result';
+import { MESSAGE_PANNE_RESEAU, estPanneReseau } from '@/lib/supabase/reseau';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 
 import type { AuthAdapter, IdentiteAuth } from './types';
@@ -27,6 +29,21 @@ export const supabaseAuthAdapter: AuthAdapter = {
     // `getUser()` revalide le jeton aupres du serveur d'identite ; `getSession()`
     // se contenterait du cookie, qui peut avoir ete forge.
     const { data, error } = await sb.auth.getUser();
+
+    /**
+     * Une panne RESEAU n'est pas une session absente.
+     *
+     * Rendre `null` faisait dire « Votre session a expire. Reconnectez-vous. »
+     * a la moindre coupure ou au moindre depassement de delai — un message
+     * faux, qui envoie l'utilisateur se reconnecter alors qu'il est connecte,
+     * et lui fait perdre ce qu'il etait en train de faire. On leve : l'appelant
+     * dira que la base est injoignable, ce qui est la verite (cf. RG-15 pour
+     * l'idee generale : une absence de donnee n'est pas un refus).
+     */
+    if (error && estPanneReseau(error)) {
+      throw new DataError(MESSAGE_PANNE_RESEAU, error);
+    }
+
     if (error || !data.user) return null;
     return versIdentite(data.user);
   },

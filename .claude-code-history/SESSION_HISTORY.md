@@ -984,3 +984,74 @@ le message et les clés de l'objet.
 ### Qualité
 
 319 tests unitaires. `pnpm verify` vert.
+
+---
+
+## 9 août 2026 (soir) — Neuf secondes pour valider une personne
+
+### Le coût était dans la lecture, pas dans l'écriture
+
+`designerMembre` prenait 9,5 secondes. Elle appelait `listerCandidats()` —
+**jusqu'à deux mille croyants, avec leur entité en embed** — pour ensuite en
+retenir **un**. Le prix se justifie quand il s'agit de peupler un écran ;
+il est absurde pour valider une personne dont on connaît déjà l'identifiant.
+
+`chargerCandidat(croyantId)` lit une ligne. La RLS borne toujours au périmètre,
+RG-09 reste vérifiée par le domaine sur le chemin de l'église : rien n'est
+relâché, seule la quantité lue change.
+
+### « Votre session a expiré » était un mensonge
+
+Sous la latence, le message tombait sur l'éditeur. Il venait de `getIdentite`,
+qui transformait **toute** erreur en « pas de session » — y compris
+`The operation was aborted due to timeout`, visible dans les journaux.
+
+C'est le pendant de la règle 15 : *une panne réseau n'est pas une session
+absente*. Dire « reconnectez-vous » à quelqu'un qui est connecté l'envoie
+perdre son travail pour une coupure de trois secondes. `estPanneReseau`
+existait déjà et servait ailleurs ; l'adaptateur lève désormais, et l'écran dit
+que la base est injoignable — ce qui est vrai.
+
+### Ce qui se fait sur un bloc doit se lire sur le bloc
+
+Le retrait d'un bloc n'existait qu'au clavier : « sélectionnez puis Suppr. ».
+Un raccourci ne se découvre pas. Chaque bloc porte maintenant le même menu ⋮
+que partout ailleurs — *Retirer le titulaire* (le mandat se **clôt**, EF-BUR-08)
+puis *Ôter du plan*, dans cet ordre parce que c'est l'ordre réel : un poste
+occupé ne quitte pas le plan.
+
+« Ôter du plan » passe par `deleteElements` plutôt que par notre état : le menu
+et la touche Suppr. déclenchent ainsi la **même** suite `onBeforeDelete` →
+`onNodesDelete`, donc le même refus et le même enregistrement. Un second chemin
+aurait divergé du premier (règle 16).
+
+Et la désignation par glisser-déposer ouvre le pop-up d'attente, comme la
+clôture et la suppression : le geste se termine, et sans lui rien ne bouge
+pendant plusieurs secondes.
+
+### EF-BUR-11 — imprimer sans bibliothèque
+
+Le besoin est « imprimer l'organigramme », pas « produire un PDF par
+programme » : le navigateur sait imprimer et sait enregistrer en PDF. Ce qui
+manquait, c'était un dessin **complet** — le graphe à l'écran est cadré et
+zoomé, une capture n'emporterait que le visible.
+
+`lib/domain/organigramme-svg.ts` redessine le plan entier à partir des mêmes
+coordonnées : vectoriel, lisible à toute échelle, zéro dépendance — ni `jspdf`,
+ni `html-to-image`. Les photos n'y figurent pas, et c'est délibéré : elles
+vivent derrière des URL signées, une image distante arrive après l'appel à
+`print()` et sortirait vide une fois sur deux. Les initiales disent la même
+chose et sortent toujours.
+
+Onze tests le couvrent, dont l'échappement XML : « Ratsimba & Fils » suffit à
+rendre un SVG illisible par l'analyseur, qui n'affiche alors **rien**.
+
+### Un nom coupé ne désigne personne
+
+« RAKOTONIRINA Ma… » sur un organigramme — c'est pourtant ce qu'on vient y
+lire. Le nom se replie désormais sur plusieurs lignes ; la photo garde sa
+taille, c'est le texte qui cède.
+
+### Qualité
+
+330 tests unitaires. `pnpm verify` vert.

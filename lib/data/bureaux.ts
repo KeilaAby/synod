@@ -313,6 +313,32 @@ export interface CandidatCroyant {
   eglise: { id: string; path: string } | null;
 }
 
+/**
+ * UN candidat, pour valider UNE designation — EF-BUR-03.
+ *
+ * `listerCandidats` charge jusqu'a deux mille croyants : le prix est justifie
+ * pour peupler un ecran, absurde pour verifier une seule personne. La
+ * designation y passait neuf secondes, dont l'essentiel a lire des gens dont
+ * elle n'avait que faire.
+ *
+ * La RLS borne deja la lecture au perimetre ; RG-09 est verifiee ensuite par le
+ * domaine, sur le chemin de l'eglise.
+ */
+export async function chargerCandidat(croyantId: string): Promise<CandidatCroyant | null> {
+  const sb = await createClient();
+
+  const { data, error } = await sb
+    .from('croyants')
+    .select(
+      'id, nom, prenom, matricule, photo_key, statut, eglise:entities!croyants_eglise_id_fkey (id, path)',
+    )
+    .eq('id', croyantId)
+    .is('deleted_at', null)
+    .maybeSingle<CandidatCroyant>();
+
+  return error ? null : data;
+}
+
 export async function listerCandidats(): Promise<CandidatCroyant[]> {
   const sb = await createClient();
 

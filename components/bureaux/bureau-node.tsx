@@ -1,11 +1,17 @@
 'use client';
 
 import { Handle, type NodeProps, Position } from '@xyflow/react';
-import { CircleSlash, UserPlus } from 'lucide-react';
+import { CircleSlash, EyeOff, MoreVertical, UserMinus, UserPlus } from 'lucide-react';
 import { useState } from 'react';
 
 import { AvatarCroyant } from '@/components/croyants/avatar-croyant';
 import { StatusBadge } from '@/components/shared/status-badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 
 /**
@@ -32,6 +38,13 @@ export interface DonneesNoeudPoste extends Record<string, unknown> {
    * rien ne laisse croire qu'on peut y déposer quelque chose.
    */
   surDeposerCroyant?: (fonctionId: string, croyantId: string) => void;
+  /** EF-BUR-08 — clôt le mandat du titulaire : la fonction redevient vacante. */
+  surRetirerTitulaire?: (fonctionId: string) => void;
+  /**
+   * EF-BUR-07 — ôte le bloc du plan ; la fonction retourne dans la palette.
+   * Le référentiel n'est jamais touché.
+   */
+  surOterDuPlan?: (fonctionId: string) => void;
 }
 
 /**
@@ -49,6 +62,38 @@ export function NoeudPoste({ data }: NodeProps) {
   const [survole, setSurvole] = useState(false);
 
   const accepteDepot = d.surDeposerCroyant !== undefined && d.peutGerer;
+
+  /**
+   * Ce qu'on peut faire d'un bloc, et dans cet ordre.
+   *
+   * Retirer le titulaire vient AVANT ôter le bloc, parce que c'est l'ordre
+   * réel : un poste occupé ne quitte pas le plan — le laisser partir
+   * démettrait quelqu'un sans le dire (EF-BUR-08).
+   */
+  const menu = !d.peutGerer
+    ? []
+    : [
+        ...(d.titulaire && d.surRetirerTitulaire
+          ? [
+              {
+                libelle: 'Retirer le titulaire',
+                icone: UserMinus,
+                destructif: false,
+                action: () => d.surRetirerTitulaire!(d.fonctionId),
+              },
+            ]
+          : []),
+        ...(!d.titulaire && d.surOterDuPlan
+          ? [
+              {
+                libelle: 'Ôter du plan',
+                icone: EyeOff,
+                destructif: true,
+                action: () => d.surOterDuPlan!(d.fonctionId),
+              },
+            ]
+          : []),
+      ];
 
   return (
     <div
@@ -91,10 +136,41 @@ export function NoeudPoste({ data }: NodeProps) {
       />
 
       <div className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-foreground text-xs font-semibold">{d.fonction}</span>
-          {/* RG-31 — ce qui fait un « membre de finances ». */}
-          {d.estFinanciere && <StatusBadge tone="accent">Finances</StatusBadge>}
+        <div className="flex items-start justify-between gap-2">
+          <span className="flex min-w-0 flex-wrap items-center gap-2">
+            <span className="text-foreground text-xs font-semibold">{d.fonction}</span>
+            {/* RG-31 — ce qui fait un « membre de finances ». */}
+            {d.estFinanciere && <StatusBadge tone="accent">Finances</StatusBadge>}
+          </span>
+
+          {/* Le même menu ⋮ que partout ailleurs. Un raccourci clavier ne se
+              découvre pas : ce qui se fait sur un bloc doit s'y lire. */}
+          {menu.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={`Actions sur ${d.fonction}`}
+                  className="nodrag text-muted-foreground hover:text-foreground flex size-6 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-slate-100"
+                >
+                  <MoreVertical className="size-4" aria-hidden />
+                </button>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent align="end" className="w-60">
+                {menu.map((entree) => (
+                  <DropdownMenuItem
+                    key={entree.libelle}
+                    className={entree.destructif ? 'text-destructive focus:text-destructive' : ''}
+                    onSelect={entree.action}
+                  >
+                    <entree.icone className="mr-2 size-4" aria-hidden />
+                    {entree.libelle}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
 
         {d.titulaire ? (
@@ -104,11 +180,15 @@ export function NoeudPoste({ data }: NodeProps) {
               prenom={d.titulaire.prenom}
               url={d.titulaire.photoUrl}
             />
-            <span className="min-w-0">
-              <span className="text-foreground block truncate text-sm font-medium">
+            {/* Le nom se REPLIE au lieu d'être coupé : « RAKOTONIRINA Ma… » ne
+                désigne personne, et c'est précisément ce qu'on vient lire sur
+                un organigramme. La photo garde sa taille — c'est le texte qui
+                cède, pas elle. */}
+            <span className="min-w-0 flex-1">
+              <span className="text-foreground block text-sm leading-tight font-medium break-words">
                 {d.titulaire.nom} {d.titulaire.prenom}
               </span>
-              <span className="text-muted-foreground block font-mono text-xs tabular-nums">
+              <span className="text-muted-foreground mt-0.5 block font-mono text-xs tabular-nums">
                 {d.anciennete}
               </span>
             </span>

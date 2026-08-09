@@ -272,7 +272,7 @@ Les habilitations sont **unitaires**, regroupées par catégorie, et chacune peu
 | **EF-BUR-08** | Remplacer un membre en cours de mandat : clôture du mandat individuel, création du suivant, historique conservé. | **Must** |
 | **EF-BUR-09** | Clore un mandat et en ouvrir un nouveau, avec **reconduction** de la composition précédente en un clic. | **Should** |
 | **EF-BUR-10** | Consulter, pour un croyant, l'ensemble des fonctions occupées (entité, fonction, période). | **Must** |
-| **EF-BUR-11** | Exporter la composition d'un bureau (PDF/Excel) et l'organigramme (PDF/PNG). | **Should** |
+| **EF-BUR-11** | Exporter la composition d'un bureau (PDF/Excel) et l'organigramme (PDF/PNG). *(Organigramme livré le 9 août 2026 : redessiné en SVG vectoriel — `lib/domain/organigramme-svg.ts` — et remis à l'impression du navigateur, qui sait enregistrer en PDF. Aucune dépendance. Export de la composition en Excel : à faire.)* | **Should** |
 
 ### 5.6 Module **Finances** *(recettes, dépenses et solde — ARB-2 / ARB-3)*
 

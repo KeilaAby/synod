@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import {
   type BureauComplet,
   chargerBureauxDeEntite,
+  chargerCandidat,
   listerCandidats,
   listerFonctions,
 } from '@/lib/data/bureaux';
@@ -651,10 +652,20 @@ export async function designerMembre(input: unknown): Promise<ActionResult<void>
 
     await requirePermission(session, 'bureau.manage', contexte.entite!.path);
 
-    const [fonctions, candidats] = await Promise.all([listerFonctions(), listerCandidats()]);
+    /**
+     * UN croyant, et non toute la liste des candidats.
+     *
+     * `listerCandidats` lit jusqu'a deux mille lignes : le prix se justifie pour
+     * peupler un ecran, pas pour valider une personne. La designation y passait
+     * neuf secondes — mesurees le 9 aout — a lire des gens dont elle n'avait que
+     * faire.
+     */
+    const [fonctions, croyant] = await Promise.all([
+      listerFonctions(),
+      chargerCandidat(data.croyantId),
+    ]);
 
     const fonction = fonctions.find((f) => f.id === data.fonctionId);
-    const croyant = candidats.find((c) => c.id === data.croyantId);
 
     if (!fonction) return ko('Cette fonction est introuvable.');
     if (!croyant?.eglise) return ko('Ce croyant est introuvable ou hors de votre perimetre.');

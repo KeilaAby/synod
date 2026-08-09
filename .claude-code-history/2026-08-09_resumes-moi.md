@@ -141,8 +141,19 @@ Le graphe de la composition affiche désormais **votre plan** dès qu'il en exis
 un, et retombe sur le rang protocolaire sinon ; la légende dit lequel des deux
 vous regardez. Sans cela, votre dessin n'aurait été visible que dans l'éditeur.
 
-L'enregistrement est **automatique** à la fin de chaque geste : rien à valider,
-rien à perdre.
+Chaque bloc porte le **menu ⋮** habituel : *Retirer le titulaire* — son mandat
+se clôt et reste dans son historique — puis *Ôter du plan*, dans cet ordre
+parce qu'un poste occupé ne quitte pas le plan. La touche Suppr. fait la même
+chose, par le même chemin.
+
+**Imprimer / PDF** redessine le plan **entier** en SVG vectoriel et le remet à
+l'impression du navigateur, qui sait enregistrer en PDF (EF-BUR-11). Ce n'est
+pas une capture d'écran : les blocs hors du cadre visible y sont aussi. Les
+photos n'y figurent pas — une image distante arriverait après le lancement de
+l'impression — les initiales les remplacent.
+
+L'enregistrement du plan est **automatique** à la fin de chaque geste : rien à
+valider, rien à perdre. Une désignation, elle, ouvre le pop-up d'attente.
 
 ---
 
@@ -164,7 +175,7 @@ Trois points à décider avant d'écrire une ligne, tous déjà notés dans
 ```bash
 pnpm install      # installe aussi le hook pre-commit de détection de secrets
 pnpm dev          # http://localhost:3000
-pnpm verify       # secrets + lint + types + 319 tests + build
+pnpm verify       # secrets + lint + types + 330 tests + build
 ```
 
 Lire avant toute tâche : `CLAUDE.md`, puis `notes/cdg.md` et `notes/plan.md`.

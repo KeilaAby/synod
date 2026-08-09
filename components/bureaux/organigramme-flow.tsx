@@ -14,22 +14,28 @@ import {
   useNodesState,
   useReactFlow,
 } from '@xyflow/react';
-import { GripVertical, Loader2, RotateCcw, Search, Unlink } from 'lucide-react';
+import { GripVertical, Printer, RotateCcw, Search, Unlink } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useMemo, useRef, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
 import { AvatarCroyant } from '@/components/croyants/avatar-croyant';
+import { OperationDialog } from '@/components/shared/operation-dialog';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { designerMembre, enregistrerDisposition } from '@/lib/actions/bureaux';
+import {
+  designerMembre,
+  enregistrerDisposition,
+  retirerMembre,
+} from '@/lib/actions/bureaux';
 import type { BureauComplet, MembreBureau } from '@/lib/data/bureaux';
 import {
   type FonctionBureau,
   type PosteBureau,
   ancienneteMandat,
   composerBureau,
+  libelleAffichage,
 } from '@/lib/domain/bureau';
 import { nomComplet, normaliserRecherche } from '@/lib/domain/croyant';
 import type { EntityType } from '@/lib/domain/hierarchy';
@@ -40,7 +46,9 @@ import {
   retirerPoste,
   validerLien,
 } from '@/lib/domain/organigramme-bureau';
+import { construireSvg } from '@/lib/domain/organigramme-svg';
 import { cn } from '@/lib/utils';
+import { formatDate } from '@/lib/utils/format';
 
 import { NoeudPoste, TYPE_CROYANT_GLISSE, TYPE_FONCTION_GLISSE } from './bureau-node';
 import { DesignationDialog, type CandidatOption } from './designation-dialog';
@@ -87,6 +95,8 @@ function donneesNoeud(
     modifiable: boolean;
     surDesigner: (fonctionId: string) => void;
     surDeposerCroyant: (fonctionId: string, croyantId: string) => void;
+    surRetirerTitulaire: (fonctionId: string) => void;
+    surOterDuPlan: (fonctionId: string) => void;
   },
 ) {
   const croyant = membre?.croyant ?? null;
@@ -107,7 +117,35 @@ function donneesNoeud(
     peutGerer: actions.modifiable,
     surDesigner: actions.surDesigner,
     surDeposerCroyant: actions.surDeposerCroyant,
+    surRetirerTitulaire: actions.surRetirerTitulaire,
+    surOterDuPlan: actions.surOterDuPlan,
   };
+}
+
+/**
+ * Ouvre le plan dans une fenêtre d'impression — EF-BUR-11.
+ *
+ * Le navigateur sait imprimer et sait enregistrer en PDF : ce qui manquait,
+ * c'était un dessin COMPLET, le graphe à l'écran étant cadré et zoomé.
+ */
+function imprimer(svg: string, titre: string) {
+  const fenetre = window.open('', '_blank', 'width=1024,height=768');
+  if (!fenetre) {
+    toast.error("La fenêtre d'impression a été bloquée. Autorisez les pop-ups pour ce site.");
+    return;
+  }
+
+  fenetre.document.write(
+    `<!doctype html><html lang="fr"><head><meta charset="utf-8">` +
+      `<title>${titre}</title>` +
+      `<style>@page{size:landscape;margin:10mm}body{margin:0}svg{width:100%;height:auto}</style>` +
+      `</head><body>${svg}</body></html>`,
+  );
+  fenetre.document.close();
+
+  // L'impression attend que le document soit posé : lancée trop tôt, elle
+  // sortirait une page blanche.
+  fenetre.addEventListener('load', () => fenetre.print());
 }
 
 function plan(noeuds: Node[], liens: Liens): DispositionPoste[] {
@@ -135,12 +173,20 @@ function Editeur({
   peutGerer: boolean;
 }) {
   const router = useRouter();
-  const { screenToFlowPosition } = useReactFlow();
+  const { screenToFlowPosition, deleteElements } = useReactFlow();
   const [enCours, demarrer] = useTransition();
 
   const [recherche, setRecherche] = useState('');
   const [aretesSelectionnees, setAretesSelectionnees] = useState<string[]>([]);
   const [aDesigner, setADesigner] = useState<string | null>(null);
+  /**
+   * Ce qui est en train de se faire. Une désignation touche la base puis
+   * attend le re-rendu : sans pop-up, le glisser-déposer se termine et rien ne
+   * bouge pendant plusieurs secondes — l'utilisateur recommence.
+   */
+  const [operation, setOperation] = useState<{ titre: string; description: string } | null>(
+    null,
+  );
 
   const modifiable = peutGerer && bureau.is_active;
 
@@ -173,26 +219,78 @@ function Editeur({
    * Désignation. Le rafraîchissement remonte la page, dont l'éditeur repart
    * avec la composition à jour — voir la clé de remontage dans la page.
    */
-  const designer = useCallback(
-    (fonctionId: string, croyantId: string) => {
+  /**
+   * Une opération, son libellé et son attente, noués au même endroit — comme
+   * sur l'écran des bureaux. Deux états réglés séparément finissent toujours
+   * par se contredire.
+   */
+  const lancer = useCallback(
+    (
+      annonce: { titre: string; description: string },
+      executer: () => Promise<{ ok: boolean; error?: string }>,
+      succes: string,
+    ) => {
+      setOperation(annonce);
       demarrer(async () => {
-        const resultat = await designerMembre({
-          bureauId: bureau.id,
-          croyantId,
-          fonctionId,
-          notes: '',
-        });
+        const resultat = await executer();
         if (!resultat.ok) {
-          // RG-08, RG-09 — le refus est explicite ; il ne se devine pas d'un
-          // bloc resté vacant.
-          toast.error(resultat.error);
+          setOperation(null);
+          toast.error(resultat.error ?? "L'opération a échoué.");
           return;
         }
-        toast.success('Titulaire désigné.');
+        toast.success(succes);
         router.refresh();
       });
     },
-    [bureau.id, router],
+    [router],
+  );
+
+  const designer = useCallback(
+    (fonctionId: string, croyantId: string) => {
+      lancer(
+        {
+          titre: 'Désignation en cours…',
+          description: 'Le mandat est ouvert, puis la composition se rafraîchit.',
+        },
+        // RG-08, RG-09 — le refus vient du serveur et reste explicite ; il ne
+        // se devine pas d'un bloc resté vacant.
+        () => designerMembre({ bureauId: bureau.id, croyantId, fonctionId, notes: '' }),
+        'Titulaire désigné.',
+      );
+    },
+    [bureau.id, lancer],
+  );
+
+  /** EF-BUR-08 — le mandat se CLÔT ; il ne s'efface pas de l'historique. */
+  const retirerTitulaire = useCallback(
+    (fonctionId: string) => {
+      const membreId = parFonction.get(fonctionId)?.mandat?.id;
+      if (!membreId) return;
+
+      lancer(
+        {
+          titre: 'Retrait du titulaire…',
+          description:
+            'Son mandat est clos à ce jour et reste dans son historique ; la fonction redevient vacante.',
+        },
+        () => retirerMembre({ membreId }),
+        'Mandat clos. La fonction est vacante.',
+      );
+    },
+    [parFonction, lancer],
+  );
+
+  /**
+   * Ôter un bloc passe par `deleteElements` plutôt que par notre état.
+   *
+   * Un SEUL chemin de retrait (règle 16) : le menu et la touche Suppr.
+   * déclenchent la même suite `onBeforeDelete` → `onNodesDelete`, donc le même
+   * refus quand le poste est occupé et le même enregistrement ensuite. Écrire
+   * un second chemin ici l'aurait fait diverger du premier.
+   */
+  const oterDuPlan = useCallback(
+    (fonctionId: string) => void deleteElements({ nodes: [{ id: fonctionId }] }),
+    [deleteElements],
   );
 
   const construireNoeud = useCallback(
@@ -204,10 +302,16 @@ function Editeur({
         poste,
         (poste.mandat ? parMandat.get(poste.mandat.id) : undefined) ?? null,
         photos,
-        { modifiable, surDesigner: setADesigner, surDeposerCroyant: designer },
+        {
+          modifiable,
+          surDesigner: setADesigner,
+          surDeposerCroyant: designer,
+          surRetirerTitulaire: retirerTitulaire,
+          surOterDuPlan: oterDuPlan,
+        },
       ),
     }),
-    [parMandat, photos, modifiable, designer],
+    [parMandat, photos, modifiable, designer, retirerTitulaire, oterDuPlan],
   );
 
   /**
@@ -417,6 +521,42 @@ function Editeur({
     [noeuds, liens, enregistrer],
   );
 
+  /** EF-BUR-11 — le plan complet, redessiné en SVG à partir des mêmes coordonnées. */
+  const versImpression = useCallback(() => {
+    const svg = construireSvg(
+      noeuds.map((noeud) => {
+        const poste = parFonction.get(noeud.id)!;
+        const membre = poste.mandat ? parMandat.get(poste.mandat.id) : undefined;
+        const croyant = membre?.croyant ?? null;
+
+        return {
+          fonctionId: noeud.id,
+          x: noeud.position.x,
+          y: noeud.position.y,
+          fonction: poste.fonction.libelle,
+          estFinanciere: poste.fonction.estFinanciere,
+          parentFonctionId: liens[noeud.id] ?? null,
+          titulaire: croyant
+            ? { nom: croyant.nom, prenom: croyant.prenom, matricule: croyant.matricule }
+            : null,
+        };
+      }),
+      {
+        titre: bureau.libelle,
+        entite: bureau.entite?.nom ?? '',
+        periode: libelleAffichage(bureau.libelle, bureau.date_debut, bureau.date_fin),
+        edite: formatDate(new Date()),
+      },
+    );
+
+    if (!svg) {
+      // Une feuille blanche ne dit pas pourquoi elle est blanche.
+      toast.error("Aucun bloc n'est posé : il n'y a rien à imprimer.");
+      return;
+    }
+    imprimer(svg, `${bureau.libelle} — ${bureau.entite?.nom ?? ''}`);
+  }, [noeuds, liens, parFonction, parMandat, bureau]);
+
   const reinitialiser = useCallback(() => {
     const defaut = dispositionParDefaut(postes);
     const suivants = defaut
@@ -508,12 +648,20 @@ function Editeur({
           </ul>
         </div>
 
-        {modifiable && (
-          <Button variant="outline" className="h-9 w-full" onClick={reinitialiser}>
-            <RotateCcw className="mr-2 size-4" aria-hidden />
-            Tout poser par rang
+        <div className="space-y-2">
+          {modifiable && (
+            <Button variant="outline" className="h-9 w-full" onClick={reinitialiser}>
+              <RotateCcw className="mr-2 size-4" aria-hidden />
+              Tout poser par rang
+            </Button>
+          )}
+
+          {/* EF-BUR-11 — le plan ENTIER, pas la portion visible à l'écran. */}
+          <Button variant="outline" className="h-9 w-full" onClick={versImpression}>
+            <Printer className="mr-2 size-4" aria-hidden />
+            Imprimer / PDF
           </Button>
-        )}
+        </div>
       </aside>
 
       {/* --- Le plan ------------------------------------------------------------ */}
@@ -565,8 +713,10 @@ function Editeur({
         <div className="border-border space-y-3 rounded-xl border p-4">
           <div className="flex items-center justify-between gap-2">
             <p className="eyebrow">Croyants éligibles</p>
-            {enCours && (
-              <Loader2 className="text-muted-foreground size-3 animate-spin" aria-hidden />
+            {enCours && !operation && (
+              // Un enregistrement de plan est discret : il ne bloque rien, et
+              // n'a pas à s'annoncer par un pop-up.
+              <span className="text-muted-foreground text-xs">Enregistrement…</span>
             )}
           </div>
 
@@ -638,6 +788,15 @@ function Editeur({
           </p>
         )}
       </aside>
+
+      {/* Une désignation part d'un glisser-déposer : le geste se termine et
+          rien ne bouge tant que la base n'a pas répondu. Le pop-up dit ce qui
+          se passe et empêche de recommencer par-dessus. */}
+      <OperationDialog
+        ouvert={enCours && operation !== null}
+        titre={operation?.titre ?? ''}
+        description={operation?.description}
+      />
 
       {/* Le MÊME dialogue que la vue tabulaire (règle 16). */}
       {aDesigner && (
