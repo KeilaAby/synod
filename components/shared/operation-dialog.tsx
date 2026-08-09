@@ -42,7 +42,16 @@ export function OperationDialog({
         showCloseButton={false}
         onEscapeKeyDown={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
-        className="w-[min(92vw,26rem)] sm:max-w-md"
+        /**
+         * `z-60` : au-DESSUS de tout autre pop-up.
+         *
+         * Ces attentes se déclenchent souvent depuis un pop-up déjà ouvert —
+         * la liste des référentiels, la composition d'un bureau. Toutes les
+         * couches de dialogue partagent `z-50` : à égalité, c'est l'ordre du
+         * DOM qui tranche, et il ne garantit rien. Un pop-up d'attente qu'on
+         * peut ne pas voir ne sert à rien.
+         */
+        className="z-[60] w-[min(92vw,26rem)] sm:max-w-md"
         // `aria-live` : le lecteur d'écran annonce l'attente au lieu de la subir.
         role="status"
         aria-live="polite"

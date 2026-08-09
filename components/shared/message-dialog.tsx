@@ -44,7 +44,9 @@ export function MessageDialog({
 
   return (
     <Dialog open={ouvert} onOpenChange={(v) => !v && onFermer()}>
-      <DialogContent className="w-[min(94vw,32rem)] sm:max-w-lg">
+      {/* `z-60` — même raison que le pop-up d'attente : un refus déclenché
+          depuis un autre pop-up doit passer devant, pas derrière. */}
+      <DialogContent className="z-[60] w-[min(94vw,32rem)] sm:max-w-lg">
         <DialogHeader>
           <span className="flex items-start gap-3">
             <Icone
