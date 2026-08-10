@@ -143,6 +143,13 @@ Ce qu'il reste à faire est décrit dans le dernier point d'étape
     puis fermer un indicateur dans la même séquence revient à ne rien
     afficher. Un composant qui reçoit un gestionnaire l'appelle donc en dehors
     de sa transition, et n'y met que l'`await`.
+28. Ce qui coûte, c'est le **nombre** d'allers-retours, pas leur durée : un
+    seul se mesure ici entre 0,5 et 4 secondes. Une action qui en enchaîne
+    cinq est cinq fois exposée à la panne comme à l'attente. Lectures
+    indépendantes en `Promise.all`, données liées en **un** embed, et jamais
+    de requête dont on jette le résultat. Une lecture se **rejoue** sur échec
+    de transport ; une écriture, jamais — la requête a pu aboutir et seule la
+    réponse se perdre.
 
 ## Conventions
 

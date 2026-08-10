@@ -239,6 +239,7 @@ export function CroyantForm(props: Props) {
       if (champ === 'doublon') {
         // EF-CRO-13 — avertissement, pas blocage : la décision revient à l'utilisateur.
         setDoublonSignale(echec.error);
+        toast.warning('Doublon possible — voyez le message en haut du formulaire.');
         return;
       }
       if (champ in valeurs) {
@@ -251,6 +252,18 @@ export function CroyantForm(props: Props) {
       }
     }
     setErreur(echec.error);
+
+    /**
+     * Le message va AUSSI dans une notification.
+     *
+     * L'alerte s'affiche en tête du formulaire — trois étapes plus haut que le
+     * bouton d'enregistrement, dans un pop-up qui défile. Un refus produisait
+     * donc exactement ce qu'on a observé en production : le spinner tourne une
+     * seconde, puis « rien ne se passe ». Le code prenait déjà cette précaution
+     * pour les erreurs de CHAMP — « un message hors écran n'existe pas » — et
+     * l'oubliait pour l'erreur générale, qui est justement celle qui explique.
+     */
+    toast.error(echec.error, { duration: 10_000 });
   }
 
   async function envoyer(valeurs: CroyantInput) {

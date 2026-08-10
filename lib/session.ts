@@ -71,14 +71,27 @@ export const getSession = cache(async (): Promise<SessionComplete | null> => {
   //   entities.created_by -> profiles.id   (la tracabilite, ajoutee en 0005)
   // Sans le suffixe `!profiles_entity_id_fkey`, PostgREST refuse l'embed
   // (PGRST201) et la session serait introuvable alors que le profil existe.
+  /**
+   * UNE seule requete — ENF-PRF-01.
+   *
+   * Le profil et ses habilitations partaient en deux lectures ENCHAINEES : la
+   * seconde attendait l'identifiant rendu par la premiere. Chaque page et
+   * chaque Server Action payaient donc deux allers-retours avant leur premier
+   * travail utile. L'embed les ramene en un seul.
+   */
   const { data: profil, error } = await sb
     .from('profiles')
     .select(
-      'id, role, entity_id, nom_complet, email, entity:entities!profiles_entity_id_fkey(path, nom, code, type)',
+      'id, role, entity_id, nom_complet, email, ' +
+        'entity:entities!profiles_entity_id_fkey(path, nom, code, type), ' +
+        'octrois:user_permissions!user_permissions_user_id_fkey(' +
+        'permission, scope:entities!user_permissions_scope_entity_id_fkey(path))',
     )
     .eq('auth_user_id', identite.authUserId)
     .eq('is_active', true)
-    .maybeSingle<LigneProfil & { nom_complet: string; email: string }>();
+    .maybeSingle<
+      LigneProfil & { nom_complet: string; email: string; octrois: LigneOctroi[] }
+    >();
 
   if (error) {
     // Une erreur de requete n'est PAS une absence de profil : la confondre
@@ -100,23 +113,6 @@ export const getSession = cache(async (): Promise<SessionComplete | null> => {
 
   if (!profil?.entity) return null;
 
-  const { data: octrois, error: erreurOctrois } = await sb
-    .from('user_permissions')
-    .select('permission, scope:entities!user_permissions_scope_entity_id_fkey(path)')
-    .eq('user_id', profil.id)
-    .returns<LigneOctroi[]>();
-
-  if (erreurOctrois) {
-    // Echouer en FERMETURE : sans la liste des droits, mieux vaut refuser la
-    // session que d'ouvrir une session vide qui masquerait toutes les actions
-    // sans expliquer pourquoi.
-    console.error('[session] lecture des habilitations impossible', {
-      code: erreurOctrois.code,
-      message: erreurOctrois.message,
-    });
-    return null;
-  }
-
   return {
     profileId: profil.id,
     role: profil.role,
@@ -127,7 +123,7 @@ export const getSession = cache(async (): Promise<SessionComplete | null> => {
     entiteNom: profil.entity.nom,
     entiteCode: profil.entity.code,
     entiteType: profil.entity.type,
-    permissions: (octrois ?? []).map((o) => ({
+    permissions: (profil.octrois ?? []).map((o) => ({
       permission: o.permission as Permission,
       scopePath: o.scope?.path ?? null,
     })),

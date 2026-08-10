@@ -1236,3 +1236,74 @@ fonctionnait avant, précisément parce qu'il ne passait pas par `ConfirmDialog`
 ### Qualité
 
 337 tests unitaires. `pnpm verify` vert.
+
+---
+
+## 10 août 2026 — La lenteur en production, et une création qui échouait en silence
+
+### Ce que la base a dit avant toute hypothèse
+
+Symptômes rapportés : ouvrir un bureau est très lent, et créer un croyant
+affiche un spinner d'une seconde puis « rien ne se passe ».
+
+Interrogation directe de la base plutôt qu'une supposition :
+
+- **aucun croyant créé depuis l'import du 8 août** — l'enregistrement échouait
+  réellement ;
+- **aucun refus de droit journalisé** — ce n'était pas une habilitation.
+
+Puis, en mesurant le coût d'un aller-retour vers l'hébergeur : **575, 662, 673,
+997 et 4 412 ms** sur cinq essais — et un `TypeError: fetch failed` obtenu en
+direct pendant la mesure. Le lien est lent *et* instable.
+
+### Le message d'erreur existait, mais hors de l'écran
+
+L'alerte s'affiche en **tête** du formulaire de croyant — trois étapes plus
+haut que le bouton d'enregistrement, dans un pop-up qui défile. Un refus
+produisait donc exactement le symptôme décrit : le spinner tourne, puis plus
+rien de visible.
+
+Le code prenait déjà cette précaution pour les erreurs de **champ** — « un
+message hors écran n'existe pas », ramener sur l'étape fautive — et l'oubliait
+pour l'erreur générale, celle qui explique. Elle part désormais aussi en
+notification.
+
+### Ce qui coûte, c'est le NOMBRE d'allers-retours
+
+| | Avant | Après |
+|---|---|---|
+| Session (profil + habilitations) | 2 requêtes enchaînées, ~653 ms | **1 embed, ~324 ms** |
+| Proxy, à chaque requête | `getUser()` → réseau | `getClaims()` → signature vérifiée localement |
+| Ouverture d'un bureau | arbre *puis* bureaux actifs | les deux en parallèle |
+
+`getClaims()` lit la session dans le cookie, la rafraîchit si besoin, puis
+vérifie la **signature** du jeton avec la clé publique du projet, mise en
+cache. Aucun appel réseau tant que le jeton est valide. Si le projet signe
+encore en HS256, la bibliothèque retombe d'elle-même sur `getUser()` : jamais
+moins sûr, jamais plus lent.
+
+### Une lecture se rejoue, une écriture jamais
+
+Un `fetch failed` isolé suffisait à faire échouer une action de cinq requêtes.
+Les lectures — `GET`, `HEAD` — sont donc rejouées une fois.
+
+**Pas les écritures.** Un échec de transport ne dit pas que le serveur n'a rien
+fait : la requête a pu aboutir et seule la réponse se perdre. Rejouer un
+`insert` créerait un doublon silencieux, et un croyant en double vaut bien pire
+qu'un message d'erreur.
+
+Un test a corrigé le premier jet : `estPanneReseau` répond « oui » à toute
+erreur sans statut — c'est voulu là où elle sert, ne pas déconnecter dans le
+doute — mais « je ne sais pas » ne justifie pas de rejouer. Une URL malformée
+échouerait à l'identique, en doublant l'attente. Le rejeu s'appuie donc sur un
+prédicat plus strict.
+
+### Ce qui reste hors du code
+
+La **région** du projet Supabase et celle des fonctions Vercel. Un aller-retour
+à 673 ms de médiane trahit une distance, pas un défaut d'application : les
+rapprocher vaut davantage que toutes les optimisations ci-dessus réunies.
+
+### Qualité
+
+347 tests unitaires. `pnpm verify` vert. Règle 28 de `CLAUDE.md`.

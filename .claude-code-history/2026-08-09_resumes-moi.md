@@ -205,6 +205,39 @@ affirmerait une organisation que personne n'a décrite.
 
 ---
 
+## Performance en production — ce que vous devez savoir
+
+**Le chiffre qui explique tout** : un aller-retour vers Supabase depuis ici se
+mesure entre **575 ms et 4,4 secondes** (médiane 673 ms). Une action qui
+enchaîne cinq requêtes attend donc plusieurs secondes — et se casse au premier
+paquet perdu.
+
+Ce qui a été réduit, mesuré :
+
+| | Avant | Après |
+|---|---|---|
+| Session, à chaque page et action | 2 requêtes, ~653 ms | **1 requête, ~324 ms** |
+| Proxy, à chaque requête | appel réseau | signature vérifiée localement |
+| Ouverture d'un bureau | 6 allers-retours | 4 |
+
+**Les lectures se rejouent une fois** en cas de coupure ; les écritures jamais —
+la requête a pu aboutir et seule la réponse se perdre, et un croyant en double
+vaut pire qu'un message d'erreur.
+
+### Deux leviers qui vous appartiennent
+
+**1. Rapprochez Supabase et Vercel.** Une médiane à 673 ms trahit une distance
+géographique, pas un défaut de code. Vérifiez la région du projet Supabase
+(Settings → General) et celle des fonctions Vercel (Settings → Functions), et
+alignez-les. **Ce seul réglage vaut probablement plus que tout ce qui précède.**
+
+**2. Passez le projet aux clés JWT asymétriques** (Supabase → JWT Keys). Le
+proxy vérifie alors la signature du jeton sans aucun appel réseau. Tant que le
+projet signe en HS256, il retombe sur l'ancien comportement — correct, mais un
+aller-retour par requête.
+
+---
+
 ## Deux réflexes acquis ce soir
 
 **`pnpm dev:propre`** après une série de modifications. Turbopack a servi trois
@@ -246,7 +279,7 @@ Trois points à décider avant d'écrire une ligne, tous déjà notés dans
 pnpm install      # installe aussi le hook pre-commit de détection de secrets
 pnpm dev          # http://localhost:3000
 pnpm dev:propre   # meme chose, cache Turbopack vide au prealable
-pnpm verify       # secrets + lint + types + 337 tests + build
+pnpm verify       # secrets + lint + types + 347 tests + build
 ```
 
 Lire avant toute tâche : `CLAUDE.md`, puis `notes/cdg.md` et `notes/plan.md`.

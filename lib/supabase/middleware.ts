@@ -54,9 +54,26 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // Revalide le jeton aupres du serveur d'identite et rafraichit le cookie.
-  const { data, error } = await supabase.auth.getUser();
-  const user = data?.user ?? null;
+  /**
+   * VERIFICATION LOCALE du jeton — ENF-PRF-01.
+   *
+   * `getUser()` interrogeait le serveur d'identite a CHAQUE requete : une
+   * navigation, une Server Action, un rafraichissement payaient tous un
+   * aller-retour reseau complet avant meme d'atteindre la page. Sur un lien
+   * lointain, cela representait l'essentiel du temps mesure dans le proxy.
+   *
+   * `getClaims()` fait mieux pour le meme resultat : il lit la session dans le
+   * cookie — en la rafraichissant si elle a expire —, puis VERIFIE LA SIGNATURE
+   * du jeton avec la cle publique du projet, mise en cache. Aucun appel reseau
+   * tant que le jeton est valide.
+   *
+   * Si le projet signe encore ses jetons avec un secret symetrique (HS256), la
+   * bibliotheque retombe d'elle-meme sur `getUser()` : le comportement est
+   * alors celui d'avant, jamais moins sur. Basculer le projet sur des cles
+   * asymetriques (Supabase > JWT Keys) supprime l'aller-retour pour de bon.
+   */
+  const { data: jeton, error } = await supabase.auth.getClaims();
+  const user = jeton?.claims ?? null;
 
   const chemin = request.nextUrl.pathname;
 

@@ -239,7 +239,47 @@ export async function ouvrirMandat(input: unknown): Promise<ActionResult<{ id: s
     }
     const data = analyse.data;
 
-    const arbre = await getArbrePerimetre();
+    const sb = await createClient();
+
+    /**
+     * Les deux lectures partent ENSEMBLE — ENF-PRF-01.
+     *
+     * Elles ne dependent que de `data.entityId`, connu des la validation : les
+     * enchainer ajoutait un aller-retour complet a chaque ouverture. Sur un
+     * lien lointain, un aller-retour se mesure en centaines de millisecondes —
+     * ce qui coute, ce n'est pas la duree de l'un mais leur NOMBRE.
+     *
+     * RG-10 — on ne clot QUE le mandat du MEME bureau. Une entite fait
+     * coexister un « Bureau executif », un « Comite des finances », une
+     * « Commission des jeunes » : ouvrir le second ne doit pas demettre le
+     * premier. Ouvrir un bureau du meme nom, en revanche, est un
+     * RENOUVELLEMENT : le mandat precedent se clot, et sa composition peut etre
+     * reconduite.
+     */
+    const [arbre, actifs] = await Promise.all([
+      getArbrePerimetre(),
+      sb
+        .from('bureaux')
+        .select(
+          'id, libelle, bureau_membres!bureau_membres_bureau_id_fkey (id, croyant_id, fonction_id, date_fin)',
+        )
+        .eq('entity_id', data.entityId)
+        .eq('is_active', true)
+        .is('deleted_at', null)
+        .returns<
+          {
+            id: string;
+            libelle: string;
+            bureau_membres: {
+              id: string;
+              croyant_id: string;
+              fonction_id: string;
+              date_fin: string | null;
+            }[];
+          }[]
+        >(),
+    ]);
+
     if (arbre.length === 0) {
       return ko("La structure n'a pas pu etre chargee. Verifiez votre connexion.");
     }
@@ -249,42 +289,8 @@ export async function ouvrirMandat(input: unknown): Promise<ActionResult<{ id: s
 
     await requirePermission(session, 'bureau.manage', entite.path);
 
-    const sb = await createClient();
-
-    /**
-     * RG-10 — on ne clot QUE le mandat du MEME bureau.
-     *
-     * Une entite fait coexister un « Bureau executif », un « Comite des
-     * finances », une « Commission des jeunes » : ouvrir le second ne doit pas
-     * demettre le premier. La premiere version fermait tout bureau actif de
-     * l'entite — c'etait la traduction d'un RG-10 mal redige.
-     *
-     * Ouvrir un bureau du meme nom, en revanche, est un RENOUVELLEMENT : le
-     * mandat precedent se clot, et sa composition peut etre reconduite.
-     */
-    const { data: bureauxActifsEntite } = await sb
-      .from('bureaux')
-      .select(
-        'id, libelle, bureau_membres!bureau_membres_bureau_id_fkey (id, croyant_id, fonction_id, date_fin)',
-      )
-      .eq('entity_id', data.entityId)
-      .eq('is_active', true)
-      .is('deleted_at', null)
-      .returns<
-        {
-          id: string;
-          libelle: string;
-          bureau_membres: {
-            id: string;
-            croyant_id: string;
-            fonction_id: string;
-            date_fin: string | null;
-          }[];
-        }[]
-      >();
-
     const precedent =
-      (bureauxActifsEntite ?? []).find((b) => memeBureau(b.libelle, data.libelle)) ?? null;
+      (actifs.data ?? []).find((b) => memeBureau(b.libelle, data.libelle)) ?? null;
 
     if (precedent) {
       const veille = new Date(data.dateDebut);
