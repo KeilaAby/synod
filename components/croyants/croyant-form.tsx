@@ -32,6 +32,7 @@ import {
   STATUTS_MARITAUX,
   type StatutCroyant,
 } from '@/lib/domain/croyant';
+import { appelerAction } from '@/lib/utils/appeler-action';
 import { croyantSchema, type CroyantInput } from '@/lib/validation/croyant';
 
 import { FriseEtapes, type Etape } from './etapes';
@@ -184,7 +185,8 @@ export function CroyantForm(props: Props) {
       nom: existant?.nom ?? '',
       prenom: existant?.prenom ?? '',
       sexe: existant?.sexe,
-      statutMarital: (existant?.statut_marital as CroyantInput['statutMarital']) ?? undefined,
+      statutMarital:
+        (existant?.statut_marital as CroyantInput['statutMarital']) ?? undefined,
       email: existant?.email ?? '',
       telephone: existant?.telephone ?? '',
       dateNaissance: jour(existant?.date_naissance),
@@ -270,22 +272,24 @@ export function CroyantForm(props: Props) {
     setErreur(null);
 
     if (existant) {
-      const resultat = await modifierCroyant({
-        id: existant.id,
-        nom: valeurs.nom,
-        prenom: valeurs.prenom,
-        sexe: valeurs.sexe,
-        statutMarital: valeurs.statutMarital ?? null,
-        email: valeurs.email,
-        telephone: valeurs.telephone,
-        dateNaissance: valeurs.dateNaissance,
-        dateBapteme: valeurs.dateBapteme,
-        adresse: valeurs.adresse,
-        celluleId: valeurs.celluleId ?? null,
-        gradeId: valeurs.gradeId,
-        nationaliteId: valeurs.nationaliteId,
-        statut,
-      });
+      const resultat = await appelerAction(() =>
+        modifierCroyant({
+          id: existant.id,
+          nom: valeurs.nom,
+          prenom: valeurs.prenom,
+          sexe: valeurs.sexe,
+          statutMarital: valeurs.statutMarital ?? null,
+          email: valeurs.email,
+          telephone: valeurs.telephone,
+          dateNaissance: valeurs.dateNaissance,
+          dateBapteme: valeurs.dateBapteme,
+          adresse: valeurs.adresse,
+          celluleId: valeurs.celluleId ?? null,
+          gradeId: valeurs.gradeId,
+          nationaliteId: valeurs.nationaliteId,
+          statut,
+        }),
+      );
 
       if (!resultat.ok) return traiterEchec(resultat, valeurs);
 
@@ -293,7 +297,7 @@ export function CroyantForm(props: Props) {
       if (props.onSucces) props.onSucces(existant.id);
       else router.push(`/croyants/${existant.id}`);
     } else {
-      const resultat = await creerCroyant(valeurs);
+      const resultat = await appelerAction(() => creerCroyant(valeurs));
       if (!resultat.ok) return traiterEchec(resultat, valeurs);
 
       toast.success(`Croyant enregistré — matricule ${resultat.data.matricule}.`);
@@ -346,7 +350,7 @@ export function CroyantForm(props: Props) {
             <Button
               type="button"
               variant="outline"
-              className="h-10 bg-card"
+              className="bg-card h-10"
               onClick={() => {
                 setValue('doublonAccepte', true);
                 setDoublonSignale(null);
@@ -376,7 +380,7 @@ export function CroyantForm(props: Props) {
               prenom={existant.prenom}
               urlPhoto={props.urlPhoto ?? null}
               peutModifier
-              className="border-b border-border pb-6"
+              className="border-border border-b pb-6"
             />
           ) : (
             <SelecteurPhoto
@@ -384,7 +388,7 @@ export function CroyantForm(props: Props) {
               prenom={prenomSaisi ?? ''}
               photo={photoEnAttente}
               onPhoto={setPhotoEnAttente}
-              className="border-b border-border pb-6"
+              className="border-border border-b pb-6"
             />
           )}
 
@@ -427,7 +431,11 @@ export function CroyantForm(props: Props) {
               )}
             </Field>
 
-            <Field label="Date de naissance" required error={errors.dateNaissance?.message}>
+            <Field
+              label="Date de naissance"
+              required
+              error={errors.dateNaissance?.message}
+            >
               {(aria) => <Input {...aria} type="date" {...register('dateNaissance')} />}
             </Field>
 
@@ -493,7 +501,7 @@ export function CroyantForm(props: Props) {
               // transfert (EF-TRF-01), qui suit un workflow d'approbation.
               <Field label="Église d'appartenance">
                 {() => (
-                  <div className="flex h-10 items-center rounded-md border border-border bg-slate-50 px-3 text-sm text-muted-foreground">
+                  <div className="border-border text-muted-foreground flex h-10 items-center rounded-md border bg-slate-50 px-3 text-sm">
                     {existant.egliseNom} — se change par transfert
                   </div>
                 )}
@@ -503,13 +511,17 @@ export function CroyantForm(props: Props) {
               // pas. Voir `RattachementImpose`.
               <Field label="Église d'appartenance" hint="Choisie dans la structure.">
                 {() => (
-                  <div className="flex h-10 items-center rounded-md border border-border bg-slate-50 px-3 text-sm text-muted-foreground">
+                  <div className="border-border text-muted-foreground flex h-10 items-center rounded-md border bg-slate-50 px-3 text-sm">
                     {impose.egliseNom}
                   </div>
                 )}
               </Field>
             ) : (
-              <Field label="Église d'appartenance" required error={errors.egliseId?.message}>
+              <Field
+                label="Église d'appartenance"
+                required
+                error={errors.egliseId?.message}
+              >
                 {(aria) => (
                   <Controller
                     control={control}
@@ -538,7 +550,7 @@ export function CroyantForm(props: Props) {
               // par le chemin d'accès, il n'y a rien à choisir.
               <Field label="Cellule de prière" hint="Choisie dans la structure.">
                 {() => (
-                  <div className="flex h-10 items-center rounded-md border border-border bg-slate-50 px-3 text-sm text-muted-foreground">
+                  <div className="border-border text-muted-foreground flex h-10 items-center rounded-md border bg-slate-50 px-3 text-sm">
                     {impose.celluleNom}
                   </div>
                 )}
@@ -616,9 +628,15 @@ export function CroyantForm(props: Props) {
           </div>
 
           {existant && (
-            <Field label="Statut" hint="Un croyant non actif sort des effectifs consolidés.">
+            <Field
+              label="Statut"
+              hint="Un croyant non actif sort des effectifs consolidés."
+            >
               {(aria) => (
-                <Select value={statut} onValueChange={(v) => setStatut(v as StatutCroyant)}>
+                <Select
+                  value={statut}
+                  onValueChange={(v) => setStatut(v as StatutCroyant)}
+                >
                   <SelectTrigger {...aria} className="h-10 w-full md:w-1/2">
                     <SelectValue />
                   </SelectTrigger>
@@ -668,7 +686,6 @@ export function CroyantForm(props: Props) {
         </CardContent>
       </Card>
 
-      
       {/* --- Navigation --- */}
       <div className="flex items-center justify-between gap-2">
         <div>
@@ -699,7 +716,9 @@ export function CroyantForm(props: Props) {
             </Button>
           ) : (
             <Button asChild variant="outline" className="h-10">
-              <Link href={existant ? `/croyants/${existant.id}` : '/croyants'}>Annuler</Link>
+              <Link href={existant ? `/croyants/${existant.id}` : '/croyants'}>
+                Annuler
+              </Link>
             </Button>
           )}
 
@@ -712,7 +731,9 @@ export function CroyantForm(props: Props) {
             </Button>
           ) : (
             <Button type="submit" className="h-10" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />}
+              {isSubmitting && (
+                <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
+              )}
               {existant ? 'Enregistrer' : 'Enregistrer le croyant'}
             </Button>
           )}

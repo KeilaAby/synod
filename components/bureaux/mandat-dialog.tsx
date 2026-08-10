@@ -22,6 +22,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { modifierBureau, ouvrirMandat } from '@/lib/actions/bureaux';
 import { memeBureau } from '@/lib/domain/bureau';
+import { appelerAction } from '@/lib/utils/appeler-action';
 
 /**
  * Ouverture ET modification d'un bureau — EF-BUR-01, EF-BUR-02, EF-BUR-09.
@@ -147,12 +148,14 @@ export function MandatDialog({
     setErreur(null);
 
     if (bureau) {
-      const resultat = await modifierBureau({
-        bureauId: bureau.id,
-        libelle: nom,
-        dateDebut,
-        dateFin,
-      });
+      const resultat = await appelerAction(() =>
+        modifierBureau({
+          bureauId: bureau.id,
+          libelle: nom,
+          dateDebut,
+          dateFin,
+        }),
+      );
       setEnCours(false);
 
       if (!resultat.ok) {
@@ -165,13 +168,15 @@ export function MandatDialog({
       return;
     }
 
-    const resultat = await ouvrirMandat({
-      entityId,
-      libelle: nom,
-      dateDebut,
-      dateFin,
-      reconduire: renouvellement && reconduire,
-    });
+    const resultat = await appelerAction(() =>
+      ouvrirMandat({
+        entityId,
+        libelle: nom,
+        dateDebut,
+        dateFin,
+        reconduire: renouvellement && reconduire,
+      }),
+    );
     setEnCours(false);
 
     if (!resultat.ok) {

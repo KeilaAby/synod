@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 
+import { GardeErreurs } from '@/components/shared/garde-erreurs';
 import { Toaster } from '@/components/ui/sonner';
 import { fontMono, fontSans } from '@/lib/fonts';
 
@@ -35,6 +36,8 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
       <body className="flex min-h-full flex-col">
         {children}
         {/* UI-20 : retour utilisateur systematique apres une mutation. */}
+        {/* Aucune erreur ne reste muette — voir `garde-erreurs`. */}
+        <GardeErreurs />
         <Toaster position="top-right" richColors closeButton />
       </body>
     </html>
