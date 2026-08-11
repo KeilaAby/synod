@@ -2,8 +2,8 @@
 
 import { Camera, Loader2, Upload, X } from 'lucide-react';
 import { useState } from 'react';
-import { toast } from 'sonner';
 
+import { avertir } from '@/components/shared/messages';
 import { Button } from '@/components/ui/button';
 import { COTE_PHOTO_PIXELS, CONTRAINTES_FICHIER } from '@/lib/storage/types';
 import { cn } from '@/lib/utils';
@@ -46,7 +46,7 @@ export function SelecteurPhoto({
       const carre = await preparerPhoto(fichier);
 
       if (carre.size > CONTRAINTES_FICHIER.photo.tailleMaxOctets) {
-        toast.error(`Photo trop lourde. Attendu : ${CONTRAINTES_FICHIER.photo.libelle}.`);
+        avertir(`Photo trop lourde. Attendu : ${CONTRAINTES_FICHIER.photo.libelle}.`);
         return;
       }
 
@@ -57,7 +57,7 @@ export function SelecteurPhoto({
       setApercu(URL.createObjectURL(carre));
       onPhoto(carre);
     } catch {
-      toast.error("Ce fichier n'a pas pu etre lu comme une image.");
+      avertir("Ce fichier n'a pas pu etre lu comme une image.");
     } finally {
       setEnCours(false);
     }

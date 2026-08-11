@@ -59,7 +59,10 @@ export function MessageDialog({
             />
             <span className="space-y-2">
               <DialogTitle className="text-base">{titre}</DialogTitle>
-              <DialogDescription className="text-sm leading-relaxed">
+              {/* `whitespace-pre-line` : un message peut porter un détail
+                  technique sur sa propre ligne — la référence d'une erreur
+                  serveur, par exemple. Sans cela, tout se recolle. */}
+              <DialogDescription className="text-sm leading-relaxed whitespace-pre-line">
                 {message}
               </DialogDescription>
             </span>

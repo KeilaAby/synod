@@ -20,6 +20,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useMemo, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
+import { avertir } from '@/components/shared/messages';
 import { useSession } from '@/components/shared/session-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -258,7 +259,7 @@ function Organigramme({
         });
 
         if (!resultat.ok) {
-          toast.error(`Le retour en arriere a echoue : ${resultat.error}`);
+          avertir(`Le retour en arriere a echoue : ${resultat.error}`);
           return;
         }
         toast.success(`« ${nomEnfant} » a retrouve son rattachement d'origine.`);
@@ -301,7 +302,7 @@ function Organigramme({
       );
 
       if (!verdict.ok) {
-        toast.error(verdict.error);
+        avertir(verdict.error);
         return false;
       }
 
@@ -309,7 +310,7 @@ function Organigramme({
         !peut('entity.update', enfant.path) ||
         !peut('entity.update', nouveauParent.path)
       ) {
-        toast.error(
+        avertir(
           'Un deplacement modifie l origine ET la destination : votre habilitation doit couvrir les deux.',
         );
         return false;
@@ -326,7 +327,7 @@ function Organigramme({
         });
 
         if (!resultat.ok) {
-          toast.error(resultat.error);
+          avertir(resultat.error);
           setNoeuds(graphe.noeuds);
           return;
         }
@@ -423,7 +424,10 @@ function Organigramme({
       (e) => e.nom.toLowerCase().includes(terme) || e.code.toLowerCase().includes(terme),
     );
     if (!cible) {
-      toast.error('Aucune entite ne correspond a cette recherche.');
+      avertir('Aucune entité ne correspond à cette recherche.', {
+        ton: 'information',
+        titre: 'Recherche sans résultat',
+      });
       return;
     }
 

@@ -6,10 +6,10 @@ import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
-import { MessageDialog } from '@/components/shared/message-dialog';
 import { OperationDialog } from '@/components/shared/operation-dialog';
 import { Field, TextField } from '@/components/shared/field';
 import { StatusBadge } from '@/components/shared/status-badge';
+import { avertir } from '@/components/shared/messages';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -109,7 +109,6 @@ export function ReferentielTable({
   const [operation, setOperation] = useState<{ titre: string; description: string } | null>(
     null,
   );
-  const [refus, setRefus] = useState<string | null>(null);
 
   /**
    * Une operation, son libelle et son attente, noues au meme endroit.
@@ -138,8 +137,11 @@ export function ReferentielTable({
          * raison ET une alternative — et s'efface avant qu'on en soit a la
          * deuxieme ligne. L'utilisateur n'en retiendrait que « ca n'a pas
          * marche », precisement ce que le message evitait.
+         *
+         * Le registre global remplace l'etat local : un seul pop-up de message
+         * pour toute l'application, monte une fois dans le layout.
          */
-        setRefus(resultat.error ?? "L'operation a echoue.");
+        avertir(resultat.error ?? "L'opération a échoué.");
         return;
       }
       toast.success(succes(resultat));
@@ -303,13 +305,6 @@ export function ReferentielTable({
         ouvert={operation !== null}
         titre={operation?.titre ?? ''}
         description={operation?.description}
-      />
-
-      <MessageDialog
-        ouvert={refus !== null}
-        titre="Operation refusee"
-        message={refus ?? ''}
-        onFermer={() => setRefus(null)}
       />
 
       {/* EF-REF-05 — desactiver conserve, supprimer efface. La confirmation

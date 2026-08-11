@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
+import { avertir } from '@/components/shared/messages';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import {
   Dialog,
@@ -168,7 +169,7 @@ export function useCroyantDialogs({
             const resultat = await supprimerCroyant({ id: aSupprimer.id });
             setASupprimer(null);
             if (!resultat.ok) {
-              toast.error(resultat.error);
+              avertir(resultat.error);
               return;
             }
             toast.success('Croyant place en corbeille.');

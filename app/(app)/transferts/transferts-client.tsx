@@ -17,6 +17,7 @@ import { useRouter } from 'next/navigation';
 import { useDeferredValue, useMemo, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
+import { avertir } from '@/components/shared/messages';
 import { AvatarCroyant } from '@/components/croyants/avatar-croyant';
 import { EmptyState } from '@/components/shared/empty-state';
 import { FiltreIcone, GroupeFiltres } from '@/components/shared/filtre-icone';
@@ -128,7 +129,7 @@ export function TransfertsClient({ transferts }: { transferts: TransfertListe[] 
     demarrer(async () => {
       const resultat = await annulerTransfert({ id: t.id });
       if (!resultat.ok) {
-        toast.error(resultat.error);
+        avertir(resultat.error);
         return;
       }
       toast.success('Demande retirée.');

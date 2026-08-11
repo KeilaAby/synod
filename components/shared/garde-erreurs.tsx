@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect } from 'react';
-import { toast } from 'sonner';
+
+import { avertir } from './messages';
 
 /**
  * Le filet : aucune erreur ne reste muette — ENF-UTI-05.
@@ -32,7 +33,7 @@ import { toast } from 'sonner';
  */
 export function GardeErreurs() {
   useEffect(() => {
-    /** Deux notifications identiques à la suite n'apprennent rien de plus. */
+    /** Deux annonces identiques à la suite n'apprennent rien de plus. */
     let dernier = '';
 
     function annoncer(detail: string) {
@@ -42,10 +43,17 @@ export function GardeErreurs() {
         dernier = '';
       }, 5_000);
 
-      toast.error(
+      /**
+       * Un pop-up, pas une notification : c'est le seul message de l'écran, il
+       * porte une consigne en trois temps, et il annonce une saisie perdue.
+       * Douze secondes ne suffisaient pas — et douze secondes, c'est déjà une
+       * notification qu'on n'arrive plus à ignorer sans la fermer.
+       */
+      avertir(
         'Le serveur n’a pas répondu — votre dernière action n’a pas abouti. ' +
-          'Vérifiez votre connexion et recommencez. Si cela persiste, rechargez la page.',
-        { duration: 12_000, description: detail },
+          'Vérifiez votre connexion et recommencez. Si cela persiste, rechargez la page.' +
+          `\n\n${detail}`,
+        { titre: 'Action non aboutie' },
       );
     }
 

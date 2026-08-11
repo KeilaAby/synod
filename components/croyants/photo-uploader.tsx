@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { avertir } from '@/components/shared/messages';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { supprimerPhotoCroyant, televerserPhotoCroyant } from '@/lib/actions/photos';
@@ -57,7 +58,7 @@ export function PhotoUploader({
       const carre = await preparerPhoto(fichier);
 
       if (carre.size > CONTRAINTES_FICHIER.photo.tailleMaxOctets) {
-        toast.error(`Photo trop lourde. Attendu : ${CONTRAINTES_FICHIER.photo.libelle}.`);
+        avertir(`Photo trop lourde. Attendu : ${CONTRAINTES_FICHIER.photo.libelle}.`);
         return;
       }
 
@@ -67,7 +68,7 @@ export function PhotoUploader({
 
       const resultat = await televerserPhotoCroyant(formulaire);
       if (!resultat.ok) {
-        toast.error(resultat.error);
+        avertir(resultat.error);
         return;
       }
 
@@ -77,7 +78,7 @@ export function PhotoUploader({
     } catch {
       // Un fichier corrompu ou un format que le navigateur ne sait pas decoder
       // echoue ici, avant tout envoi.
-      toast.error("Ce fichier n'a pas pu etre lu comme une image.");
+      avertir("Ce fichier n'a pas pu etre lu comme une image.");
     } finally {
       setEnCours(false);
       if (champ.current) champ.current.value = '';
@@ -145,7 +146,7 @@ export function PhotoUploader({
                 onConfirm={async () => {
                   const resultat = await supprimerPhotoCroyant({ croyantId });
                   if (!resultat.ok) {
-                    toast.error(resultat.error);
+                    avertir(resultat.error);
                     return;
                   }
                   setApercu(null);

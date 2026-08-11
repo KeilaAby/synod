@@ -7,6 +7,7 @@ import { useMemo, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
+import { avertir } from '@/components/shared/messages';
 import { AvatarCroyant } from '@/components/croyants/avatar-croyant';
 import type {
   CelluleOption,
@@ -179,9 +180,11 @@ export function BaptemeDialog({
       toast.success(`Baptisé enregistré — matricule ${resultat.data.matricule}.`);
     } else {
       // Un demi-succès tu se découvre trois mois plus tard.
-      toast.warning(
+      // Le baptisé EXISTE : un titre de refus ferait recommencer la saisie.
+      avertir(
         `Fiche créée (matricule ${resultat.data.matricule}), mais les informations de ` +
           'cérémonie n’ont pas pu être enregistrées. La date de baptême, elle, est bien prise en compte.',
+        { ton: 'information', titre: 'Enregistré, avec une réserve' },
       );
     }
 

@@ -70,6 +70,20 @@ const eslintConfig = defineConfig([
             'ENF-SEC-04 : aucun rendu HTML brut. Les chaines utilisateur passent par ' +
             'sanitize() et sont rendues en texte.',
         },
+        // ---------------------------------------------------------------------
+        // ENF-UTI-05 : la notification ne porte QUE les confirmations de CRUD.
+        // Un refus, un avertissement, une panne s'expliquent en plusieurs
+        // lignes et disparaitraient avant d'etre lus : ils vont dans le pop-up
+        // que l'utilisateur ferme lui-meme.
+        // ---------------------------------------------------------------------
+        {
+          selector:
+            'CallExpression[callee.object.name="toast"][callee.property.name=/^(error|warning|info)$/]',
+          message:
+            "ENF-UTI-05 : ce qui s'explique va dans un pop-up qu'on ferme. Utilisez " +
+            "avertir() de components/shared/messages. La notification reste reservee " +
+            'aux confirmations de CRUD (toast.success).',
+        },
       ],
 
       // ENF-MNT-01 — TypeScript strict : aucun echappement silencieux.

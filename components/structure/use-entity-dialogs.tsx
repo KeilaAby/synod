@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
+import { avertir } from '@/components/shared/messages';
 import { BureauxEntiteDialog } from '@/components/bureaux/bureaux-entite-dialog';
 import { MandatDialog } from '@/components/bureaux/mandat-dialog';
 import {
@@ -340,7 +341,7 @@ export function useEntityDialogs(
             const resultat = await supprimerEntite({ id: aSupprimer.id });
             setASupprimer(null);
             if (!resultat.ok) {
-              toast.error(resultat.error);
+              avertir(resultat.error);
               return;
             }
             toast.success('Entite placee en corbeille.');

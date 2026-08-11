@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
+import { avertir } from '@/components/shared/messages';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { useSession } from '@/components/shared/session-provider';
 import { Button } from '@/components/ui/button';
@@ -68,7 +69,7 @@ export function EntityActions({
     demarrer(async () => {
       const resultat = await action();
       if (!resultat.ok) {
-        toast.error(resultat.error ?? "L'operation a echoue.");
+        avertir(resultat.error ?? "L'operation a echoue.");
         return;
       }
       toast.success(succes);
@@ -142,7 +143,7 @@ export function EntityActions({
                 onConfirm={async () => {
                   const resultat = await supprimerEntite({ id: entite.id });
                   if (!resultat.ok) {
-                    toast.error(resultat.error);
+                    avertir(resultat.error);
                     return;
                   }
                   toast.success('Entite placee en corbeille.');
@@ -199,7 +200,7 @@ export function EntityActions({
                     nouveauParentId: nouveauParent,
                   });
                   if (!resultat.ok) {
-                    toast.error(resultat.error);
+                    avertir(resultat.error);
                     return;
                   }
                   toast.success('Entite rattachee. Le sous-arbre a suivi.');

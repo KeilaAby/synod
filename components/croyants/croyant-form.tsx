@@ -8,6 +8,7 @@ import { useMemo, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
+import { avertir } from '@/components/shared/messages';
 import { Field, TextField } from '@/components/shared/field';
 import { EntityPicker, type OptionEntite } from '@/components/structure/entity-picker';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -241,7 +242,7 @@ export function CroyantForm(props: Props) {
       if (champ === 'doublon') {
         // EF-CRO-13 — avertissement, pas blocage : la décision revient à l'utilisateur.
         setDoublonSignale(echec.error);
-        toast.warning('Doublon possible — voyez le message en haut du formulaire.');
+        avertir('Doublon possible — voyez le message en haut du formulaire.');
         return;
       }
       if (champ in valeurs) {
@@ -265,7 +266,9 @@ export function CroyantForm(props: Props) {
      * pour les erreurs de CHAMP — « un message hors écran n'existe pas » — et
      * l'oubliait pour l'erreur générale, qui est justement celle qui explique.
      */
-    toast.error(echec.error, { duration: 10_000 });
+    // Le pop-up attend d'être fermé : plus besoin d'allonger une durée qui,
+    // de toute façon, ne suffisait jamais à lire un refus motivé.
+    avertir(echec.error);
   }
 
   async function envoyer(valeurs: CroyantInput) {
@@ -312,8 +315,11 @@ export function CroyantForm(props: Props) {
 
         const photo = await televerserPhotoCroyant(envoi);
         if (!photo.ok) {
-          toast.warning(
+          // La fiche EXISTE : titrer « l'opération n'a pas eu lieu » serait
+          // faux et enverrait ressaisir ce qui est déjà enregistré.
+          avertir(
             `La fiche est enregistrée, mais la photo n'a pas pu être jointe : ${photo.error}`,
+            { ton: 'information', titre: 'Enregistré, avec une réserve' },
           );
         }
       }

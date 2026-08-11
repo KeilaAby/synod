@@ -18,6 +18,7 @@ import { useRouter } from 'next/navigation';
 import { useDeferredValue, useMemo, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
+import { avertir } from '@/components/shared/messages';
 import { BureauComposition } from '@/components/bureaux/bureau-composition';
 import type { CandidatOption } from '@/components/bureaux/designation-dialog';
 import {
@@ -170,7 +171,7 @@ export function BureauxClient({
       const resultat = await executer();
       if (!resultat.ok) {
         setOperation(null);
-        toast.error(resultat.error);
+        avertir(resultat.error);
         return;
       }
       toast.success(succes);
