@@ -64,6 +64,35 @@ export function dispositionParDefaut(
 }
 
 /**
+ * Ajoute les blocs MANQUANTS sous le plan existant, sans y toucher.
+ *
+ * POURQUOI PAS UN REDESSIN COMPLET
+ *
+ * « Tout poser » repartait de `dispositionParDefaut` sur TOUS les postes : les
+ * positions arrangees a la main et, plus grave, les TRAITS deja tires
+ * disparaissaient d'un clic. Or ces traits sont la seule chose qu'aucune donnee
+ * ne porte — le rang protocolaire a ete retire, rien ne dit qui depend de qui
+ * hors de ce que l'utilisateur a trace. Les lui reprendre lui demande de tout
+ * refaire, et c'est ce qu'il a signale le 11 aout 2026.
+ *
+ * L'operation est donc PUREMENT ADDITIVE : elle rend les nouveaux blocs, ranges
+ * en grille sous les anciens, tous racines. L'appelant les concatene.
+ */
+export function disposerLesManquantes(
+  manquants: readonly PosteBureau[],
+  planExistant: readonly DispositionPoste[],
+): DispositionPoste[] {
+  const grille = dispositionParDefaut(manquants);
+  if (planExistant.length === 0) return grille;
+
+  // Sous le bloc le plus bas : les nouveaux venus ne recouvrent jamais un
+  // bloc deja pose, meme si le plan a ete etale a la main.
+  const bas = Math.max(...planExistant.map((d) => d.y)) + HAUTEUR_BLOC + ESPACEMENT_Y;
+
+  return grille.map((d) => ({ ...d, y: d.y + bas }));
+}
+
+/**
  * Ecarte d'un plan enregistre ce qui n'a plus de sens.
  *
  * Un plan vit plus longtemps que le referentiel qui l'a nourri : une fonction

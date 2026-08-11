@@ -30,7 +30,9 @@ représentation de la composition, et en **édition** sur
 `/bureaux/[id]/organigramme` : palette de fonctions à poser, déplacement libre,
 traits de dépendance, désignation au glisser-déposer. Le plan est un **dessin**,
 pas la définition des postes : la composition tabulaire reste la source des
-vacances, et ôter un bloc ne touche jamais le référentiel.
+vacances, et ôter un bloc ne touche jamais le référentiel. « Poser les
+manquantes » est **additif** et se désactive quand il ne manque rien : les
+traits tirés à la main sont la seule chose qu'aucune donnée ne porte.
 Les fonctions occupées figurent dans la frise du croyant.
 Le menu ⋮ de la structure ouvre le bureau d'une entité et enregistre un croyant
 sur une église ou une cellule, rattachement verrouillé.

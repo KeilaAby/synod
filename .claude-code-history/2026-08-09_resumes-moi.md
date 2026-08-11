@@ -278,6 +278,12 @@ Trois entrées de menu — `/finances`, `/rapports`, `/administration` — menai
 à des 404 et ont été retirées. Chaque lot remettra la sienne, en même temps que
 son écran.
 
+Enfin, « Tout poser » est devenu « **Poser les manquantes** » : il n'ajoute plus
+que les blocs absents et se désactive quand il n'y en a plus. Il redessinait
+tout, et emportait au passage les traits déjà tirés — la seule chose qu'aucune
+donnée ne porte depuis le retrait du rang protocolaire. Pour revenir au plan par
+défaut, ôtez les blocs puis reposez-les.
+
 ---
 
 ## Deux réflexes acquis ce soir

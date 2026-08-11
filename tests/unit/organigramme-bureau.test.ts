@@ -4,6 +4,7 @@ import { type FonctionBureau, type MandatMembre, composerBureau } from '@/lib/do
 import {
   type DispositionPoste,
   dispositionParDefaut,
+  disposerLesManquantes,
   nettoyerDisposition,
   racines,
   retirerPoste,
@@ -68,6 +69,60 @@ describe('Disposition de depart — une grille, et AUCUN lien', () => {
 
   it('ne propose rien pour un bureau sans fonction applicable', () => {
     expect(dispositionParDefaut([])).toEqual([]);
+  });
+});
+
+describe('Poser les manquantes — on AJOUTE, on ne redessine pas', () => {
+  const postes = postesVides();
+
+  it('ne rend QUE les blocs absents du plan', () => {
+    /**
+     * Le bouton repartait d'une grille neuve sur tous les postes : les traits
+     * deja tires disparaissaient d'un clic, et il fallait retracer toute la
+     * hierarchie. Depuis le retrait du rang protocolaire, ces traits sont la
+     * seule chose qu'aucune donnee ne porte — les reprendre est le geste le
+     * plus couteux de l'ecran.
+     */
+    const existant: DispositionPoste[] = [
+      { fonctionId: 'f1', parentFonctionId: null, x: 0, y: 0 },
+      { fonctionId: 'f2', parentFonctionId: 'f1', x: 300, y: 200 },
+    ];
+    const manquants = postes.filter((p) => !['f1', 'f2'].includes(p.fonction.id));
+
+    const ajouts = disposerLesManquantes(manquants, existant);
+
+    expect(ajouts.map((d) => d.fonctionId).sort()).toEqual(['f3', 'f4']);
+  });
+
+  it('pose les nouveaux SOUS les anciens, sans en recouvrir aucun', () => {
+    const existant: DispositionPoste[] = [
+      { fonctionId: 'f1', parentFonctionId: null, x: 0, y: 0 },
+      // Un plan etale a la main : le plus bas n'est pas le dernier ecrit.
+      { fonctionId: 'f2', parentFonctionId: 'f1', x: 300, y: 940 },
+    ];
+
+    const ajouts = disposerLesManquantes(
+      postes.filter((p) => ['f3', 'f4'].includes(p.fonction.id)),
+      existant,
+    );
+
+    for (const ajout of ajouts) expect(ajout.y).toBeGreaterThan(940);
+  });
+
+  it('rend les nouveaux venus RACINES : aucun lien n est devine', () => {
+    const ajouts = disposerLesManquantes(postes, []);
+    expect(ajouts.every((d) => d.parentFonctionId === null)).toBe(true);
+  });
+
+  it('repart de la grille quand rien n est encore pose', () => {
+    expect(disposerLesManquantes(postes, [])).toEqual(dispositionParDefaut(postes));
+  });
+
+  it('ne rend rien quand il ne manque rien', () => {
+    const existant: DispositionPoste[] = [
+      { fonctionId: 'f1', parentFonctionId: null, x: 0, y: 0 },
+    ];
+    expect(disposerLesManquantes([], existant)).toEqual([]);
   });
 });
 

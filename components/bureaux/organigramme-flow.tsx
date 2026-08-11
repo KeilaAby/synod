@@ -14,7 +14,9 @@ import {
   useNodesState,
   useReactFlow,
 } from '@xyflow/react';
-import { GripVertical, Printer, RotateCcw, Search, Unlink } from 'lucide-react';
+// `LayoutGrid` plutôt que `RotateCcw` : l'icône de réinitialisation annonçait
+// un retour en arrière, et c'est bien ce que faisait le bouton.
+import { GripVertical, LayoutGrid, Printer, Search, Unlink } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useMemo, useRef, useState, useTransition } from 'react';
 import { toast } from 'sonner';
@@ -41,7 +43,7 @@ import { nomComplet, normaliserRecherche } from '@/lib/domain/croyant';
 import type { EntityType } from '@/lib/domain/hierarchy';
 import {
   type DispositionPoste,
-  dispositionParDefaut,
+  disposerLesManquantes,
   nettoyerDisposition,
   retirerPoste,
   validerLien,
@@ -506,23 +508,41 @@ function Editeur({
     void imprimerOrganigramme(bureau, postes, plan(noeuds, liens), photos);
   }, [bureau, postes, noeuds, liens, photos]);
 
-  const reinitialiser = useCallback(() => {
-    const defaut = dispositionParDefaut(postes);
-    const suivants = defaut
-      .map((d) => {
-        const poste = parFonction.get(d.fonctionId);
-        return poste ? construireNoeud(poste, d.x, d.y) : null;
-      })
-      .filter((n) => n !== null);
-    const suivantsLiens = Object.fromEntries(
-      defaut.map((d) => [d.fonctionId, d.parentFonctionId]),
-    );
+  /**
+   * Pose ce qui MANQUE, et rien d'autre.
+   *
+   * Le bouton repartait d'une grille neuve sur tous les postes : les traits
+   * déjà tirés — la seule chose qu'aucune donnée ne porte, depuis le retrait du
+   * rang protocolaire — disparaissaient d'un clic, et il fallait retracer toute
+   * la hiérarchie. Il n'ajoute plus que les blocs absents, sous les autres.
+   */
+  const poserLesManquantes = useCallback(() => {
+    if (palette.length === 0) return;
+
+    const ajouts = disposerLesManquantes(palette, plan(noeuds, liens));
+    const suivants = [
+      ...noeuds,
+      ...ajouts
+        .map((d) => {
+          const poste = parFonction.get(d.fonctionId);
+          return poste ? construireNoeud(poste, d.x, d.y) : null;
+        })
+        .filter((n) => n !== null),
+    ];
+    const suivantsLiens = {
+      ...liens,
+      ...Object.fromEntries(ajouts.map((d) => [d.fonctionId, d.parentFonctionId])),
+    };
 
     setNoeuds(suivants);
     setLiens(suivantsLiens);
     enregistrer(suivants, suivantsLiens);
-    toast.success('Toutes les fonctions applicables sont posées.');
-  }, [postes, parFonction, construireNoeud, setNoeuds, enregistrer]);
+    toast.success(
+      ajouts.length > 1
+        ? `${ajouts.length} fonctions posées. Les liens existants sont intacts.`
+        : 'Fonction posée. Les liens existants sont intacts.',
+    );
+  }, [palette, noeuds, liens, parFonction, construireNoeud, setNoeuds, enregistrer]);
 
   // --- Croyants éligibles ------------------------------------------------------
 
@@ -598,10 +618,22 @@ function Editeur({
         </div>
 
         <div className="space-y-2">
+          {/* Désactivé quand la palette est vide : le bouton n'aurait plus rien
+              à ajouter, et son seul effet possible serait de défaire. */}
           {modifiable && (
-            <Button variant="outline" className="h-9 w-full" onClick={reinitialiser}>
-              <RotateCcw className="mr-2 size-4" aria-hidden />
-              Tout poser
+            <Button
+              variant="outline"
+              className="h-9 w-full"
+              onClick={poserLesManquantes}
+              disabled={palette.length === 0}
+              title={
+                palette.length === 0
+                  ? 'Toutes les fonctions applicables sont déjà posées.'
+                  : undefined
+              }
+            >
+              <LayoutGrid className="mr-2 size-4" aria-hidden />
+              Poser les manquantes
             </Button>
           )}
 

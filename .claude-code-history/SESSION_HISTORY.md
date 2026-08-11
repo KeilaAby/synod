@@ -1517,3 +1517,31 @@ se serait perdue au premier écran suivant.
 379 tests unitaires. `pnpm verify` vert. Le registre de messages n'a pas de test
 unitaire : l'environnement de test est `node`, sans DOM, et la garantie utile ici
 est la règle ESLint.
+
+---
+
+## 11 août 2026 (suite) — « Tout poser » défaisait le travail
+
+Le bouton s'appelait « Tout poser », son gestionnaire s'appelait `reinitialiser`,
+et c'est le second qui disait vrai : il repartait de `dispositionParDefaut` sur
+**tous** les postes. Positions arrangées à la main et, surtout, **traits déjà
+tirés** disparaissaient d'un clic.
+
+Ces traits sont la seule chose qu'aucune donnée ne porte. Depuis le retrait du
+rang protocolaire, rien dans la base ne dit qui dépend de qui : l'organigramme
+n'existe que parce que quelqu'un l'a tracé. Le lui reprendre est le geste le
+plus coûteux de l'écran — et il suffisait d'un clic mal placé.
+
+L'opération est devenue **additive**. `disposerLesManquantes` ne rend que les
+blocs absents, rangés en grille **sous** le plus bas des blocs existants — pas
+sous le dernier écrit, sinon un plan étalé à la main se serait recouvert. Les
+nouveaux venus arrivent racines : aucun lien n'est deviné. Le bouton se nomme
+désormais « Poser les manquantes », porte une icône de grille au lieu d'une
+flèche de retour arrière, et se **désactive** quand la palette est vide — son
+seul effet possible y serait de défaire.
+
+Le retour au plan par défaut reste atteignable : ôter les blocs, puis reposer.
+
+### Qualité
+
+384 tests unitaires. `pnpm verify` vert.
