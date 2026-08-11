@@ -40,8 +40,10 @@ sans dépendance) : la feuille A4 rend la **hiérarchie**, pas la mise en page d
 travail, au rapport de la page et à la même échelle d'un bureau à l'autre. Un
 seul appelant partagé, `imprimerOrganigramme`, sert l'éditeur **et** le pop-up
 ouvert depuis la structure. Aucun nom n'y est abrégé : il se replie entre les
-mots et la police descend d'un point tant que cela ne tient pas. Reste d'EF-BUR-11
-l'export **Excel** de la composition — en liste d'attente.
+mots et la police descend d'un point tant que cela ne tient pas. Les portraits y
+figurent, **embarqués** en `data:` — une image liée arriverait après `print()` et
+son URL signée périmerait. Reste d'EF-BUR-11 l'export **Excel** de la
+composition — en liste d'attente.
 
 **Prochain lot : 4 — Finances.**
 
@@ -166,7 +168,14 @@ Ce qu'il reste à faire est décrit dans le dernier point d'étape
     tuait ainsi TOUTE mutation. Avant d'ajouter une dépendance serveur, se
     demander ce qu'elle apporte vraiment : retirer du balisage d'un nom propre
     est une opération de texte, pas un travail pour un moteur HTML.
-30. **Ce qui s'imprime n'a pas de recours.** À l'écran, un libellé abrégé se
+30. **La notification ne porte que ce qui se constate.** « Croyant enregistré »
+    se voit du coin de l'œil et rien n'est perdu : l'écran montre déjà le
+    résultat. Tout le reste — refus motivé, avertissement, panne, fichier
+    invalide — porte la **seule** information utile de l'opération et
+    disparaîtrait avant d'être lu : `avertir()` de
+    `components/shared/messages`, un pop-up que l'utilisateur ferme. Seul
+    `toast.success` subsiste, et ESLint refuse les autres.
+31. **Ce qui s'imprime n'a pas de recours.** À l'écran, un libellé abrégé se
     survole, s'ouvre, se cherche ; sur une feuille, il est perdu. Un document
     destiné au papier ne tronque donc rien : il **replie** entre les mots et
     **réduit** la police, quitte à agrandir le cadre. Et il rend la

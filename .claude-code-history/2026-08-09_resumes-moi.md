@@ -250,6 +250,30 @@ descend d'un point tant que cela ne tient pas, et en dernier recours toutes les
 lignes sont gardées à la plus petite taille. Un organigramme imprimé sert à
 **nommer** : le tronquer lui retirait sa raison d'être.
 
+Les **portraits** y figurent maintenant, embarqués en `data:` — recadrés en
+carré et réduits à 128 px — plutôt que liés. Une image liée arriverait après
+l'appel à `print()`, et l'URL signée périmerait sous un PDF conservé. Une photo
+qui échoue retombe sur les initiales, sans bloquer l'impression.
+
+---
+
+## Ce qui s'explique ne passe plus en notification
+
+Une notification convient à « Croyant enregistré » : on la voit du coin de
+l'œil, elle disparaît, rien n'est perdu. Elle ne convient pas à un refus motivé,
+qui énonce une raison **et** une alternative et s'efface avant la deuxième
+ligne.
+
+Tout ce qui n'est pas une **confirmation de CRUD** passe désormais dans un
+pop-up que vous fermez : refus, avertissements, pannes réseau, fichiers
+invalides, recherches sans résultat. `avertir()` s'appelle de n'importe où, un
+`no-restricted-syntax` interdit les `toast.error/warning/info`, et
+`toast.success` reste seul autorisé.
+
+Deux endroits gardent un ton d'**information** plutôt que de refus, parce que
+l'enregistrement a bien eu lieu : « la fiche est enregistrée, mais la photo n'a
+pas pu être jointe », et son équivalent pour un baptême.
+
 Trois entrées de menu — `/finances`, `/rapports`, `/administration` — menaient
 à des 404 et ont été retirées. Chaque lot remettra la sienne, en même temps que
 son écran.

@@ -1464,3 +1464,56 @@ côté Supabase.
 ### Qualité
 
 379 tests unitaires. `pnpm verify` vert.
+
+---
+
+## 11 août 2026 (suite) — Les portraits, et ce qui mérite d'être lu
+
+### Pourquoi les photos manquaient au PDF
+
+Le raisonnement d'origine était juste : une image **liée** dans une fenêtre
+d'impression se charge *après* l'appel à `print()`, et la feuille sort vide une
+fois sur deux ; l'URL signée périme en outre sous un PDF conservé. La conclusion,
+elle, était trop courte — au lieu de renoncer aux photos, il fallait les
+**embarquer**.
+
+Chaque portrait est désormais recadré en carré, réduit à 128 px et converti en
+`data:` avant la construction du document. Rien ne part sur le réseau au moment
+d'imprimer. 128 px parce que la pastille mesure 7 mm sur une A4 : embarquer un
+original de 2 Mo gonflerait le document d'un tiers de plus en base64 pour une
+image que personne ne verra à cette taille.
+
+Deux détails décident du reste. La fenêtre s'ouvre **avant** le premier `await` —
+un `window.open` qui suit une attente n'est plus rattaché au clic qui l'a
+déclenché, et le navigateur le bloque. Et l'échec d'une photo est **silencieux** :
+le bloc retombe sur les initiales, parce qu'un portrait manquant ne doit pas
+empêcher d'imprimer un organigramme.
+
+Le module SVG refuse toute URL distante — `data:image/` ou rien. Un rendu
+aléatoire est pire qu'un rendu simple.
+
+### La notification ne garde que ce qui se constate
+
+« Croyant enregistré » se voit du coin de l'œil : la notification disparaît et
+rien n'est perdu, l'écran montre déjà le résultat. Un refus motivé, non — il
+énonce une raison **et** une alternative, et s'efface avant la deuxième ligne.
+
+Tout ce qui n'est pas une confirmation de CRUD passe donc dans un pop-up que
+l'utilisateur ferme. `MessageDialog` existait déjà mais demandait un état local
+par écran : trente appels auraient voulu dire trente câblages, et un oubli à
+chaque nouvel écran. `avertir()` s'appelle comme `toast.error()`, de n'importe
+où, **y compris hors de React** — `imprimer-organigramme`, `garde-erreurs`.
+`referentiel-table` a rendu son état local au registre commun.
+
+La file compte : deux refus coup sur coup ne s'écrasent pas, ils se suivent.
+Et un message identique déjà en attente n'est pas empilé une seconde fois.
+
+Un `no-restricted-syntax` interdit maintenant `toast.error`, `toast.warning` et
+`toast.info` — vérifié en faisant échouer un fichier sonde. Sans lui, la règle
+se serait perdue au premier écran suivant.
+
+### Qualité
+
+379 tests unitaires. `pnpm verify` vert. Le registre de messages n'a pas de test
+unitaire : l'environnement de test est `node`, sans DOM, et la garantie utile ici
+est la règle ESLint.
