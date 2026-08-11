@@ -57,7 +57,11 @@ export function GardeErreurs() {
       if (raison?.name === 'AbortError') return;
 
       console.error('[garde] promesse rejetée sans traitement', raison);
-      annoncer(raison instanceof Error ? raison.message : String(raison));
+
+      // Le `digest` est la seule prise sur une erreur serveur masquée en
+      // production : la même chaîne figure dans les journaux de l'hébergement.
+      const digest = raison?.digest ? `référence ${raison.digest}` : null;
+      annoncer(digest ?? (raison instanceof Error ? raison.message : String(raison)));
     }
 
     window.addEventListener('unhandledrejection', surRejet);

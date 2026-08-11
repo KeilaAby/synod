@@ -37,15 +37,43 @@ export async function appelerAction<T>(
   try {
     return await appel();
   } catch (erreur) {
-    const detail = erreur instanceof Error ? erreur.message : String(erreur);
     console.error('[action] appel impossible', erreur);
+    return ko<T>(messageEchec(erreur));
+  }
+}
 
-    return ko<T>(
-      'Le serveur n’a pas répondu. Votre saisie n’a pas été enregistrée — ' +
-        'vérifiez votre connexion et recommencez. ' +
-        'Si le problème persiste, rechargez la page : une version plus ancienne ' +
-        'de l’application peut rester ouverte après une mise à jour. ' +
-        `(détail : ${detail})`,
+/**
+ * Distinguer « la requete n'est pas partie » de « le serveur a leve ».
+ *
+ * React masque en production le message d'une erreur survenue cote serveur —
+ * l'ecran n'affiche que « Minified React error #441 », qui ne dit rien a
+ * personne. Mais il y attache un `digest` : la MEME chaine figure dans les
+ * journaux de l'hebergement, en face de la trace complete.
+ *
+ * L'afficher transforme un cul-de-sac en piste : l'utilisateur lit un
+ * identifiant, le journal le porte aussi, et les deux se rejoignent.
+ */
+function messageEchec(erreur: unknown): string {
+  const digest =
+    typeof erreur === 'object' && erreur !== null && 'digest' in erreur
+      ? String((erreur as { digest?: unknown }).digest ?? '')
+      : '';
+
+  if (digest) {
+    return (
+      'Le serveur a rencontré une erreur pendant le traitement. Votre saisie ' +
+      'n’a peut-être pas été enregistrée : vérifiez avant de recommencer. ' +
+      `Référence à communiquer : ${digest}`
     );
   }
+
+  const detail = erreur instanceof Error ? erreur.message : String(erreur);
+
+  return (
+    'Le serveur n’a pas répondu. Votre saisie n’a pas été enregistrée — ' +
+    'vérifiez votre connexion et recommencez. ' +
+    'Si le problème persiste, rechargez la page : une version plus ancienne ' +
+    'de l’application peut rester ouverte après une mise à jour. ' +
+    `(détail : ${detail})`
+  );
 }
