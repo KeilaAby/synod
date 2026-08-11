@@ -35,7 +35,6 @@ import {
   type PosteBureau,
   ancienneteMandat,
   composerBureau,
-  libelleAffichage,
 } from '@/lib/domain/bureau';
 import { nomComplet, normaliserRecherche } from '@/lib/domain/croyant';
 import type { EntityType } from '@/lib/domain/hierarchy';
@@ -46,11 +45,10 @@ import {
   retirerPoste,
   validerLien,
 } from '@/lib/domain/organigramme-bureau';
-import { construireSvg } from '@/lib/domain/organigramme-svg';
 import { cn } from '@/lib/utils';
-import { formatDate } from '@/lib/utils/format';
 
 import { NoeudPoste, TYPE_CROYANT_GLISSE, TYPE_FONCTION_GLISSE } from './bureau-node';
+import { imprimerOrganigramme } from './imprimer-organigramme';
 import { DesignationDialog, type CandidatOption } from './designation-dialog';
 
 import '@xyflow/react/dist/style.css';
@@ -120,32 +118,6 @@ function donneesNoeud(
     surRetirerTitulaire: actions.surRetirerTitulaire,
     surOterDuPlan: actions.surOterDuPlan,
   };
-}
-
-/**
- * Ouvre le plan dans une fenêtre d'impression — EF-BUR-11.
- *
- * Le navigateur sait imprimer et sait enregistrer en PDF : ce qui manquait,
- * c'était un dessin COMPLET, le graphe à l'écran étant cadré et zoomé.
- */
-function imprimer(svg: string, titre: string) {
-  const fenetre = window.open('', '_blank', 'width=1024,height=768');
-  if (!fenetre) {
-    toast.error("La fenêtre d'impression a été bloquée. Autorisez les pop-ups pour ce site.");
-    return;
-  }
-
-  fenetre.document.write(
-    `<!doctype html><html lang="fr"><head><meta charset="utf-8">` +
-      `<title>${titre}</title>` +
-      `<style>@page{size:landscape;margin:10mm}body{margin:0}svg{width:100%;height:auto}</style>` +
-      `</head><body>${svg}</body></html>`,
-  );
-  fenetre.document.close();
-
-  // L'impression attend que le document soit posé : lancée trop tôt, elle
-  // sortirait une page blanche.
-  fenetre.addEventListener('load', () => fenetre.print());
 }
 
 function plan(noeuds: Node[], liens: Liens): DispositionPoste[] {
@@ -522,41 +494,10 @@ function Editeur({
     [noeuds, liens, enregistrer],
   );
 
-  /** EF-BUR-11 — le plan complet, redessiné en SVG à partir des mêmes coordonnées. */
+  /** EF-BUR-11 — meme impression que le pop-up de composition, meme fonction. */
   const versImpression = useCallback(() => {
-    const svg = construireSvg(
-      noeuds.map((noeud) => {
-        const poste = parFonction.get(noeud.id)!;
-        const membre = poste.mandat ? parMandat.get(poste.mandat.id) : undefined;
-        const croyant = membre?.croyant ?? null;
-
-        return {
-          fonctionId: noeud.id,
-          x: noeud.position.x,
-          y: noeud.position.y,
-          fonction: poste.fonction.libelle,
-          estFinanciere: poste.fonction.estFinanciere,
-          parentFonctionId: liens[noeud.id] ?? null,
-          titulaire: croyant
-            ? { nom: croyant.nom, prenom: croyant.prenom, matricule: croyant.matricule }
-            : null,
-        };
-      }),
-      {
-        titre: bureau.libelle,
-        entite: bureau.entite?.nom ?? '',
-        periode: libelleAffichage(bureau.libelle, bureau.date_debut, bureau.date_fin),
-        edite: formatDate(new Date()),
-      },
-    );
-
-    if (!svg) {
-      // Une feuille blanche ne dit pas pourquoi elle est blanche.
-      toast.error("Aucun bloc n'est posé : il n'y a rien à imprimer.");
-      return;
-    }
-    imprimer(svg, `${bureau.libelle} — ${bureau.entite?.nom ?? ''}`);
-  }, [noeuds, liens, parFonction, parMandat, bureau]);
+    imprimerOrganigramme(bureau, postes, plan(noeuds, liens));
+  }, [bureau, postes, noeuds, liens]);
 
   const reinitialiser = useCallback(() => {
     const defaut = dispositionParDefaut(postes);

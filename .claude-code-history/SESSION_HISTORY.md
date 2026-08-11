@@ -1371,3 +1371,47 @@ Règle 29 de `CLAUDE.md`.
 
 364 tests unitaires. `pnpm verify` vert. `isomorphic-dompurify` retiré des
 dépendances.
+
+---
+
+## 11 août 2026 (suite) — L'impression rend une hiérarchie, pas une mise en page
+
+### Trois entrées de menu menaient à des 404
+
+`/finances`, `/rapports`, `/administration` — les lots 4, 6 et 7. Une seule
+avait été signalée ; le défaut valait pour les trois. Un menu qui mène à une
+page inexistante est pire qu'un menu incomplet : il fait douter du reste.
+Chaque lot remettra la sienne, en même temps que son écran.
+
+### Le PDF sortait la mise en page de travail
+
+Sur le plan, l'utilisateur place les blocs pour **travailler** : à portée de
+souris, quitte à les étaler. Imprimées telles quelles, ces coordonnées donnaient
+une feuille A4 aux trois quarts vide, aux blocs alignés n'importe comment.
+
+Ce qu'une impression doit rendre, c'est la **hiérarchie** — qui dépend de qui.
+Elle vit dans les liens, pas dans les positions. `disposerEnArbre` la redessine
+donc : parcours suffixe, chaque sous-arbre annonce sa largeur, le parent se
+centre au-dessus des siens. Deux plans de même hiérarchie donnent désormais un
+dessin **identique**, et un test le vérifie en comparant les deux SVG.
+
+Le cadre est ensuite **complété** au rapport A4 paysage — jamais rogné, on
+n'agrandit que la dimension qui manque. Sans cela, un organigramme large sortait
+en bande étroite et un organigramme profond en colonne : deux bureaux ne
+s'imprimaient pas à la même échelle.
+
+### Une impression, deux écrans, une seule fonction
+
+Le bouton manquait dans le pop-up ouvert depuis la structure. Plutôt que d'y
+recopier la logique, `imprimerOrganigramme` a été extraite : l'éditeur et le
+pop-up appellent la même. Deux implémentations jumelles auraient divergé dès la
+première retouche, et un bureau se serait imprimé différemment selon l'endroit
+d'où on l'a demandé.
+
+Le pop-up imprime **ce qu'il affiche** : le plan dessiné s'il existe, la grille
+par défaut sinon. Se déclarer vide alors que le graphe montre quelque chose
+aurait été un mensonge de plus.
+
+### Qualité
+
+372 tests unitaires. `pnpm verify` vert.

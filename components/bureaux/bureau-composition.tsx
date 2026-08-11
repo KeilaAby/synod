@@ -4,6 +4,7 @@ import {
   CircleSlash,
   MoreVertical,
   Network,
+  Printer,
   Repeat,
   Table as TableIcon,
   UserMinus,
@@ -19,6 +20,7 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { FiltreIcone, GroupeFiltres } from '@/components/shared/filtre-icone';
 import { OperationDialog } from '@/components/shared/operation-dialog';
 import { StatusBadge } from '@/components/shared/status-badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   DropdownMenu,
@@ -44,10 +46,12 @@ import {
   libelleAffichage,
 } from '@/lib/domain/bureau';
 import { nomComplet } from '@/lib/domain/croyant';
+import { dispositionParDefaut } from '@/lib/domain/organigramme-bureau';
 import type { EntityType } from '@/lib/domain/hierarchy';
 import { formatDate, formatNombre } from '@/lib/utils/format';
 
 import { BureauFlowLoader } from './bureau-flow-loader';
+import { imprimerOrganigramme } from './imprimer-organigramme';
 import { DesignationDialog } from './designation-dialog';
 import type { CandidatOption } from './designation-dialog';
 
@@ -119,6 +123,22 @@ export function BureauComposition({
   );
 
   const compte = comptePostes(postes);
+
+  /**
+   * Le plan AFFICHE, calcule une fois : le graphe et l impression doivent
+   * montrer exactement la meme chose. Sans plan dessine, le graphe pose les
+   * blocs en grille — l impression doit alors sortir cette grille, et non se
+   * declarer vide.
+   */
+  const planAffiche = useMemo(() => {
+    const dessine = (bureau.postes ?? []).map((p) => ({
+      fonctionId: p.fonction_id,
+      parentFonctionId: p.parent_fonction_id,
+      x: p.pos_x,
+      y: p.pos_y,
+    }));
+    return dessine.length > 0 ? dessine : dispositionParDefaut(postes);
+  }, [bureau.postes, postes]);
   const parId = useMemo(
     () => new Map(bureau.membres.map((m) => [m.id, m])),
     [bureau.membres],
@@ -193,17 +213,26 @@ export function BureauComposition({
         </Card>
       ) : vue === 'graphe' ? (
         <div className="space-y-3">
+          {/* EF-BUR-11 — la MEME impression que depuis l'éditeur, par la même
+              fonction : un bureau ne s'imprime pas différemment selon l'écran
+              d'où on l'a demandé. */}
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              className="h-9"
+              onClick={() => imprimerOrganigramme(bureau, postes, planAffiche)}
+            >
+              <Printer className="mr-2 size-4" aria-hidden />
+              Imprimer / PDF
+            </Button>
+          </div>
+
           <BureauFlowLoader
             postes={postes}
             membres={bureau.membres}
             // Le plan dessiné dans l'éditeur, s'il existe : deux
             // représentations du même bureau ne doivent pas se contredire.
-            plan={(bureau.postes ?? []).map((p) => ({
-              fonctionId: p.fonction_id,
-              parentFonctionId: p.parent_fonction_id,
-              x: p.pos_x,
-              y: p.pos_y,
-            }))}
+            plan={planAffiche}
             photos={photos}
             peutGerer={peutGerer && bureau.is_active}
             onDesigner={(fonctionId) => setADesigner({ fonctionId })}

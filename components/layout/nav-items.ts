@@ -2,13 +2,10 @@ import {
   ArrowLeftRight,
   Briefcase,
   Droplets,
-  FileText,
   LayoutDashboard,
   Network,
-  ShieldCheck,
   SlidersHorizontal,
   Users,
-  Wallet,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -38,6 +35,12 @@ export interface NavItem {
   readonly compteurCle?: 'transferts' | 'mouvements';
 }
 
+/**
+ * Finances (lot 4), Rapports (lot 6) et Administration (lot 7) n'ont pas
+ * encore de page. Leur entree a ete retiree le 11 aout 2026 : un menu qui
+ * mene a une 404 est pire quun menu incomplet — il fait douter du reste.
+ * Chaque lot remettra la sienne, en meme temps que son ecran.
+ */
 export const NAV_ITEMS: readonly NavItem[] = [
   {
     href: '/tableau-de-bord',
@@ -77,30 +80,10 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: 'bureau.read',
   },
   {
-    href: '/finances',
-    label: 'Finances',
-    icon: Wallet,
-    permission: 'finance.read',
-    compteurPermission: 'finance.validate',
-    compteurCle: 'mouvements',
-  },
-  {
-    href: '/rapports',
-    label: 'Rapports',
-    icon: FileText,
-    permission: 'report.read',
-  },
-  {
     href: '/referentiels',
     label: 'Referentiels',
     icon: SlidersHorizontal,
     permission: 'referentiel.manage',
-  },
-  {
-    href: '/administration',
-    label: 'Administration',
-    icon: ShieldCheck,
-    permission: 'user.manage',
   },
 ];
 
