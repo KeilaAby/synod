@@ -279,7 +279,7 @@ Trois points à décider avant d'écrire une ligne, tous déjà notés dans
 pnpm install      # installe aussi le hook pre-commit de détection de secrets
 pnpm dev          # http://localhost:3000
 pnpm dev:propre   # meme chose, cache Turbopack vide au prealable
-pnpm verify       # secrets + lint + types + 347 tests + build
+pnpm verify       # secrets + lint + types + 364 tests + build
 ```
 
 Lire avant toute tâche : `CLAUDE.md`, puis `notes/cdg.md` et `notes/plan.md`.

@@ -1307,3 +1307,67 @@ rapprocher vaut davantage que toutes les optimisations ci-dessus réunies.
 ### Qualité
 
 347 tests unitaires. `pnpm verify` vert. Règle 28 de `CLAUDE.md`.
+
+---
+
+## 11 août 2026 — `jsdom` tuait toutes les mutations en production
+
+### Le journal, après trois hypothèses fausses
+
+Le symptôme — « spinner d'une seconde, puis rien » — a résisté à trois
+diagnostics successifs, chacun juste en soi : le cache Turbopack, l'empilement
+des pop-ups, la transition qui avale les états intermédiaires. Il a fallu la
+ligne de journal Vercel, obtenue en remontant le `digest` jusqu'à l'écran :
+
+```
+POST 500 /croyants
+Error: Failed to load external module jsdom-… :
+  Error [ERR_REQUIRE_ESM]: require() of ES Module /var/task/node_modules/…
+```
+
+### Pourquoi aucun garde-fou ne pouvait l'attraper
+
+`isomorphic-dompurify` entraîne `jsdom` côté serveur. L'échec se produit à
+**l'évaluation du module**, donc avant le corps de la Server Action :
+`executerAction` n'était jamais atteinte, et n'avait rien à attraper. En
+production, React masque le message et renvoie l'erreur #441.
+
+`sanitize` traverse **les sept modules d'action**. Créer un croyant, ouvrir un
+bureau, modifier un référentiel : toutes les mutations étaient mortes.
+
+### Le remplacement, et ce qui le justifie
+
+Aucun de ces usages n'a besoin d'un DOM. Retirer du balisage d'un nom propre
+est une opération de **texte** ; embarquer un moteur HTML complet dans une
+fonction sans serveur pour cela, c'était payer dix mégaoctets et une classe
+entière de pannes pour vingt lignes.
+
+- `sanitize` retire tout balisage en **bouclant jusqu'à stabilité** — une passe
+  unique se contourne par imbrication : `<scr<script>ipt>` deviendrait
+  `<script>`. Ce qui est garanti : aucun chevron **ouvrant** ne subsiste. Un
+  chevron fermant orphelin reste, volontairement — « a > b » est un texte
+  légitime.
+- `sanitizeTexteRiche` échappe **tout**, puis rétablit une à une les seules
+  balises autorisées, sous leur forme exacte et sans attribut. C'est l'inverse
+  de la démarche habituelle — analyser puis filtrer — et c'est ce qui la rend
+  vérifiable : `<b onclick="…">` ne correspond à aucun motif rétabli, il reste
+  du texte inerte.
+
+Écrire soi-même un assainisseur n'est défendable que couvert : dix-sept tests
+portent les vecteurs classiques, dont ceux qui piègent une implémentation
+naïve.
+
+### Ce que l'épisode a coûté, et ce qu'il a laissé
+
+Trois diagnostics faux avant le bon. Chacun a néanmoins livré un correctif
+durable — `pnpm dev:propre`, l'empilement des pop-ups, la règle 27 — mais le
+temps perdu tient à une seule cause : **l'échec était muet**. `appelerAction`
+et `GardeErreurs` garantissent qu'il ne le sera plus, et le `digest` affiché à
+l'écran a été ce qui a permis de trouver la ligne de journal en une recherche.
+
+Règle 29 de `CLAUDE.md`.
+
+### Qualité
+
+364 tests unitaires. `pnpm verify` vert. `isomorphic-dompurify` retiré des
+dépendances.

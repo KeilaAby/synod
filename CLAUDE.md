@@ -151,6 +151,14 @@ Ce qu'il reste à faire est décrit dans le dernier point d'étape
     de transport ; une écriture, jamais — la requête a pu aboutir et seule la
     réponse se perdre.
 
+29. Une dependance qui echoue au CHARGEMENT casse en amont de tous les
+    garde-fous : le module ne s evalue pas, la Server Action ne demarre pas,
+    et aucun try/catch ne peut rien attraper — l ecran reste muet.
+    `isomorphic-dompurify` entrainait `jsdom` (ERR_REQUIRE_ESM sur Vercel) et
+    tuait ainsi TOUTE mutation. Avant d ajouter une dependance serveur, se
+    demander ce qu elle apporte vraiment : retirer du balisage d un nom propre
+    est une operation de texte, pas un travail pour un moteur HTML.
+
 ## Conventions
 
 - Interface et identifiants métier **en français** (`croyants`, `eglise_id`) ;
