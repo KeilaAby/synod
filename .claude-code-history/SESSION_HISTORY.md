@@ -1415,3 +1415,52 @@ aurait été un mensonge de plus.
 ### Qualité
 
 372 tests unitaires. `pnpm verify` vert.
+
+---
+
+## 11 août 2026 (suite) — Nommer sans abréger, et ne pas redemander qui vous êtes
+
+### Un organigramme sert à nommer
+
+Sur la feuille A4, le nom du responsable était coupé à vingt caractères et
+l'intitulé de la fonction à vingt-six. « RANOMENJANAHARY Christian Nicolas »
+sortait mutilé sur un document remis à des gens qui le lisent — or **nommer est
+tout ce qu'un organigramme imprimé a à faire**. Abréger le nom lui retire sa
+raison d'être.
+
+`replierTexte` coupe entre les **mots** et descend d'un point de police tant que
+cela ne tient pas ; en dernier recours elle garde la plus petite taille et
+**toutes** les lignes, sans jamais amputer un caractère. Un mot indivisible plus
+large que le bloc déborde légèrement plutôt que d'être coupé : il reste lisible.
+
+Le tout tient parce que le bloc imprimé est plus grand que celui de l'écran —
+248 × 168. À l'écran un nom trop long se survole ; sur une feuille, il n'y a pas
+de recours. Le matricule reste ancré en bas et le nom se pose **au-dessus** de
+lui : un nom d'une ligne et un nom de trois lignes s'impriment ainsi dans le
+même cadre, sans le déformer, et la pastille d'initiales se centre sur ce que le
+bloc contient réellement.
+
+`tronquer` a disparu avec son dernier appelant. Mesurer un texte demanderait les
+métriques de la fonte, donc un DOM que ce module n'a pas et ne veut pas avoir :
+la largeur est **estimée** à 0,6 em par caractère, valeur prise haute parce que
+les patronymes s'écrivent en capitales. Mieux vaut réduire d'un point de trop
+que déborder.
+
+### La page ne redemande pas au serveur qui vous êtes
+
+`/bureaux` affichait deux erreurs : « The operation was aborted due to timeout »,
+levée par `getIdentite`. La cause n'était pas la page. `getUser()` interroge le
+serveur d'identité **à chaque rendu**, en plus de l'appel déjà fait par le proxy :
+deux allers-retours avant la moindre lecture métier, sur un lien dont un seul se
+mesure entre 0,5 et 4 secondes (règle 28).
+
+`getClaims()` lit la session dans le cookie, la rafraîchit si elle a expiré, puis
+**vérifie la signature** du jeton avec la clé publique du projet. La garantie est
+la même — un cookie forgé ne passe pas — sans appel réseau tant que le jeton est
+valide. Si le projet signe encore en HS256, la bibliothèque retombe d'elle-même
+sur `getUser()` : le gain arrivera avec le passage aux **clés asymétriques**,
+côté Supabase.
+
+### Qualité
+
+379 tests unitaires. `pnpm verify` vert.

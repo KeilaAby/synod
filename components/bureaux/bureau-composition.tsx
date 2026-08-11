@@ -15,6 +15,7 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
+import { avertir } from '@/components/shared/messages';
 import { AvatarCroyant } from '@/components/croyants/avatar-croyant';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { FiltreIcone, GroupeFiltres } from '@/components/shared/filtre-icone';
@@ -151,7 +152,7 @@ export function BureauComposition({
       const resultat = await retirerMembre({ membreId: membre.id });
       if (!resultat.ok) {
         setOperation(null);
-        toast.error(resultat.error);
+        avertir(resultat.error);
         return;
       }
       toast.success('Mandat clos. La fonction est vacante.');
@@ -220,7 +221,7 @@ export function BureauComposition({
             <Button
               variant="outline"
               className="h-9"
-              onClick={() => imprimerOrganigramme(bureau, postes, planAffiche)}
+              onClick={() => void imprimerOrganigramme(bureau, postes, planAffiche, photos)}
             >
               <Printer className="mr-2 size-4" aria-hidden />
               Imprimer / PDF

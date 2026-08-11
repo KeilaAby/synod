@@ -158,6 +158,71 @@ describe('Le bloc imprime porte le nom en entier', () => {
   });
 });
 
+describe('La photo est embarquee, jamais liee', () => {
+  const PORTRAIT = 'data:image/jpeg;base64,/9j/4AAQSkZJRg==';
+
+  it('rend le portrait a la place des initiales', () => {
+    const svg = construireSvg(
+      [bloc({ titulaire: { nom: 'KOFFI', prenom: 'Amos', matricule: 'K-1', photo: PORTRAIT } })],
+      ENTETE,
+    )!;
+
+    expect(svg).toContain(`<image href="${PORTRAIT}"`);
+    expect(svg).toContain('<clipPath id="photo-0">');
+    expect(svg).toContain('clip-path="url(#photo-0)"');
+    // La pastille d'initiales laisse la place : deux ne se superposent pas.
+    expect(svg).not.toContain('>KA</text>');
+  });
+
+  it('REFUSE une URL distante et retombe sur les initiales', () => {
+    /**
+     * Liee, l'image se chargerait APRES `print()` — une feuille sur deux
+     * sortirait sans portrait — et l'URL signee serait perimee des le
+     * lendemain. Un rendu aleatoire est pire qu'un rendu simple.
+     */
+    const svg = construireSvg(
+      [
+        bloc({
+          titulaire: {
+            nom: 'KOFFI',
+            prenom: 'Amos',
+            matricule: 'K-1',
+            photo: 'https://exemple.test/photo.jpg?token=abc',
+          },
+        }),
+      ],
+      ENTETE,
+    )!;
+
+    expect(svg).not.toContain('<image');
+    expect(svg).toContain('>KA</text>');
+  });
+
+  it('donne un rognage DISTINCT a chaque portrait', () => {
+    // Deux `clipPath` de meme identifiant : le second bloc porterait la photo
+    // du premier.
+    const svg = construireSvg(
+      [
+        bloc({ fonctionId: 'f1', titulaire: { nom: 'A', prenom: 'B', matricule: '1', photo: PORTRAIT } }),
+        bloc({
+          fonctionId: 'f2',
+          parentFonctionId: 'f1',
+          titulaire: { nom: 'C', prenom: 'D', matricule: '2', photo: PORTRAIT },
+        }),
+      ],
+      ENTETE,
+    )!;
+
+    const ids = [...svg.matchAll(/<clipPath id="([^"]+)"/g)].map((m) => m[1]);
+    expect(ids).toHaveLength(2);
+    expect(new Set(ids).size).toBe(2);
+  });
+
+  it("n'ouvre aucun rognage quand personne n a de photo", () => {
+    expect(construireSvg([bloc({})], ENTETE)).toContain('<defs></defs>');
+  });
+});
+
 describe("Le cadrage se met au format de la page", () => {
   const cadre = (svg: string) => {
     const [x, y, largeur, hauteur] = svg

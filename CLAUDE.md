@@ -35,6 +35,14 @@ Les fonctions occupées figurent dans la frise du croyant.
 Le menu ⋮ de la structure ouvre le bureau d'une entité et enregistre un croyant
 sur une église ou une cellule, rattachement verrouillé.
 
+**Impression de l'organigramme livrée** (`lib/domain/organigramme-svg.ts`, SVG
+sans dépendance) : la feuille A4 rend la **hiérarchie**, pas la mise en page de
+travail, au rapport de la page et à la même échelle d'un bureau à l'autre. Un
+seul appelant partagé, `imprimerOrganigramme`, sert l'éditeur **et** le pop-up
+ouvert depuis la structure. Aucun nom n'y est abrégé : il se replie entre les
+mots et la police descend d'un point tant que cela ne tient pas. Reste d'EF-BUR-11
+l'export **Excel** de la composition — en liste d'attente.
+
 **Prochain lot : 4 — Finances.**
 
 Base à jour jusqu'à la migration `0022`. Le stockage de fichiers ne se
@@ -151,13 +159,20 @@ Ce qu'il reste à faire est décrit dans le dernier point d'étape
     de transport ; une écriture, jamais — la requête a pu aboutir et seule la
     réponse se perdre.
 
-29. Une dependance qui echoue au CHARGEMENT casse en amont de tous les
-    garde-fous : le module ne s evalue pas, la Server Action ne demarre pas,
-    et aucun try/catch ne peut rien attraper — l ecran reste muet.
-    `isomorphic-dompurify` entrainait `jsdom` (ERR_REQUIRE_ESM sur Vercel) et
-    tuait ainsi TOUTE mutation. Avant d ajouter une dependance serveur, se
-    demander ce qu elle apporte vraiment : retirer du balisage d un nom propre
-    est une operation de texte, pas un travail pour un moteur HTML.
+29. Une dépendance qui échoue au CHARGEMENT casse en amont de tous les
+    garde-fous : le module ne s'évalue pas, la Server Action ne démarre pas,
+    et aucun `try/catch` ne peut rien attraper — l'écran reste muet.
+    `isomorphic-dompurify` entraînait `jsdom` (`ERR_REQUIRE_ESM` sur Vercel) et
+    tuait ainsi TOUTE mutation. Avant d'ajouter une dépendance serveur, se
+    demander ce qu'elle apporte vraiment : retirer du balisage d'un nom propre
+    est une opération de texte, pas un travail pour un moteur HTML.
+30. **Ce qui s'imprime n'a pas de recours.** À l'écran, un libellé abrégé se
+    survole, s'ouvre, se cherche ; sur une feuille, il est perdu. Un document
+    destiné au papier ne tronque donc rien : il **replie** entre les mots et
+    **réduit** la police, quitte à agrandir le cadre. Et il rend la
+    **structure** — qui dépend de qui —, jamais les coordonnées où
+    l'utilisateur a posé ses blocs pour travailler : une mise en page de
+    travail n'est pas un document.
 
 ## Conventions
 

@@ -19,6 +19,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useMemo, useRef, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
+import { avertir } from '@/components/shared/messages';
 import { AvatarCroyant } from '@/components/croyants/avatar-croyant';
 import { OperationDialog } from '@/components/shared/operation-dialog';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -207,7 +208,7 @@ function Editeur({
         const resultat = await executer();
         if (!resultat.ok) {
           setOperation(null);
-          toast.error(resultat.error ?? "L'opération a échoué.");
+          avertir(resultat.error ?? "L'opération a échoué.");
           return;
         }
         toast.success(succes);
@@ -331,7 +332,7 @@ function Editeur({
           // La base a refusé : la signature ne doit pas rester, sinon le
           // prochain geste identique se croirait déjà enregistré.
           dernierEcrit.current = '';
-          toast.error(resultat.error);
+          avertir(resultat.error);
         }
       });
     },
@@ -419,7 +420,7 @@ function Editeur({
           plan(noeuds, liens),
         );
         if (!verdict.ok) {
-          toast.error(verdict.error);
+          avertir(verdict.error);
           return;
         }
       }
@@ -463,7 +464,7 @@ function Editeur({
     async ({ nodes }: { nodes: Node[] }) => {
       const occupe = nodes.find((n) => parFonction.get(n.id)?.mandat);
       if (occupe) {
-        toast.error(
+        avertir(
           `« ${libelleDe(occupe.id)} » a un titulaire en fonction. Retirez-le du bureau avant d'ôter son bloc du plan.`,
         );
         return false;
@@ -494,10 +495,16 @@ function Editeur({
     [noeuds, liens, enregistrer],
   );
 
-  /** EF-BUR-11 — meme impression que le pop-up de composition, meme fonction. */
+  /**
+   * EF-BUR-11 — meme impression que le pop-up de composition, meme fonction.
+   *
+   * `photos` porte les URL signees deja affichees a l'ecran : elles sont
+   * converties en `data:` avant l'ouverture de la feuille, sans quoi les
+   * portraits n'arriveraient pas a temps.
+   */
   const versImpression = useCallback(() => {
-    imprimerOrganigramme(bureau, postes, plan(noeuds, liens));
-  }, [bureau, postes, noeuds, liens]);
+    void imprimerOrganigramme(bureau, postes, plan(noeuds, liens), photos);
+  }, [bureau, postes, noeuds, liens, photos]);
 
   const reinitialiser = useCallback(() => {
     const defaut = dispositionParDefaut(postes);

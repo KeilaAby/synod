@@ -238,6 +238,24 @@ aller-retour par requête.
 
 ---
 
+## L'impression de l'organigramme est finie
+
+Le PDF A4 ne sort plus la mise en page de travail mais la **hiérarchie**, au
+rapport de la page, à la même échelle d'un bureau à l'autre. Le bouton existe
+aux deux endroits — l'éditeur et le pop-up ouvert depuis la structure — par une
+**seule** fonction, `imprimerOrganigramme`.
+
+Et plus aucun nom n'est abrégé. Le nom se replie entre les mots, la police
+descend d'un point tant que cela ne tient pas, et en dernier recours toutes les
+lignes sont gardées à la plus petite taille. Un organigramme imprimé sert à
+**nommer** : le tronquer lui retirait sa raison d'être.
+
+Trois entrées de menu — `/finances`, `/rapports`, `/administration` — menaient
+à des 404 et ont été retirées. Chaque lot remettra la sienne, en même temps que
+son écran.
+
+---
+
 ## Deux réflexes acquis ce soir
 
 **`pnpm dev:propre`** après une série de modifications. Turbopack a servi trois
@@ -279,7 +297,7 @@ Trois points à décider avant d'écrire une ligne, tous déjà notés dans
 pnpm install      # installe aussi le hook pre-commit de détection de secrets
 pnpm dev          # http://localhost:3000
 pnpm dev:propre   # meme chose, cache Turbopack vide au prealable
-pnpm verify       # secrets + lint + types + 364 tests + build
+pnpm verify       # secrets + lint + types + 379 tests + build
 ```
 
 Lire avant toute tâche : `CLAUDE.md`, puis `notes/cdg.md` et `notes/plan.md`.

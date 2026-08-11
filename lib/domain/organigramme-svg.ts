@@ -12,11 +12,14 @@
  * resultat est vectoriel, lisible a toute echelle, et ne coute aucune
  * dependance — ni `jspdf`, ni `html-to-image`, ni leurs mises a jour.
  *
- * CE QUI N'Y FIGURE PAS
+ * LES PHOTOS SONT EMBARQUEES, PAS LIEES
  *
- * Les photos. Elles vivent derriere des URL signees : une image distante dans
- * une fenetre d'impression arrive apres l'appel a `print()`, et sortirait vide
- * une fois sur deux. Les initiales disent la meme chose et sortent toujours.
+ * Elles vivent derriere des URL signees. Liee, une image distante dans une
+ * fenetre d'impression arrive APRES l'appel a `print()` : la feuille sortirait
+ * vide une fois sur deux, et l'URL expirerait de toute facon. Elles sont donc
+ * converties en `data:` avant la construction du document — voir
+ * `imprimer-organigramme.ts`. Ce module ne connait que le resultat : une chaine
+ * deja autonome, ou `null`, auquel cas les initiales prennent la place.
  *
  * Module PUR : aucune dependance, donc testable directement.
  */
@@ -27,7 +30,16 @@ export interface BlocImprime {
   readonly y: number;
   readonly fonction: string;
   /** `null` : fonction vacante — le bloc sort en pointille. */
-  readonly titulaire: { nom: string; prenom: string; matricule: string } | null;
+  readonly titulaire: {
+    nom: string;
+    prenom: string;
+    matricule: string;
+    /**
+     * Photo deja convertie en `data:image/...`. `null` ou absente : initiales.
+     * Une URL distante est REFUSEE — elle n'arriverait pas a temps.
+     */
+    photo?: string | null;
+  } | null;
   readonly estFinanciere: boolean;
   readonly parentFonctionId: string | null;
 }
@@ -150,6 +162,21 @@ export function replierTexte(
 function initiales(nom: string, prenom: string): string {
   return `${nom.trim()[0] ?? ''}${prenom.trim()[0] ?? ''}`.toLocaleUpperCase('fr');
 }
+
+/**
+ * N'accepte qu'une image DEJA EMBARQUEE.
+ *
+ * Une URL `http(s)` glissee ici sortirait vide a l'impression et ferait sortir
+ * du document une requete reseau au moment de l'ouverture de la fenetre. Le
+ * refus est donc net, plutot qu'un rendu aleatoire : `null` rend les initiales,
+ * qui sortent toujours.
+ */
+function photoEmbarquee(photo: string | null | undefined): string | null {
+  return typeof photo === 'string' && photo.startsWith('data:image/') ? photo : null;
+}
+
+/** Rayon de la pastille — photo ou initiales occupent exactement la meme place. */
+const RAYON_PASTILLE = 18;
 
 /**
  * Un trait orthogonal entre deux blocs : sortie par le bas, entree par le haut,
@@ -333,8 +360,17 @@ export function construireSvg(
     )
     .join('\n    ');
 
+  /**
+   * Les rognages circulaires des photos, declares une fois pour toutes.
+   *
+   * Un `clipPath` porte un identifiant, et deux blocs ne peuvent pas partager le
+   * meme : le rang dans le plan le fournit, stable et sans caractere a
+   * echapper.
+   */
+  const rognages: string[] = [];
+
   const cartes = plan
-    .map((bloc) => {
+    .map((bloc, rang) => {
       const vacant = bloc.titulaire === null;
       const cadre =
         `<rect x="${bloc.x}" y="${bloc.y}" width="${LARGEUR}" height="${HAUTEUR}" ` +
@@ -391,13 +427,42 @@ export function construireSvg(
       // La pastille se centre sur le bloc nom + matricule, quelle qu'en soit la
       // hauteur : c'est ce qui garde la carte equilibree.
       const centrePastille = (premiereLigne - nom.taille + matriculeY) / 2;
+      const centreX = bloc.x + 34;
+
+      /**
+       * La PHOTO si on l'a, les initiales sinon — jamais un trou.
+       *
+       * `slice` recadre comme le fait `object-cover` a l'ecran : un portrait ne
+       * se deforme pas, il se rogne. Le cercle de contour passe par-dessus
+       * l'image pour lui donner le meme bord que la pastille d'initiales.
+       */
+      const photo = photoEmbarquee(t.photo);
+      let pastille: string;
+
+      if (photo) {
+        const cle = `photo-${rang}`;
+        rognages.push(
+          `<clipPath id="${cle}"><circle cx="${centreX}" cy="${centrePastille}" ` +
+            `r="${RAYON_PASTILLE}" /></clipPath>`,
+        );
+        pastille =
+          `<image href="${photo}" x="${centreX - RAYON_PASTILLE}" ` +
+          `y="${centrePastille - RAYON_PASTILLE}" width="${RAYON_PASTILLE * 2}" ` +
+          `height="${RAYON_PASTILLE * 2}" preserveAspectRatio="xMidYMid slice" ` +
+          `clip-path="url(#${cle})" />
+    <circle cx="${centreX}" cy="${centrePastille}" r="${RAYON_PASTILLE}" fill="none" ` +
+          `stroke="#c7d2fe" stroke-width="1.5" />`;
+      } else {
+        pastille =
+          `<circle cx="${centreX}" cy="${centrePastille}" r="${RAYON_PASTILLE}" fill="#e0e7ff" />
+    <text x="${centreX}" y="${centrePastille + 5}" font-size="13" font-weight="600" ` +
+          `fill="#4338ca" text-anchor="middle">${echapperXml(initiales(t.nom, t.prenom))}</text>`;
+      }
 
       return `${cadre}
     ${fonction}
     ${finances}
-    <circle cx="${bloc.x + 34}" cy="${centrePastille}" r="18" fill="#e0e7ff" />
-    <text x="${bloc.x + 34}" y="${centrePastille + 5}" font-size="13" font-weight="600" ` +
-        `fill="#4338ca" text-anchor="middle">${echapperXml(initiales(t.nom, t.prenom))}</text>
+    ${pastille}
     ${lignesNom}
     <text x="${bloc.x + 62}" y="${matriculeY}" font-size="10" fill="#64748b" ` +
         `font-family="ui-monospace, monospace">${echapperXml(t.matricule)}</text>`;
@@ -405,6 +470,7 @@ export function construireSvg(
     .join('\n    ');
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${origineX} ${origineY} ${largeur} ${hauteur}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" font-family="system-ui, -apple-system, Segoe UI, sans-serif">
+    <defs>${rognages.join('')}</defs>
     <rect x="${origineX}" y="${origineY}" width="${largeur}" height="${hauteur}" fill="#ffffff" />
     <text x="${origineX + MARGE}" y="${origineY + 44}" font-size="22" font-weight="700" fill="#0f172a">${echapperXml(entete.titre)}</text>
     <text x="${origineX + MARGE}" y="${origineY + 68}" font-size="13" fill="#475569">${echapperXml(`${entete.entite} — ${entete.periode}`)}</text>
