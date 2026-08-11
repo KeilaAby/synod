@@ -32,9 +32,16 @@ export interface BlocImprime {
   readonly parentFonctionId: string | null;
 }
 
-/** Memes dimensions qu'a l'ecran : le dessin doit ressembler a ce qu'on a arrange. */
-const LARGEUR = 224;
-const HAUTEUR = 140;
+/**
+ * Le bloc imprime est PLUS GRAND que celui de l'ecran.
+ *
+ * A l'ecran, un nom trop long se survole ou s'ouvre ; sur une feuille, il n'y a
+ * pas de recours. Les vingt-quatre pixels de large et les vingt-huit de haut
+ * gagnes ici sont ce qui permet a « RANOMENJANAHARY Christian Nicolas » de
+ * tenir en entier — voir `replierTexte`.
+ */
+const LARGEUR = 248;
+const HAUTEUR = 168;
 const MARGE = 48;
 const RAYON = 12;
 
@@ -54,10 +61,90 @@ export function echapperXml(texte: string): string {
     .replace(/'/g, '&apos;');
 }
 
-/** Coupe un libelle trop long : un texte SVG ne se replie pas tout seul. */
-export function tronquer(texte: string, maximum: number): string {
-  const propre = texte.trim();
-  return propre.length <= maximum ? propre : `${propre.slice(0, maximum - 1)}…`;
+/**
+ * Largeur moyenne d'un caractere, en fraction de la taille de police.
+ *
+ * C'est une ESTIMATION, et elle ne peut pas etre autre chose : mesurer un
+ * texte demande les metriques de la fonte, donc un DOM — que ce module n'a pas
+ * et ne veut pas avoir. La valeur est prise haute, parce que les patronymes
+ * s'ecrivent en capitales : `RAZANADRAKOTO` est plus large que `Razanadrakoto`
+ * a taille egale. Mieux vaut reduire d'un point de trop que deborder.
+ */
+const LARGEUR_CARACTERE = 0.6;
+
+export interface TexteReplie {
+  readonly lignes: readonly string[];
+  readonly taille: number;
+}
+
+/**
+ * Replie un texte sur plusieurs lignes, en REDUISANT la police si necessaire.
+ *
+ * POURQUOI PAS UNE TRONCATURE
+ *
+ * Le nom d'un responsable etait coupe a vingt caracteres :
+ * « RANOMENJANAHARY Christian Nicolas » sortait mutile sur une feuille remise
+ * a des gens qui la liront. Un organigramme imprime sert justement a NOMMER —
+ * abreger le nom lui retire sa raison d'etre.
+ *
+ * On coupe donc entre les MOTS, sur au plus `lignesMax` lignes, et l'on
+ * descend d'un point de police tant que cela ne tient pas. Un mot unique plus
+ * large que le bloc reste indivisible : a la plus petite taille, on le laisse
+ * deborder legerement plutot que de l'amputer — il demeure lisible.
+ */
+export function replierTexte(
+  texte: string,
+  largeurDisponible: number,
+  taillesPossibles: readonly number[],
+  lignesMax: number,
+): TexteReplie {
+  const mots = texte.trim().split(/\s+/).filter(Boolean);
+  if (mots.length === 0) return { lignes: [], taille: taillesPossibles[0] ?? 13 };
+
+  for (const taille of taillesPossibles) {
+    const parLigne = Math.floor(largeurDisponible / (taille * LARGEUR_CARACTERE));
+    if (parLigne < 1) continue;
+
+    const lignes: string[] = [];
+    let courante = '';
+
+    for (const mot of mots) {
+      const essai = courante ? `${courante} ${mot}` : mot;
+      if (essai.length <= parLigne) {
+        courante = essai;
+      } else {
+        if (courante) lignes.push(courante);
+        courante = mot;
+      }
+    }
+    if (courante) lignes.push(courante);
+
+    const tientEnLargeur = lignes.every((l) => l.length <= parLigne);
+    if (lignes.length <= lignesMax && tientEnLargeur) return { lignes, taille };
+  }
+
+  /**
+   * Dernier recours : la plus petite taille, et l'on garde TOUT — quitte a
+   * depasser `lignesMax`. Rogner les lignes en trop reviendrait a tronquer le
+   * nom par un autre chemin, ce que cette fonction existe precisement pour
+   * eviter. Un bloc un peu charge se lit ; un nom ampute, non.
+   */
+  const taille = taillesPossibles[taillesPossibles.length - 1] ?? 9;
+  const parLigne = Math.max(1, Math.floor(largeurDisponible / (taille * LARGEUR_CARACTERE)));
+
+  const lignes: string[] = [];
+  let courante = '';
+  for (const mot of mots) {
+    const essai = courante ? `${courante} ${mot}` : mot;
+    if (essai.length <= parLigne) courante = essai;
+    else {
+      if (courante) lignes.push(courante);
+      courante = mot;
+    }
+  }
+  if (courante) lignes.push(courante);
+
+  return { lignes, taille };
 }
 
 function initiales(nom: string, prenom: string): string {
@@ -255,31 +342,64 @@ export function construireSvg(
         `stroke="${vacant ? '#f59e0b' : '#cbd5e1'}" stroke-width="1.5"` +
         `${vacant ? ' stroke-dasharray="6 4"' : ''} />`;
 
-      const fonction =
-        `<text x="${bloc.x + 16}" y="${bloc.y + 30}" font-size="13" font-weight="600" ` +
-        `fill="#0f172a">${echapperXml(tronquer(bloc.fonction, 26))}</text>`;
+      // « Secretaire general adjoint aux affaires sociales » debordait autant
+      // que les noms : l'intitule se replie selon la meme regle.
+      const titre = replierTexte(bloc.fonction, LARGEUR - 32, [13, 12, 11, 10], 2);
+      const fonction = titre.lignes
+        .map(
+          (ligne, i) =>
+            `<text x="${bloc.x + 16}" y="${bloc.y + 28 + i * (titre.taille + 4)}" ` +
+            `font-size="${titre.taille}" font-weight="600" fill="#0f172a">` +
+            `${echapperXml(ligne)}</text>`,
+        )
+        .join('\n    ');
+
+      const basTitre = bloc.y + 28 + (titre.lignes.length - 1) * (titre.taille + 4);
 
       const finances = bloc.estFinanciere
-        ? `<text x="${bloc.x + 16}" y="${bloc.y + 50}" font-size="10" fill="#7c3aed">FINANCES</text>`
+        ? `<text x="${bloc.x + 16}" y="${basTitre + 18}" font-size="10" fill="#7c3aed">FINANCES</text>`
         : '';
 
       if (vacant) {
         return `${cadre}
     ${fonction}
     ${finances}
-    <text x="${bloc.x + 16}" y="${bloc.y + 92}" font-size="13" fill="#b45309">Vacante</text>`;
+    <text x="${bloc.x + 16}" y="${bloc.y + HAUTEUR - 28}" font-size="13" fill="#b45309">Vacante</text>`;
       }
 
       const t = bloc.titulaire!;
+
+      /**
+       * Le nom EN ENTIER, replie et reduit s'il le faut.
+       *
+       * Le matricule reste ancre au bas du bloc et le nom se pose au-dessus de
+       * lui : ainsi un nom d'une ligne et un nom de trois lignes s'impriment
+       * dans le meme cadre, sans le deformer.
+       */
+      const nom = replierTexte(`${t.nom} ${t.prenom}`, LARGEUR - 78, [13, 12, 11, 10, 9], 3);
+      const matriculeY = bloc.y + HAUTEUR - 20;
+      const premiereLigne = matriculeY - 14 - (nom.lignes.length - 1) * (nom.taille + 3);
+
+      const lignesNom = nom.lignes
+        .map(
+          (ligne, i) =>
+            `<text x="${bloc.x + 62}" y="${premiereLigne + i * (nom.taille + 3)}" ` +
+            `font-size="${nom.taille}" fill="#0f172a">${echapperXml(ligne)}</text>`,
+        )
+        .join('\n    ');
+
+      // La pastille se centre sur le bloc nom + matricule, quelle qu'en soit la
+      // hauteur : c'est ce qui garde la carte equilibree.
+      const centrePastille = (premiereLigne - nom.taille + matriculeY) / 2;
+
       return `${cadre}
     ${fonction}
     ${finances}
-    <circle cx="${bloc.x + 34}" cy="${bloc.y + 92}" r="18" fill="#e0e7ff" />
-    <text x="${bloc.x + 34}" y="${bloc.y + 97}" font-size="13" font-weight="600" ` +
+    <circle cx="${bloc.x + 34}" cy="${centrePastille}" r="18" fill="#e0e7ff" />
+    <text x="${bloc.x + 34}" y="${centrePastille + 5}" font-size="13" font-weight="600" ` +
         `fill="#4338ca" text-anchor="middle">${echapperXml(initiales(t.nom, t.prenom))}</text>
-    <text x="${bloc.x + 62}" y="${bloc.y + 89}" font-size="13" fill="#0f172a">` +
-        `${echapperXml(tronquer(`${t.nom} ${t.prenom}`, 20))}</text>
-    <text x="${bloc.x + 62}" y="${bloc.y + 106}" font-size="10" fill="#64748b" ` +
+    ${lignesNom}
+    <text x="${bloc.x + 62}" y="${matriculeY}" font-size="10" fill="#64748b" ` +
         `font-family="ui-monospace, monospace">${echapperXml(t.matricule)}</text>`;
     })
     .join('\n    ');

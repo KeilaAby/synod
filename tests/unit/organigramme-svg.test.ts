@@ -5,7 +5,7 @@ import {
   construireSvg,
   disposerEnArbre,
   echapperXml,
-  tronquer,
+  replierTexte,
 } from '@/lib/domain/organigramme-svg';
 
 /**
@@ -60,12 +60,101 @@ describe('Le document reste valide quoi que contiennent les noms', () => {
 });
 
 describe('Un texte SVG ne se replie pas tout seul', () => {
-  it('tronque au-dela de la limite, en le signalant', () => {
-    expect(tronquer('Directeur general adjoint des finances', 12)).toBe('Directeur g…');
+  /** Reconstitue la largeur estimee par le module : 0,6 em par caractere. */
+  const tient = (r: { lignes: readonly string[]; taille: number }, largeur: number) =>
+    r.lignes.every((l) => l.length * r.taille * 0.6 <= largeur);
+
+  it('laisse intact ce qui tient sur une ligne', () => {
+    expect(replierTexte('  President  ', 170, [13], 3)).toEqual({
+      lignes: ['President'],
+      taille: 13,
+    });
   });
 
-  it('laisse intact ce qui tient', () => {
-    expect(tronquer('  President  ', 12)).toBe('President');
+  it('coupe entre les MOTS plutot que dans un mot', () => {
+    const r = replierTexte('RANOMENJANAHARY Christian Nicolas', 170, [13, 12, 11, 10, 9], 3);
+
+    expect(r.lignes.join(' ')).toBe('RANOMENJANAHARY Christian Nicolas');
+    expect(r.lignes.length).toBeGreaterThan(1);
+    expect(tient(r, 170)).toBe(true);
+  });
+
+  it("n'ampute JAMAIS le nom, quitte a reduire la police", () => {
+    /**
+     * C'est la raison d'etre de la fonction : le 11 aout 2026, les noms
+     * sortaient coupes a vingt caracteres sur une feuille remise a des gens
+     * qui la lisent. Un organigramme sert a NOMMER.
+     */
+    const long = 'RAKOTOMALALA ANDRIANJAFY Jean Baptiste Emmanuel';
+    const r = replierTexte(long, 100, [13, 12, 11, 10, 9], 3);
+
+    expect(r.lignes.join(' ')).toBe(long);
+    expect(r.taille).toBeLessThan(13);
+    expect(r.taille).toBeGreaterThanOrEqual(9);
+    expect(r.lignes.length).toBeLessThanOrEqual(3);
+  });
+
+  it('rend le nom entier meme quand il depasse le nombre de lignes prevu', () => {
+    // Mieux vaut un bloc un peu charge qu'un nom faux.
+    const r = replierTexte('A B C D E F G H I J K L', 40, [13, 11, 9], 2);
+    expect(r.lignes.join(' ')).toBe('A B C D E F G H I J K L');
+  });
+
+  it('laisse deborder un mot indivisible plutot que de le couper', () => {
+    // Un patronyme sans espace plus large que le bloc n'a aucune coupe
+    // legitime : le reduire suffit, l'amputer non.
+    const r = replierTexte('RANDRIANARISOAMANANARIVO', 60, [13, 11, 9], 2);
+    expect(r.lignes).toEqual(['RANDRIANARISOAMANANARIVO']);
+    expect(r.taille).toBe(9);
+  });
+
+  it('ne rend aucune ligne pour un texte vide', () => {
+    expect(replierTexte('   ', 170, [13], 3).lignes).toEqual([]);
+  });
+});
+
+describe('Le bloc imprime porte le nom en entier', () => {
+  it('sort le nom COMPLET, sur plusieurs lignes s il le faut', () => {
+    const svg = construireSvg(
+      [
+        bloc({
+          titulaire: {
+            nom: 'RAKOTOMALALA ANDRIANJAFY',
+            prenom: 'Jean Baptiste',
+            matricule: 'RA-00007-26',
+          },
+        }),
+      ],
+      ENTETE,
+    )!;
+
+    // Aucun caractere perdu : chaque mot doit se retrouver dans le document.
+    for (const mot of ['RAKOTOMALALA', 'ANDRIANJAFY', 'Jean', 'Baptiste']) {
+      expect(svg).toContain(mot);
+    }
+    expect(svg).not.toContain('…');
+  });
+
+  it('garde le nom DANS le bloc', () => {
+    const svg = construireSvg(
+      [bloc({ titulaire: { nom: 'RAZAFIMAHATRATRA', prenom: 'Nirina', matricule: 'R-1' } })],
+      ENTETE,
+    )!;
+
+    // Le bloc est pose en 0,0 et mesure 248 de large ; le nom demarre a 62.
+    for (const [, y] of svg.matchAll(/<text x="62" y="(\d+)"/g)) {
+      expect(Number(y)).toBeLessThan(168);
+    }
+  });
+
+  it("reduit la police plutot que d'abreger l intitule de la fonction", () => {
+    const svg = construireSvg(
+      [bloc({ fonction: 'Secretaire general adjoint aux affaires sociales' })],
+      ENTETE,
+    )!;
+
+    expect(svg).toContain('sociales');
+    expect(svg).not.toContain('…');
   });
 });
 
