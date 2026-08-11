@@ -60,10 +60,21 @@ function messageEchec(erreur: unknown): string {
       : '';
 
   if (digest) {
+    /**
+     * Le conseil du RECHARGEMENT vaut aussi ici, et l'omettre etait une erreur.
+     *
+     * La cause la plus frequente d'une erreur serveur sur un appel d'action
+     * n'est pas un bogue : c'est un onglet reste ouvert pendant qu'un nouveau
+     * deploiement changeait l'identifiant des actions. Le serveur ne reconnait
+     * plus celle qu'on lui demande et leve — exactement ce qu'on observe ici.
+     * Recharger suffit, et c'est la premiere chose a essayer.
+     */
     return (
-      'Le serveur a rencontré une erreur pendant le traitement. Votre saisie ' +
-      'n’a peut-être pas été enregistrée : vérifiez avant de recommencer. ' +
-      `Référence à communiquer : ${digest}`
+      'Le serveur a rencontré une erreur pendant le traitement. ' +
+      '**Rechargez la page (Ctrl+Maj+R) et réessayez** : après une mise à jour, ' +
+      'un onglet resté ouvert appelle des fonctions qui n’existent plus. ' +
+      'Si cela se reproduit après rechargement, votre saisie n’a peut-être pas ' +
+      `été enregistrée — vérifiez avant de recommencer. Référence : ${digest}`
     );
   }
 
