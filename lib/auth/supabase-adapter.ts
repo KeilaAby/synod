@@ -26,9 +26,23 @@ function versIdentite(user: { id: string; email?: string | null }): IdentiteAuth
 export const supabaseAuthAdapter: AuthAdapter = {
   async getIdentite() {
     const sb = await createClient();
-    // `getUser()` revalide le jeton aupres du serveur d'identite ; `getSession()`
-    // se contenterait du cookie, qui peut avoir ete forge.
-    const { data, error } = await sb.auth.getUser();
+
+    /**
+     * VERIFICATION LOCALE du jeton — ENF-PRF-01.
+     *
+     * `getUser()` interrogeait le serveur d'identite a chaque RENDU DE PAGE, en
+     * plus de l'appel deja fait par le proxy : deux allers-retours reseau avant
+     * la moindre lecture metier. Le 11 aout 2026, `/bureaux` s'en trouvait
+     * refusee — « The operation was aborted due to timeout » — sur un lien dont
+     * un aller-retour se mesure entre 0,5 et 4 secondes.
+     *
+     * `getClaims()` lit la session dans le cookie, la rafraichit si elle a
+     * expire, puis VERIFIE LA SIGNATURE du jeton avec la cle publique du projet.
+     * La garantie est la meme qu'avec `getUser()` — un cookie forge ne passe
+     * pas —, sans appel reseau tant que le jeton est valide. Si le projet signe
+     * encore en HS256, la bibliotheque retombe d'elle-meme sur `getUser()`.
+     */
+    const { data, error } = await sb.auth.getClaims();
 
     /**
      * Une panne RESEAU n'est pas une session absente.
@@ -44,8 +58,13 @@ export const supabaseAuthAdapter: AuthAdapter = {
       throw new DataError(MESSAGE_PANNE_RESEAU, error);
     }
 
-    if (error || !data.user) return null;
-    return versIdentite(data.user);
+    if (error || !data?.claims) return null;
+
+    // `sub` porte l'identifiant du compte, `email` la revendication associee.
+    return versIdentite({
+      id: String(data.claims.sub),
+      email: typeof data.claims.email === 'string' ? data.claims.email : null,
+    });
   },
 
   async signIn(email, motDePasse) {
