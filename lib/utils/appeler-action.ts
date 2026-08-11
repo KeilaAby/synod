@@ -69,9 +69,12 @@ function messageEchec(erreur: unknown): string {
      * plus celle qu'on lui demande et leve — exactement ce qu'on observe ici.
      * Recharger suffit, et c'est la premiere chose a essayer.
      */
+    // Texte BRUT : ce message traverse une notification et une alerte, dont
+    // aucune n'interprete le markdown. Les asterisques s'y affichaient tels
+    // quels.
     return (
       'Le serveur a rencontré une erreur pendant le traitement. ' +
-      '**Rechargez la page (Ctrl+Maj+R) et réessayez** : après une mise à jour, ' +
+      'Rechargez la page (Ctrl+Maj+R) et réessayez : après une mise à jour, ' +
       'un onglet resté ouvert appelle des fonctions qui n’existent plus. ' +
       'Si cela se reproduit après rechargement, votre saisie n’a peut-être pas ' +
       `été enregistrée — vérifiez avant de recommencer. Référence : ${digest}`
