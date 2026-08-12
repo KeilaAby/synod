@@ -1760,3 +1760,33 @@ composition ; le numéro de reçu est attribué **par la base** (règle 14), deu
 membres du bureau encaissant en même temps au fond de la même salle ; et le
 numéro d'enveloppe est **recopié** sur le versement, parce qu'un reçu remis il y
 a deux ans porte l'ancien numéro.
+
+**La dîme n'est pas une recette de l'église qui la collecte** — RG-33, EF-FIN-29
+à 31, précisé le 12 août 2026. C'est la conséquence la plus lourde de tout le
+module financier, et elle contredit le réflexe naturel : « l'argent est passé
+par mes mains, donc il est à moi ».
+
+L'église **collecte**, elle n'**encaisse** pas. La dîme appartient au Siège, à
+qui elle est remise en mains propres, et c'est là qu'elle est comptabilisée.
+
+Si la collecte créait un mouvement rattaché à l'église, `fn_finance_solde`
+l'additionnerait à son solde **et** le ferait remonter dans le consolidé de
+chaque ancêtre : le même argent compté deux fois, chez celui qui l'a collecté et
+chez celui à qui il appartient. Rien à l'écran ne trahirait l'erreur — deux
+soldes plausibles, tous les deux faux. Le mouvement portera donc
+`entity_id = <Siège>` et jamais l'église ; le lien passe par une colonne à part,
+`eglise_collecte_id`, qui sert la traçabilité et n'entre dans aucun calcul.
+
+Le voyage physique de l'argent est déjà dit par le workflow, il n'y a rien à
+inventer : l'église clôt sa collecte (`SOUMIS`), le Siège la valide en la
+recevant (`VALIDE`). RG-18 fait le reste — une somme annoncée mais jamais
+arrivée ne gonfle les comptes de personne, et l'écart entre le collecté et le
+reçu devient l'indicateur qu'un trésorier veut voir.
+
+Quatre points notés d'avance dans `plan.md` §4.bis : le droit d'insertion (un
+trésorier d'église n'a pas `finance.create` sur le Siège — une permission dédiée
+et une fonction `SECURITY DEFINER` sont recommandées), la RLS de lecture qui doit
+aussi accepter `eglise_collecte_id` sous peine de rendre la collecte invisible à
+qui l'a faite, le bordereau de remise groupant plusieurs dimanches, et le fait
+qu'un **solde de collecte n'est pas un solde disponible** — les deux ne doivent
+surtout pas se ressembler à l'écran.

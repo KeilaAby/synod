@@ -4,7 +4,7 @@
 
 Application web de gestion d'église. **Lire avant toute tâche** :
 
-- [`cdg.md`](notes/cdg.md) — exigences `EF-*`, règles de gestion `RG-01` à `RG-32`
+- [`cdg.md`](notes/cdg.md) — exigences `EF-*`, règles de gestion `RG-01` à `RG-33`
 - [`plan.md`](notes/plan.md) — modèle de données, RLS, design system, écrans, lots
 - [`.agents/rules/`](.agents/rules/) — règles **impératives** : `designrules.md`
   (stack et design) et `gitpush.md` (procédure de publication)
@@ -65,6 +65,16 @@ ses finances ; la hiérarchie ne fait que les consulter. `null` signifie donc
 « défaut de l'organisation », jamais « comme mon parent ». Restent
 EF-FIN-07 (pièce jointe), EF-FIN-08 (saisie en série), EF-FIN-11 (vue
 consolidée du Siège), l'écran de réglage du workflow et le droit de double rôle.
+
+**Dîmes — spécifiées, pas construites** : EF-FIN-27 à 31, RG-33, conception dans
+[`plan.md`](notes/plan.md) §4.bis. Le point à ne pas manquer avant d'écrire une
+ligne : **une dîme n'est pas une recette de l'église qui la collecte**. Elle
+appartient au Siège, à qui elle est remise en mains propres. Le mouvement porte
+donc `entity_id = <Siège>` et jamais l'église, sans quoi `fn_finance_solde`
+compterait le même argent deux fois — chez celui qui l'a collecté et chez celui
+à qui il appartient, deux soldes plausibles et tous deux faux. Le lien avec
+l'église passe par `eglise_collecte_id`, qui sert la traçabilité et n'entre dans
+aucun solde.
 
 **EF-BUR-11 clos** : l'export Excel de la composition est abandonné le 12 août
 2026, le PDF de l'organigramme couvre le besoin.

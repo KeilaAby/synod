@@ -321,8 +321,11 @@ Les habilitations sont **unitaires**, regroupées par catégorie, et chacune peu
 | **EF-FIN-24** | Produire une **synthèse périodique** (mensuelle, trimestrielle, annuelle) : recettes et dépenses par catégorie, évolution du solde, comparatif entre entités sœurs. | **Must** |
 | **EF-FIN-25** | Exporter mouvements et synthèses (Excel/CSV/PDF). | **Should** |
 | **EF-FIN-26** | Verrouiller une période clôturée : aucune saisie ni modification rétroactive sans réouverture par le SuperAdmin. | **Could** |
-| **EF-FIN-27** | **Dîmes — saisie détaillée par croyant.** Chaque croyant dispose d'une **enveloppe numérotée** qui lui est propre ; le membre du bureau qui reçoit la dîme lui remet un **reçu numéroté**. L'ensemble produit le solde global des dîmes de l'église. *(Ajouté le 12 août 2026 — conception dans `plan.md` §4.bis.)* | **Must** |
+| **EF-FIN-27** | **Dîmes — saisie détaillée par croyant.** Chaque croyant dispose d'une **enveloppe numérotée** qui lui est propre ; le membre du bureau qui reçoit la dîme lui remet un **reçu numéroté**. L'église tient ainsi le détail de ce qu'elle a **collecté**. *(Ajouté le 12 août 2026 — conception dans `plan.md` §4.bis.)* | **Must** |
 | **EF-FIN-28** | Le formulaire des dîmes admet **deux modes** — *détaillé* (numéro d'enveloppe et montant par croyant, reçu émis) et *global* (un seul montant pour la collecte) —, administrés par le SuperAdmin et **réglés église par église**, sans héritage depuis la hiérarchie. | **Must** |
+| **EF-FIN-29** | **Une dîme n'est jamais une recette de l'église qui la collecte.** Elle appartient au **Siège**, à qui elle est remise **en mains propres**. L'église en tient le détail et en délivre les reçus, mais la dîme **n'entre pas dans son solde** : ni recette, ni ressource mobilisable pour ses dépenses. *(Ajouté le 12 août 2026.)* | **Must** |
+| **EF-FIN-30** | La dîme est **comptabilisée au Siège** comme recette propre, et y finance ses dépenses au même titre que toute autre recette. Elle n'alimente le solde du Siège qu'une fois **reçue** — la remise physique est ce que constate la validation. | **Must** |
+| **EF-FIN-31** | Le **détail d'une collecte reste consultable par l'église** qui l'a effectuée — reçus, enveloppes, montants par croyant — et par sa hiérarchie, sans pour autant figurer à son solde. Une église doit pouvoir répondre à un croyant qui demande la trace de sa dîme. | **Must** |
 
 ### 5.7 Module **Nouveaux baptisés**
 
@@ -446,6 +449,7 @@ Les habilitations sont **unitaires**, regroupées par catégorie, et chacune peu
 | **RG-16** | **Workflow de validation désactivé** : un mouvement saisi est immédiatement `Validé`. **Workflow activé** : un mouvement suit `Brouillon → Soumis → Validé`, et la validation s'effectue **au niveau de l'entité** du mouvement, par un compte détenant `finance.validate` dont le périmètre la couvre. |
 | **RG-17** | Un mouvement au statut `Validé` est **immuable** : seule une annulation motivée est possible, et elle conserve la ligne d'origine. |
 | **RG-18** | Seuls les mouvements `Validé` alimentent le solde, les tableaux de bord et les rapports. |
+| **RG-33** | La **dîme est une recette du Siège**, jamais de l'église qui la collecte. L'église en tient le détail et en délivre les reçus ; le mouvement financier est rattaché au **Siège** et n'entre donc ni dans le solde de l'église, ni dans le consolidé de sa paroisse ou de son district. La **remise en mains propres** est ce que constate la validation : tant qu'elle n'a pas eu lieu, la dîme collectée ne compte au solde de personne. *(Ajoutée le 12 août 2026.)* |
 | **RG-19** | Les statistiques consolidées n'agrègent que les croyants au statut `ACTIF`, sauf filtre contraire explicite. |
 | **RG-20** | Un utilisateur ne voit et ne modifie **que** les données de son entité et de ses descendants. Le SuperAdmin, rattaché au Siège, couvre par construction toute la hiérarchie. |
 | **RG-21** | Les **Cellules ne disposent d'aucun compte d'accès** à la plateforme. |
