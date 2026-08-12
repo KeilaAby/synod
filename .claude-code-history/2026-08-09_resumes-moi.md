@@ -40,7 +40,7 @@ la question a cessé de se poser.
 | **Organigramme de bureau React Flow (EF-BUR-07)** | ✅ |
 | **Éditeur d'organigramme — déplacer, relier, désigner au glisser-déposer** | ✅ |
 | Bureaux et croyants depuis le menu ⋮ de la structure | ✅ |
-| Saisie de baptêmes en lot (EF-BAP-07) | *Could* — non livré |
+| **Saisie de baptêmes en lot (EF-BAP-07)** | ✅ |
 | Tableau de bord | Coquille — le moteur configurable est le Lot 5 |
 | **Finances, Rapports** | **Lots 4 et 6 — à venir** |
 
@@ -127,8 +127,8 @@ recalcule à chaque rendu. Ici elle porte votre mise en page — un rattachement
 déclenché par un simple survol la rendrait impraticable.
 
 **Un bureau jamais dessiné démarre sur un plan vide**, palette pleine : c'est
-vous qui décidez des blocs. « Tout poser » les place tous d'un coup, en grille
-et sans lien, si vous préférez partir de là.
+vous qui décidez des blocs. « Poser les manquantes » place d'un coup celles qui
+restent, en grille et sans lien, sous ce que vous avez déjà tracé.
 
 **Le plan est un dessin, pas la définition des postes.** La composition
 tabulaire continue de lister toutes les fonctions applicables et d'en compter
@@ -304,7 +304,7 @@ dans la même séquence ne s'affichait donc **jamais**.
 
 - **EF-BUR-11** — export **Excel** de la composition d'un bureau. L'impression
   de l'organigramme est livrée ; l'export tabulaire reste à faire.
-- **EF-BAP-07** — saisie de baptêmes **en lot**. *Prochaine tâche.*
+- ~~**EF-BAP-07**~~ — livré le 12 août 2026.
 
 ---
 

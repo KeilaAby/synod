@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
 import { BaptemeDialog } from '@/components/baptemes/bapteme-dialog';
+import { BaptemeLotDialog } from '@/components/baptemes/bapteme-lot-dialog';
 import { PageHeader } from '@/components/shared/page-header';
 import { chargerBaptemes, listerCelebrants } from '@/lib/data/baptemes';
 import { getOptionsCroyant } from '@/lib/data/croyant-options';
@@ -53,14 +54,26 @@ export default async function BaptemesPage() {
             : `${formatNombre(baptemes.length)} baptême${baptemes.length > 1 ? 's' : ''} enregistré${baptemes.length > 1 ? 's' : ''} dans votre périmètre.`
         }
         actions={
-          <BaptemeDialog
-            eglises={options.eglises}
-            cellules={options.cellules}
-            grades={options.grades}
-            nationalites={options.nationalites}
-            celebrants={celebrants}
-            photos={Object.fromEntries(photos)}
-          />
+          <div className="flex flex-wrap gap-2">
+            {/* EF-BAP-07 — une cérémonie collective ne se saisit pas trente
+                fois de suite : le lot partage tout ce qui lui est commun. */}
+            <BaptemeLotDialog
+              eglises={options.eglises}
+              cellules={options.cellules}
+              grades={options.grades}
+              nationalites={options.nationalites}
+              celebrants={celebrants}
+              photos={Object.fromEntries(photos)}
+            />
+            <BaptemeDialog
+              eglises={options.eglises}
+              cellules={options.cellules}
+              grades={options.grades}
+              nationalites={options.nationalites}
+              celebrants={celebrants}
+              photos={Object.fromEntries(photos)}
+            />
+          </div>
         }
       />
 

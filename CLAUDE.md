@@ -19,8 +19,15 @@ structure à 6 niveaux (organigramme éditable **et** vue liste), référentiels
 croyants avec photo, **transferts** avec workflow d'approbation, **baptêmes**.
 
 **Lot 2 achevé**, y compris la lecture **XLSX** (`lib/domain/xlsx.ts`, sans
-dépendance — ARB-6 clos). Reste hors périmètre la saisie de baptêmes en lot
-(EF-BAP-07, *Could*).
+dépendance — ARB-6 clos) et la **saisie de baptêmes en lot** (EF-BAP-07) :
+en-tête commun à la cérémonie — date, lieu, session, célébrants, grade et
+nationalité — puis une grille d'une ligne par personne. L'**église est une
+colonne**, parce qu'une cérémonie de district réunit des baptisés de plusieurs
+églises ; elle s'efface quand le périmètre n'en compte qu'une. Le critère est ce
+que le périmètre **contient**, jamais le rôle : un gestionnaire de district
+n'est pas SuperAdmin et compte pourtant vingt églises. Trois écritures pour N
+baptisés, jamais trois par baptisé, et les fiches se relient à leur ligne par la
+**clé de rapprochement**, pas par le rang du `returning`.
 
 **Lot 3 (bureaux) livré** : ouverture, **modification**, composition par rang
 avec fonctions vacantes, désignation, remplacement, reconduction, clôture

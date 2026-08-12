@@ -189,6 +189,51 @@ export const getCroyant = cache(async (id: string): Promise<CroyantFiche | null>
  * exact se fait en mémoire via `cleDoublon` : la base ignore les accents et la
  * casse, le domaine les normalise.
  */
+/**
+ * EF-CRO-13 pour un LOT — EF-BAP-07.
+ *
+ * UNE seule requete, quel que soit le nombre de lignes. Appeler
+ * `chercherDoublons` trente fois, c'est trente allers-retours sur une liaison
+ * ou chacun se mesure entre 0,5 et 4 secondes : la detection de doublons
+ * couterait a elle seule plus d'une minute, et exposerait trente fois a la
+ * panne (regle 28).
+ *
+ * Rendu indexe par la cle de rapprochement, pour que l'appelant retrouve la
+ * ligne concernee sans reparcourir.
+ */
+export async function chercherDoublonsLot(
+  personnes: readonly { nom: string; prenom: string; dateNaissance: Date }[],
+): Promise<Map<string, CroyantListe>> {
+  if (personnes.length === 0) return new Map();
+
+  const sb = await createClient();
+
+  const { data, error } = await sb
+    .from('croyants')
+    .select(CHAMPS_LISTE)
+    .is('deleted_at', null)
+    // La base filtre sur ce qu'elle indexe — la date —, le rapprochement fin
+    // se fait en memoire : elle ignore les accents et la casse, pas le domaine.
+    .in('date_naissance', [...new Set(personnes.map((p) => isoJour(p.dateNaissance)))])
+    .returns<CroyantListe[]>();
+
+  // Un echec de detection ne doit pas bloquer une creation : on le dit dans le
+  // journal, et le lot part sans l'avertissement.
+  if (error) return new Map();
+
+  const cibles = new Set(
+    personnes.map((p) => cleDoublon(p.nom, p.prenom, p.dateNaissance)),
+  );
+
+  const trouves = new Map<string, CroyantListe>();
+  for (const c of data ?? []) {
+    const cle = cleDoublon(c.nom, c.prenom, new Date(c.date_naissance));
+    if (cibles.has(cle) && !trouves.has(cle)) trouves.set(cle, c);
+  }
+
+  return trouves;
+}
+
 export async function chercherDoublons(
   nom: string,
   prenom: string,

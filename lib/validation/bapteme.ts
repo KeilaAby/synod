@@ -85,3 +85,88 @@ export const saisirBaptiseSchema = z
 
 export type SaisirBaptiseInput = z.input<typeof saisirBaptiseSchema>;
 export type SaisirBaptiseValide = z.output<typeof saisirBaptiseSchema>;
+
+// -----------------------------------------------------------------------------
+// Lot d'une meme ceremonie — EF-BAP-07
+// -----------------------------------------------------------------------------
+
+/**
+ * Au-dela, la saisie n'est plus un formulaire : c'est un fichier, et l'import
+ * de croyants (EF-CRO-11) le fait deja. Cent lignes tiennent dans une
+ * ceremonie reelle, meme large.
+ */
+export const LIGNES_LOT_MAX = 100;
+
+/**
+ * Une ligne du lot : ce qui DISTINGUE une personne.
+ *
+ * Tout ce que les baptises d'une meme ceremonie partagent — date, lieu,
+ * celebrants, session, grade, nationalite — vit dans l'en-tete, pas ici. C'est
+ * ce qui rend la grille tenable : huit colonnes au lieu de quinze.
+ *
+ * `egliseId` est facultatif DANS LE SCHEMA et obligatoire A L'ARRIVEE : quand
+ * le perimetre ne compte qu'une eglise, le client ne l'envoie pas et le
+ * serveur la deduit. Exiger l'un ou l'autre ici obligerait a deux schemas.
+ */
+export const ligneLotSchema = z.object({
+  nom: z.string().trim().min(2, 'Le nom est requis.').max(80),
+  prenom: z.string().trim().min(2, 'Le prenom est requis.').max(80),
+  sexe: z.enum(SEXES, { message: 'Selectionnez le sexe.' }),
+  dateNaissance: dateJour,
+  adresse: z.string().trim().min(3, "L'adresse est requise.").max(255),
+  telephone: optionnel(
+    z
+      .string()
+      .trim()
+      .regex(/^\+?[0-9\s().-]{8,20}$/, 'Numero de telephone invalide.'),
+  ),
+  egliseId: optionnel(z.uuid()),
+  celluleId: optionnel(z.uuid()),
+});
+
+export const saisirLotSchema = z
+  .object({
+    // --- La ceremonie, commune a tout le lot ---
+    dateBapteme: dateJour,
+    lieu: optionnel(z.string().trim().max(160)),
+    sessionLibelle: optionnel(z.string().trim().max(120)),
+    celebrantIds: z
+      .preprocess(
+        (v) => (v === undefined || v === null ? [] : v),
+        z.array(z.uuid()).max(10, 'Dix celebrants au plus.'),
+      )
+      .transform((v) => [...new Set(v)]),
+
+    /**
+     * Grade et nationalite sont communs au LOT, pas a la ligne.
+     *
+     * Ils ne varient pratiquement jamais au sein d'une ceremonie — les
+     * nouveaux baptises sont « Croyant » — et deux colonnes de plus rendaient
+     * la grille illisible. Le cas particulier se corrige ensuite sur la fiche,
+     * ce qui coute un ecran a une personne plutot qu'une colonne a toutes.
+     */
+    gradeId: z.uuid('Selectionnez un grade.'),
+    nationaliteId: z.uuid('Selectionnez une nationalite.'),
+
+    lignes: z
+      .array(ligneLotSchema)
+      .min(1, 'Ajoutez au moins un baptise.')
+      .max(LIGNES_LOT_MAX, `Un lot porte sur ${LIGNES_LOT_MAX} baptises au plus.`),
+  })
+  // RG-28 — la date de ceremonie est commune, les naissances ne le sont pas :
+  // la regle se verifie donc ligne a ligne, et le message se pose sur la ligne
+  // fautive plutot qu'en bas du formulaire.
+  .superRefine((d, ctx) => {
+    d.lignes.forEach((ligne, i) => {
+      if (d.dateBapteme < ligne.dateNaissance) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Ne peut pas etre nee apres le bapteme.',
+          path: ['lignes', i, 'dateNaissance'],
+        });
+      }
+    });
+  });
+
+export type SaisirLotInput = z.input<typeof saisirLotSchema>;
+export type SaisirLotValide = z.output<typeof saisirLotSchema>;

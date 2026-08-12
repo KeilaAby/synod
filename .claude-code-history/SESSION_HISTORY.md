@@ -1545,3 +1545,62 @@ Le retour au plan par défaut reste atteignable : ôter les blocs, puis reposer.
 ### Qualité
 
 384 tests unitaires. `pnpm verify` vert.
+
+---
+
+## 12 août 2026 — EF-BAP-07, saisie d'un lot de baptisés
+
+Une cérémonie collective se saisissait trente fois de suite, en redemandant à
+chaque fois les mêmes huit champs de cérémonie. Le lot les demande **une** fois.
+
+**Deux zones.** En haut, ce que la cérémonie a en commun : date, lieu, session,
+célébrants — plus le **grade** et la **nationalité**, qui ne varient
+pratiquement jamais au sein d'un lot et coûtaient deux colonnes de plus dans une
+grille déjà large. Le cas particulier se corrige ensuite sur la fiche : un écran
+pour une personne plutôt qu'une colonne pour toutes. En bas, la grille : nom,
+prénom, sexe, naissance, adresse, téléphone, cellule.
+
+**L'église est une colonne, pas un en-tête.** Une cérémonie de district réunit
+au bord de la même rivière des baptisés de cinq églises, et chacun reste
+rattaché à la sienne (RG-04). Elle disparaît quand le périmètre n'en compte
+qu'une — le seul choix possible n'a pas à être demandé. La ligne ajoutée hérite
+de l'église de la précédente.
+
+Le critère est **ce que le périmètre contient**, pas qui est l'utilisateur. La
+demande disait « SuperAdmin renseigne, les autres non, ils sont déjà rattachés
+à une église » : c'est vrai du gestionnaire d'une église, faux de celui d'un
+district ou d'une paroisse, qui n'est pas SuperAdmin et compte pourtant vingt
+églises. Prendre son entité de rattachement aurait rangé ses baptisés sous un
+DISTRICT — ce que RG-04 interdit — ou sous une église au hasard, en silence.
+
+### Trois écritures pour N baptisés, pas trois par baptisé
+
+Trente baptisés saisis un à un, c'est soixante allers-retours à 0,5–4 s pièce :
+deux minutes d'attente et soixante occasions de panne (règle 28). Les croyants
+partent en **une** insertion, les baptêmes en une autre, les célébrants en une
+troisième. La détection de doublons, elle aussi, tient en une requête
+(`chercherDoublonsLot`) au lieu de trente.
+
+Les fiches créées sont reliées à leur ligne **par la clé de rapprochement**, pas
+par le rang. PostgreSQL rend bien les lignes d'un `insert … returning` dans
+l'ordre des valeurs, mais s'y fier ferait dépendre l'appariement d'un détail
+d'implémentation : une inversion attacherait le baptême de l'un à la fiche de
+l'autre, sans bruit.
+
+### Ce qui est refusé, et ce qui ne l'est pas
+
+Une ligne écartée n'emporte pas les autres : homonyme déjà enregistré, cellule
+étrangère à l'église, ligne répétée dans le lot. Un **droit** manquant, lui,
+arrête le lot entier — écrire les lignes permises et taire les autres laisserait
+une cérémonie incomplète que personne ne saurait relire.
+
+Le rapport est un temps à part de la fenêtre, avec le matricule de chaque fiche
+créée et le motif de chaque ligne écartée. Un compte global (« 28 sur 30 »)
+aurait laissé chercher les deux manquantes dans une liste de trente noms
+(règle 30).
+
+Pas de migration : `croyants`, `baptemes` et `bapteme_celebrants` suffisaient.
+
+### Qualité
+
+403 tests unitaires (+19). `pnpm verify` vert.
