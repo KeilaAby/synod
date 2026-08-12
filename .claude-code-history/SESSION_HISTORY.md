@@ -1633,3 +1633,21 @@ maintenant « Aucune » — « Choisir l'église d'abord », « Aucune cellule �
 Placeholders revus : « Rakoto », « Randria », « Lot IVJ 88 - Ankadifotsy ».
 
 407 tests unitaires. `pnpm verify` vert.
+
+**La grille du lot ne défile plus : elle se partage la largeur.** Des largeurs
+*minimales* par colonne additionnaient 1 430 px et débordaient de toute fenêtre
+ordinaire — choisir une église au nom un peu long faisait surgir une barre
+horizontale, et le bouton d'enregistrement sortait de l'écran. `table-fixed`
+avec des **pourcentages** fait l'inverse : la somme vaut toujours 100 %, et la
+grille tient quelle que soit la fenêtre.
+
+Deux causes, pas une. La seconde : un enfant de grille CSS vaut
+`min-width: auto` et refuse donc de rétrécir sous la largeur de son contenu — le
+tableau poussait la fenêtre entière au lieu de se contraindre. `min-w-0` sur le
+formulaire le règle, et `overflow-x-hidden` sur la fenêtre garantit qu'une barre
+ne puisse plus réapparaître sans qu'on s'en aperçoive.
+
+Reste la place du nom lui-même : dans une colonne de deux cents pixels, la
+pastille de type et le code prenaient les deux tiers du déclencheur. Le
+sélecteur d'entité accepte désormais `compact` — le **nom seul** dans le champ,
+tout le reste dans le panneau, où type, code et chemin complet demeurent.

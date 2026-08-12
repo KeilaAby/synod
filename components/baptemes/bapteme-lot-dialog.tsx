@@ -222,7 +222,12 @@ export function BaptemeLotDialog({
       </PermissionGate>
 
       <Dialog open={ouvert} onOpenChange={(v) => (v ? setOuvert(true) : fermer())}>
-        <DialogContent className="max-h-[92vh] w-[min(98vw,90rem)] overflow-y-auto sm:max-w-none">
+        {/*
+          `overflow-x-hidden` est délibéré : la grille se contraint désormais
+          d'elle-même, et une barre horizontale ici ne signalerait plus qu'une
+          largeur mal calculée. Mieux vaut qu'elle ne puisse pas apparaître.
+        */}
+        <DialogContent className="max-h-[92vh] w-[min(98vw,96rem)] overflow-x-hidden overflow-y-auto sm:max-w-none">
           <DialogHeader>
             <DialogTitle className="text-2xl">
               {etape === 'saisie' ? 'Saisir un lot de baptisés' : 'Rapport de saisie'}
@@ -239,7 +244,18 @@ export function BaptemeLotDialog({
           )}
 
           {etape === 'saisie' && ouvert && (
-            <form onSubmit={handleSubmit(envoyer)} className="space-y-8 py-2" noValidate>
+            /*
+              `min-w-0` : un enfant de grille vaut `min-width: auto`, donc il
+              REFUSE de rétrécir sous la largeur de son contenu. Sans cela, la
+              grille de saisie poussait la fenêtre entière au-delà de l'écran
+              au lieu de se contraindre — c'était la seconde moitié de la barre
+              de défilement.
+            */
+            <form
+              onSubmit={handleSubmit(envoyer)}
+              className="min-w-0 space-y-8 py-2"
+              noValidate
+            >
               {erreur && (
                 <Alert variant="destructive" role="alert">
                   <AlertCircle className="size-4" aria-hidden />
@@ -377,22 +393,48 @@ export function BaptemeLotDialog({
                   </Alert>
                 )}
 
-                {/* La grille déborde en largeur : elle défile SEULE, la page
-                    ne bouge pas. */}
-                <div className="border-border overflow-x-auto rounded-lg border">
-                  <Table>
+                {/*
+                  LA GRILLE NE DÉFILE PAS, ELLE SE PARTAGE LA LARGEUR.
+
+                  Des largeurs MINIMALES par colonne additionnaient 1 430 px et
+                  débordaient de toute fenêtre ordinaire : choisir une église au
+                  nom un peu long faisait surgir une barre de défilement
+                  horizontale, et le bouton d'enregistrement sortait de l'écran.
+
+                  `table-fixed` avec des largeurs en POURCENTAGE fait l'inverse :
+                  la somme vaut toujours 100 %, chaque contrôle se replie dans sa
+                  colonne, et la grille tient quelle que soit la fenêtre. Ce qui
+                  est trop long est tronqué À L'ÉCRAN — où l'on peut survoler,
+                  ouvrir, chercher — jamais à l'impression (règle 31).
+                */}
+                <div className="border-border min-w-0 rounded-lg border [&_[role=combobox]]:h-9">
+                  <Table className="table-fixed">
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-10">#</TableHead>
-                        {!implicite && <TableHead className="min-w-64">Église *</TableHead>}
-                        <TableHead className="min-w-40">Nom *</TableHead>
-                        <TableHead className="min-w-40">Prénom *</TableHead>
-                        <TableHead className="min-w-28">Sexe *</TableHead>
-                        <TableHead className="min-w-40">Naissance *</TableHead>
-                        <TableHead className="min-w-48">Adresse *</TableHead>
-                        <TableHead className="min-w-36">Téléphone</TableHead>
-                        <TableHead className="min-w-40">Cellule</TableHead>
-                        <TableHead className="w-12" />
+                        <TableHead className="w-[3%]">#</TableHead>
+                        {!implicite && <TableHead className="w-[17%]">Église *</TableHead>}
+                        <TableHead className={implicite ? 'w-[14%]' : 'w-[11%]'}>
+                          Nom *
+                        </TableHead>
+                        <TableHead className={implicite ? 'w-[14%]' : 'w-[11%]'}>
+                          Prénom *
+                        </TableHead>
+                        <TableHead className={implicite ? 'w-[9%]' : 'w-[8%]'}>
+                          Sexe *
+                        </TableHead>
+                        <TableHead className={implicite ? 'w-[14%]' : 'w-[12%]'}>
+                          Naissance *
+                        </TableHead>
+                        <TableHead className={implicite ? 'w-[18%]' : 'w-[15%]'}>
+                          Adresse *
+                        </TableHead>
+                        <TableHead className={implicite ? 'w-[12%]' : 'w-[10%]'}>
+                          Téléphone
+                        </TableHead>
+                        <TableHead className={implicite ? 'w-[13%]' : 'w-[10%]'}>
+                          Cellule
+                        </TableHead>
+                        <TableHead className="w-[3%]" />
                       </TableRow>
                     </TableHeader>
 
@@ -524,6 +566,7 @@ function LigneBaptise({
             name={`lignes.${index}.egliseId`}
             render={({ field }) => (
               <EntityPicker
+                compact
                 options={eglises}
                 value={(field.value as string | null) ?? null}
                 onChange={field.onChange}

@@ -52,6 +52,7 @@ export function EntityPicker({
   placeholder = 'Selectionner une entite…',
   emptyMessage = 'Aucune entite disponible.',
   disabled,
+  compact = false,
   id,
   'aria-invalid': ariaInvalid,
   'aria-describedby': ariaDescribedBy,
@@ -63,6 +64,16 @@ export function EntityPicker({
   placeholder?: string;
   emptyMessage?: string;
   disabled?: boolean;
+  /**
+   * Declencheur allege : ni pastille de type, ni code — le NOM seul.
+   *
+   * Pour une COLONNE de grille, ou le champ fait deux cents pixels. La pastille
+   * et le code y prenaient les deux tiers de la place, et il ne restait au nom
+   * de l'eglise — la seule chose qu'on vient lire — qu'une trentaine de pixels.
+   * Le panneau, lui, montre toujours tout : type en tete de groupe, code et
+   * chemin complet sur chaque ligne.
+   */
+  compact?: boolean;
   id?: string;
   'aria-invalid'?: boolean;
   'aria-describedby'?: string;
@@ -108,11 +119,13 @@ export function EntityPicker({
           <span className="flex min-w-0 items-center gap-2">
             {selectionnee ? (
               <>
-                <TypeBadge type={selectionnee.type} />
+                {!compact && <TypeBadge type={selectionnee.type} />}
                 <span className="truncate">{selectionnee.nom}</span>
-                <span className="font-mono text-xs text-muted-foreground">
-                  {selectionnee.code}
-                </span>
+                {!compact && (
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {selectionnee.code}
+                  </span>
+                )}
               </>
             ) : (
               <span className="truncate">
