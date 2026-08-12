@@ -1729,3 +1729,34 @@ de l'organigramme couvre le besoin.
 ### Qualité
 
 426 tests unitaires (+19). `pnpm verify` vert.
+
+### Reprises — le même jour
+
+**Le workflow ne s'hérite plus.** Il ne se lit que sur l'entité elle-même, puis
+sur le défaut de l'organisation. La raison est structurelle et vaut d'être
+écrite : chaque entité a **son** bureau, et chaque bureau gère **ses** finances.
+Un district ne tient pas la caisse de ses églises — il la **consulte**. Lui
+laisser imposer le mode de validation de leurs écritures lui donnerait sur elles
+une autorité que la structure ne lui reconnaît pas. `0023` est corrigé sur
+place ; la migration est rejouable, la relancer est sans effet de bord.
+
+**La devise est l'ariary** (`0024`). `XOF` venait du gabarit. Une devise fausse
+ne se voit pas comme une erreur — elle se lit comme un montant, et
+« 150 000 F CFA » à la place de « 150 000 Ar » passe inaperçu jusqu'à la
+première consolidation. La migration ne réécrit que la ligne portant encore
+`XOF` : si quelqu'un a choisi autre chose, ce n'est pas à une migration de le
+défaire.
+
+**Le pop-up de saisie passe à 60 rem, en deux colonnes** — le rattachement à
+gauche, l'opération à droite. Empilés, les six champs imposaient de faire
+défiler au milieu de la saisie.
+
+**Les dîmes sont spécifiées, pas encore construites** : `cdg.md` EF-FIN-27 et
+EF-FIN-28, conception dans `plan.md` §4.bis. Enveloppe numérotée propre au
+croyant, reçu remis par le bureau, deux modes — détaillé ou global — réglés
+**église par église**. Trois points y sont notés d'avance : le mouvement
+financier reste la pièce comptable et les versements n'en sont que la
+composition ; le numéro de reçu est attribué **par la base** (règle 14), deux
+membres du bureau encaissant en même temps au fond de la même salle ; et le
+numéro d'enveloppe est **recopié** sur le versement, parce qu'un reçu remis il y
+a deux ans porte l'ancien numéro.

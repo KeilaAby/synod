@@ -59,16 +59,17 @@ son URL signée périmerait.
 `Brouillon → Soumis → Validé` avec rejet et annulation **motivés**, soldes
 propre et consolidé calculés **en base** (`fn_finance_solde`), écran
 `/finances`, saisie déléguée. Le workflow s'active **par entité** et non
-globalement — écart à EF-FIN-15, amendé et daté dans `cdg.md` : la colonne
-`entities.finance_validation_active` est **nullable**, `null` signifiant
-« hérite de l'ancêtre le plus proche, puis du paramètre global ». Restent
+globalement — écart à EF-FIN-15, amendé et daté dans `cdg.md`. **Aucun
+héritage depuis le parent** : chaque entité a son bureau et chaque bureau gère
+ses finances ; la hiérarchie ne fait que les consulter. `null` signifie donc
+« défaut de l'organisation », jamais « comme mon parent ». Restent
 EF-FIN-07 (pièce jointe), EF-FIN-08 (saisie en série), EF-FIN-11 (vue
 consolidée du Siège), l'écran de réglage du workflow et le droit de double rôle.
 
 **EF-BUR-11 clos** : l'export Excel de la composition est abandonné le 12 août
 2026, le PDF de l'organigramme couvre le besoin.
 
-Base à jour jusqu'à la migration `0023`. Le stockage de fichiers ne se
+Base à jour jusqu'à la migration `0024` (devise **MGA**, ariary). Le stockage de fichiers ne se
 configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` et
 `postgres` s'y voit refuser `CREATE POLICY` : `pnpm db:bucket` s'en charge par
 l'API.

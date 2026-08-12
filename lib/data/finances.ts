@@ -212,13 +212,16 @@ export const listerCategoriesFinance = cache(async (): Promise<CategorieFinance[
 /**
  * EF-FIN-15 (adapte) — le workflow, entite par entite.
  *
- * On rend la valeur DECIDEE (`null` = herite) ET la valeur EFFECTIVE, parce
- * que l'ecran doit montrer les deux : « hérité (actif) » n'est pas la meme
- * information que « actif ».
+ * On rend la valeur DECIDEE (`null` = defaut de l'organisation) ET la valeur
+ * EFFECTIVE, parce que l'ecran doit montrer les deux : « par defaut (actif) »
+ * n'est pas la meme information que « actif ici ».
+ *
+ * Aucun heritage depuis le parent : chaque bureau gere ses finances, la
+ * hierarchie ne fait que les consulter (decide le 12 aout 2026).
  */
 export interface ReglageWorkflow {
   entiteId: string;
-  /** `null` : rien n'est decide ici, on suit l'ancetre. */
+  /** `null` : rien n'est decide ici, on prend le defaut de l'organisation. */
   decide: boolean | null;
   effectif: boolean;
 }

@@ -321,6 +321,8 @@ Les habilitations sont **unitaires**, regroupées par catégorie, et chacune peu
 | **EF-FIN-24** | Produire une **synthèse périodique** (mensuelle, trimestrielle, annuelle) : recettes et dépenses par catégorie, évolution du solde, comparatif entre entités sœurs. | **Must** |
 | **EF-FIN-25** | Exporter mouvements et synthèses (Excel/CSV/PDF). | **Should** |
 | **EF-FIN-26** | Verrouiller une période clôturée : aucune saisie ni modification rétroactive sans réouverture par le SuperAdmin. | **Could** |
+| **EF-FIN-27** | **Dîmes — saisie détaillée par croyant.** Chaque croyant dispose d'une **enveloppe numérotée** qui lui est propre ; le membre du bureau qui reçoit la dîme lui remet un **reçu numéroté**. L'ensemble produit le solde global des dîmes de l'église. *(Ajouté le 12 août 2026 — conception dans `plan.md` §4.bis.)* | **Must** |
+| **EF-FIN-28** | Le formulaire des dîmes admet **deux modes** — *détaillé* (numéro d'enveloppe et montant par croyant, reçu émis) et *global* (un seul montant pour la collecte) —, administrés par le SuperAdmin et **réglés église par église**, sans héritage depuis la hiérarchie. | **Must** |
 
 ### 5.7 Module **Nouveaux baptisés**
 

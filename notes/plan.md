@@ -2536,14 +2536,85 @@ describe('RG-26 / RG-27 — rapports', () => {
 
 ### Lot 4 — Finances *(3 semaines)*
 
-- [ ] `finance_entries` avec **sens**, **saisie déléguée** et **workflow de statuts** ; triggers ; RLS.
-- [ ] `organisation_settings` + écran de paramètres (activation du workflow, séparation saisie/validation).
-- [ ] `MouvementForm`, saisie en série, pièces jointes via l'adaptateur de stockage.
-- [ ] **File de validation** avec traitement par lot ; rejet motivé ; annulation motivée.
-- [ ] **Écran de saisie déléguée** réservé à `finance.delegate`.
+- [x] `finance_entries` avec **sens**, **saisie déléguée** et **workflow de statuts** ; triggers ; RLS. *(12 août 2026)*
+- [x] Activation du workflow **par entité**, sans héritage — `entities.finance_validation_active`. *(12 août 2026)*
+- [x] `MouvementForm` en pop-up partagé création/modification ; registre filtré en mémoire ; triptyque propre/consolidé.
+- [x] Rejet motivé ; annulation motivée ; reprise d'une saisie rejetée.
+- [ ] Saisie en série (EF-FIN-08), pièces jointes via l'adaptateur de stockage (EF-FIN-07).
+- [ ] **File de validation** avec traitement par lot.
+- [ ] **Écran de saisie déléguée** réservé à `finance.delegate` ; écran de réglage du workflow.
+- [ ] **Dîmes** — voir §4.bis ci-dessous.
 - [ ] `mv_finance_kpis`, `mv_finance_par_categorie`, `SoldeCard`, synthèse (courbes, barres, comparatifs).
-- [ ] Exports Excel et PDF.
+- [ ] Vue consolidée du Siège, entité par entité (EF-FIN-11) ; export PDF.
 - [ ] Tests : RG-13 à RG-18.
+
+#### 4.bis — Les dîmes, un cas particulier *(spécifié le 12 août 2026, à construire)*
+
+**Le besoin.** Chaque croyant dispose d'une **enveloppe numérotée** qui lui est
+propre : il y met sa dîme et la verse pendant le culte ou lors d'un
+rassemblement. Le membre du bureau de l'église qui la reçoit lui remet un
+**reçu**. L'ensemble doit produire le **solde global des dîmes de l'église**.
+
+**Deux modes, et le choix appartient à l'église.** Certaines veulent la trace
+individuelle, d'autres n'ont ni le temps ni le personnel pour la tenir :
+
+| Mode | Ce qui est saisi | Ce qu'on y gagne, ce qu'on y perd |
+|---|---|---|
+| **Détaillé** | Une ligne par croyant : numéro d'enveloppe, montant, reçu émis | La traçabilité et le reçu. Coûte une ligne par versement. |
+| **Global** | Un seul montant pour la collecte | Rapide. Aucune trace individuelle, donc aucun reçu. |
+
+Le réglage est **administré par le SuperAdmin** et **individualisé église par
+église** — comme le workflow de validation, et pour la même raison : chaque
+bureau gère ses finances, la hiérarchie les consulte.
+
+**Modèle de données envisagé** *(à valider avant écriture)* :
+
+```sql
+-- Le mode, sur l'entite. Pas d'heritage, comme finance_validation_active.
+alter table entities add column dime_mode text;   -- 'DETAILLE' | 'GLOBAL' | null
+
+-- L'enveloppe APPARTIENT au croyant, dans une eglise donnee. Elle survit aux
+-- collectes : c'est son identite de donateur, pas un numero de transaction.
+create table dime_enveloppes (
+  id uuid primary key default gen_random_uuid(),
+  eglise_id uuid not null references entities(id) on delete restrict,
+  croyant_id uuid not null references croyants(id) on delete restrict,
+  numero text not null,
+  is_active boolean not null default true,
+  unique (eglise_id, numero)          -- deux croyants ne partagent pas un numero
+);
+
+-- Le DETAIL d'une collecte. Le mouvement financier reste la piece comptable ;
+-- ces lignes en expliquent la composition et portent les recus.
+create table dime_versements (
+  id uuid primary key default gen_random_uuid(),
+  finance_entry_id uuid not null references finance_entries(id) on delete cascade,
+  croyant_id uuid not null references croyants(id) on delete restrict,
+  enveloppe_numero text,              -- copie figee : le numero peut changer ensuite
+  montant numeric(14,2) not null check (montant > 0),
+  recu_numero text not null,          -- attribue PAR LA BASE (regle 14)
+  created_at timestamptz not null default now()
+);
+```
+
+**Trois points de conception à ne pas manquer :**
+
+1. **Le mouvement financier reste la pièce comptable.** Les versements
+   individuels en détaillent la composition ; ils ne s'additionnent pas *à côté*
+   du solde. Un trigger doit garantir que `sum(dime_versements.montant)` égale
+   `finance_entries.montant`, sinon les deux vérités divergeront et personne ne
+   saura laquelle croire.
+2. **Le numéro de reçu est attribué par la base**, jamais par le client
+   (règle 14) : elle seule garantit l'unicité face à deux membres du bureau qui
+   encaissent en même temps, au fond de la même salle. Séquence par église et
+   par année, comme le matricule.
+3. **`enveloppe_numero` est recopié**, pas seulement référencé. Un croyant peut
+   changer d'enveloppe ; le reçu remis il y a deux ans porte l'ancien numéro, et
+   c'est celui-là qui doit ressortir d'une recherche.
+
+**Ce qui reste à décider** : le reçu s'imprime-t-il (feuille A4, comme
+l'organigramme) ou suffit-il de le numéroter à l'écran ? Le mode se change-t-il
+en cours d'exercice, et que deviennent alors les collectes déjà saisies ?
 
 ### Lot 5 — Tableaux de bord *(3 semaines)*
 

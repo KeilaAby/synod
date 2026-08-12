@@ -19,42 +19,44 @@
 
 
 -- -----------------------------------------------------------------------------
--- Le workflow s'active PAR ENTITE — ecart a EF-FIN-15.
+-- Le workflow s'active PAR ENTITE, ET SANS AUCUN HERITAGE — ecart a EF-FIN-15.
 --
 -- L'exigence le voulait global. Une eglise qui compte trois personnes n'a
 -- personne pour valider ce qu'une autre a saisi, quand un district structure
--- l'exige : un reglage unique force donc l'organisation entiere a s'aligner sur
--- son maillon le moins outille. La colonne est NULLABLE et c'est le point
--- important :
+-- l'exige : un reglage unique force l'organisation entiere a s'aligner sur son
+-- maillon le moins outille.
 --
---   null  -> « je n'ai pas decide » : on herite de l'ancetre le plus proche qui
---            a decide, et a defaut du parametre global.
---   true  -> decide ici, et pour toute la descendance qui n'a rien decide.
+-- PAS D'HERITAGE DEPUIS LE PARENT, et c'est une decision de fond (12 aout
+-- 2026) : chaque entite a SON bureau, et chaque bureau gere SES finances. Un
+-- district n'administre pas la caisse de ses eglises — il la CONSULTE. Lui
+-- laisser imposer le mode de validation de leurs ecritures reviendrait a lui
+-- donner sur elles une autorite que la structure ne lui reconnait pas.
+--
+--   null  -> « je n'ai pas decide » : on prend le defaut de l'ORGANISATION,
+--            qui n'est pas un parent mais un reglage d'ensemble.
+--   true  -> decide ici, et ici seulement.
 --   false -> idem.
---
--- Sans l'heritage, activer le workflow sur un district demanderait de le poser
--- une a une sur ses vingt eglises — et la vingt-et-unieme, creee le mois
--- suivant, serait passee au travers en silence.
 -- -----------------------------------------------------------------------------
 alter table entities
   add column if not exists finance_validation_active boolean;
 
 comment on column entities.finance_validation_active is
-  'EF-FIN-15 (adapte) : workflow de validation financiere. null = herite de '
-  'l''ancetre le plus proche, puis du parametre global.';
+  'EF-FIN-15 (adapte) : workflow de validation financiere, propre a l''entite. '
+  'null = defaut de l''organisation. Aucun heritage depuis le parent : chaque '
+  'bureau gere ses finances, la hierarchie ne fait que les consulter.';
 
 
 /**
  * Le workflow est-il actif POUR CETTE ENTITE ?
  *
- * On remonte le chemin materialise jusqu'au premier ancetre qui a decide. Le
- * `@>` de ltree lit « est un ancetre de, ou egal a » : l'entite elle-meme
- * participe donc a la recherche, et `nlevel` la place en tete.
+ * Sa propre colonne, et rien d'autre — puis le defaut de l'organisation. Le
+ * chemin ltree n'intervient PAS : remonter aux ancetres ferait decider un
+ * district pour ses eglises.
  *
  * SECURITY DEFINER : la fonction est appelee par un TRIGGER, qui s'execute avec
- * les droits de l'appelant. Sans cela, un compte qui ne voit pas l'ancetre
- * decideur lirait `null` la ou la reponse est `true` — et son mouvement serait
- * valide d'emblee (regle 13).
+ * les droits de l'appelant. Sans cela, un compte qui ne lit pas
+ * `organisation_settings` verrait `null` la ou la reponse est `true` — et son
+ * mouvement serait valide d'emblee (regle 13).
  */
 create or replace function fn_finance_workflow_actif(p_entity uuid)
 returns boolean
@@ -64,15 +66,7 @@ security definer
 set search_path = public
 as $$
   select coalesce(
-    (
-      select a.finance_validation_active
-      from entities e
-      join entities a on a.path @> e.path
-      where e.id = p_entity
-        and a.finance_validation_active is not null
-      order by nlevel(a.path) desc
-      limit 1
-    ),
+    (select e.finance_validation_active from entities e where e.id = p_entity),
     (select s.finance_validation_active from organisation_settings s where s.id = 1),
     false   -- a defaut de savoir, on ne bloque pas la saisie d'une organisation neuve
   );

@@ -164,7 +164,13 @@ export function MouvementDialog({
       )}
 
       <Dialog open={ouvert} onOpenChange={(v) => (v ? setOuvert(true) : fermer())}>
-        <DialogContent className="max-h-[92vh] w-[min(96vw,44rem)] overflow-y-auto">
+        {/*
+          Deux colonnes plutôt qu'une longue bande : les six champs tenaient
+          empilés, mais imposaient de faire défiler au milieu de la saisie, et
+          l'on perdait de vue ce qu'on venait de remplir. Sous 768 px elles se
+          replient l'une sous l'autre.
+        */}
+        <DialogContent className="max-h-[92vh] w-[min(96vw,60rem)] overflow-y-auto sm:max-w-none">
           <DialogHeader>
             <DialogTitle className="text-2xl">
               {enModification ? 'Modifier le mouvement' : 'Nouveau mouvement'}
@@ -183,154 +189,171 @@ export function MouvementDialog({
                 </Alert>
               )}
 
-              <Field label="Entité" required error={errors.entiteId?.message}>
-                {(aria) => (
-                  <Controller
-                    control={control}
-                    name="entiteId"
-                    render={({ field }) => (
-                      <EntityPicker
-                        {...aria}
-                        options={entites}
-                        value={field.value ?? null}
-                        onChange={field.onChange}
-                        placeholder="Choisir une entité"
-                        emptyMessage="Aucune entité dans votre périmètre."
+              {/* Ce qui RATTACHE l'écriture à gauche, ce qui la CHIFFRE à
+                  droite : deux questions distinctes, deux colonnes. */}
+              <div className="grid gap-6 md:grid-cols-2 md:gap-10">
+                <section className="space-y-6">
+                  <p className="eyebrow">Rattachement</p>
+
+                  <Field label="Entité" required error={errors.entiteId?.message}>
+                    {(aria) => (
+                      <Controller
+                        control={control}
+                        name="entiteId"
+                        render={({ field }) => (
+                          <EntityPicker
+                            {...aria}
+                            options={entites}
+                            value={field.value ?? null}
+                            onChange={field.onChange}
+                            placeholder="Choisir une entité"
+                            emptyMessage="Aucune entité dans votre périmètre."
+                          />
+                        )}
                       />
                     )}
-                  />
-                )}
-              </Field>
+                  </Field>
 
-              <Field
-                label="Catégorie"
-                required
-                error={errors.categorieId?.message}
-                hint={
-                  sens
-                    ? undefined
-                    : 'Elle détermine s’il s’agit d’une recette ou d’une dépense.'
-                }
-              >
-                {(aria) => (
-                  <Controller
-                    control={control}
-                    name="categorieId"
-                    render={({ field }) => (
-                      <Select value={field.value ?? ''} onValueChange={field.onChange}>
-                        <SelectTrigger {...aria} className="h-10 w-full">
-                          <SelectValue placeholder="Choisir" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {groupes.map((groupe) =>
-                            groupe.items.length === 0 ? null : (
-                              <div key={groupe.sens}>
-                                <p className="text-muted-foreground px-2 py-1.5 text-xs font-medium">
-                                  {LIBELLES_SENS[groupe.sens]}s
-                                </p>
-                                {groupe.items.map((c) => (
-                                  <SelectItem key={c.id} value={c.id}>
-                                    {c.libelle}
-                                  </SelectItem>
-                                ))}
-                              </div>
-                            ),
-                          )}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                )}
-              </Field>
-
-              {sens && (
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground text-sm">
-                    Cette catégorie enregistre une
-                  </span>
-                  <StatusBadge tone={sens === 'RECETTE' ? 'success' : 'danger'}>
-                    {LIBELLES_SENS[sens].toLocaleLowerCase('fr')}
-                  </StatusBadge>
-                </div>
-              )}
-
-              <div className="grid gap-6 sm:grid-cols-2">
-                <Field
-                  label={`Montant (${devise})`}
-                  required
-                  error={errors.montant?.message}
-                  hint="La virgule décimale est acceptée."
-                >
-                  {(aria) => (
-                    <Input
-                      {...aria}
-                      inputMode="decimal"
-                      placeholder="150000"
-                      className="h-10 font-mono tabular-nums"
-                      {...register('montant')}
-                    />
-                  )}
-                </Field>
-
-                <Field
-                  label="Date de l’opération"
-                  required
-                  error={errors.dateOperation?.message}
-                >
-                  {(aria) => (
-                    <Input
-                      {...aria}
-                      type="date"
-                      className="h-10 font-mono tabular-nums"
-                      {...register('dateOperation')}
-                    />
-                  )}
-                </Field>
-              </div>
-
-              <TextField
-                label="Libellé"
-                placeholder="Collecte du dimanche"
-                hint="Facultatif, mais c’est ce qui rendra la ligne relisible dans six mois."
-                error={errors.libelle?.message}
-                {...register('libelle')}
-              />
-
-              <TextField
-                label="Référence"
-                placeholder="REC-2026-0148"
-                hint="Facultatif — numéro de reçu, de pièce ou de bordereau."
-                error={errors.reference?.message}
-                {...register('reference')}
-              />
-
-              {/* EF-FIN-05/06 — la saisie déléguée se DÉCLARE et se voit ensuite
-                  dans toutes les listes. Sans le droit, la case n'existe pas. */}
-              {peutDeleguer && !enModification && (
-                <Controller
-                  control={control}
-                  name="estDelegue"
-                  render={({ field }) => (
-                    <label className="border-border flex items-start gap-3 rounded-lg border p-4">
-                      <Checkbox
-                        checked={Boolean(field.value)}
-                        onCheckedChange={field.onChange}
-                        className="mt-0.5"
+                  <Field
+                    label="Catégorie"
+                    required
+                    error={errors.categorieId?.message}
+                    hint={
+                      sens
+                        ? undefined
+                        : 'Elle détermine s’il s’agit d’une recette ou d’une dépense.'
+                    }
+                  >
+                    {(aria) => (
+                      <Controller
+                        control={control}
+                        name="categorieId"
+                        render={({ field }) => (
+                          <Select
+                            value={field.value ?? ''}
+                            onValueChange={field.onChange}
+                          >
+                            <SelectTrigger {...aria} className="h-10 w-full">
+                              <SelectValue placeholder="Choisir" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {groupes.map((groupe) =>
+                                groupe.items.length === 0 ? null : (
+                                  <div key={groupe.sens}>
+                                    <p className="text-muted-foreground px-2 py-1.5 text-xs font-medium">
+                                      {LIBELLES_SENS[groupe.sens]}s
+                                    </p>
+                                    {groupe.items.map((c) => (
+                                      <SelectItem key={c.id} value={c.id}>
+                                        {c.libelle}
+                                      </SelectItem>
+                                    ))}
+                                  </div>
+                                ),
+                              )}
+                            </SelectContent>
+                          </Select>
+                        )}
                       />
-                      <span className="space-y-1">
-                        <span className="block text-sm font-medium">
-                          Saisie pour le compte de cette entité
-                        </span>
-                        <span className="text-muted-foreground block text-xs">
-                          À cocher lorsque l’entité n’a pas accès à l’application. Le
-                          mouvement lui est rattaché et porte la mention « déléguée »
-                          avec votre nom.
-                        </span>
+                    )}
+                  </Field>
+
+                  {sens && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground text-sm">
+                        Cette catégorie enregistre une
                       </span>
-                    </label>
+                      <StatusBadge tone={sens === 'RECETTE' ? 'success' : 'danger'}>
+                        {LIBELLES_SENS[sens].toLocaleLowerCase('fr')}
+                      </StatusBadge>
+                    </div>
                   )}
-                />
-              )}
+
+                  {/* EF-FIN-05/06 — la saisie déléguée se DÉCLARE et se voit
+                      ensuite dans toutes les listes. Sans le droit, la case
+                      n'existe pas. */}
+                  {peutDeleguer && !enModification && (
+                    <Controller
+                      control={control}
+                      name="estDelegue"
+                      render={({ field }) => (
+                        <label className="border-border flex items-start gap-3 rounded-lg border p-4">
+                          <Checkbox
+                            checked={Boolean(field.value)}
+                            onCheckedChange={field.onChange}
+                            className="mt-0.5"
+                          />
+                          <span className="space-y-1">
+                            <span className="block text-sm font-medium">
+                              Saisie pour le compte de cette entité
+                            </span>
+                            <span className="text-muted-foreground block text-xs">
+                              À cocher lorsque l’entité n’a pas accès à l’application.
+                              Le mouvement lui est rattaché et porte la mention
+                              « déléguée » avec votre nom.
+                            </span>
+                          </span>
+                        </label>
+                      )}
+                    />
+                  )}
+                </section>
+
+                {/* --- L'opération elle-même --- */}
+                <section className="lg:border-border space-y-6 md:border-l md:pl-10">
+                  <p className="eyebrow">L’opération</p>
+
+                  <div className="grid gap-6 sm:grid-cols-2">
+                    <Field
+                      label={`Montant (${devise})`}
+                      required
+                      error={errors.montant?.message}
+                      hint="La virgule décimale est acceptée."
+                    >
+                      {(aria) => (
+                        <Input
+                          {...aria}
+                          inputMode="decimal"
+                          placeholder="150000"
+                          className="h-10 font-mono tabular-nums"
+                          {...register('montant')}
+                        />
+                      )}
+                    </Field>
+
+                    <Field
+                      label="Date de l’opération"
+                      required
+                      error={errors.dateOperation?.message}
+                    >
+                      {(aria) => (
+                        <Input
+                          {...aria}
+                          type="date"
+                          className="h-10 font-mono tabular-nums"
+                          {...register('dateOperation')}
+                        />
+                      )}
+                    </Field>
+                  </div>
+
+                  <TextField
+                    label="Libellé"
+                    placeholder="Collecte du dimanche"
+                    hint="Facultatif, mais c’est ce qui rendra la ligne relisible dans six mois."
+                    error={errors.libelle?.message}
+                    {...register('libelle')}
+                  />
+
+                  <TextField
+                    label="Référence"
+                    placeholder="REC-2026-0148"
+                    hint="Facultatif — numéro de reçu, de pièce ou de bordereau."
+                    error={errors.reference?.message}
+                    {...register('reference')}
+                  />
+                </section>
+              </div>
 
               <DialogFooter>
                 <Button

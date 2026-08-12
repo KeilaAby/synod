@@ -118,9 +118,10 @@ export const supprimerMouvementSchema = z.object({ id: z.uuid() });
 /**
  * Reglage du workflow POUR UNE ENTITE — EF-FIN-15 (adapte le 12 aout 2026).
  *
- * `null` n'est pas l'absence de reponse, c'est une reponse : « comme mon
- * parent ». Le distinguer de `false` est ce qui permet d'activer le workflow
- * sur un district sans repasser sur chacune de ses eglises.
+ * `null` n'est pas l'absence de reponse, c'est une reponse : « comme le defaut
+ * de l'organisation ». Il ne signifie PAS « comme mon parent » — chaque entite
+ * a son bureau, et chaque bureau gere ses finances ; la hierarchie les
+ * consulte, elle ne les administre pas (decide le 12 aout 2026).
  */
 export const reglerWorkflowSchema = z.object({
   entiteId: z.uuid(),

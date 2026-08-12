@@ -25,7 +25,7 @@ describe('Formatage des nombres et des montants', () => {
     expect(formatNombre(Number.NaN)).toBe('—');
   });
 
-  it('n affiche pas de centimes pour un montant entier en XOF', () => {
+  it('n affiche pas de centimes pour un montant entier en ariary', () => {
     const rendu = formatMontant(3550000);
     expect(rendu).not.toContain(',00');
     expect(rendu.replace(/\s/g, ' ')).toContain('3 550 000');

@@ -10,7 +10,14 @@
 
 const LOCALE = 'fr-FR';
 
-export const DEVISE_PAR_DEFAUT = 'XOF';
+/**
+ * ARB-7 — devise unique. L'eglise est malgache : l'ariary (MGA).
+ *
+ * Ce n'est qu'un REPLI : la devise reelle vient de `organisation_settings` et
+ * se lit a chaque rendu (regle 21). Elle ne sert que quand un appelant n'a pas
+ * de parametres sous la main.
+ */
+export const DEVISE_PAR_DEFAUT = 'MGA';
 
 /** Entier avec separateurs de milliers : « 12 480 ». */
 export function formatNombre(valeur: number | null | undefined): string {
@@ -19,8 +26,8 @@ export function formatNombre(valeur: number | null | undefined): string {
 }
 
 /**
- * Montant en devise : « 3 550 000 F CFA ».
- * Les centimes ne sont affiches que s'ils existent — le XOF n'en a pas.
+ * Montant en devise : « 3 550 000 Ar ».
+ * Les centimes ne sont affiches que s'ils existent — l'ariary n'en a pas.
  */
 export function formatMontant(
   valeur: number | null | undefined,
