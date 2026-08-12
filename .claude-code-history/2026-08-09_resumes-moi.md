@@ -302,8 +302,9 @@ dans la même séquence ne s'affichait donc **jamais**.
 
 ## La liste d'attente
 
-- **EF-BUR-11** — export **Excel** de la composition d'un bureau. L'impression
-  de l'organigramme est livrée ; l'export tabulaire reste à faire.
+- ~~**EF-BUR-11**~~ — **abandonné le 12 août 2026.** Le PDF de l'organigramme
+  couvre le besoin ; une seconde sortie du même contenu se serait
+  désynchronisée de la première.
 - ~~**EF-BAP-07**~~ — livré le 12 août 2026.
 
 ---

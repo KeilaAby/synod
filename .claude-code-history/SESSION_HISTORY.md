@@ -1651,3 +1651,81 @@ Reste la place du nom lui-même : dans une colonne de deux cents pixels, la
 pastille de type et le code prenaient les deux tiers du déclencheur. Le
 sélecteur d'entité accepte désormais `compact` — le **nom seul** dans le champ,
 tout le reste dans le panneau, où type, code et chemin complet demeurent.
+
+---
+
+## 12 août 2026 — Lot 4, Finances : le socle
+
+`0023_finances.sql` **à appliquer**. Aucune donnée existante n'est touchée.
+
+### Trois décisions, et un écart assumé
+
+Le workflow de validation est **inactif au démarrage** ; la **séparation
+saisie/validation** s'applique dès qu'il est actif ; les **catégories sont
+uniformes** pour toute l'organisation — elles l'étaient déjà, `finance_categories`
+n'a jamais eu d'`entity_id`.
+
+L'écart porte sur **EF-FIN-15**, qui voulait le workflow *global*. Il s'active
+désormais **par entité**. Une église de trois personnes n'a personne pour valider
+ce qu'une autre a saisi, quand un district structuré l'exige : un réglage unique
+alignait l'organisation entière sur son maillon le moins outillé. `cdg.md` est
+amendé et daté.
+
+La colonne `entities.finance_validation_active` est **nullable**, et c'est le
+point important : `null` veut dire « je n'ai pas décidé », donc on hérite de
+l'ancêtre le plus proche qui a décidé, puis du paramètre global. Sans cet
+héritage, activer le workflow sur un district demanderait de le poser une à une
+sur ses vingt églises — et la vingt-et-unième, créée le mois suivant, serait
+passée au travers en silence. `fn_finance_workflow_actif` est `SECURITY DEFINER`
+parce qu'un trigger s'exécute avec les droits de l'appelant : un compte qui ne
+voit pas l'ancêtre décideur aurait lu `null` là où la réponse est `true`, et son
+mouvement aurait été validé d'emblée (règle 13).
+
+### Ce que la base fait, et que le code ne refait pas
+
+Le **sens** vient de la catégorie (RG-13), la **période** est le 1er du mois, le
+**statut d'entrée** dépend du workflow de l'entité (RG-16), et un mouvement
+**validé est immuable** (RG-17) : tout cela est dans `fn_finance_before_write`.
+Le rôle des Server Actions n'est pas de le refaire, c'est de l'**expliquer** —
+une exception SQL parle à qui lit les journaux, pas à qui a cliqué.
+
+Le **solde** se calcule en base (`fn_finance_solde`), en une requête qui rend
+quatre nombres. Le propre et le consolidé sont rendus **séparément** (EF-FIN-12) :
+une paroisse dont le consolidé est confortable peut n'avoir rien en propre, et
+confondre les deux fait engager l'argent de ses églises.
+
+### Un test a rattrapé un bug de fuseau
+
+`periodeDe` passait par `new Date()` puis `getMonth()`, qui relit la date dans le
+fuseau du navigateur. À Antananarivo (UTC+3), une opération du **31 août
+ressortait en septembre** : un mois se serait fermé avec les recettes du suivant.
+Une colonne `date` n'a pas de fuseau — la fonction travaille désormais sur la
+chaîne « AAAA-MM-JJ », et le décalage devient impossible plutôt que corrigé.
+
+### Une constante n'est pas un type
+
+`PLAFOND_MOUVEMENTS` importé depuis `lib/data` tirait `server-only` dans le
+bundle du navigateur et arrêtait la compilation entière. Il vit maintenant dans
+le domaine. Un type s'efface à la compilation, une constante non.
+
+### Livré
+
+Écran `/finances` : triptyque recettes/dépenses/solde avec propre et consolidé,
+registre filtré **en mémoire** (règle 17), saisie et modification en pop-up
+partagé (règle 16), workflow complet au menu ⋮ — soumettre, valider, rejeter et
+annuler avec motif obligatoire, reprendre une saisie rejetée. La saisie déléguée
+(EF-FIN-05/06) se déclare, exige `finance.delegate` et se signale dans la liste.
+Compteur « à valider » branché sur le menu.
+
+### Reste du lot 4
+
+Pièce justificative (EF-FIN-07), saisie en série (EF-FIN-08), vue consolidée du
+SuperAdmin entité par entité (EF-FIN-11), écran de réglage du workflow par
+entité, et le droit explicite de double rôle (EF-FIN-18).
+
+**EF-BUR-11 est clos** : l'export Excel de la composition est abandonné, le PDF
+de l'organigramme couvre le besoin.
+
+### Qualité
+
+426 tests unitaires (+19). `pnpm verify` vert.

@@ -1,0 +1,250 @@
+import 'server-only';
+
+import { cache } from 'react';
+
+import { PLAFOND_MOUVEMENTS, type SensFinance, type Solde, type StatutMouvement } from '@/lib/domain/finance';
+import { createClient } from '@/lib/supabase/server';
+
+import { DataError } from './errors';
+
+/**
+ * Lectures des finances — EF-FIN-01, EF-FIN-09 a 13.
+ *
+ * LE SOLDE SE CALCULE EN BASE, pas ici. Ramener les mouvements pour les
+ * additionner dans le navigateur transporterait des dizaines de milliers de
+ * lignes pour en tirer trois nombres — et il faudrait les retransporter a
+ * chaque changement de periode.
+ *
+ * La LISTE, elle, se charge integralement dans le perimetre et se filtre en
+ * memoire (regle 17) : ce qui coute n'est pas la duree d'un aller-retour mais
+ * leur nombre, et un filtre qui interroge le serveur a chaque frappe en fait
+ * un par caractere.
+ */
+
+/**
+ * Chaque embed NOMME sa cle etrangere.
+ *
+ * `finance_entries` pointe QUATRE FOIS vers `profiles` — saisi, soumis, valide
+ * — et DEUX FOIS vers `entities` : l'entite du mouvement et celle depuis
+ * laquelle il a ete saisi. PostgREST refuserait l'embed ambigu avec `PGRST201`,
+ * et l'erreur ne se voit qu'a l'execution.
+ */
+const CHAMPS_LISTE = `
+  id, entity_id, categorie_id, sens, montant, date_operation, periode,
+  libelle, reference, justificatif_key, statut,
+  soumis_par, soumis_le, valide_par, valide_le, motif_rejet, motif_annulation,
+  est_delegue, saisi_par, created_at,
+  entite:entities!finance_entries_entity_id_fkey (id, nom, code, type, path),
+  categorie:finance_categories!finance_entries_categorie_id_fkey (id, libelle, sens),
+  auteur:profiles!finance_entries_saisi_par_fkey (id, nom_complet),
+  validateur:profiles!finance_entries_valide_par_fkey (id, nom_complet)
+` as const;
+
+export interface MouvementListe {
+  id: string;
+  entity_id: string;
+  categorie_id: string;
+  sens: SensFinance;
+  montant: number;
+  date_operation: string;
+  periode: string;
+  libelle: string | null;
+  reference: string | null;
+  justificatif_key: string | null;
+  statut: StatutMouvement;
+  soumis_par: string | null;
+  soumis_le: string | null;
+  valide_par: string | null;
+  valide_le: string | null;
+  motif_rejet: string | null;
+  motif_annulation: string | null;
+  est_delegue: boolean;
+  saisi_par: string | null;
+  created_at: string;
+  entite: { id: string; nom: string; code: string; type: string; path: string } | null;
+  categorie: { id: string; libelle: string; sens: SensFinance } | null;
+  auteur: { id: string; nom_complet: string } | null;
+  validateur: { id: string; nom_complet: string } | null;
+}
+
+
+export const chargerMouvements = cache(async (): Promise<MouvementListe[]> => {
+  const sb = await createClient();
+
+  const { data, error } = await sb
+    .from('finance_entries')
+    .select(CHAMPS_LISTE)
+    .is('deleted_at', null)
+    .order('date_operation', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(PLAFOND_MOUVEMENTS)
+    .returns<MouvementListe[]>();
+
+  if (error) throw new DataError('Les mouvements financiers sont illisibles.', error);
+  return data ?? [];
+});
+
+/**
+ * UI-21 — combien de mouvements attendent une validation.
+ *
+ * `head: true` : on demande le COMPTE, pas les lignes. Ramener trois mille
+ * mouvements pour en afficher le nombre sur un badge de menu serait le plus
+ * cher des affichages de l'application.
+ *
+ * La RLS borne deja au perimetre ; le droit de valider, lui, est verifie par
+ * l'appelant. Un badge annoncant trois demandes pour une file qui en montre
+ * zero ferait douter de l'application entiere.
+ */
+export async function compterMouvementsAValider(): Promise<number> {
+  const sb = await createClient();
+
+  const { count, error } = await sb
+    .from('finance_entries')
+    .select('id', { count: 'exact', head: true })
+    .eq('statut', 'SOUMIS')
+    .is('deleted_at', null);
+
+  // Un compteur illisible n'affiche RIEN plutot qu'un zero : zero se lit
+  // « rien a faire », et ce n'est pas ce qu'on sait.
+  return error ? 0 : (count ?? 0);
+}
+
+/** Un mouvement precis — pour le lien profond et la revalidation d'une action. */
+export async function chargerMouvement(id: string): Promise<MouvementListe | null> {
+  const sb = await createClient();
+
+  const { data, error } = await sb
+    .from('finance_entries')
+    .select(CHAMPS_LISTE)
+    .eq('id', id)
+    .is('deleted_at', null)
+    .maybeSingle<MouvementListe>();
+
+  if (error) throw new DataError('Ce mouvement est illisible.', error);
+  return data;
+}
+
+/**
+ * EF-FIN-09/12 — le solde d'une entite et de son sous-arbre.
+ *
+ * UNE requete, quel que soit le volume : la fonction `fn_finance_solde` fait la
+ * somme en base et ne rend que quatre nombres.
+ */
+export async function chargerSolde(
+  entiteId: string,
+  debut?: string | null,
+  fin?: string | null,
+): Promise<Solde> {
+  const sb = await createClient();
+
+  /**
+   * Le type de la reponse est POSE ICI.
+   *
+   * Les types generes ne connaissent pas les fonctions ajoutees depuis leur
+   * derniere generation : `.returns<T[]>()` entre alors en conflit avec la
+   * signature deduite au lieu de la completer.
+   */
+  const { data, error } = await sb.rpc('fn_finance_solde', {
+    p_entity: entiteId,
+    p_debut: debut ?? null,
+    p_fin: fin ?? null,
+  });
+
+  const lignes = data as
+    | {
+        recettes_propres: number;
+        depenses_propres: number;
+        recettes_consolidees: number;
+        depenses_consolidees: number;
+      }[]
+    | null;
+
+  if (error) throw new DataError('Le solde est momentanement incalculable.', error);
+
+  const ligne = lignes?.[0];
+
+  /**
+   * Une entite sans aucun mouvement rend un solde a zero, pas une erreur.
+   *
+   * `numeric` traverse PostgREST en CHAINE — sans quoi il perdrait de la
+   * precision en JSON. `Number()` est donc indispensable : sans lui,
+   * « 1000 » + « 200 » aurait fait « 1000200 » (regle 15 pour l'idee generale).
+   */
+  return {
+    recettesPropres: Number(ligne?.recettes_propres ?? 0),
+    depensesPropres: Number(ligne?.depenses_propres ?? 0),
+    recettesConsolidees: Number(ligne?.recettes_consolidees ?? 0),
+    depensesConsolidees: Number(ligne?.depenses_consolidees ?? 0),
+  };
+}
+
+export interface CategorieFinance {
+  id: string;
+  code: string;
+  libelle: string;
+  sens: SensFinance;
+}
+
+/**
+ * EF-REF-04, RG-13 — les categories, UNIFORMES pour toute l'organisation
+ * (decide le 12 aout 2026).
+ *
+ * Elles portent le sens : c'est ce qui permet de ne jamais demander « recette
+ * ou depense ? » a la saisie, et d'empecher une depense rangee dans une
+ * categorie de recette.
+ */
+export const listerCategoriesFinance = cache(async (): Promise<CategorieFinance[]> => {
+  const sb = await createClient();
+
+  const { data, error } = await sb
+    .from('finance_categories')
+    .select('id, code, libelle, sens')
+    .eq('is_active', true)
+    .order('sens')
+    .order('ordre')
+    .order('libelle')
+    .returns<CategorieFinance[]>();
+
+  if (error) throw new DataError('Les categories financieres sont illisibles.', error);
+  return data ?? [];
+});
+
+/**
+ * EF-FIN-15 (adapte) — le workflow, entite par entite.
+ *
+ * On rend la valeur DECIDEE (`null` = herite) ET la valeur EFFECTIVE, parce
+ * que l'ecran doit montrer les deux : « hérité (actif) » n'est pas la meme
+ * information que « actif ».
+ */
+export interface ReglageWorkflow {
+  entiteId: string;
+  /** `null` : rien n'est decide ici, on suit l'ancetre. */
+  decide: boolean | null;
+  effectif: boolean;
+}
+
+export async function chargerReglageWorkflow(
+  entiteId: string,
+): Promise<ReglageWorkflow> {
+  const sb = await createClient();
+
+  // Deux lectures INDEPENDANTES, donc simultanees (regle 28).
+  const [decide, effectif] = await Promise.all([
+    sb
+      .from('entities')
+      .select('finance_validation_active')
+      .eq('id', entiteId)
+      .maybeSingle<{ finance_validation_active: boolean | null }>(),
+    sb.rpc('fn_finance_workflow_actif', { p_entity: entiteId }),
+  ]);
+
+  if (decide.error) {
+    throw new DataError('Le reglage du workflow est illisible.', decide.error);
+  }
+
+  return {
+    entiteId,
+    decide: decide.data?.finance_validation_active ?? null,
+    effectif: effectif.error ? false : Boolean(effectif.data),
+  };
+}

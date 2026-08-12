@@ -53,12 +53,22 @@ seul appelant partagé, `imprimerOrganigramme`, sert l'éditeur **et** le pop-up
 ouvert depuis la structure. Aucun nom n'y est abrégé : il se replie entre les
 mots et la police descend d'un point tant que cela ne tient pas. Les portraits y
 figurent, **embarqués** en `data:` — une image liée arriverait après `print()` et
-son URL signée périmerait. Reste d'EF-BUR-11 l'export **Excel** de la
-composition — en liste d'attente.
+son URL signée périmerait.
 
-**Prochain lot : 4 — Finances.**
+**Lot 4 (finances) — socle livré** : `finance_entries`, workflow
+`Brouillon → Soumis → Validé` avec rejet et annulation **motivés**, soldes
+propre et consolidé calculés **en base** (`fn_finance_solde`), écran
+`/finances`, saisie déléguée. Le workflow s'active **par entité** et non
+globalement — écart à EF-FIN-15, amendé et daté dans `cdg.md` : la colonne
+`entities.finance_validation_active` est **nullable**, `null` signifiant
+« hérite de l'ancêtre le plus proche, puis du paramètre global ». Restent
+EF-FIN-07 (pièce jointe), EF-FIN-08 (saisie en série), EF-FIN-11 (vue
+consolidée du Siège), l'écran de réglage du workflow et le droit de double rôle.
 
-Base à jour jusqu'à la migration `0022`. Le stockage de fichiers ne se
+**EF-BUR-11 clos** : l'export Excel de la composition est abandonné le 12 août
+2026, le PDF de l'organigramme couvre le besoin.
+
+Base à jour jusqu'à la migration `0023`. Le stockage de fichiers ne se
 configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` et
 `postgres` s'y voit refuser `CREATE POLICY` : `pnpm db:bucket` s'en charge par
 l'API.

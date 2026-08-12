@@ -6,6 +6,8 @@ import { Topbar } from '@/components/layout/topbar';
 import { SessionProvider } from '@/components/shared/session-provider';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { compterTransfertsAApprouver } from '@/lib/data/transferts';
+import { compterMouvementsAValider } from '@/lib/data/finances';
+import { detient } from '@/lib/domain/permissions';
 import { getSession } from '@/lib/session';
 
 /**
@@ -23,18 +25,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const session = await getSession();
   if (!session) redirect('/connexion');
 
-  // UI-21 — compteurs d'elements en attente. Les mouvements financiers
-  // viendront au lot 4 ; tant que le module n'existe pas, aucun badge n'est
-  // affiche : un zero laisserait croire a une file vide alors qu'elle n'est
-  // simplement pas branchee.
+  // UI-21 — compteurs d'elements en attente.
   //
   // EF-TRF-07 — le compteur ne denombre que les demandes que l'utilisateur peut
   // REELLEMENT trancher (RG-12), pas tout ce que la RLS lui laisse voir. Un
   // badge annoncant trois demandes pour une file qui en montre zero ferait
   // douter de l'application entiere.
-  const compteurs: CompteursAttente = {
-    transferts: await compterTransfertsAApprouver(session),
-  };
+  // Les deux comptages sont INDEPENDANTS : enchaines, ils doubleraient
+  // l'attente avant le premier pixel de chaque page (regle 28).
+  const [transferts, mouvements] = await Promise.all([
+    compterTransfertsAApprouver(session),
+    detient(session, 'finance.validate') ? compterMouvementsAValider() : Promise.resolve(0),
+  ]);
+
+  const compteurs: CompteursAttente = { transferts, mouvements };
 
   return (
     <SessionProvider session={session}>

@@ -272,7 +272,7 @@ Les habilitations sont **unitaires**, regroupées par catégorie, et chacune peu
 | **EF-BUR-08** | Remplacer un membre en cours de mandat : clôture du mandat individuel, création du suivant, historique conservé. | **Must** |
 | **EF-BUR-09** | Clore un mandat et en ouvrir un nouveau, avec **reconduction** de la composition précédente en un clic. | **Should** |
 | **EF-BUR-10** | Consulter, pour un croyant, l'ensemble des fonctions occupées (entité, fonction, période). | **Must** |
-| **EF-BUR-11** | Exporter la composition d'un bureau (PDF/Excel) et l'organigramme (PDF/PNG). *(Organigramme livré le 9 août 2026 : redessiné en SVG vectoriel — `lib/domain/organigramme-svg.ts` — et remis à l'impression du navigateur, qui sait enregistrer en PDF. Aucune dépendance. Export de la composition en Excel : à faire.)* | **Should** |
+| **EF-BUR-11** | Exporter l'organigramme d'un bureau (PDF). *(Livré le 9 août 2026 : redessiné en SVG vectoriel — `lib/domain/organigramme-svg.ts` — et remis à l'impression du navigateur, qui sait enregistrer en PDF. Aucune dépendance. **L'export Excel de la composition est abandonné le 12 août 2026** : le PDF de l'organigramme couvre le besoin, et une seconde sortie du même contenu se serait désynchronisée de la première.)* | **Should — clos** |
 
 ### 5.6 Module **Finances** *(recettes, dépenses et solde — ARB-2 / ARB-3)*
 
@@ -304,7 +304,7 @@ Les habilitations sont **unitaires**, regroupées par catégorie, et chacune peu
 | Réf. | Exigence | Priorité |
 |---|---|---|
 | **EF-FIN-14** | Implémenter un **workflow de validation** des mouvements : `Brouillon → Soumis → Validé`, avec `Rejeté (motivé)` et `Annulé (motivé)`. | **Must** |
-| **EF-FIN-15** | Le workflow est **activable et désactivable globalement par le SuperAdmin** depuis les paramètres de l'application. | **Must** |
+| **EF-FIN-15** | Le workflow est **activable et désactivable par entité**, en plus du réglage global qui sert de valeur par défaut. *(Amendé le 12 août 2026 : l'exigence d'origine le voulait uniquement global. Une église de trois personnes n'a personne pour valider ce qu'une autre a saisi, quand un district structuré l'exige — un réglage unique alignait toute l'organisation sur son maillon le moins outillé. Le réglage d'une entité est **hérité** par sa descendance tant que celle-ci n'a rien décidé, sans quoi activer le workflow sur un district demanderait de le poser une à une sur ses vingt églises, et la vingt-et-unième créée le mois suivant serait passée au travers en silence.)* | **Must** |
 | **EF-FIN-16** | **Workflow désactivé** : un mouvement saisi par un compte détenant `finance.create` est immédiatement validé et alimente les consolidations. | **Must** |
 | **EF-FIN-17** | **Workflow activé** : la validation s'effectue **impérativement au niveau des entités**. Le validateur est un compte détenant `finance.validate` dont le périmètre couvre l'entité du mouvement ; le Siège ne se substitue pas à l'entité, sauf pour les mouvements en **saisie déléguée** et pour ses propres mouvements. | **Must** |
 | **EF-FIN-18** | Un compte ne peut valider un mouvement **qu'il a lui-même soumis** que s'il détient explicitement le droit de double rôle ; par défaut, la séparation saisie/validation est appliquée. | **Should** |

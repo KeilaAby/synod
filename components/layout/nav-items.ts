@@ -6,6 +6,7 @@ import {
   Network,
   SlidersHorizontal,
   Users,
+  Wallet,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -36,10 +37,10 @@ export interface NavItem {
 }
 
 /**
- * Finances (lot 4), Rapports (lot 6) et Administration (lot 7) n'ont pas
- * encore de page. Leur entree a ete retiree le 11 aout 2026 : un menu qui
- * mene a une 404 est pire quun menu incomplet — il fait douter du reste.
- * Chaque lot remettra la sienne, en meme temps que son ecran.
+ * Rapports (lot 6) et Administration (lot 7) n'ont pas encore de page. Leur
+ * entree a ete retiree le 11 aout 2026 : un menu qui mene a une 404 est pire
+ * qu'un menu incomplet — il fait douter du reste. Chaque lot remet la sienne
+ * en meme temps que son ecran, comme Finances le 12 aout.
  */
 export const NAV_ITEMS: readonly NavItem[] = [
   {
@@ -78,6 +79,15 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: 'Bureaux',
     icon: Briefcase,
     permission: 'bureau.read',
+  },
+  {
+    href: '/finances',
+    label: 'Finances',
+    icon: Wallet,
+    permission: 'finance.read',
+    // UI-21 — ce qui attend une validation se compte sur l'entrée de menu.
+    compteurPermission: 'finance.validate',
+    compteurCle: 'mouvements',
   },
   {
     href: '/referentiels',
