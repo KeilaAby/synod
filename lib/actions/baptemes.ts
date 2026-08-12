@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache';
 
 import { chercherDoublons, chercherDoublonsLot } from '@/lib/data/croyants';
 import { getArbrePerimetre } from '@/lib/data/entities';
-import { doublonsInternes } from '@/lib/domain/bapteme-lot';
+import { listerReferentiel } from '@/lib/data/referentiels';
+import { doublonsInternes, trouverGradeCroyant } from '@/lib/domain/bapteme-lot';
 import { cleDoublon, nomComplet } from '@/lib/domain/croyant';
 import { type ActionResult, ko, ok } from '@/lib/domain/result';
 import { auditer, requirePermission, requireSession } from '@/lib/session';
@@ -33,6 +34,28 @@ import { executerAction } from './executer';
  * toute la validation du croyant. L'action le DIT plutot que de le taire.
  */
 
+/**
+ * Le grade d'un nouveau baptise, resolu PAR LE SERVEUR — EF-BAP-01.
+ *
+ * Il ne figure plus dans aucun des deux formulaires : un nouveau baptise est
+ * « Croyant », et le champ n'offrait pas un choix mais une occasion de se
+ * tromper. Le rare cas particulier se corrige sur la fiche du croyant.
+ */
+async function resoudreGradeCroyant(): Promise<string | null> {
+  return trouverGradeCroyant(
+    (await listerReferentiel('grades', false)) as { id: string; libelle: string }[],
+  );
+}
+
+/**
+ * Le referentiel PEUT ne pas contenir « Croyant » — quelqu'un l'a renomme ou
+ * desactive. On le dit et on s'arrete : ranger tout un lot sous un grade pris
+ * au hasard serait pire qu'un refus, parce que personne ne le verrait.
+ */
+const MESSAGE_GRADE_ABSENT =
+  'Aucun grade « Croyant » actif dans le referentiel : c\'est celui que recoit ' +
+  'tout nouveau baptise. Retablissez-le dans Referentiels > Grades, puis reessayez.';
+
 function messageErreurSql(erreur: { code?: string; message?: string }): string {
   if (erreur.code === '23505') {
     return 'Un bapteme est deja enregistre pour ce croyant.';
@@ -58,7 +81,12 @@ export async function saisirBaptise(
     }
     const data = analyse.data;
 
-    const arbre = await getArbrePerimetre();
+    // Deux lectures INDEPENDANTES : enchainees, elles doubleraient l'attente
+    // sur une liaison ou un aller-retour se mesure entre 0,5 et 4 s (regle 28).
+    const [arbre, gradeId] = await Promise.all([
+      getArbrePerimetre(),
+      resoudreGradeCroyant(),
+    ]);
 
     // Une absence de donnees n'est pas un refus de droit : un arbre vide
     // signale une panne de lecture, pas un perimetre vide.
@@ -67,6 +95,8 @@ export async function saisirBaptise(
         "La structure n'a pas pu etre chargee. Verifiez votre connexion, puis reessayez.",
       );
     }
+
+    if (!gradeId) return ko(MESSAGE_GRADE_ABSENT);
 
     const eglise = arbre.find((e) => e.id === data.egliseId);
     if (!eglise) return ko('Cette eglise est introuvable ou hors de votre perimetre.');
@@ -116,7 +146,8 @@ export async function saisirBaptise(
         adresse: sanitize(data.adresse),
         eglise_id: data.egliseId,
         cellule_id: data.celluleId ?? null,
-        grade_id: data.gradeId,
+        // Resolu par le SERVEUR : un nouveau baptise est « Croyant ».
+        grade_id: gradeId,
         nationalite_id: data.nationaliteId,
         saisi_par: session.profileId,
         saisi_depuis: session.entityId,
@@ -248,7 +279,19 @@ export async function saisirBaptisesEnLot(
     }
     const data = analyse.data;
 
-    const arbre = await getArbrePerimetre();
+    // Trois lectures INDEPENDANTES, donc simultanees : enchainees, elles
+    // tripleraient l'attente avant meme la premiere ecriture (regle 28).
+    const [arbre, gradeId, dejaEnregistres] = await Promise.all([
+      getArbrePerimetre(),
+      resoudreGradeCroyant(),
+      chercherDoublonsLot(
+        data.lignes.map((l) => ({
+          nom: l.nom,
+          prenom: l.prenom,
+          dateNaissance: l.dateNaissance,
+        })),
+      ),
+    ]);
 
     // Une absence de donnees n'est pas un refus de droit (regle 15).
     if (arbre.length === 0) {
@@ -256,6 +299,8 @@ export async function saisirBaptisesEnLot(
         "La structure n'a pas pu etre chargee. Verifiez votre connexion, puis reessayez.",
       );
     }
+
+    if (!gradeId) return ko(MESSAGE_GRADE_ABSENT);
 
     const parId = new Map(arbre.map((e) => [e.id, e]));
     const eglisesPerimetre = arbre.filter((e) => e.type === 'EGLISE' && e.is_active);
@@ -289,15 +334,6 @@ export async function saisirBaptisesEnLot(
           dateNaissance: l.dateNaissance.toISOString().slice(0, 10),
         })),
       ),
-    );
-
-    // --- Doublons DEJA enregistres : une seule requete pour tout le lot ---
-    const dejaEnregistres = await chercherDoublonsLot(
-      data.lignes.map((l) => ({
-        nom: l.nom,
-        prenom: l.prenom,
-        dateNaissance: l.dateNaissance,
-      })),
     );
 
     for (const [index, ligne] of data.lignes.entries()) {
@@ -382,7 +418,8 @@ export async function saisirBaptisesEnLot(
           adresse: sanitize(ligne.adresse),
           eglise_id: egliseId,
           cellule_id: ligne.celluleId ?? null,
-          grade_id: data.gradeId,
+          // Resolu par le SERVEUR : un nouveau baptise est « Croyant ».
+          grade_id: gradeId,
           nationalite_id: data.nationaliteId,
           saisi_par: session.profileId,
           saisi_depuis: session.entityId,

@@ -21,7 +21,6 @@ const base = {
   dateNaissance: '2000-12-12',
   adresse: 'Ambohitromanjaka',
   egliseId: uuid(),
-  gradeId: uuid(),
   nationaliteId: uuid(),
   dateBapteme: '2026-08-07',
 };

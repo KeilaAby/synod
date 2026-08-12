@@ -1604,3 +1604,32 @@ Pas de migration : `croyants`, `baptemes` et `bapteme_celebrants` suffisaient.
 ### Qualité
 
 403 tests unitaires (+19). `pnpm verify` vert.
+
+### Reprises du même jour
+
+**Le grade ne se demande plus, nulle part.** Un nouveau baptisé est
+« Croyant » : le champ n'offrait pas un choix, il offrait une occasion de se
+tromper — et trente fois de suite dans un lot. Il disparaît des **deux**
+formulaires, à l'unité comme en lot, et le serveur le résout lui-même
+(`trouverGradeCroyant`). Il ne le *reçoit* plus : un formulaire qui n'affiche
+pas un champ n'a pas à l'envoyer (règle 19). Le cas particulier — un ancien
+responsable rebaptisé — se corrige sur la fiche du croyant.
+
+Si le référentiel ne contient plus de « Croyant » actif, l'opération est
+**refusée** en le disant. Ranger tout un lot sous un grade pris au hasard serait
+pire qu'un refus, parce que personne ne le verrait.
+
+**Le sélecteur d'église a un plancher de largeur.** « Au moins la largeur du
+déclencheur » suffisait tant qu'il occupait une ligne de formulaire ; dans une
+**colonne** de grille, le déclencheur fait quelques centimètres et le panneau
+qui s'y alignait rendait « ANTSAHATSIRESY » comme « ANTSAHATS… ». Il fait
+désormais au moins 24 rem — donc dans tout l'écran, pas seulement ici.
+
+**Un contrôle verrouillé dit pourquoi.** La cellule dépend de l'église (RG-05) :
+tant qu'aucune n'est choisie, il n'y a rien à proposer. Le menu grisé sans un
+mot laissait croire à une panne ou à un droit manquant. Le motif remplace
+maintenant « Aucune » — « Choisir l'église d'abord », « Aucune cellule ».
+
+Placeholders revus : « Rakoto », « Randria », « Lot IVJ 88 - Ankadifotsy ».
+
+407 tests unitaires. `pnpm verify` vert.

@@ -98,14 +98,12 @@ function ligneVide(egliseId: string | null): LigneLotInput {
 export function BaptemeLotDialog({
   eglises,
   cellules,
-  grades,
   nationalites,
   celebrants,
   photos,
 }: {
   eglises: OptionEntite[];
   cellules: CelluleOption[];
-  grades: OptionReferentiel[];
   nationalites: OptionReferentiel[];
   celebrants: OptionCelebrant[];
   /** Clé de stockage -> URL signée (EF-CRO-09), signées en lot par la page. */
@@ -126,10 +124,6 @@ export function BaptemeLotDialog({
    */
   const implicite = useMemo(() => egliseImplicite(eglises), [eglises]);
 
-  const gradeParDefaut =
-    grades.find((g) => g.libelle.toLocaleLowerCase('fr') === 'croyant')?.id ??
-    grades[0]?.id;
-
   const {
     register,
     handleSubmit,
@@ -143,7 +137,6 @@ export function BaptemeLotDialog({
       lieu: '',
       sessionLibelle: '',
       celebrantIds: [],
-      gradeId: gradeParDefaut,
       nationaliteId: nationalites[0]?.id,
       lignes: [ligneVide(implicite)],
     } as Partial<SaisirLotInput> as SaisirLotInput,
@@ -314,37 +307,10 @@ export function BaptemeLotDialog({
                     )}
                   </Field>
 
-                  {/* Grade et nationalité valent pour TOUT le lot : deux
-                      colonnes de plus rendaient la grille illisible, et ils ne
-                      varient pratiquement jamais au sein d'une cérémonie. */}
-                  <Field
-                    label="Grade"
-                    required
-                    error={errors.gradeId?.message}
-                    hint="Commun au lot — se corrige ensuite sur la fiche."
-                  >
-                    {(aria) => (
-                      <Controller
-                        control={control}
-                        name="gradeId"
-                        render={({ field }) => (
-                          <Select value={field.value ?? ''} onValueChange={field.onChange}>
-                            <SelectTrigger {...aria} className="h-10 w-full">
-                              <SelectValue placeholder="Choisir" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {grades.map((g) => (
-                                <SelectItem key={g.id} value={g.id}>
-                                  {g.libelle}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                    )}
-                  </Field>
-
+                  {/* La nationalité vaut pour TOUT le lot : une colonne de plus
+                      rendait la grille illisible, et elle ne varie pratiquement
+                      jamais au sein d'une cérémonie. Le GRADE, lui, ne se
+                      demande pas — un nouveau baptisé est « Croyant ». */}
                   <Field
                     label="Nationalité"
                     required
@@ -418,7 +384,7 @@ export function BaptemeLotDialog({
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-10">#</TableHead>
-                        {!implicite && <TableHead className="min-w-56">Église *</TableHead>}
+                        {!implicite && <TableHead className="min-w-64">Église *</TableHead>}
                         <TableHead className="min-w-40">Nom *</TableHead>
                         <TableHead className="min-w-40">Prénom *</TableHead>
                         <TableHead className="min-w-28">Sexe *</TableHead>
@@ -520,12 +486,27 @@ function LigneBaptise({
   surRetirer: (() => void) | null;
 }) {
   const egliseChoisie = useWatch({ control, name: `lignes.${index}.egliseId` });
+  const eglise = (egliseChoisie as string | null) ?? implicite;
 
   // RG-05 — seules les cellules de l'église de CETTE ligne sont proposées.
   const cellulesDisponibles = useMemo(
-    () => cellules.filter((c) => c.egliseId === (egliseChoisie ?? implicite)),
-    [cellules, egliseChoisie, implicite],
+    () => cellules.filter((c) => c.egliseId === eglise),
+    [cellules, eglise],
   );
+
+  /**
+   * Un contrôle verrouillé DIT pourquoi.
+   *
+   * La cellule dépend de l'église (RG-05) : tant qu'aucune n'est choisie, il
+   * n'y a rien à proposer. Mais un menu grisé sans un mot laisse croire à une
+   * panne ou à un droit manquant — c'est ce qu'on a demandé le 12 août 2026.
+   * Le motif remplace donc « Aucune ».
+   */
+  const motifCellule = !eglise
+    ? "Choisir l'église d'abord"
+    : cellulesDisponibles.length === 0
+      ? 'Aucune cellule'
+      : 'Aucune';
 
   const bordure = (message?: string) =>
     message ? 'h-9 border-destructive' : 'h-9';
@@ -560,7 +541,7 @@ function LigneBaptise({
       <TableCell>
         <Input
           className={bordure(erreurs.nom)}
-          placeholder="RAKOTONIRINA"
+          placeholder="Rakoto"
           aria-label={`Nom, ligne ${index + 1}`}
           aria-invalid={Boolean(erreurs.nom)}
           {...register(`lignes.${index}.nom`)}
@@ -571,7 +552,7 @@ function LigneBaptise({
       <TableCell>
         <Input
           className={bordure(erreurs.prenom)}
-          placeholder="Mamitiana"
+          placeholder="Randria"
           aria-label={`Prénom, ligne ${index + 1}`}
           aria-invalid={Boolean(erreurs.prenom)}
           {...register(`lignes.${index}.prenom`)}
@@ -623,7 +604,7 @@ function LigneBaptise({
       <TableCell>
         <Input
           className={bordure(erreurs.adresse)}
-          placeholder="Ambohitromanjaka"
+          placeholder="Lot IVJ 88 - Ankadifotsy"
           aria-label={`Adresse, ligne ${index + 1}`}
           aria-invalid={Boolean(erreurs.adresse)}
           {...register(`lignes.${index}.adresse`)}
@@ -659,8 +640,9 @@ function LigneBaptise({
               <SelectTrigger
                 className="h-9 w-full"
                 aria-label={`Cellule, ligne ${index + 1}`}
+                title={motifCellule}
               >
-                <SelectValue placeholder="Aucune" />
+                <SelectValue placeholder={motifCellule} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="aucune">Aucune</SelectItem>

@@ -52,7 +52,11 @@ export const saisirBaptiseSchema = z
     // --- Le rattachement (RG-04, RG-05) ---
     egliseId: z.uuid("Selectionnez l'eglise du bapteme."),
     celluleId: z.uuid().optional().nullable(),
-    gradeId: z.uuid('Selectionnez un grade.'),
+    /**
+     * `gradeId` NE FIGURE PAS ICI. Un nouveau baptise est « Croyant », le
+     * serveur le resout lui-meme (`trouverGradeCroyant`). Le laisser arriver du
+     * client rouvrirait la porte a ce que le formulaire n'affiche plus.
+     */
     nationaliteId: z.uuid('Selectionnez une nationalite.'),
 
     // --- La ceremonie — EF-BAP-03 ---
@@ -138,14 +142,13 @@ export const saisirLotSchema = z
       .transform((v) => [...new Set(v)]),
 
     /**
-     * Grade et nationalite sont communs au LOT, pas a la ligne.
+     * La nationalite est commune au LOT, pas a la ligne : elle ne varie
+     * pratiquement jamais au sein d'une ceremonie, et une colonne de plus
+     * rendait la grille illisible. Le cas particulier se corrige ensuite sur
+     * la fiche — un ecran pour une personne plutot qu'une colonne pour toutes.
      *
-     * Ils ne varient pratiquement jamais au sein d'une ceremonie — les
-     * nouveaux baptises sont « Croyant » — et deux colonnes de plus rendaient
-     * la grille illisible. Le cas particulier se corrige ensuite sur la fiche,
-     * ce qui coute un ecran a une personne plutot qu'une colonne a toutes.
+     * Le GRADE, lui, ne se demande plus du tout : voir `trouverGradeCroyant`.
      */
-    gradeId: z.uuid('Selectionnez un grade.'),
     nationaliteId: z.uuid('Selectionnez une nationalite.'),
 
     lignes: z

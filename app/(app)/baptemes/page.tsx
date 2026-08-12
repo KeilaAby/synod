@@ -60,7 +60,6 @@ export default async function BaptemesPage() {
             <BaptemeLotDialog
               eglises={options.eglises}
               cellules={options.cellules}
-              grades={options.grades}
               nationalites={options.nationalites}
               celebrants={celebrants}
               photos={Object.fromEntries(photos)}
@@ -68,7 +67,6 @@ export default async function BaptemesPage() {
             <BaptemeDialog
               eglises={options.eglises}
               cellules={options.cellules}
-              grades={options.grades}
               nationalites={options.nationalites}
               celebrants={celebrants}
               photos={Object.fromEntries(photos)}

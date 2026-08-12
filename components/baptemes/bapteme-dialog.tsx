@@ -46,21 +46,21 @@ import { type SaisirBaptiseInput, saisirBaptiseSchema } from '@/lib/validation/b
  * UN SEUL ÉCRAN, là où la création d'un croyant en demande trois. C'est ce que
  * veut dire « simplifié » : le parcours est raccourci, pas les données. Les
  * champs obligatoires de la fiche le restent — on ne peut pas inventer une
- * adresse — mais le grade est présélectionné sur « Croyant », et la cellule
- * comme le célébrant se déduisent de l'église choisie.
+ * adresse. Le GRADE, lui, ne se demande pas : un nouveau baptisé est
+ * « Croyant », et le serveur le résout. La cellule et le célébrant se
+ * déduisent de l'église choisie.
  *
  * EF-BAP-02 — cette saisie CRÉE le croyant. Il n'existe donc pas de « rattacher
  * un baptême à un croyant existant » : pour celui qui est déjà enregistré, la
  * date se renseigne sur sa fiche.
  *
- * Le libellé de session (« Cérémonie de Pâques 2026 ») est ce qui regroupera un
- * lot le jour où EF-BAP-07 sera livré : le saisir dès maintenant évite d'avoir
- * à revenir sur les baptêmes déjà enregistrés.
+ * Le libellé de session (« Cérémonie de Pâques 2026 ») est ce qui regroupe un
+ * lot : pour plusieurs baptisés d'une même cérémonie, la saisie EN LOT
+ * (EF-BAP-07) évite de redemander huit fois les mêmes informations.
  */
 export function BaptemeDialog({
   eglises,
   cellules,
-  grades,
   nationalites,
   celebrants,
   photos,
@@ -68,7 +68,6 @@ export function BaptemeDialog({
 }: {
   eglises: OptionEntite[];
   cellules: CelluleOption[];
-  grades: OptionReferentiel[];
   nationalites: OptionReferentiel[];
   celebrants: OptionCelebrant[];
   /** Clé de stockage -> URL signée (EF-CRO-09), signées en lot par la page. */
@@ -78,12 +77,6 @@ export function BaptemeDialog({
   const router = useRouter();
   const [ouvert, setOuvert] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
-
-  // « Croyant » est le grade d'un nouveau baptisé dans l'immense majorité des
-  // cas : le présélectionner épargne un choix qui n'en est pas un.
-  const gradeParDefaut =
-    grades.find((g) => g.libelle.toLocaleLowerCase('fr') === 'croyant')?.id ??
-    grades[0]?.id;
 
   const {
     register,
@@ -101,7 +94,6 @@ export function BaptemeDialog({
       adresse: '',
       telephone: '',
       celluleId: null,
-      gradeId: gradeParDefaut,
       celebrantIds: [],
       lieu: '',
       sessionLibelle: '',
@@ -237,14 +229,14 @@ export function BaptemeDialog({
                       label="Nom"
                       required
                       autoFocus
-                      placeholder="RAKOTONIRINA"
+                      placeholder="Rakoto"
                       error={errors.nom?.message}
                       {...register('nom')}
                     />
                     <TextField
                       label="Prénom"
                       required
-                      placeholder="Mamitiana"
+                      placeholder="Randria"
                       error={errors.prenom?.message}
                       {...register('prenom')}
                     />
@@ -293,7 +285,7 @@ export function BaptemeDialog({
                     <TextField
                       label="Adresse"
                       required
-                      placeholder="Ambohitromanjaka"
+                      placeholder="Lot IVJ 88 - Ankadifotsy"
                       error={errors.adresse?.message}
                       {...register('adresse')}
                     />
@@ -336,36 +328,6 @@ export function BaptemeDialog({
                       )}
                     </Field>
 
-                    <Field
-                      label="Grade"
-                      required
-                      error={errors.gradeId?.message}
-                      hint="Un nouveau baptisé est « Croyant » sauf exception."
-                    >
-                      {(aria) => (
-                        <Controller
-                          control={control}
-                          name="gradeId"
-                          render={({ field }) => (
-                            <Select
-                              value={field.value ?? ''}
-                              onValueChange={field.onChange}
-                            >
-                              <SelectTrigger {...aria} className="h-10 w-full">
-                                <SelectValue placeholder="Choisir" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {grades.map((g) => (
-                                  <SelectItem key={g.id} value={g.id}>
-                                    {g.libelle}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )}
-                        />
-                      )}
-                    </Field>
                   </div>
                 </section>
 

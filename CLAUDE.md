@@ -20,8 +20,10 @@ croyants avec photo, **transferts** avec workflow d'approbation, **baptêmes**.
 
 **Lot 2 achevé**, y compris la lecture **XLSX** (`lib/domain/xlsx.ts`, sans
 dépendance — ARB-6 clos) et la **saisie de baptêmes en lot** (EF-BAP-07) :
-en-tête commun à la cérémonie — date, lieu, session, célébrants, grade et
-nationalité — puis une grille d'une ligne par personne. L'**église est une
+en-tête commun à la cérémonie — date, lieu, session, célébrants, nationalité —
+puis une grille d'une ligne par personne. Le **grade ne se demande dans aucun
+des deux formulaires** : un nouveau baptisé est « Croyant », le serveur le
+résout et refuse en le disant si le référentiel n'en contient plus. L'**église est une
 colonne**, parce qu'une cérémonie de district réunit des baptisés de plusieurs
 églises ; elle s'efface quand le périmètre n'en compte qu'une. Le critère est ce
 que le périmètre **contient**, jamais le rôle : un gestionnaire de district

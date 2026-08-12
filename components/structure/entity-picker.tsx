@@ -125,15 +125,18 @@ export function EntityPicker({
       </PopoverTrigger>
 
       {/*
-        Le panneau fait au MOINS la largeur de son declencheur, et jamais moins.
-        Un panneau plus etroit que le champ tronquait « ANTSAHATSIRESY » en
-        « ANTSAHATS… », et deux eglises voisines devenaient indiscernables — le
-        nom d'entite est precisement ce qu'on vient lire ici.
+        Le panneau fait au MOINS la largeur de son declencheur, et AU MOINS
+        24 rem. La premiere borne suffisait tant que le selecteur occupait une
+        ligne de formulaire ; dans une COLONNE de grille, le declencheur ne fait
+        que quelques centimetres, et le panneau qui s'y alignait rendait
+        « ANTSAHATSIRESY » comme « ANTSAHATS… » — deux eglises voisines y
+        devenaient indiscernables, alors que le nom est precisement ce qu'on
+        vient lire.
 
         `max-width` ne le borne que sur un ecran de telephone.
       */}
       <PopoverContent
-        className="w-(--radix-popover-trigger-width) min-w-(--radix-popover-trigger-width) max-w-[92vw] p-0"
+        className="w-(--radix-popover-trigger-width) min-w-[max(var(--radix-popover-trigger-width),24rem)] max-w-[92vw] p-0"
         align="start"
       >
         <Command

@@ -47,6 +47,35 @@ export function egliseImplicite(
 }
 
 /**
+ * Le grade d'un nouveau baptise — EF-BAP-01.
+ *
+ * IL NE SE DEMANDE PLUS. Un nouveau baptise est « Croyant », toujours : le
+ * champ n'offrait donc pas un choix, il offrait une OCCASION DE SE TROMPER, et
+ * trente fois de suite dans un lot. Le rare cas particulier — un ancien
+ * responsable rebaptise — se corrige sur la fiche, en un ecran pour une
+ * personne plutot qu'un champ pour toutes.
+ *
+ * Le serveur le RESOUT lui-meme, il ne le recoit pas : un formulaire qui
+ * n'affiche pas un champ n'a pas a l'envoyer, et une action n'ecrit que les
+ * champs dont son formulaire est la source (regle 19).
+ *
+ * Rend `null` si le referentiel ne contient aucun « Croyant » — l'appelant le
+ * DIT, plutot que de ranger tout un lot sous un grade pris au hasard.
+ */
+export function trouverGradeCroyant(
+  grades: readonly { readonly id: string; readonly libelle: string }[],
+): string | null {
+  const normaliser = (v: string) =>
+    v
+      .trim()
+      .toLocaleLowerCase('fr')
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '');
+
+  return grades.find((g) => normaliser(g.libelle) === 'croyant')?.id ?? null;
+}
+
+/**
  * Les lignes qui repetent une personne DEJA presente dans le meme lot.
  *
  * Rendue par INDEX, et jamais la premiere occurrence : c'est la repetition

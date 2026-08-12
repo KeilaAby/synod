@@ -190,7 +190,6 @@ export function BaptemesClient({
                 <BaptemeDialog
                   eglises={options.eglises}
                   cellules={options.cellules}
-                  grades={options.grades}
                   nationalites={options.nationalites}
                   celebrants={celebrants}
                   photos={photos}

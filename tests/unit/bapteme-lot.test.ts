@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { doublonsInternes, egliseImplicite } from '@/lib/domain/bapteme-lot';
+import {
+  doublonsInternes,
+  egliseImplicite,
+  trouverGradeCroyant,
+} from '@/lib/domain/bapteme-lot';
 import { LIGNES_LOT_MAX, saisirLotSchema } from '@/lib/validation/bapteme';
 
 /**
@@ -8,7 +12,6 @@ import { LIGNES_LOT_MAX, saisirLotSchema } from '@/lib/validation/bapteme';
  */
 
 const UUID = {
-  grade: '11111111-1111-4111-8111-111111111111',
   nationalite: '22222222-2222-4222-8222-222222222222',
   eglise: '33333333-3333-4333-8333-333333333333',
 };
@@ -24,7 +27,6 @@ const ligne = (p: Record<string, unknown> = {}) => ({
 
 const lot = (p: Record<string, unknown> = {}) => ({
   dateBapteme: '2026-04-05',
-  gradeId: UUID.grade,
   nationaliteId: UUID.nationalite,
   lignes: [ligne()],
   ...p,
@@ -48,6 +50,43 @@ describe("EF-BAP-07 — l'eglise ne se demande que si elle se discute", () => {
 
   it('ne devine rien quand le perimetre est vide', () => {
     expect(egliseImplicite([])).toBeNull();
+  });
+});
+
+describe('EF-BAP-01 — le grade ne se demande plus', () => {
+  const grades = [
+    { id: 'g1', libelle: 'Pasteur' },
+    { id: 'g2', libelle: 'Croyant' },
+    { id: 'g3', libelle: 'Diacre' },
+  ];
+
+  it('resout « Croyant » sans le demander a l utilisateur', () => {
+    // Le champ n'offrait pas un choix, il offrait une occasion de se tromper
+    // — et trente fois de suite dans un lot.
+    expect(trouverGradeCroyant(grades)).toBe('g2');
+  });
+
+  it('ignore la casse et les accents du referentiel', () => {
+    expect(trouverGradeCroyant([{ id: 'x', libelle: '  CROYANT ' }])).toBe('x');
+  });
+
+  it('ne prend RIEN par defaut quand « Croyant » a disparu', () => {
+    /**
+     * Quelqu'un peut l'avoir renomme ou desactive. Prendre le premier grade
+     * venu rangerait tout un lot sous « Pasteur » sans que personne le voie :
+     * l'appelant doit pouvoir refuser et le dire.
+     */
+    expect(trouverGradeCroyant([{ id: 'g1', libelle: 'Pasteur' }])).toBeNull();
+    expect(trouverGradeCroyant([])).toBeNull();
+  });
+
+  it("n'accepte plus de grade venu du client", () => {
+    // Regle 19 : une action n'ecrit que les champs dont son formulaire est la
+    // source. Le grade est resolu par le serveur, ce qui arrive est ignore.
+    const analyse = saisirLotSchema.safeParse(lot({ gradeId: UUID.eglise }));
+
+    expect(analyse.success).toBe(true);
+    expect(analyse.data).not.toHaveProperty('gradeId');
   });
 });
 
