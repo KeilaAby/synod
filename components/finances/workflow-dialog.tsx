@@ -18,9 +18,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { reglerWorkflowEntite } from '@/lib/actions/finances';
 import type { ReglageWorkflow } from '@/lib/data/finances';
-import type { EntityType } from '@/lib/domain/hierarchy';
+import { ENTITY_LABELS, ENTITY_TYPES, type EntityType } from '@/lib/domain/hierarchy';
 import { normaliserRecherche } from '@/lib/domain/croyant';
 import { cn } from '@/lib/utils';
 
@@ -90,6 +91,42 @@ export function WorkflowDialog({
     );
   }, [lignes, recherche]);
 
+  /**
+   * UN ONGLET PAR NIVEAU.
+   *
+   * Un périmètre de district mêle vingt églises, six paroisses et quarante
+   * cellules dans une seule liste : on y cherche « mes églises » et l'on
+   * parcourt tout. Le niveau est un ensemble CLOS et connu — c'est exactement
+   * ce que des onglets rendent bien (règle 18).
+   *
+   * Seuls les niveaux PRÉSENTS ont un onglet : une paroisse n'en a pas pour
+   * les districts, et un onglet vide ne s'affiche pas pour le principe.
+   */
+  const onglets = useMemo(() => {
+    const parType = new Map<EntityType, LigneReglage[]>();
+    for (const ligne of visibles) {
+      const liste = parType.get(ligne.type) ?? [];
+      liste.push(ligne);
+      parType.set(ligne.type, liste);
+    }
+
+    // Les niveaux PRÉSENTS dans le périmètre entier, pas seulement dans le
+    // résultat courant : un onglet qui disparaît en cours de frappe déplace
+    // ce qu'on est en train de viser.
+    const presents = ENTITY_TYPES.filter((type) => lignes.some((l) => l.type === type));
+
+    return presents.map((type) => ({
+      type,
+      libelle: ENTITY_LABELS[type].pluriel,
+      entites: (parType.get(type) ?? []).sort((a, b) =>
+        a.nom.localeCompare(b.nom, 'fr'),
+      ),
+    }));
+  }, [visibles, lignes]);
+
+  const [ongletActif, setOngletActif] = useState<string>('');
+  const actif = ongletActif || onglets[0]?.type || '';
+
   const comptes = useMemo(() => {
     const valeurs = lignes.map((l) => etat[l.entiteId] ?? defautOrganisation);
     return {
@@ -97,6 +134,13 @@ export function WorkflowDialog({
       total: lignes.length,
     };
   }, [lignes, etat, defautOrganisation]);
+
+  // Ce que la recherche a trouvé AILLEURS : sans cela, chercher une église
+  // depuis l'onglet « Districts » donne une liste vide sans explication.
+  const ailleurs = useMemo(
+    () => visibles.filter((l) => l.type !== actif).length,
+    [visibles, actif],
+  );
 
   async function choisir(entiteId: string, actif: boolean | null) {
     const precedent = etat[entiteId] ?? null;
@@ -178,85 +222,70 @@ export function WorkflowDialog({
               />
             </div>
 
-            <ul className="border-border divide-border divide-y rounded-lg border">
-              {visibles.length === 0 && (
-                <li className="text-muted-foreground p-6 text-center text-sm">
-                  Aucune entité ne correspond.
-                </li>
-              )}
-
-              {visibles.map((ligne) => {
-                const decide = etat[ligne.entiteId] ?? null;
-                const effectif = decide ?? defautOrganisation;
-
-                return (
-                  <li
-                    key={ligne.entiteId}
-                    className="flex flex-wrap items-center justify-between gap-4 p-4"
-                  >
-                    <span className="flex min-w-0 items-center gap-3">
-                      <TypeBadge type={ligne.type} />
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-medium">
-                          {ligne.nom}
-                        </span>
-                        <span className="text-muted-foreground font-mono text-xs">
-                          {ligne.code}
-                        </span>
-                      </span>
-                      {effectif && (
-                        <StatusBadge tone="accent">Validation requise</StatusBadge>
-                      )}
-                    </span>
-
-                    <span className="flex items-center gap-2">
-                      {enCours === ligne.entiteId && (
-                        <Loader2
-                          className="text-muted-foreground size-4 animate-spin"
-                          aria-hidden
-                        />
-                      )}
-
-                      {/* Ensemble CLOS et connu : trois pictogrammes, pas un
-                          sélecteur (règle 18). */}
-                      <span
-                        className="border-border inline-flex rounded-lg border p-1"
-                        role="group"
-                        aria-label={`Workflow de ${ligne.nom}`}
-                      >
-                        {CHOIX.map((choix) => {
-                          const retenu = choixDe(decide) === choix.valeur;
-                          return (
-                            <button
-                              key={choix.valeur}
-                              type="button"
-                              onClick={() => choisir(ligne.entiteId, choix.actif)}
-                              aria-pressed={retenu}
-                              disabled={enCours !== null}
-                              className={cn(
-                                'inline-flex h-8 items-center gap-1 rounded-md px-3 text-xs font-medium transition-colors',
-                                retenu
-                                  ? 'bg-foreground text-background'
-                                  : 'text-muted-foreground hover:bg-muted',
-                              )}
-                            >
-                              {retenu && <Check className="size-3" aria-hidden />}
-                              {choix.libelle}
-                            </button>
-                          );
-                        })}
-                      </span>
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-
-            {comptes.total === 0 && (
+            {comptes.total === 0 ? (
               <p className="text-muted-foreground flex items-center gap-2 text-sm">
                 <AlertCircle className="size-4" aria-hidden />
                 Aucune entité dans votre périmètre.
               </p>
+            ) : (
+              <Tabs value={actif} onValueChange={setOngletActif}>
+                {/*
+                  `variant="line"` : le trait sous l'onglet actif, et rien
+                  d'autre — pas de pastille, pas de fond. Le filet qui court
+                  sous toute la rangée est ce qui donne à ce trait sa place.
+                */}
+                <TabsList
+                  variant="line"
+                  className="border-border h-auto w-full justify-start gap-6 overflow-x-auto rounded-none border-b pb-2"
+                >
+                  {onglets.map((onglet) => (
+                    <TabsTrigger
+                      key={onglet.type}
+                      value={onglet.type}
+                      className="flex-none px-1 pb-2 text-sm"
+                    >
+                      {onglet.libelle}
+                      {/* Le compte suit la recherche : il dit où chercher. */}
+                      <span className="text-muted-foreground ml-2 font-mono text-xs tabular-nums">
+                        {onglet.entites.length}
+                      </span>
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+
+                {onglets.map((onglet) => (
+                  <TabsContent key={onglet.type} value={onglet.type} className="mt-4">
+                    {onglet.entites.length === 0 ? (
+                      <p className="text-muted-foreground p-6 text-center text-sm">
+                        Aucune {ENTITY_LABELS[onglet.type].singulier.toLocaleLowerCase('fr')}{' '}
+                        ne correspond
+                        {ailleurs > 0 && (
+                          <>
+                            {' '}
+                            — mais {ailleurs} résultat{ailleurs > 1 ? 's' : ''} dans les
+                            autres onglets
+                          </>
+                        )}
+                        .
+                      </p>
+                    ) : (
+                      <ul className="border-border divide-border divide-y rounded-lg border">
+                        {onglet.entites.map((ligne) => (
+                          <LigneEntite
+                            key={ligne.entiteId}
+                            ligne={ligne}
+                            decide={etat[ligne.entiteId] ?? null}
+                            defautOrganisation={defautOrganisation}
+                            enCours={enCours === ligne.entiteId}
+                            verrouille={enCours !== null}
+                            surChoix={choisir}
+                          />
+                        ))}
+                      </ul>
+                    )}
+                  </TabsContent>
+                ))}
+              </Tabs>
             )}
           </div>
 
@@ -269,5 +298,79 @@ export function WorkflowDialog({
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+/**
+ * Une entité et son réglage.
+ *
+ * Extraite pour que basculer d'onglet ne redessine pas les cinquante autres :
+ * un périmètre de district en compte facilement soixante-dix, et chacune porte
+ * trois boutons.
+ */
+function LigneEntite({
+  ligne,
+  decide,
+  defautOrganisation,
+  enCours,
+  verrouille,
+  surChoix,
+}: {
+  ligne: LigneReglage;
+  decide: boolean | null;
+  defautOrganisation: boolean;
+  enCours: boolean;
+  verrouille: boolean;
+  surChoix: (entiteId: string, actif: boolean | null) => void;
+}) {
+  const effectif = decide ?? defautOrganisation;
+
+  return (
+    <li className="flex flex-wrap items-center justify-between gap-4 p-4">
+      <span className="flex min-w-0 items-center gap-3">
+        <TypeBadge type={ligne.type} />
+        <span className="min-w-0">
+          <span className="block truncate text-sm font-medium">{ligne.nom}</span>
+          <span className="text-muted-foreground font-mono text-xs">{ligne.code}</span>
+        </span>
+        {effectif && <StatusBadge tone="accent">Validation requise</StatusBadge>}
+      </span>
+
+      <span className="flex items-center gap-2">
+        {enCours && (
+          <Loader2 className="text-muted-foreground size-4 animate-spin" aria-hidden />
+        )}
+
+        {/* Ensemble CLOS et connu : trois pictogrammes, pas un sélecteur
+            (règle 18). */}
+        <span
+          className="border-border inline-flex rounded-lg border p-1"
+          role="group"
+          aria-label={`Workflow de ${ligne.nom}`}
+        >
+          {CHOIX.map((choix) => {
+            const retenu = choixDe(decide) === choix.valeur;
+            return (
+              <button
+                key={choix.valeur}
+                type="button"
+                onClick={() => surChoix(ligne.entiteId, choix.actif)}
+                aria-pressed={retenu}
+                disabled={verrouille}
+                className={cn(
+                  'inline-flex h-8 items-center gap-1 rounded-md px-3 text-xs font-medium transition-colors',
+                  retenu
+                    ? 'bg-foreground text-background'
+                    : 'text-muted-foreground hover:bg-muted',
+                )}
+              >
+                {retenu && <Check className="size-3" aria-hidden />}
+                {choix.libelle}
+              </button>
+            );
+          })}
+        </span>
+      </span>
+    </li>
   );
 }

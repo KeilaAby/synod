@@ -1835,3 +1835,18 @@ qui lit désormais le SQL et compare les deux listes.
 ### Qualité
 
 427 tests unitaires. `pnpm verify` vert.
+
+**Les entités du réglage passent en onglets, un par niveau.** Un périmètre de
+district mêlait vingt églises, six paroisses et quarante cellules dans une seule
+liste : on y cherchait « mes églises » en parcourant tout. Le niveau est un
+ensemble clos et connu — ce que des onglets rendent bien (règle 18).
+
+Le composant `Tabs` portait déjà la variante `line` : le trait sous l'onglet
+actif, et rien d'autre. Rien à écrire, il suffisait de s'en servir.
+
+Trois détails qui font la différence à l'usage : seuls les niveaux **présents
+dans le périmètre entier** ont un onglet — un onglet qui disparaît en cours de
+frappe déplace ce qu'on visait ; le compteur de chaque onglet **suit la
+recherche**, donc il dit où chercher ; et quand l'onglet actif ne rend rien, il
+annonce combien de résultats attendent dans les autres, faute de quoi chercher
+une église depuis l'onglet « Districts » donne une liste vide sans explication.
