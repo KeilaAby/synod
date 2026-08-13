@@ -315,7 +315,7 @@ export function MouvementDialog({
                           {...aria}
                           inputMode="decimal"
                           placeholder="150000"
-                          className="h-10 font-mono tabular-nums"
+                          className="h-10 tabular-nums"
                           {...register('montant')}
                         />
                       )}
@@ -330,7 +330,7 @@ export function MouvementDialog({
                         <Input
                           {...aria}
                           type="date"
-                          className="h-10 font-mono tabular-nums"
+                          className="h-10 tabular-nums"
                           {...register('dateOperation')}
                         />
                       )}
@@ -396,8 +396,8 @@ export function MontantSigne({
     <span
       className={
         sens === 'RECETTE'
-          ? 'font-mono tabular-nums text-emerald-700'
-          : 'font-mono tabular-nums text-rose-700'
+          ? 'tabular-nums font-semibold text-emerald-700'
+          : 'tabular-nums font-semibold text-rose-700'
       }
     >
       {sens === 'RECETTE' ? '+' : '−'}

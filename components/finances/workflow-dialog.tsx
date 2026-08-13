@@ -144,7 +144,7 @@ export function WorkflowDialog({
 
   return (
     <>
-      <PermissionGate perm="settings.manage">
+      <PermissionGate perm="finance.workflow.manage">
         <Button variant="outline" className="h-10" onClick={() => setOuvert(true)}>
           <SlidersHorizontal className="mr-2 size-4" aria-hidden />
           Workflow de validation

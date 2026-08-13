@@ -122,7 +122,10 @@ Ce qu'il reste à faire est décrit dans le dernier point d'étape
    paroisse (RG-25).
 4. **Aucune page sans squelette** (`components/skeletons/`). Jamais d'écran blanc
    ni de spinner plein écran. `Loader2` uniquement pour les actions ponctuelles.
-5. Toute valeur numérique ou monétaire en `font-mono tabular-nums`.
+5. Toute valeur numérique ou monétaire en `tabular-nums`. **Pas** `font-mono` :
+   ce qui aligne une colonne, ce sont les chiffres de largeur égale, et Google
+   Sans en possède. La chasse fixe reste réservée à ce qui **est** du code —
+   matricules, références, codes d'entité *(amendé le 13 août 2026)*.
 6. Espacements sur la grille de 8 px — vérifié par ESLint.
 7. Bibliothèques lourdes (React Flow, Recharts, PDF, xlsx) toujours en import
    dynamique, avec squelette en `fallback`.

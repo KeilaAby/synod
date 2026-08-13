@@ -340,7 +340,7 @@ export function FinancesClient({
             <TableBody>
               {filtres.map((m) => (
                 <TableRow key={m.id}>
-                  <TableCell className="font-mono text-xs tabular-nums">
+                  <TableCell className="text-xs tabular-nums">
                     {formatDate(m.date_operation)}
                   </TableCell>
 
@@ -524,8 +524,10 @@ export function FinancesClient({
 /**
  * Une carte du triptyque — UI-05.
  *
- * Le montant est en `font-mono tabular-nums` (règle 5) : sans chiffres de
- * largeur fixe, quatre cartes alignées donnent quatre montants qui dansent.
+ * Le montant est en `tabular-nums` : sans chiffres de largeur fixe, quatre
+ * cartes alignées donnent quatre montants qui dansent. La chasse fixe, elle,
+ * n'y ajoutait rien — c'est `tabular-nums` qui aligne, pas `font-mono` — et
+ * donnait à un écran de trésorerie l'aspect d'un terminal.
  */
 function CarteSolde({
   libelle,
@@ -551,7 +553,7 @@ function CarteSolde({
     <Card>
       <CardContent className="space-y-1 p-6">
         <p className="text-muted-foreground text-xs font-medium">{libelle}</p>
-        <p className={`font-mono text-2xl tabular-nums ${couleur}`}>
+        <p className={`text-2xl font-semibold tabular-nums ${couleur}`}>
           {formatMontant(valeur, devise)}
         </p>
         {detail && <p className="text-muted-foreground text-xs">{detail}</p>}

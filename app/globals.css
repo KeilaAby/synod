@@ -195,13 +195,25 @@
     @apply text-xs font-medium tracking-[0.14em] text-indigo-600 uppercase;
   }
 
-  /* UI-13 — montant financier : chasse fixe, chiffres tabulaires. */
+  /* UI-13 — montant financier.
+
+     LA POLICE D'INTERFACE, PAS LA CHASSE FIXE. `font-mono` a longtemps servi
+     ici pour une seule raison : aligner les colonnes de chiffres. Or ce qui les
+     aligne, c'est `tabular-nums` — des chiffres de largeur egale —, et Google
+     Sans en possede comme toute police d'interface serieuse. La chasse fixe
+     n'apportait donc que son aspect : celui d'un terminal, sur un ecran de
+     tresorerie.
+
+     Les colonnes restent strictement alignees. Ce qui change, c'est que
+     « 3 550 000 Ar » se lit comme une somme et non comme du code. */
   .montant {
-    @apply font-mono tabular-nums;
+    @apply tabular-nums;
+    font-variant-numeric: tabular-nums;
   }
 
   .montant-negatif {
-    @apply font-mono text-rose-600 tabular-nums;
+    @apply text-rose-600 tabular-nums;
+    font-variant-numeric: tabular-nums;
   }
 }
 

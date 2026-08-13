@@ -156,6 +156,29 @@ export const PERMISSIONS = {
       "Enregistrer un mouvement au nom d'une entite privee d'acces. Reserve au Siege.",
   },
   /**
+   * EF-FIN-15 (adapte) — regler le workflow d'une entite.
+   *
+   * DISTINCT DE `settings.manage`, ET DELEGABLE. Le reglage passait par
+   * `settings.manage`, qui n'est pas delegable : seul le Siege pouvait donc
+   * decider, entite par entite, pour toute l'organisation. Un district qui
+   * structure ses eglises devait le demander au Siege a chaque fois.
+   *
+   * Le lui accorder par `settings.manage` aurait ouvert AVEC lui la devise, le
+   * format des matricules et la fenetre des nouveaux baptises — des reglages
+   * d'organisation qu'un district n'a pas a toucher. Un droit qui ouvre plus
+   * que ce qu'on veut accorder n'est pas le bon droit.
+   *
+   * Il se delegue AVEC SA PORTEE (RG-25) : un district le recoit pour son
+   * district, et ne regle donc que ses propres eglises.
+   */
+  'finance.workflow.manage': {
+    label: 'Regler le workflow de validation',
+    group: 'Finances',
+    description:
+      "Activer ou desactiver la validation des ecritures, entite par entite, dans la "
+      + 'portee accordee.',
+  },
+  /**
    * EF-FIN-18 — la levee de la separation saisie/validation.
    *
    * Elle SE DETIENT, elle ne se suppose pas. Une eglise de trois personnes n'a
@@ -323,6 +346,7 @@ export const ROLE_TEMPLATES: Record<UserRole, readonly Permission[]> = {
     'finance.update',
     'finance.submit',
     'finance.validate',
+    'finance.workflow.manage',
     'report.read',
     'report.create',
     'report.publish',

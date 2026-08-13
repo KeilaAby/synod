@@ -1880,3 +1880,48 @@ Les deux classes reprennent le **préfixe de variante** du composant partagé
 (`group-data-horizontal/tabs:`). Sans lui, tailwind-merge n'aurait pas reconnu
 le conflit : les nouvelles se seraient ajoutées aux anciennes au lieu de les
 remplacer, et le résultat aurait dépendu de l'ordre du CSS produit.
+
+---
+
+## 13 août 2026 (suite) — Google Sans, enfin, et le droit qui manquait
+
+**Je me trompais sur Google Sans.** `lib/fonts.ts` affirmait qu'elle est
+propriétaire et non licenciable — c'était vrai, ce ne l'est plus : Google l'a
+publiée sur Google Fonts en 2025. Le substitut Inter n'avait plus de raison
+d'être.
+
+Elle n'est pas chargée par un `<link>` vers `fonts.googleapis.com`, malgré ce
+que donne l'assistant de Google Fonts. Trois raisons : P-9 interdit toute
+requête vers un tiers, la CSP d'ENF-SEC-07 bloquerait le domaine — la page se
+rendrait alors dans la police de repli **sans le dire** —, et une police servie
+par un CDN arrive après le premier rendu, si bien que le texte saute au moment
+où elle remplace le repli.
+
+`next/font/google` fait l'inverse : il télécharge les fichiers **au build** et
+les sert depuis notre origine, `@font-face` et preload générés. Auto-hébergé
+comme les `.woff2` de `app/fonts/`, sans avoir à les versionner. La chasse fixe
+passe à **Google Sans Code**, de la même famille : deux polices d'origines
+différentes côte à côte dans un tableau se voient, et ce qui se voit dans un
+tableau de chiffres détourne de ce qu'on y lit.
+
+**Les montants quittent la chasse fixe.** `font-mono` servait à aligner les
+colonnes — mais ce qui les aligne, c'est `tabular-nums`, des chiffres de largeur
+égale, et Google Sans en possède. La chasse fixe n'apportait donc que son
+aspect : celui d'un terminal, sur un écran de trésorerie. Les colonnes restent
+strictement alignées ; « 3 550 000 Ar » se lit désormais comme une somme.
+`designrules.md` et la règle 5 sont amendés et datés.
+
+**`finance.workflow.manage`** — le réglage passait par `settings.manage`, qui
+n'est pas délégable : seul le Siège pouvait donc décider, entité par entité,
+pour toute l'organisation. Lui accorder `settings.manage` aurait ouvert avec lui
+la devise, le format des matricules et la fenêtre des nouveaux baptisés. **Un
+droit qui ouvre plus que ce qu'on veut accorder n'est pas le bon droit.**
+
+Le nouveau droit est **délégable avec sa portée** (RG-25) : le Siège le confie à
+un district pour son seul district, qui règle alors ses églises sans repasser
+par le Siège et ne voit rien au-delà. Il figure d'office dans le profil
+`ENTITE_ADMIN`.
+
+### Qualité
+
+427 tests unitaires. `pnpm verify` vert.

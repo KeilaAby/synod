@@ -25,11 +25,20 @@ Couleurs Sémantiques :
 Fond de page : Gray-50 (#F9FAFB).
 Cartes : White (#FFFFFF) avec une bordure fine Gray-200.
 Typographie : Slate-900 pour les titres, Slate-500 pour les métadonnées.
-Police de caractère : Google Sans
+Police de caractère : **Google Sans** (publiée sur Google Fonts depuis 2025).
+Elle est **auto-hébergée** via `next/font/google`, qui la télécharge au build.
+Aucune balise vers `fonts.googleapis.com` : la CSP la bloquerait, et la page se
+rendrait dans la police de repli sans le dire (P-9, ENF-SEC-07).
+Chasse fixe : **Google Sans Code**, de la même famille.
 
 3. COMPOSANTS STRATÉGIQUES SPÉCIFIQUES
 
-Tableaux de données (Data Tables) : Utilise le composant <DataTable /> de Shadcn. Pas de bordures verticales. Alignement monospacé (font-mono) pour toutes les valeurs numériques et pourcentages.
+Tableaux de données (Data Tables) : Utilise le composant <DataTable /> de Shadcn. Pas de bordures verticales. Alignement par **`tabular-nums`** pour toutes les valeurs numériques et pourcentages.
+
+*Amendé le 13 août 2026.* Ce qui aligne les colonnes, ce sont les chiffres de
+largeur égale — pas la chasse fixe. `font-mono` n'ajoutait donc que son aspect,
+celui d'un terminal, sur un écran de trésorerie. Il reste réservé à ce qui **est**
+du code : matricules, références, codes d'entité.
 
 Badges de Statuts :
 

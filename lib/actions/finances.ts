@@ -418,9 +418,16 @@ export async function supprimerMouvement(input: unknown): Promise<ActionResult<v
  * Chaque entite a son bureau, et chaque bureau gere ses finances ; la
  * hierarchie ne fait que les consulter (12 aout 2026).
  *
- * Le droit exige est `settings.manage` : ce n'est pas une ecriture comptable
- * mais une regle d'organisation, et la confondre avec `finance.validate`
- * laisserait un validateur se dispenser lui-meme de validation.
+ * Le droit exige est `finance.workflow.manage`, avec sa PORTEE (RG-25).
+ *
+ * Ce n'est ni `finance.validate` — un validateur se dispenserait lui-meme de
+ * valider —, ni `settings.manage`, qui ouvrirait avec lui la devise, le format
+ * des matricules et la fenetre des nouveaux baptises. Un droit qui ouvre plus
+ * que ce qu'on veut accorder n'est pas le bon droit.
+ *
+ * Etant DELEGABLE, le Siege peut le confier a un district pour son seul
+ * district : celui-ci regle alors ses propres eglises sans repasser par le
+ * Siege, et ne voit rien au-dela de sa portee.
  */
 export async function reglerWorkflowEntite(
   input: unknown,
@@ -435,7 +442,7 @@ export async function reglerWorkflowEntite(
     const cible = await cheminDe(data.entiteId);
     if (!cible) return ko('Cette entite est introuvable ou hors de votre perimetre.');
 
-    await requirePermission(session, 'settings.manage', cible.chemin);
+    await requirePermission(session, 'finance.workflow.manage', cible.chemin);
 
     const sb = await createClient();
 
