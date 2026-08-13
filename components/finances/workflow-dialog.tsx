@@ -67,7 +67,6 @@ export function WorkflowDialog({
 }) {
   const router = useRouter();
   const [ouvert, setOuvert] = useState(false);
-  const [recherche, setRecherche] = useState('');
   const [enCours, setEnCours] = useState<string | null>(null);
 
   /**
@@ -81,16 +80,6 @@ export function WorkflowDialog({
     Object.fromEntries(lignes.map((l) => [l.entiteId, l.decide])),
   );
 
-  // Filtre en MÉMOIRE : le périmètre est déjà chargé, un aller-retour par
-  // frappe coûterait plus que tout le reste de l'écran (règle 17).
-  const visibles = useMemo(() => {
-    const terme = normaliserRecherche(recherche);
-    if (!terme) return lignes;
-    return lignes.filter((l) =>
-      normaliserRecherche(`${l.nom} ${l.code}`).includes(terme),
-    );
-  }, [lignes, recherche]);
-
   /**
    * UN ONGLET PAR NIVEAU.
    *
@@ -99,30 +88,25 @@ export function WorkflowDialog({
    * parcourt tout. Le niveau est un ensemble CLOS et connu — c'est exactement
    * ce que des onglets rendent bien (règle 18).
    *
-   * Seuls les niveaux PRÉSENTS ont un onglet : une paroisse n'en a pas pour
-   * les districts, et un onglet vide ne s'affiche pas pour le principe.
+   * Le regroupement porte sur TOUTES les lignes, jamais sur un résultat de
+   * recherche : un onglet qui disparaît en cours de frappe déplace ce qu'on
+   * était en train de viser, et son compteur cesse de dire combien d'entités
+   * ce niveau compte.
    */
   const onglets = useMemo(() => {
     const parType = new Map<EntityType, LigneReglage[]>();
-    for (const ligne of visibles) {
+    for (const ligne of lignes) {
       const liste = parType.get(ligne.type) ?? [];
       liste.push(ligne);
       parType.set(ligne.type, liste);
     }
 
-    // Les niveaux PRÉSENTS dans le périmètre entier, pas seulement dans le
-    // résultat courant : un onglet qui disparaît en cours de frappe déplace
-    // ce qu'on est en train de viser.
-    const presents = ENTITY_TYPES.filter((type) => lignes.some((l) => l.type === type));
-
-    return presents.map((type) => ({
+    return ENTITY_TYPES.filter((type) => parType.has(type)).map((type) => ({
       type,
       libelle: ENTITY_LABELS[type].pluriel,
-      entites: (parType.get(type) ?? []).sort((a, b) =>
-        a.nom.localeCompare(b.nom, 'fr'),
-      ),
+      entites: parType.get(type)!.sort((a, b) => a.nom.localeCompare(b.nom, 'fr')),
     }));
-  }, [visibles, lignes]);
+  }, [lignes]);
 
   const [ongletActif, setOngletActif] = useState<string>('');
   const actif = ongletActif || onglets[0]?.type || '';
@@ -134,13 +118,6 @@ export function WorkflowDialog({
       total: lignes.length,
     };
   }, [lignes, etat, defautOrganisation]);
-
-  // Ce que la recherche a trouvé AILLEURS : sans cela, chercher une église
-  // depuis l'onglet « Districts » donne une liste vide sans explication.
-  const ailleurs = useMemo(
-    () => visibles.filter((l) => l.type !== actif).length,
-    [visibles, actif],
-  );
 
   async function choisir(entiteId: string, actif: boolean | null) {
     const precedent = etat[entiteId] ?? null;
@@ -205,22 +182,12 @@ export function WorkflowDialog({
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <p className="text-muted-foreground text-sm">
-                <span className="font-mono tabular-nums">{comptes.actives}</span> entité
-                {comptes.actives > 1 ? 's' : ''} sur{' '}
-                <span className="font-mono tabular-nums">{comptes.total}</span> en
-                validation.
-              </p>
-
-              <Input
-                value={recherche}
-                onChange={(e) => setRecherche(e.target.value)}
-                placeholder="Rechercher une entité…"
-                className="h-9 w-full sm:w-64"
-                aria-label="Rechercher une entité"
-              />
-            </div>
+            <p className="text-muted-foreground text-sm">
+              <span className="font-mono tabular-nums">{comptes.actives}</span> entité
+              {comptes.actives > 1 ? 's' : ''} sur{' '}
+              <span className="font-mono tabular-nums">{comptes.total}</span> en
+              validation.
+            </p>
 
             {comptes.total === 0 ? (
               <p className="text-muted-foreground flex items-center gap-2 text-sm">
@@ -245,7 +212,8 @@ export function WorkflowDialog({
                       className="flex-none px-1 pb-2 text-sm"
                     >
                       {onglet.libelle}
-                      {/* Le compte suit la recherche : il dit où chercher. */}
+                      {/* Le nombre d'entités DU NIVEAU, pas des résultats : il
+                          ne bouge pas quand on tape. */}
                       <span className="text-muted-foreground ml-2 font-mono text-xs tabular-nums">
                         {onglet.entites.length}
                       </span>
@@ -255,34 +223,13 @@ export function WorkflowDialog({
 
                 {onglets.map((onglet) => (
                   <TabsContent key={onglet.type} value={onglet.type} className="mt-4">
-                    {onglet.entites.length === 0 ? (
-                      <p className="text-muted-foreground p-6 text-center text-sm">
-                        Aucune {ENTITY_LABELS[onglet.type].singulier.toLocaleLowerCase('fr')}{' '}
-                        ne correspond
-                        {ailleurs > 0 && (
-                          <>
-                            {' '}
-                            — mais {ailleurs} résultat{ailleurs > 1 ? 's' : ''} dans les
-                            autres onglets
-                          </>
-                        )}
-                        .
-                      </p>
-                    ) : (
-                      <ul className="border-border divide-border divide-y rounded-lg border">
-                        {onglet.entites.map((ligne) => (
-                          <LigneEntite
-                            key={ligne.entiteId}
-                            ligne={ligne}
-                            decide={etat[ligne.entiteId] ?? null}
-                            defautOrganisation={defautOrganisation}
-                            enCours={enCours === ligne.entiteId}
-                            verrouille={enCours !== null}
-                            surChoix={choisir}
-                          />
-                        ))}
-                      </ul>
-                    )}
+                    <PanneauNiveau
+                      onglet={onglet}
+                      etat={etat}
+                      defautOrganisation={defautOrganisation}
+                      enCours={enCours}
+                      surChoix={choisir}
+                    />
                   </TabsContent>
                 ))}
               </Tabs>
@@ -298,6 +245,86 @@ export function WorkflowDialog({
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+/**
+ * Le contenu d'un onglet : sa recherche et sa liste.
+ *
+ * DEUX CHOSES Y SONT TENUES.
+ *
+ * La recherche est PROPRE AU NIVEAU. Partagée, taper « Antananarivo » depuis
+ * les Régionaux vidait aussi les Églises, et l'on changeait d'onglet pour
+ * tomber sur une liste filtrée par une question qu'on ne posait plus.
+ *
+ * La liste a une HAUTEUR FIXE — cinq lignes — et défile au-delà. Sans cela, la
+ * fenêtre grandissait et rétrécissait à chaque changement d'onglet et à chaque
+ * frappe : les onglets se déplaçaient sous le curseur, et le bouton « Fermer »
+ * avec eux. Une fenêtre qui bouge pendant qu'on la lit se lit deux fois.
+ */
+function PanneauNiveau({
+  onglet,
+  etat,
+  defautOrganisation,
+  enCours,
+  surChoix,
+}: {
+  onglet: { type: EntityType; libelle: string; entites: LigneReglage[] };
+  etat: Record<string, boolean | null>;
+  defautOrganisation: boolean;
+  enCours: string | null;
+  surChoix: (entiteId: string, actif: boolean | null) => void;
+}) {
+  const [recherche, setRecherche] = useState('');
+
+  // Filtre en MÉMOIRE : le périmètre est déjà chargé, un aller-retour par
+  // frappe coûterait plus que tout le reste de l'écran (règle 17).
+  const visibles = useMemo(() => {
+    const terme = normaliserRecherche(recherche);
+    if (!terme) return onglet.entites;
+    return onglet.entites.filter((l) =>
+      normaliserRecherche(`${l.nom} ${l.code}`).includes(terme),
+    );
+  }, [onglet.entites, recherche]);
+
+  return (
+    <div className="space-y-4">
+      <Input
+        value={recherche}
+        onChange={(e) => setRecherche(e.target.value)}
+        placeholder={`Rechercher parmi ${onglet.entites.length} ${onglet.libelle.toLocaleLowerCase('fr')}…`}
+        className="h-9 w-full sm:w-72"
+        aria-label={`Rechercher parmi les ${onglet.libelle.toLocaleLowerCase('fr')}`}
+      />
+
+      {/*
+        `h-[22rem]` tient cinq lignes, et la hauteur ne dépend donc plus du
+        contenu. La barre de défilement est RENDUE VISIBLE : une liste qui
+        défile sans que rien ne l'annonce paraît s'arrêter à la cinquième —
+        même correctif que dans le sélecteur d'entité.
+      */}
+      <div className="border-border h-[22rem] overflow-y-auto rounded-lg border [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar]:block [&::-webkit-scrollbar]:w-2">
+        {visibles.length === 0 ? (
+          <p className="text-muted-foreground p-6 text-center text-sm">
+            Aucun résultat parmi les {onglet.libelle.toLocaleLowerCase('fr')}.
+          </p>
+        ) : (
+          <ul className="divide-border divide-y">
+            {visibles.map((ligne) => (
+              <LigneEntite
+                key={ligne.entiteId}
+                ligne={ligne}
+                decide={etat[ligne.entiteId] ?? null}
+                defautOrganisation={defautOrganisation}
+                enCours={enCours === ligne.entiteId}
+                verrouille={enCours !== null}
+                surChoix={surChoix}
+              />
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
   );
 }
 

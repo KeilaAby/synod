@@ -1850,3 +1850,22 @@ frappe déplace ce qu'on visait ; le compteur de chaque onglet **suit la
 recherche**, donc il dit où chercher ; et quand l'onglet actif ne rend rien, il
 annonce combien de résultats attendent dans les autres, faute de quoi chercher
 une église depuis l'onglet « Districts » donne une liste vide sans explication.
+
+**La fenêtre ne respire plus.** Sa hauteur suivait le contenu de l'onglet : cinq
+régionaux, puis dix-neuf églises, et elle grandissait de moitié. Les onglets se
+déplaçaient sous le curseur, le bouton « Fermer » avec eux. Une fenêtre qui
+bouge pendant qu'on la lit se lit deux fois.
+
+La liste a désormais une **hauteur fixe de cinq lignes** et défile au-delà, avec
+une barre de défilement rendue visible — même correctif que dans le sélecteur
+d'entité, où une liste défilait sans que rien ne l'annonce.
+
+**La recherche est propre à chaque niveau.** Partagée, elle était la seconde
+cause du même défaut ; et taper « Antananarivo » depuis les Régionaux vidait
+aussi les Églises, si bien qu'on changeait d'onglet pour tomber sur une liste
+filtrée par une question qu'on ne posait plus. Chaque onglet porte donc son
+champ, qui annonce ce qu'il fouille : « Rechercher parmi 19 églises… ».
+
+Conséquence : le compteur d'un onglet redit le nombre d'entités **du niveau**,
+plus celui des résultats. Il ne bouge plus quand on tape, et le repère
+« combien en ai-je ? » redevient stable.
