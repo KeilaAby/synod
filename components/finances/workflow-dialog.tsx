@@ -203,13 +203,21 @@ export function WorkflowDialog({
                 */}
                 <TabsList
                   variant="line"
-                  className="border-border h-auto w-full justify-start gap-6 overflow-x-auto rounded-none border-b pb-2"
+                  className="border-border h-auto w-full justify-start gap-6 overflow-x-auto rounded-none border-b p-0"
                 >
                   {onglets.map((onglet) => (
+                    /*
+                      Le trait de l'onglet actif POSE SUR le filet gris, sans
+                      interstice : `after:bottom-0` l'aligne sur le bord bas du
+                      déclencheur, que `p-0` sur la liste fait coïncider avec la
+                      bordure. Les deux classes reprennent le préfixe de variante
+                      du composant partagé — sans lui, elles s'ajouteraient aux
+                      siennes au lieu de les remplacer.
+                    */
                     <TabsTrigger
                       key={onglet.type}
                       value={onglet.type}
-                      className="flex-none px-1 pb-2 text-sm"
+                      className="group-data-horizontal/tabs:after:bottom-0 group-data-horizontal/tabs:after:h-[3px] flex-none px-1 pt-1 pb-3 text-sm"
                     >
                       {onglet.libelle}
                       {/* Le nombre d'entités DU NIVEAU, pas des résultats : il

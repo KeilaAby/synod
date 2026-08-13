@@ -1869,3 +1869,14 @@ champ, qui annonce ce qu'il fouille : « Rechercher parmi 19 églises… ».
 Conséquence : le compteur d'un onglet redit le nombre d'entités **du niveau**,
 plus celui des résultats. Il ne bouge plus quand on tape, et le repère
 « combien en ai-je ? » redevient stable.
+
+**Le trait de l'onglet actif pose sur le filet gris.** Il flottait cinq pixels
+sous le libellé, séparé du séparateur par le rembourrage de la rangée : deux
+lignes parallèles au lieu d'un onglet posé sur son rail. `p-0` sur la rangée
+fait coïncider le bord bas des déclencheurs avec la bordure, `after:bottom-0`
+y colle le trait, et son épaisseur passe de 2 à 3 pixels.
+
+Les deux classes reprennent le **préfixe de variante** du composant partagé
+(`group-data-horizontal/tabs:`). Sans lui, tailwind-merge n'aurait pas reconnu
+le conflit : les nouvelles se seraient ajoutées aux anciennes au lieu de les
+remplacer, et le résultat aurait dépendu de l'ordre du CSS produit.
