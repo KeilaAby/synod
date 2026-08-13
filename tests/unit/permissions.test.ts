@@ -259,6 +259,14 @@ describe('RG-24 — delegation : on ne delegue que ce que l on detient', () => {
       'bureau.delete',
       'entity.delete',
       'finance.delegate',
+      /**
+       * EF-FIN-18 — se dispenser de la separation saisie/validation.
+       *
+       * Delegable, un compte qui le detient l'accorderait a celui qu'il
+       * controle : la separation ne tiendrait plus qu'a la bonne volonte de
+       * celui-la meme qu'elle surveille.
+       */
+      'finance.validate_own',
       'referentiel.manage',
       'settings.manage',
     ]);
@@ -268,6 +276,33 @@ describe('RG-24 — delegation : on ne delegue que ce que l on detient', () => {
     // le passe.
     expect(estDelegable('bureau.manage')).toBe(true);
     expect(estDelegable('bureau.delete')).toBe(false);
+  });
+
+  it('tient la MEME liste que la base — RG-24', async () => {
+    /**
+     * Le commentaire du domaine affirmait cet alignement ; rien ne le
+     * verifiait, et les deux listes ont diverge : `bureau.delete` etait non
+     * delegable en TypeScript et delegable en SQL. L'ecran disait donc non
+     * pendant que la base disait oui — un appel direct a l'API aurait accorde
+     * le droit d'effacer l'histoire d'un bureau.
+     *
+     * C'est le defaut le plus courant d'une regle ecrite a deux endroits :
+     * elle ne diverge jamais le jour ou on l'ecrit.
+     */
+    const { readFile } = await import('node:fs/promises');
+    const sql = await readFile(
+      new URL(
+        '../../supabase/migrations/0025_droits_non_delegables.sql',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+
+    // Le corps du `select array[...]`, dont on extrait les chaines citees.
+    const tableau = sql.slice(sql.indexOf('select array['), sql.indexOf(']::text[]'));
+    const cotes = [...tableau.matchAll(/'([a-z_]+\.[a-z_]+)'/g)].map((m) => m[1]!);
+
+    expect(cotes.sort()).toEqual([...NON_DELEGABLES].sort());
   });
 });
 

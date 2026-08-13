@@ -24,7 +24,7 @@ import { DataError } from './errors';
 
 const CHAMPS = `
   id, type, code, nom, parent_id, niveau, path, description,
-  sans_acces_application, is_active, created_at, updated_at
+  sans_acces_application, finance_validation_active, is_active, created_at, updated_at
 ` as const;
 
 export interface Entite {
@@ -34,6 +34,11 @@ export interface Entite {
   nom: string;
   parent_id: string | null;
   niveau: number;
+  /**
+   * EF-FIN-15 (adapte) — workflow de validation financiere propre a l'entite.
+   * `null` = defaut de l'organisation. Aucun heritage depuis le parent.
+   */
+  finance_validation_active?: boolean | null;
   path: string;
   description: string | null;
   sans_acces_application: boolean;

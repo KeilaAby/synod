@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 
+import { WorkflowDialog } from '@/components/finances/workflow-dialog';
 import { PageHeader } from '@/components/shared/page-header';
 import { getArbrePerimetre } from '@/lib/data/entities';
 import { versOptions } from '@/lib/data/entity-options';
@@ -46,6 +47,26 @@ export default async function FinancesPage() {
 
   const racine = arbre.find((e) => e.id === session?.entityId) ?? arbre[0] ?? null;
 
+  /**
+   * EF-FIN-15 — le reglage du workflow, entite par entite.
+   *
+   * Derive de l'arbre DEJA CHARGE : depuis que l'heritage a disparu, l'effectif
+   * vaut « ce que l'entite a decide, sinon le defaut de l'organisation ». Aucune
+   * requete supplementaire — interroger la base pour chaque entite aurait coute
+   * un aller-retour par ligne (regle 28).
+   */
+  const reglages = arbre
+    .filter((e) => e.is_active)
+    .map((e) => ({
+      entiteId: e.id,
+      nom: e.nom,
+      code: e.code,
+      type: e.type,
+      niveau: e.niveau,
+      decide: e.finance_validation_active ?? null,
+      effectif: e.finance_validation_active ?? parametres.finance_validation_active,
+    }));
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -55,6 +76,12 @@ export default async function FinancesPage() {
           racine
             ? `Recettes, dépenses et solde de ${racine.nom} et de son périmètre.`
             : 'Recettes, dépenses et solde de votre périmètre.'
+        }
+        actions={
+          <WorkflowDialog
+            lignes={reglages}
+            defautOrganisation={parametres.finance_validation_active}
+          />
         }
       />
 

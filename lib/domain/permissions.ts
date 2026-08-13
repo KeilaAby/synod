@@ -155,6 +155,22 @@ export const PERMISSIONS = {
     description:
       "Enregistrer un mouvement au nom d'une entite privee d'acces. Reserve au Siege.",
   },
+  /**
+   * EF-FIN-18 — la levee de la separation saisie/validation.
+   *
+   * Elle SE DETIENT, elle ne se suppose pas. Une eglise de trois personnes n'a
+   * personne d'autre pour valider ; ailleurs, laisser une seule main saisir et
+   * constater efface la difference entre une comptabilite et une declaration.
+   * Le droit rend donc l'exception VISIBLE — dans la matrice d'habilitation, et
+   * dans le journal d'audit.
+   */
+  'finance.validate_own': {
+    label: 'Valider ses propres mouvements',
+    group: 'Finances',
+    description:
+      'Leve la separation entre saisie et validation. A reserver aux entites ou une '
+      + 'seule personne tient les comptes.',
+  },
 
   // --- Rapports --------------------------------------------------------------
   'report.read': {
@@ -248,6 +264,13 @@ export const NON_DELEGABLES: readonly Permission[] = [
   'referentiel.manage',
   'settings.manage',
   'finance.delegate',
+  /**
+   * EF-FIN-18 — se dispenser de la separation saisie/validation ne se delegue
+   * pas. Un compte qui le detient pourrait sinon l'accorder a celui qu'il
+   * controle, et la separation ne tiendrait plus qu'a la bonne volonte de
+   * celui-la meme qu'elle surveille.
+   */
+  'finance.validate_own',
 ];
 
 export function estDelegable(permission: Permission): boolean {

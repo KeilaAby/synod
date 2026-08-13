@@ -1790,3 +1790,48 @@ aussi accepter `eglise_collecte_id` sous peine de rendre la collecte invisible �
 qui l'a faite, le bordereau de remise groupant plusieurs dimanches, et le fait
 qu'un **solde de collecte n'est pas un solde disponible** — les deux ne doivent
 surtout pas se ressembler à l'écran.
+
+---
+
+## 13 août 2026 — Le workflow devient réglable, et une divergence apparaît
+
+**L'écran manquait.** Le workflow s'active par entité depuis la veille, mais
+rien ne permettait de le régler : un paramètre inatteignable est décoratif.
+Le bouton « Workflow de validation » de `/finances` ouvre désormais la liste du
+périmètre, avec trois choix par entité — *Par défaut*, *Actif*, *Inactif*.
+
+Une liste, pas un interrupteur par écran : la question « lesquelles de mes
+églises valident ? » est une question de comparaison, la réponse doit l'être
+aussi. Chaque choix part immédiatement — le réglage EST l'action, et un bouton
+« Enregistrer » aurait laissé croire qu'on peut tout régler puis tout perdre en
+fermant la fenêtre. L'écriture est optimiste et revient en arrière si le serveur
+refuse : sur une liaison à 0,5–4 s, attendre la réponse rendrait le réglage
+d'une liste de cinquante entités interminable.
+
+Un encart dit noir sur blanc ce qu'une liste hiérarchique laisse croire :
+**« Par défaut » ne veut pas dire « comme mon parent »**, mais « comme
+l'organisation ».
+
+**`finance.validate_own` existe enfin** (EF-FIN-18). `peutValider` recevait
+`detientDoubleRole: false` en dur — la levée de la séparation était donc
+inatteignable. Le droit s'évalue **avec sa portée** (règle 3) : le détenir pour
+son église ne dispense de rien dans la paroisse voisine.
+
+### La divergence : `bureau.delete`
+
+En l'ajoutant à la liste des droits non délégables, une anomalie est apparue.
+`lib/domain/permissions.ts` déclare `bureau.delete` non délégable depuis le
+lot 3, un test le verrouille, l'interface le refuse — mais
+`fn_permissions_non_delegables()` l'ignorait. **L'écran disait non pendant que
+la base disait oui** : un appel direct à l'API PostgREST aurait délégué le droit
+d'effacer l'histoire d'un bureau, avec les fonctions occupées qui disparaissent
+des fiches des croyants (EF-BUR-08).
+
+Le commentaire du domaine affirmait l'alignement des deux listes ; rien ne le
+vérifiait. C'est le défaut le plus courant d'une règle écrite à deux endroits :
+**elle ne diverge jamais le jour où on l'écrit**. Migration `0025`, et un test
+qui lit désormais le SQL et compare les deux listes.
+
+### Qualité
+
+427 tests unitaires. `pnpm verify` vert.

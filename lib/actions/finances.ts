@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { getArbrePerimetre } from '@/lib/data/entities';
 import { getParametres } from '@/lib/data/settings';
 import { peutValider, transitionAutorisee } from '@/lib/domain/finance';
+import { peut } from '@/lib/domain/permissions';
 import { type ActionResult, ko, ok } from '@/lib/domain/result';
 import { auditer, requirePermission, requireSession } from '@/lib/session';
 import { createClient } from '@/lib/supabase/server';
@@ -295,7 +296,15 @@ export async function changerStatutMouvement(
     if (data.statut === 'VALIDE') {
       const verdict = peutValider(mouvement, session.profileId, {
         separationActive: parametres.separation_saisie_validation,
-        detientDoubleRole: false,
+        /**
+         * Le double role s'evalue AVEC SA PORTEE, comme tout droit (regle 3).
+         *
+         * Le detenir pour son eglise ne doit pas dispenser de la separation
+         * dans la paroisse voisine : `peut()` verifie que la portee de
+         * l'octroi couvre l'entite du mouvement, la ou `detient()` se serait
+         * contente de la cle.
+         */
+        detientDoubleRole: peut(session, 'finance.validate_own', cible.chemin),
       });
       if (!verdict.autorise) return ko(verdict.motif ?? 'Validation refusee.');
     }
@@ -405,9 +414,9 @@ export async function supprimerMouvement(input: unknown): Promise<ActionResult<v
 /**
  * Active ou desactive le workflow POUR UNE ENTITE.
  *
- * `null` remet l'entite en heritage : elle suivra l'ancetre le plus proche qui
- * a decide, puis le parametre global. C'est le reglage par defaut, et le seul
- * qui laisse une eglise creee demain hériter de la regle de son district.
+ * `null` remet l'entite sur le DEFAUT DE L'ORGANISATION — pas sur son parent.
+ * Chaque entite a son bureau, et chaque bureau gere ses finances ; la
+ * hierarchie ne fait que les consulter (12 aout 2026).
  *
  * Le droit exige est `settings.manage` : ce n'est pas une ecriture comptable
  * mais une regle d'organisation, et la confondre avec `finance.validate`

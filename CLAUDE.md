@@ -63,8 +63,16 @@ globalement — écart à EF-FIN-15, amendé et daté dans `cdg.md`. **Aucun
 héritage depuis le parent** : chaque entité a son bureau et chaque bureau gère
 ses finances ; la hiérarchie ne fait que les consulter. `null` signifie donc
 « défaut de l'organisation », jamais « comme mon parent ». Restent
-EF-FIN-07 (pièce jointe), EF-FIN-08 (saisie en série), EF-FIN-11 (vue
-consolidée du Siège), l'écran de réglage du workflow et le droit de double rôle.
+EF-FIN-07 (pièce jointe), EF-FIN-08 (saisie en série) et EF-FIN-11 (vue
+consolidée du Siège).
+
+L'**écran de réglage** du workflow est livré — bouton de `/finances`, trois
+choix par entité — ainsi que **`finance.validate_own`** (EF-FIN-18), qui lève la
+séparation saisie/validation et s'évalue **avec sa portée**. Au passage, une
+divergence : `bureau.delete` était non délégable en TypeScript et délégable en
+SQL. Migration `0025`, et un test lit désormais le fichier SQL pour comparer les
+deux listes — une règle écrite à deux endroits ne diverge jamais le jour où on
+l'écrit.
 
 **Dîmes — spécifiées, pas construites** : EF-FIN-27 à 31, RG-33, conception dans
 [`plan.md`](notes/plan.md) §4.bis. Le point à ne pas manquer avant d'écrire une
@@ -79,7 +87,7 @@ aucun solde.
 **EF-BUR-11 clos** : l'export Excel de la composition est abandonné le 12 août
 2026, le PDF de l'organigramme couvre le besoin.
 
-Base à jour jusqu'à la migration `0024` (devise **MGA**, ariary). Le stockage de fichiers ne se
+Base à jour jusqu'à la migration `0025`. Le stockage de fichiers ne se
 configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` et
 `postgres` s'y voit refuser `CREATE POLICY` : `pnpm db:bucket` s'en charge par
 l'API.

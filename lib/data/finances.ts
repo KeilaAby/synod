@@ -5,7 +5,9 @@ import { cache } from 'react';
 import { PLAFOND_MOUVEMENTS, type SensFinance, type Solde, type StatutMouvement } from '@/lib/domain/finance';
 import { createClient } from '@/lib/supabase/server';
 
+import { getArbrePerimetre } from './entities';
 import { DataError } from './errors';
+import { getParametres } from './settings';
 
 /**
  * Lectures des finances — EF-FIN-01, EF-FIN-09 a 13.
@@ -226,28 +228,34 @@ export interface ReglageWorkflow {
   effectif: boolean;
 }
 
-export async function chargerReglageWorkflow(
-  entiteId: string,
-): Promise<ReglageWorkflow> {
-  const sb = await createClient();
+/**
+ * Le reglage de TOUT LE PERIMETRE, en une fois.
+ *
+ * AUCUN APPEL A `fn_finance_workflow_actif` ICI, et c'est voulu. Depuis que
+ * l'heritage a disparu, l'effectif se deduit : c'est la valeur decidee, ou le
+ * defaut de l'organisation. Interroger la base pour chaque entite aurait coute
+ * un aller-retour par ligne — cinquante eglises, cinquante requetes (regle 28)
+ * — pour recalculer un `??`.
+ *
+ * La fonction SQL reste la reference : c'est ELLE que le trigger consulte au
+ * moment d'ecrire. Celle-ci ne sert qu'a l'affichage, et les deux ne peuvent
+ * diverger que si la regle change en base sans changer ici — d'ou le test qui
+ * les compare.
+ */
+export async function chargerReglagesWorkflow(): Promise<{
+  reglages: ReglageWorkflow[];
+  defautOrganisation: boolean;
+}> {
+  const [arbre, parametres] = await Promise.all([getArbrePerimetre(), getParametres()]);
 
-  // Deux lectures INDEPENDANTES, donc simultanees (regle 28).
-  const [decide, effectif] = await Promise.all([
-    sb
-      .from('entities')
-      .select('finance_validation_active')
-      .eq('id', entiteId)
-      .maybeSingle<{ finance_validation_active: boolean | null }>(),
-    sb.rpc('fn_finance_workflow_actif', { p_entity: entiteId }),
-  ]);
-
-  if (decide.error) {
-    throw new DataError('Le reglage du workflow est illisible.', decide.error);
-  }
+  const defaut = parametres.finance_validation_active;
 
   return {
-    entiteId,
-    decide: decide.data?.finance_validation_active ?? null,
-    effectif: effectif.error ? false : Boolean(effectif.data),
+    defautOrganisation: defaut,
+    reglages: arbre.map((entite) => ({
+      entiteId: entite.id,
+      decide: entite.finance_validation_active ?? null,
+      effectif: entite.finance_validation_active ?? defaut,
+    })),
   };
 }
