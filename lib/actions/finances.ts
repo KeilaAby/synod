@@ -4,7 +4,11 @@ import { revalidatePath } from 'next/cache';
 
 import { getArbrePerimetre } from '@/lib/data/entities';
 import { getParametres } from '@/lib/data/settings';
-import { peutValider, transitionAutorisee } from '@/lib/domain/finance';
+import {
+  type StatutMouvement,
+  peutValider,
+  transitionAutorisee,
+} from '@/lib/domain/finance';
 import { peut } from '@/lib/domain/permissions';
 import { type ActionResult, ko, ok } from '@/lib/domain/result';
 import { auditer, requirePermission, requireSession } from '@/lib/session';
@@ -16,6 +20,7 @@ import {
   reglerWorkflowSchema,
   saisirMouvementSchema,
   supprimerMouvementSchema,
+  traiterLotSchema,
 } from '@/lib/validation/finance';
 import { champsEnErreur } from '@/lib/validation/zod-errors';
 
@@ -465,5 +470,169 @@ export async function reglerWorkflowEntite(
     revalidatePath('/finances');
     revalidatePath('/structure');
     return ok();
+  });
+}
+
+// -----------------------------------------------------------------------------
+// File de validation, traitement par lot — EF-FIN-21
+// -----------------------------------------------------------------------------
+
+export interface ResultatTraitementLot {
+  /** Mouvements effectivement traites. */
+  readonly traites: number;
+  /** Ceux qui ont ete ecartes, avec leur motif — nommes pour etre retrouves. */
+  readonly refuses: { readonly libelle: string; readonly message: string }[];
+}
+
+interface LigneAValider {
+  id: string;
+  entity_id: string;
+  statut: StatutMouvement;
+  montant: number;
+  libelle: string | null;
+  soumis_par: string | null;
+  saisi_par: string | null;
+}
+
+/**
+ * Valide ou rejette PLUSIEURS mouvements d'un coup — EF-FIN-21.
+ *
+ * QUATRE ALLERS-RETOURS POUR N MOUVEMENTS, PAS QUATRE PAR MOUVEMENT. Valider
+ * vingt lignes une a une, c'est vingt fois 0,5 a 4 secondes, et vingt occasions
+ * de panne (regle 28) : on lit tout en une requete, on decide en memoire, on
+ * ecrit en une seule.
+ *
+ * UN REFUS PARTIEL N'ARRETE PAS LE LOT. Une ligne peut echouer seule — elle a
+ * ete validee entre-temps par quelqu'un d'autre, ou son auteur est celui qui
+ * essaie de la valider (EF-FIN-18). Rejeter les vingt pour une seule ferait
+ * recommencer un tri que l'utilisateur vient de faire ; on ecarte la ligne, on
+ * la NOMME, et le reste passe.
+ */
+export async function traiterMouvementsEnLot(
+  input: unknown,
+): Promise<ActionResult<ResultatTraitementLot>> {
+  return executerAction('traiterMouvementsEnLot', async () => {
+    const session = await requireSession();
+
+    const analyse = traiterLotSchema.safeParse(input);
+    if (!analyse.success) {
+      return ko('Demande invalide.', champsEnErreur(analyse.error));
+    }
+    const data = analyse.data;
+
+    const sb = await createClient();
+
+    // Trois lectures INDEPENDANTES, donc simultanees.
+    const [lignes, arbre, parametres] = await Promise.all([
+      sb
+        .from('finance_entries')
+        .select('id, entity_id, statut, montant, libelle, soumis_par, saisi_par')
+        .in('id', data.ids)
+        .is('deleted_at', null)
+        .returns<LigneAValider[]>(),
+      getArbrePerimetre(),
+      getParametres(),
+    ]);
+
+    if (lignes.error) return ko(messageErreurSql(lignes.error));
+
+    // Une absence de donnees n'est pas un refus de droit (regle 15).
+    if (arbre.length === 0) return ko(MESSAGE_STRUCTURE_ILLISIBLE);
+
+    const chemins = new Map(arbre.map((e) => [e.id, e.path]));
+
+    const retenus: string[] = [];
+    const refuses: ResultatTraitementLot['refuses'] = [];
+
+    /** De quoi nommer une ligne ecartee : un identifiant ne se retrouve pas. */
+    const nommer = (l: LigneAValider) =>
+      l.libelle?.trim() || `Mouvement de ${l.montant} (${l.id.slice(0, 8)})`;
+
+    for (const ligne of lignes.data ?? []) {
+      if (!transitionAutorisee(ligne.statut, data.statut)) {
+        refuses.push({
+          libelle: nommer(ligne),
+          message: `Deja « ${ligne.statut.toLocaleLowerCase('fr')} » : la file a change depuis son affichage.`,
+        });
+        continue;
+      }
+
+      const chemin = chemins.get(ligne.entity_id);
+      if (!chemin) {
+        refuses.push({
+          libelle: nommer(ligne),
+          message: 'Son entite est hors de votre perimetre.',
+        });
+        continue;
+      }
+
+      /**
+       * Le droit s'evalue ENTITE PAR ENTITE (RG-25).
+       *
+       * Une file peut melanger plusieurs eglises, et rien ne garantit qu'on les
+       * couvre toutes. `peut()` plutot que `requirePermission()` : une
+       * exception arreterait le lot entier, quand ce qu'il faut est ecarter la
+       * ligne et poursuivre.
+       */
+      if (!peut(session, DROIT_PAR_STATUT[data.statut], chemin)) {
+        refuses.push({
+          libelle: nommer(ligne),
+          message: "Vous n'avez pas le droit de valider pour cette entite.",
+        });
+        continue;
+      }
+
+      if (data.statut === 'VALIDE') {
+        const verdict = peutValider(ligne, session.profileId, {
+          separationActive: parametres.separation_saisie_validation,
+          detientDoubleRole: peut(session, 'finance.validate_own', chemin),
+        });
+        if (!verdict.autorise) {
+          refuses.push({ libelle: nommer(ligne), message: verdict.motif ?? 'Refuse.' });
+          continue;
+        }
+      }
+
+      retenus.push(ligne.id);
+    }
+
+    if (retenus.length === 0) return ok({ traites: 0, refuses });
+
+    const majuscule = {
+      statut: data.statut,
+      ...(data.statut === 'VALIDE' ? { valide_par: session.profileId } : {}),
+      ...(data.statut === 'REJETE' ? { motif_rejet: sanitize(data.motif ?? '') } : {}),
+    };
+
+    const { error } = await sb
+      .from('finance_entries')
+      .update(majuscule)
+      .in('id', retenus)
+      .is('deleted_at', null);
+
+    if (error) return ko(messageErreurSql(error));
+
+    await auditer({
+      session,
+      action: 'UPDATE',
+      table: 'finance_entries',
+      // Aucun enregistrement PRECIS : l'evenement porte sur le lot entier.
+      entityId: session.entityId,
+      diff: {
+        apres: {
+          lot: true,
+          statut: data.statut,
+          traites: retenus.length,
+          refuses: refuses.length,
+          motif: data.motif,
+        },
+      },
+    });
+
+    revalidatePath('/finances');
+    revalidatePath('/finances/a-valider');
+    revalidatePath('/tableau-de-bord');
+
+    return ok({ traites: retenus.length, refuses });
   });
 }

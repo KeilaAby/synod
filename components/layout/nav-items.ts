@@ -85,7 +85,14 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: 'Finances',
     icon: Wallet,
     permission: 'finance.read',
-    // UI-21 — ce qui attend une validation se compte sur l'entrée de menu.
+    /**
+     * UI-21 — ce qui attend une validation se compte sur l'entree de menu.
+     *
+     * Le badge ne DETOURNE pas le lien : « Finances » mene aux finances. C'est
+     * l'ecran qui renvoie ensuite vers la file (EF-FIN-21), par un bandeau
+     * qu'on ne peut pas manquer — un menu dont l'entree change de destination
+     * selon un compteur est un menu auquel on cesse de se fier.
+     */
     compteurPermission: 'finance.validate',
     compteurCle: 'mouvements',
   },

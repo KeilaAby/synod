@@ -87,6 +87,35 @@ export const chargerMouvements = cache(async (): Promise<MouvementListe[]> => {
 });
 
 /**
+ * La FILE de validation — EF-FIN-21.
+ *
+ * Requete distincte de `chargerMouvements`, et non un filtre sur celle-ci : le
+ * registre s'arrete au plafond de chargement, en commencant par les mouvements
+ * les plus RECENTS. Une file batie dessus perdrait donc les plus anciens — ceux
+ * qui attendent depuis le plus longtemps, c'est-a-dire exactement ceux qu'il
+ * faut traiter.
+ *
+ * Ordre INVERSE de celui du registre : le plus ancien en tete. Une file se
+ * traite par le bas de la pile.
+ */
+export const chargerFileValidation = cache(async (): Promise<MouvementListe[]> => {
+  const sb = await createClient();
+
+  const { data, error } = await sb
+    .from('finance_entries')
+    .select(CHAMPS_LISTE)
+    .eq('statut', 'SOUMIS')
+    .is('deleted_at', null)
+    .order('soumis_le', { ascending: true, nullsFirst: true })
+    .order('date_operation', { ascending: true })
+    .limit(PLAFOND_MOUVEMENTS)
+    .returns<MouvementListe[]>();
+
+  if (error) throw new DataError('La file de validation est illisible.', error);
+  return data ?? [];
+});
+
+/**
  * UI-21 — combien de mouvements attendent une validation.
  *
  * `head: true` : on demande le COMPTE, pas les lignes. Ramener trois mille

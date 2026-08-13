@@ -1,17 +1,24 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
+
+import { ClipboardCheck } from 'lucide-react';
 
 import { WorkflowDialog } from '@/components/finances/workflow-dialog';
 import { PageHeader } from '@/components/shared/page-header';
+import { Button } from '@/components/ui/button';
 import { getArbrePerimetre } from '@/lib/data/entities';
 import { versOptions } from '@/lib/data/entity-options';
 import {
   chargerMouvements,
   chargerSolde,
+  compterMouvementsAValider,
   listerCategoriesFinance,
 } from '@/lib/data/finances';
 import { signerJustificatifs } from '@/lib/data/photos';
 import { getParametres } from '@/lib/data/settings';
+import { detient } from '@/lib/domain/permissions';
 import { getSession } from '@/lib/session';
+import { formatNombre } from '@/lib/utils/format';
 
 import { FinancesClient } from './finances-client';
 
@@ -45,6 +52,18 @@ export default async function FinancesPage() {
    * ne coute qu'un aller-retour, et la fonction SQL fait la somme en base.
    */
   const solde = session ? await chargerSolde(session.entityId) : null;
+
+  /**
+   * EF-FIN-21 — combien de mouvements attendent une decision.
+   *
+   * `head: true` : on demande le COMPTE, pas les lignes. La file elle-meme est
+   * un autre ecran, et ramener ses mouvements ici pour en afficher le nombre
+   * serait le plus cher des affichages.
+   */
+  const aValider =
+    session && detient(session, 'finance.validate')
+      ? await compterMouvementsAValider()
+      : 0;
 
   /**
    * EF-FIN-07 — les pieces justificatives, signees EN UNE FOIS.
@@ -90,10 +109,28 @@ export default async function FinancesPage() {
             : 'Recettes, dépenses et solde de votre périmètre.'
         }
         actions={
-          <WorkflowDialog
-            lignes={reglages}
-            defautOrganisation={parametres.finance_validation_active}
-          />
+          <div className="flex flex-wrap gap-2">
+            {/*
+              EF-FIN-21 — le renvoi vers la file, et seulement s'il y a
+              quelque chose à décider. Un bouton « À valider (0) » demande de
+              vérifier qu'il n'y a rien : le faire disparaître le dit déjà.
+            */}
+            {aValider > 0 && (
+              <Button asChild variant="outline" className="h-10">
+                <Link href="/finances/a-valider">
+                  <ClipboardCheck className="mr-2 size-4" aria-hidden />À valider
+                  <span className="bg-foreground text-background ml-2 rounded-full px-2 py-0.5 text-xs tabular-nums">
+                    {formatNombre(aValider)}
+                  </span>
+                </Link>
+              </Button>
+            )}
+
+            <WorkflowDialog
+              lignes={reglages}
+              defautOrganisation={parametres.finance_validation_active}
+            />
+          </div>
         }
       />
 

@@ -2023,3 +2023,48 @@ afficherait **deux fois le même nombre sous deux noms différents** — la faç
 la plus sûre de faire douter des deux. La quatrième disparaît donc, et la
 troisième se nomme « Solde — {entité} » en disant que les enfants n'y sont pas
 comptés.
+
+---
+
+## 13 août 2026 (suite) — La file de validation
+
+**EF-FIN-21 livré.** Le compteur du menu existait déjà et annonçait « trois
+mouvements à valider » ; il menait au registre complet, où il fallait les
+retrouver à la main. `/finances/a-valider` répond maintenant à la question que
+le badge pose.
+
+**Un écran à part, pas un filtre du registre.** Le registre répond à « qu'avons-
+nous enregistré ? », la file à « que dois-je décider ? ». Et l'ordre n'est pas
+le même : ici le plus **ancien** vient en tête, parce qu'une file se traite par
+le bas de la pile. C'est aussi pourquoi la lecture est une requête distincte —
+le registre s'arrête au plafond en commençant par les plus récents, si bien
+qu'une file bâtie dessus perdrait exactement ceux qui attendent depuis le plus
+longtemps.
+
+**La sélection est le sujet de l'écran.** On coche, on lit le total de ce qu'on
+s'apprête à engager — recettes et dépenses **séparées**, un net les
+compenserait —, et l'on décide une fois. Valider fait entrer ces montants dans
+un solde (RG-18) et les rend immuables (RG-17) : le montant doit être lisible
+**avant** le clic, pas découvert après.
+
+`traiterMouvementsEnLot` fait **quatre allers-retours pour N mouvements**, pas
+quatre par mouvement : une lecture, une décision en mémoire, une écriture.
+
+**Un refus partiel n'arrête pas le lot.** Une ligne peut échouer seule — validée
+entre-temps par quelqu'un d'autre, ou soumise par celui-là même qui essaie de la
+valider (EF-FIN-18). Rejeter les vingt pour une seule ferait recommencer un tri
+qu'on vient de faire : on écarte la ligne, on la **nomme**, et le reste passe.
+D'où `peut()` plutôt que `requirePermission()` — une exception arrêterait tout.
+
+L'auteur de la saisie est affiché sur chaque ligne : c'est ce qui permet de voir
+qu'on s'apprête à valider sa propre écriture, plutôt que de l'apprendre par un
+refus.
+
+**Le menu n'est pas détourné.** « Finances » mène aux finances ; c'est l'écran
+qui renvoie vers la file, par un bouton qui disparaît quand il n'y a rien à
+décider. Un menu dont l'entrée change de destination selon un compteur est un
+menu auquel on cesse de se fier.
+
+### Qualité
+
+432 tests unitaires. `pnpm verify` vert.

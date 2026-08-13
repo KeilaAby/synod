@@ -107,6 +107,32 @@ export const changerStatutSchema = z
 export type ChangerStatutInput = z.input<typeof changerStatutSchema>;
 
 /**
+ * Traitement par LOT de la file de validation — EF-FIN-21.
+ *
+ * Le motif suit la meme regle qu'a l'unite : exige pour un rejet, facultatif
+ * pour une validation. Un rejet groupe se motive UNE fois — les vingt lignes
+ * refusees le sont pour la meme raison, sans quoi ce ne serait pas un lot.
+ */
+export const traiterLotSchema = z
+  .object({
+    ids: z
+      .array(z.uuid())
+      .min(1, 'Selectionnez au moins un mouvement.')
+      // Au-dela, la requete devient longue et l'ecran illisible : une file
+      // qu'on ne relit pas avant de valider n'est pas une file, c'est un
+      // blanc-seing.
+      .max(200, 'Deux cents mouvements au plus par lot.'),
+    statut: z.enum(['VALIDE', 'REJETE']),
+    motif: optionnel(z.string().trim().min(3, 'Le motif est trop court.').max(500)),
+  })
+  .refine((d) => d.statut !== 'REJETE' || d.motif !== null, {
+    message: 'Un rejet se motive : sans raison, la saisie ne peut pas etre corrigee.',
+    path: ['motif'],
+  });
+
+export type TraiterLotInput = z.input<typeof traiterLotSchema>;
+
+/**
  * Suppression logique — RG-22.
  *
  * Schema a part plutot qu'un `.pick()` sur le precedent : `changerStatutSchema`

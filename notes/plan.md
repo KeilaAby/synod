@@ -2541,7 +2541,7 @@ describe('RG-26 / RG-27 — rapports', () => {
 - [x] `MouvementForm` en pop-up partagé création/modification ; registre filtré en mémoire ; triptyque propre/consolidé.
 - [x] Rejet motivé ; annulation motivée ; reprise d'une saisie rejetée.
 - [x] Saisie en série (EF-FIN-08) et pièce justificative (EF-FIN-07). *(13 août 2026)*
-- [ ] **File de validation** avec traitement par lot.
+- [x] **File de validation** avec traitement par lot (EF-FIN-21). *(13 août 2026)*
 - [x] Écran de réglage du workflow, par entité, avec `finance.workflow.manage` **délégable**. *(13 août 2026)*
 - [ ] **Écran de saisie déléguée** dédié, réservé à `finance.delegate`.
 - [ ] **Dîmes** — voir §4.bis ci-dessous.

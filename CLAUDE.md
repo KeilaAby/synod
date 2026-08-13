@@ -67,7 +67,12 @@ ses finances ; la hiérarchie ne fait que les consulter. `null` signifie donc
 **EF-FIN-07 et EF-FIN-08 livrés** : pièce justificative (type déduit des
 **premiers octets**, clé relative en base, URL signées en lot à l'affichage) et
 saisie en série, qui conserve entité, catégorie et date. Un mouvement validé
-fige aussi sa pièce (RG-17). Reste **EF-FIN-11**, la vue consolidée du Siège.
+fige aussi sa pièce (RG-17).
+
+**EF-FIN-21 livré** : la file `/finances/a-valider`, du plus **ancien** au plus
+récent, avec sélection et traitement par lot. Quatre allers-retours pour N
+mouvements, et un refus partiel n'arrête pas le lot — la ligne écartée est
+nommée, le reste passe. Reste **EF-FIN-11**, la vue consolidée du Siège.
 
 L'**écran de réglage** du workflow est livré — bouton de `/finances`, trois
 choix par entité — ainsi que **`finance.validate_own`** (EF-FIN-18), qui lève la
