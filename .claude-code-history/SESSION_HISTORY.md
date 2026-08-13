@@ -2003,3 +2003,23 @@ totaux filtrés l'annoncent — une somme calculée sur une liste tronquée est
 fausse, et se taire serait pire que de ne rien afficher.
 
 432 tests unitaires. `pnpm verify` vert.
+
+**Le filtre d'entité ne remonte plus les enfants.** Il comparait les chemins
+`ltree` : choisir un régional donnait les mouvements de ses districts, de ses
+paroisses et de ses églises — et l'on ne pouvait plus voir ce que le régional
+avait saisi **lui-même**. Or chaque entité a son bureau et gère ses propres
+finances : « les finances du régional » désigne les siennes, pas la somme de
+celles de ses enfants.
+
+Le périmètre reste ce qui borne le **choix**, pas le résultat : la liste
+déroulante ne propose que les entités habilitées (RLS les borne déjà), et
+chacune s'y sélectionne séparément. Qui peut voir ses enfants peut donc les
+filtrer — un par un.
+
+Conséquence à traiter en même temps : le partage propre / consolidé n'a plus de
+sens sur une entité seule. Le filtre ne retenant qu'elle, le consolidé lui est
+identique et la part des descendants vaut zéro. Garder les quatre cartes
+afficherait **deux fois le même nombre sous deux noms différents** — la façon
+la plus sûre de faire douter des deux. La quatrième disparaît donc, et la
+troisième se nomme « Solde — {entité} » en disant que les enfants n'y sont pas
+comptés.

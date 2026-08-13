@@ -127,19 +127,31 @@ export function FinancesClient({
     return mouvements.filter((m) => {
       if (statuts.size > 0 && !statuts.has(m.statut)) return false;
       if (sens.size > 0 && !sens.has(m.sens)) return false;
-      // Le sous-arbre, pas la seule entité : filtrer sur une paroisse doit
-      // montrer ce que ses églises ont saisi.
-      if (entite) {
-        const choisie = entites.find((e) => e.id === entite);
-        if (choisie && !m.entite?.path.startsWith(choisie.path)) return false;
-      }
+      /**
+       * L'ENTITÉ SEULE, jamais son sous-arbre.
+       *
+       * Le filtre remontait les mouvements des descendants : choisir un
+       * régional donnait ceux de ses districts, de ses paroisses et de ses
+       * églises, et l'on ne pouvait plus voir ce que le régional avait saisi
+       * LUI-MÊME. Or chaque entité a son bureau et gère ses propres finances :
+       * « les finances du régional » désigne les siennes, pas la somme de
+       * celles de ses enfants.
+       *
+       * Le périmètre reste ce qui borne le CHOIX, pas le résultat : la liste
+       * déroulante ne propose que les entités habilitées (RLS), et chacune s'y
+       * sélectionne séparément. Qui peut voir ses enfants peut donc les
+       * filtrer — un par un.
+       */
+      if (entite && m.entity_id !== entite) return false;
       if (!terme) return true;
 
       return [m.libelle, m.reference, m.categorie?.libelle, m.entite?.nom]
         .filter(Boolean)
         .some((v) => v!.toLocaleLowerCase('fr').includes(terme));
     });
-  }, [mouvements, recherche, statuts, sens, entite, entites]);
+    // `entites` a disparu des dépendances avec le chemin ltree : le filtre
+    // compare désormais deux identifiants, il n'a plus besoin de l'arbre.
+  }, [mouvements, recherche, statuts, sens, entite]);
 
   /** Un filtre est-il posé ? Décide si le triptyque suit l'écran ou la base. */
   const filtreActif =
@@ -164,6 +176,16 @@ export function FinancesClient({
     () => (filtreActif ? soldeDeMouvements(filtres, entitePropre) : solde),
     [filtreActif, filtres, entitePropre, solde],
   );
+
+  /**
+   * Le partage propre / consolidé n'a plus de sens sur UNE entité.
+   *
+   * Le filtre ne retient que ses propres mouvements : le consolidé lui est
+   * alors identique, et la part des descendants vaut zéro. Garder les quatre
+   * cartes afficherait deux fois le même nombre sous deux noms différents —
+   * la façon la plus sûre de faire douter des deux.
+   */
+  const uneSeuleEntite = entite !== null;
 
   /** Le nom sous lequel le « propre » s'annonce : celui de l'entité filtrée. */
   const nomPropre = useMemo(() => {
@@ -242,7 +264,13 @@ export function FinancesClient({
       {/* --- Le triptyque — EF-FIN-10, EF-FIN-12, EF-FIN-13 --------------- */}
       {soldeAffiche && entiteRacine && (
         <section className="space-y-3">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div
+            className={
+              uneSeuleEntite
+                ? 'grid gap-4 sm:grid-cols-3'
+                : 'grid gap-4 sm:grid-cols-2 lg:grid-cols-4'
+            }
+          >
             <CarteSolde
               libelle="Recettes"
               valeur={soldeAffiche.recettesConsolidees}
@@ -256,23 +284,32 @@ export function FinancesClient({
               ton="danger"
             />
             <CarteSolde
-              libelle="Solde consolidé"
+              libelle={uneSeuleEntite ? `Solde — ${nomPropre}` : 'Solde consolidé'}
               valeur={soldeConsolide(soldeAffiche)}
               devise={devise}
               ton={soldeConsolide(soldeAffiche) < 0 ? 'danger' : 'success'}
-              detail={`dont ${formatMontant(soldeDesDescendants(soldeAffiche), devise)} au périmètre`}
+              detail={
+                uneSeuleEntite
+                  ? 'Cette entité seule — les mouvements de ses enfants ne sont pas comptés.'
+                  : `dont ${formatMontant(soldeDesDescendants(soldeAffiche), devise)} au périmètre`
+              }
             />
             {/*
               EF-FIN-12 — le PROPRE est montré à part, et ce n'est pas cosmétique :
               une paroisse dont le consolidé est confortable peut n'avoir rien en
               propre. Confondre les deux fait engager l'argent de ses églises.
+
+              Il disparaît quand une entité est filtrée : le filtre ne retient
+              déjà qu'elle, la carte répéterait la précédente.
             */}
-            <CarteSolde
-              libelle={`Solde propre — ${nomPropre}`}
-              valeur={soldePropre(soldeAffiche)}
-              devise={devise}
-              ton={soldePropre(soldeAffiche) < 0 ? 'danger' : 'neutral'}
-            />
+            {!uneSeuleEntite && (
+              <CarteSolde
+                libelle={`Solde propre — ${nomPropre}`}
+                valeur={soldePropre(soldeAffiche)}
+                devise={devise}
+                ton={soldePropre(soldeAffiche) < 0 ? 'danger' : 'neutral'}
+              />
+            )}
           </div>
 
           {/*
@@ -326,6 +363,8 @@ export function FinancesClient({
         </div>
 
         <div className="min-w-64">
+          {/* Le choix porte sur UNE entité, pas sur une branche : la liste
+              propose chacune de celles du périmètre, séparément. */}
           <EntityPicker
             options={entites}
             value={entite}
