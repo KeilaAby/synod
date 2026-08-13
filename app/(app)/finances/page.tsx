@@ -9,6 +9,7 @@ import {
   chargerSolde,
   listerCategoriesFinance,
 } from '@/lib/data/finances';
+import { signerJustificatifs } from '@/lib/data/photos';
 import { getParametres } from '@/lib/data/settings';
 import { getSession } from '@/lib/session';
 
@@ -44,6 +45,17 @@ export default async function FinancesPage() {
    * ne coute qu'un aller-retour, et la fonction SQL fait la somme en base.
    */
   const solde = session ? await chargerSolde(session.entityId) : null;
+
+  /**
+   * EF-FIN-07 — les pieces justificatives, signees EN UNE FOIS.
+   *
+   * Les URL signees ne sont JAMAIS persistees (regle 11) : elles se fabriquent
+   * a l'affichage et expirent. Signer piece par piece couterait un aller-retour
+   * par ligne de la liste.
+   */
+  const justificatifs = await signerJustificatifs(
+    mouvements.map((m) => m.justificatif_key),
+  );
 
   const racine = arbre.find((e) => e.id === session?.entityId) ?? arbre[0] ?? null;
 
@@ -97,6 +109,7 @@ export default async function FinancesPage() {
         solde={solde}
         entiteRacine={racine ? { id: racine.id, nom: racine.nom } : null}
         devise={parametres.devise}
+        justificatifs={Object.fromEntries(justificatifs)}
       />
     </div>
   );

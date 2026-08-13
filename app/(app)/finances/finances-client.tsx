@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   FileEdit,
   MoreVertical,
+  Paperclip,
   Search,
   Send,
   Trash2,
@@ -90,6 +91,7 @@ export function FinancesClient({
   solde,
   entiteRacine,
   devise,
+  justificatifs,
 }: {
   mouvements: MouvementListe[];
   categories: CategorieFinance[];
@@ -97,6 +99,8 @@ export function FinancesClient({
   solde: Solde | null;
   entiteRacine: { id: string; nom: string } | null;
   devise: string;
+  /** EF-FIN-07 — cle de stockage -> URL signee, signees en lot par la page. */
+  justificatifs: Record<string, string>;
 }) {
   const router = useRouter();
   const [enCours, demarrer] = useTransition();
@@ -332,6 +336,7 @@ export function FinancesClient({
                 <TableHead>Catégorie</TableHead>
                 <TableHead>Libellé</TableHead>
                 <TableHead className="text-right">Montant</TableHead>
+                <TableHead className="w-16">Pièce</TableHead>
                 <TableHead className="w-28">Statut</TableHead>
                 <TableHead className="w-12" />
               </TableRow>
@@ -382,6 +387,26 @@ export function FinancesClient({
 
                   <TableCell className="text-right">
                     <MontantSigne montant={m.montant} sens={m.sens} devise={devise} />
+                  </TableCell>
+
+                  {/* EF-FIN-07 — la pièce s'ouvre dans un onglet : un PDF ou
+                      une photo de reçu n'a pas sa place dans un tableau, et
+                      l'URL signée expire. */}
+                  <TableCell>
+                    {m.justificatif_key && justificatifs[m.justificatif_key] ? (
+                      <a
+                        href={justificatifs[m.justificatif_key]}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs"
+                        title="Ouvrir la pièce justificative"
+                      >
+                        <Paperclip className="size-4" aria-hidden />
+                        <span className="sr-only">Ouvrir la pièce justificative</span>
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">—</span>
+                    )}
                   </TableCell>
 
                   <TableCell>

@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "PowerShell(pnpm verify 2>&1 | Select-String -Pattern \"error|Error|✖|failed|Tests |Test Files\" | Select-Object -First 15; \"exit=$LASTEXITCODE\")"
     ]
   }
 }

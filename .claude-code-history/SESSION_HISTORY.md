@@ -1925,3 +1925,53 @@ par le Siège et ne voit rien au-delà. Il figure d'office dans le profil
 ### Qualité
 
 427 tests unitaires. `pnpm verify` vert.
+
+---
+
+## 13 août 2026 (suite) — La pièce justificative et la saisie en série
+
+**EF-FIN-07 — la pièce justificative.** Le socle existait déjà : le préfixe
+`justificatifs`, la contrainte « PDF, JPEG ou PNG, 10 Mo » et la vérification
+par signature binaire étaient dans `lib/storage/types.ts` depuis le lot 0, et
+`finance_entries.justificatif_key` attendait dans la table. Il manquait
+l'action et l'écran.
+
+Le type est déduit des **premiers octets**, jamais de l'extension ni du
+`Content-Type` : tous deux viennent du client. La base ne reçoit que la **clé
+relative** ; les URL signées se fabriquent à l'affichage, en lot, et ne sont
+jamais persistées (règle 11).
+
+Deux ordres qui comptent. À l'écriture, si le rattachement échoue après le
+dépôt, l'objet est **retiré** — un orphelin dans le stockage ne se voit pas. À
+la suppression, c'est l'inverse : la **référence part d'abord**, puis l'objet.
+Si le second échoue, il reste un fichier que plus rien ne désigne, sans
+conséquence ; l'ordre inverse laisserait un mouvement pointant vers un objet
+disparu, un lien mort que personne ne saurait réparer.
+
+RG-17 s'applique aussi à la pièce : un mouvement validé la fige avec lui.
+Remplacer le justificatif d'une écriture validée changerait ce qui la prouve
+sans changer ce qu'elle dit.
+
+**EF-FIN-08 — la saisie en série.** « Enregistrer et saisir un autre » conserve
+**entité, catégorie et date** — les trois champs communs à toute une série — et
+vide le montant, le libellé, la référence et la pièce. Une collecte du dimanche,
+c'est huit lignes de la même entité dans la même catégorie : rouvrir la fenêtre
+huit fois pour les ressaisir est exactement ce que l'exigence évite. Conserver
+le montant aurait été pire que tout — un jour, on oublierait de le changer.
+
+### Deux pièges du rendu
+
+`handleSubmit` passe l'**événement** en second argument. `onSubmit={handleSubmit(envoyer)}`
+avec `envoyer(valeurs, enchainer)` aurait donc logé un objet dans `enchainer` —
+un objet est vrai, et chaque envoi aurait enchaîné sans qu'on l'ait demandé.
+
+Vider un `<input type="file">` demande de le **remonter** : sa valeur n'est pas
+pilotable depuis React, le navigateur l'interdit pour qu'une page ne puisse pas
+désigner un fichier à la place de l'utilisateur. Le premier jet passait par une
+`ref` et une affectation directe — que le compilateur React refuse pendant le
+rendu, et il l'a dit. Changer la **clé** remonte un champ neuf : même effet,
+sans `ref`.
+
+### Qualité
+
+427 tests unitaires. `pnpm verify` vert.

@@ -1,13 +1,14 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertCircle, Loader2, Plus, Wallet } from 'lucide-react';
+import { AlertCircle, Loader2, Paperclip, Plus, Repeat, Wallet } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
 import { Field, TextField } from '@/components/shared/field';
+import { avertir } from '@/components/shared/messages';
 import { PermissionGate } from '@/components/shared/permission-gate';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EntityPicker, type OptionEntite } from '@/components/structure/entity-picker';
@@ -31,8 +32,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { modifierMouvement, saisirMouvement } from '@/lib/actions/finances';
+import { televerserJustificatif } from '@/lib/actions/justificatifs';
 import type { CategorieFinance, MouvementListe } from '@/lib/data/finances';
-import { LIBELLES_SENS } from '@/lib/domain/finance';
+import { LIBELLES_SENS, estModifiable } from '@/lib/domain/finance';
 import { formatMontant } from '@/lib/utils/format';
 import {
   type SaisirMouvementInput,
@@ -74,8 +76,26 @@ export function MouvementDialog({
   const router = useRouter();
   const [ouvert, setOuvert] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
+  const [fichier, setFichier] = useState<File | null>(null);
+
+  /**
+   * Vider un <input type="file"> demande de le REMONTER.
+   *
+   * Sa valeur n'est pas pilotable depuis React — le navigateur l'interdit, pour
+   * qu'une page ne puisse pas designer un fichier a la place de l'utilisateur.
+   * On passait donc par une `ref` et une affectation directe de `value`, ce que
+   * le compilateur React refuse de voir atteinte pendant le rendu. Changer la
+   * CLÉ remonte un champ neuf : même effet, sans `ref`.
+   */
+  const [serie, setSerie] = useState(0);
+
+  /** Distingue les deux boutons pendant l'attente : un seul doit tourner. */
+  const [enchaine, setEnchaine] = useState(false);
 
   const enModification = Boolean(mouvement);
+
+  // RG-17 — un mouvement valide est fige, sa piece jointe comprise.
+  const modifiable = !mouvement || estModifiable(mouvement.statut);
 
   const {
     register,
@@ -122,14 +142,56 @@ export function MouvementDialog({
     [categories],
   );
 
+  function viderLeFichier() {
+    setFichier(null);
+    setSerie((n) => n + 1);
+  }
+
   function fermer() {
     reset();
+    viderLeFichier();
     setErreur(null);
     setOuvert(false);
   }
 
-  async function envoyer(valeurs: SaisirMouvementInput) {
+  /**
+   * La pièce part APRÈS le mouvement, et ne le remet pas en cause.
+   *
+   * Elle a besoin de l'identifiant, qui n'existe qu'une fois la ligne écrite :
+   * deux appels, donc, et jamais une transaction. L'état intermédiaire est
+   * bénin — le mouvement existe, correct, sans son justificatif — mais il se
+   * DIT, plutôt que de se taire (règle 20).
+   */
+  async function joindreLaPiece(mouvementId: string): Promise<boolean> {
+    if (!fichier) return true;
+
+    const corps = new FormData();
+    corps.set('mouvementId', mouvementId);
+    corps.set('justificatif', fichier);
+
+    const depot = await televerserJustificatif(corps);
+    if (depot.ok) return true;
+
+    avertir(
+      `Le mouvement est enregistré, mais la pièce justificative n’a pas pu être jointe : ${depot.error}`,
+      { ton: 'information', titre: 'Enregistré, sans la pièce' },
+    );
+    return false;
+  }
+
+  async function envoyer(valeurs: SaisirMouvementInput, enchainer = false) {
     setErreur(null);
+    setEnchaine(enchainer);
+
+    /**
+     * L'identifiant vient de la CRÉATION, pas de la modification.
+     *
+     * Les deux actions ne rendent pas la même chose — `saisirMouvement` rend
+     * `{ id }`, `modifierMouvement` ne rend rien —, et la pièce jointe a besoin
+     * de cet identifiant. On le résout dans la branche où il existe plutôt que
+     * de le tirer d'un résultat qui, la moitié du temps, ne le porte pas.
+     */
+    let identifiant = mouvement?.id ?? '';
 
     const resultat = enModification
       ? await modifierMouvement({ ...valeurs, id: mouvement!.id })
@@ -145,9 +207,38 @@ export function MouvementDialog({
       return;
     }
 
-    toast.success(enModification ? 'Mouvement modifié.' : 'Mouvement enregistré.');
-    fermer();
+    if (!enModification) identifiant = (resultat.data as { id: string }).id;
+
+    const jointe = await joindreLaPiece(identifiant);
+
+    // La notification ne porte que ce qui se constate d'un coup d'œil : quand
+    // la pièce a manqué, `avertir` a déjà dit l'essentiel (règle 30).
+    if (jointe) {
+      toast.success(enModification ? 'Mouvement modifié.' : 'Mouvement enregistré.');
+    }
+
     router.refresh();
+
+    if (!enchainer) {
+      fermer();
+      return;
+    }
+
+    /**
+     * EF-FIN-08 — on garde ce qui SE RÉPÈTE, on vide ce qui change.
+     *
+     * Entité, catégorie et date sont les trois champs communs à toute une
+     * série ; le montant, le libellé, la référence et la pièce sont propres à
+     * chaque ligne. Les conserver ferait ressaisir un montant par-dessus le
+     * précédent — et un jour, on oublierait de le faire.
+     */
+    reset({
+      ...valeurs,
+      montant: '',
+      libelle: '',
+      reference: '',
+    } as SaisirMouvementInput);
+    viderLeFichier();
   }
 
   return (
@@ -181,7 +272,17 @@ export function MouvementDialog({
           </DialogHeader>
 
           {ouvert && (
-            <form onSubmit={handleSubmit(envoyer)} className="space-y-6 py-2" noValidate>
+            /*
+              `(v) => envoyer(v, false)` et non `envoyer` : `handleSubmit`
+              passe l'ÉVÉNEMENT en second argument, qui viendrait alors se
+              loger dans `enchainer` — un objet, donc vrai, et chaque envoi
+              enchaînerait sans qu'on l'ait demandé.
+            */
+            <form
+              onSubmit={handleSubmit((v) => envoyer(v, false))}
+              className="space-y-6 py-2"
+              noValidate
+            >
               {erreur && (
                 <Alert variant="destructive" role="alert">
                   <AlertCircle className="size-4" aria-hidden />
@@ -352,6 +453,35 @@ export function MouvementDialog({
                     error={errors.reference?.message}
                     {...register('reference')}
                   />
+
+                  {/* EF-FIN-07 — la pièce justificative. Absente d'un mouvement
+                      validé : elle est figée avec lui (RG-17). */}
+                  {modifiable && (
+                    <Field
+                      label="Pièce justificative"
+                      hint="Facultatif — PDF, JPEG ou PNG, 10 Mo au maximum."
+                    >
+                      {(aria) => (
+                        <div className="space-y-2">
+                          <Input
+                            {...aria}
+                            key={serie}
+                            type="file"
+                            accept="application/pdf,image/jpeg,image/png"
+                            className="h-10"
+                            onChange={(e) => setFichier(e.target.files?.[0] ?? null)}
+                          />
+                          {mouvement?.justificatif_key && !fichier && (
+                            <p className="text-muted-foreground flex items-center gap-2 text-xs">
+                              <Paperclip className="size-3" aria-hidden />
+                              Une pièce est déjà jointe. En déposer une autre la
+                              remplacera.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </Field>
+                  )}
                 </section>
               </div>
 
@@ -365,8 +495,30 @@ export function MouvementDialog({
                 >
                   Annuler
                 </Button>
+
+                {/* EF-FIN-08 — la saisie en SÉRIE. Une collecte du dimanche,
+                    c'est huit lignes de la même entité, dans la même catégorie,
+                    à la même date : rouvrir la fenêtre huit fois pour les
+                    ressaisir est ce que cette exigence évite. */}
+                {!enModification && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-10"
+                    disabled={isSubmitting}
+                    onClick={() => void handleSubmit((v) => envoyer(v, true))()}
+                  >
+                    {isSubmitting && enchaine ? (
+                      <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
+                    ) : (
+                      <Repeat className="mr-2 size-4" aria-hidden />
+                    )}
+                    Enregistrer et saisir un autre
+                  </Button>
+                )}
+
                 <Button type="submit" className="h-10" disabled={isSubmitting}>
-                  {isSubmitting ? (
+                  {isSubmitting && !enchaine ? (
                     <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
                   ) : (
                     <Wallet className="mr-2 size-4" aria-hidden />

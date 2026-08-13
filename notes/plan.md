@@ -2540,9 +2540,10 @@ describe('RG-26 / RG-27 — rapports', () => {
 - [x] Activation du workflow **par entité**, sans héritage — `entities.finance_validation_active`. *(12 août 2026)*
 - [x] `MouvementForm` en pop-up partagé création/modification ; registre filtré en mémoire ; triptyque propre/consolidé.
 - [x] Rejet motivé ; annulation motivée ; reprise d'une saisie rejetée.
-- [ ] Saisie en série (EF-FIN-08), pièces jointes via l'adaptateur de stockage (EF-FIN-07).
+- [x] Saisie en série (EF-FIN-08) et pièce justificative (EF-FIN-07). *(13 août 2026)*
 - [ ] **File de validation** avec traitement par lot.
-- [ ] **Écran de saisie déléguée** réservé à `finance.delegate` ; écran de réglage du workflow.
+- [x] Écran de réglage du workflow, par entité, avec `finance.workflow.manage` **délégable**. *(13 août 2026)*
+- [ ] **Écran de saisie déléguée** dédié, réservé à `finance.delegate`.
 - [ ] **Dîmes** — voir §4.bis ci-dessous.
 - [ ] `mv_finance_kpis`, `mv_finance_par_categorie`, `SoldeCard`, synthèse (courbes, barres, comparatifs).
 - [ ] Vue consolidée du Siège, entité par entité (EF-FIN-11) ; export PDF.

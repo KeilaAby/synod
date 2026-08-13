@@ -62,13 +62,19 @@ propre et consolidé calculés **en base** (`fn_finance_solde`), écran
 globalement — écart à EF-FIN-15, amendé et daté dans `cdg.md`. **Aucun
 héritage depuis le parent** : chaque entité a son bureau et chaque bureau gère
 ses finances ; la hiérarchie ne fait que les consulter. `null` signifie donc
-« défaut de l'organisation », jamais « comme mon parent ». Restent
-EF-FIN-07 (pièce jointe), EF-FIN-08 (saisie en série) et EF-FIN-11 (vue
-consolidée du Siège).
+« défaut de l'organisation », jamais « comme mon parent ».
+
+**EF-FIN-07 et EF-FIN-08 livrés** : pièce justificative (type déduit des
+**premiers octets**, clé relative en base, URL signées en lot à l'affichage) et
+saisie en série, qui conserve entité, catégorie et date. Un mouvement validé
+fige aussi sa pièce (RG-17). Reste **EF-FIN-11**, la vue consolidée du Siège.
 
 L'**écran de réglage** du workflow est livré — bouton de `/finances`, trois
 choix par entité — ainsi que **`finance.validate_own`** (EF-FIN-18), qui lève la
-séparation saisie/validation et s'évalue **avec sa portée**. Au passage, une
+séparation saisie/validation et s'évalue **avec sa portée**, et
+**`finance.workflow.manage`**, **délégable** : le Siège le confie à un district
+pour son seul district, là où `settings.manage` aurait ouvert avec lui la devise
+et le format des matricules. Au passage, une
 divergence : `bureau.delete` était non délégable en TypeScript et délégable en
 SQL. Migration `0025`, et un test lit désormais le fichier SQL pour comparer les
 deux listes — une règle écrite à deux endroits ne diverge jamais le jour où on

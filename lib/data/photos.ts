@@ -13,6 +13,27 @@ import { DUREE_URL_PHOTO_SECONDES, storage } from '@/lib/storage';
  * photo ramenerait le probleme que le chargement integral de la liste vient
  * justement de resoudre — un aller-retour par ligne.
  */
+/**
+ * EF-FIN-07 — les pieces justificatives, signees EN LOT elles aussi.
+ *
+ * Meme raison, meme mecanique : la base ne porte que des cles relatives
+ * (`justificatifs/<uuid>.pdf`), et signer piece par piece couterait un
+ * aller-retour par ligne de la liste (regle 28).
+ *
+ * Fonction distincte de `signerPhotos` malgre le corps identique : le jour ou
+ * les deux durees de vie divergeront — un justificatif se consulte plus
+ * longtemps qu'une vignette —, il n'y aura rien a demeler.
+ */
+export async function signerJustificatifs(
+  cles: ReadonlyArray<string | null | undefined>,
+): Promise<Map<string, string>> {
+  const distinctes = [...new Set(cles.filter((c): c is string => Boolean(c)))];
+  if (distinctes.length === 0) return new Map();
+
+  const resultat = await storage().signedUrls(distinctes, DUREE_URL_PHOTO_SECONDES);
+  return resultat.ok ? resultat.data : new Map();
+}
+
 export async function signerPhotos(
   cles: ReadonlyArray<string | null | undefined>,
 ): Promise<Map<string, string>> {
