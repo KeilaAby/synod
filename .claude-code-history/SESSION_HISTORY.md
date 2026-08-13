@@ -1975,3 +1975,31 @@ sans `ref`.
 ### Qualité
 
 427 tests unitaires. `pnpm verify` vert.
+
+**Le triptyque suit les filtres — EF-FIN-10.** Les quatre cartes affichaient le
+solde de l'entité de rattachement, immobile, pendant que la liste se filtrait
+sous elles. Filtrer sur une paroisse ne changeait rien aux totaux.
+
+Deux sources, et le choix entre elles compte :
+
+- **Sans filtre**, on garde le solde calculé **en base**. Il porte sur tout
+  l'historique, quand la liste s'arrête au plafond de chargement. Les deux
+  coïncident sous le plafond ; au-delà c'est la base qui a raison, et
+  recalculer en mémoire ce qu'elle a déjà fait juste ne servirait qu'à le
+  rendre faux.
+- **Avec un filtre**, la base ne sait pas ce qu'on regarde : on somme la
+  sélection.
+
+Le piège de l'exercice était RG-18. Filtrer sur « Brouillon » puis sommer ce
+qu'on voit produirait un nombre qui a l'air d'un solde, qui se lit comme un
+solde, et sur lequel on engagerait une dépense. `soldeDeMouvements` **ne compte
+que le validé**, quel que soit le filtre posé — et l'écran dit alors combien de
+lignes de la sélection n'y entrent pas, faute de quoi un triptyque à zéro se
+lirait comme une panne.
+
+Le « solde propre » suit désormais l'entité filtrée, pas le rattachement : c'est
+elle qu'on regarde. Et si le périmètre dépasse le plafond de chargement, les
+totaux filtrés l'annoncent — une somme calculée sur une liste tronquée est
+fausse, et se taire serait pire que de ne rien afficher.
+
+432 tests unitaires. `pnpm verify` vert.

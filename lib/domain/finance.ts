@@ -165,6 +165,59 @@ export function estCritique(s: Solde): boolean {
   return soldeConsolide(s) < 0;
 }
 
+/** Le minimum qu'une ligne doit porter pour entrer dans un solde. */
+export interface MouvementPourSolde {
+  readonly sens: SensFinance;
+  readonly montant: number;
+  readonly statut: StatutMouvement;
+  readonly entity_id: string;
+}
+
+/**
+ * Le solde d'une SELECTION — EF-FIN-10.
+ *
+ * `fn_finance_solde` calcule en base sur tout l'historique ; celle-ci calcule
+ * en memoire sur ce que l'ecran montre, pour que le triptyque suive les
+ * filtres. Les deux doivent donner le meme resultat sur le meme ensemble —
+ * d'ou les tests qui rejouent les cas de la fonction SQL.
+ *
+ * ELLE NE COMPTE QUE LE VALIDE, quoi qu'on lui donne (RG-18). C'est le piege
+ * de l'exercice : filtrer sur « Brouillon » et sommer ce qu'on voit produirait
+ * un « solde » fait de brouillons — un nombre qui a l'air d'un solde, qui se
+ * lit comme un solde, et sur lequel on engagerait une depense. Le triptyque
+ * affiche alors zero, et l'ecran DIT pourquoi.
+ */
+export function soldeDeMouvements(
+  mouvements: readonly MouvementPourSolde[],
+  entitePropreId: string | null,
+): Solde {
+  let recettesPropres = 0;
+  let depensesPropres = 0;
+  let recettesConsolidees = 0;
+  let depensesConsolidees = 0;
+
+  for (const m of mouvements) {
+    if (!compteDansLeSolde(m.statut)) continue;
+
+    const propre = entitePropreId !== null && m.entity_id === entitePropreId;
+
+    if (m.sens === 'RECETTE') {
+      recettesConsolidees += m.montant;
+      if (propre) recettesPropres += m.montant;
+    } else {
+      depensesConsolidees += m.montant;
+      if (propre) depensesPropres += m.montant;
+    }
+  }
+
+  return {
+    recettesPropres,
+    depensesPropres,
+    recettesConsolidees,
+    depensesConsolidees,
+  };
+}
+
 /**
  * La part du sous-arbre, isolee — EF-FIN-12.
  *

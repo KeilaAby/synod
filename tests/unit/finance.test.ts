@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  type MouvementPourSolde,
   type Solde,
   attendUneValidation,
   compteDansLeSolde,
@@ -9,6 +10,7 @@ import {
   peutValider,
   periodeDe,
   soldeConsolide,
+  soldeDeMouvements,
   soldeDesDescendants,
   soldePropre,
   transitionAutorisee,
@@ -170,6 +172,74 @@ describe('EF-FIN-09 a 13 — le solde', () => {
 
   it('un solde nul n est pas critique', () => {
     expect(estCritique(solde())).toBe(false);
+  });
+});
+
+describe('EF-FIN-10 — le solde d une SELECTION suit les filtres', () => {
+  const ligne = (p: Partial<MouvementPourSolde>): MouvementPourSolde => ({
+    sens: 'RECETTE',
+    montant: 100,
+    statut: 'VALIDE',
+    entity_id: 'racine',
+    ...p,
+  });
+
+  it('separe le propre du consolide, comme la fonction SQL', () => {
+    const solde = soldeDeMouvements(
+      [
+        ligne({ montant: 1000 }),
+        ligne({ montant: 400, sens: 'DEPENSE' }),
+        ligne({ montant: 500, entity_id: 'fille' }),
+      ],
+      'racine',
+    );
+
+    expect(solde.recettesPropres).toBe(1000);
+    expect(solde.depensesPropres).toBe(400);
+    expect(solde.recettesConsolidees).toBe(1500);
+    expect(soldeDesDescendants(solde)).toBe(500);
+  });
+
+  it('IGNORE tout ce qui n est pas valide — RG-18', () => {
+    /**
+     * Le piege de l'exercice. Filtrer sur « Brouillon » puis sommer ce qu'on
+     * voit produirait un nombre qui a l'air d'un solde, qui se lit comme un
+     * solde, et sur lequel on engagerait une depense.
+     */
+    const solde = soldeDeMouvements(
+      [
+        ligne({ montant: 9_000_000, statut: 'BROUILLON' }),
+        ligne({ montant: 8_000_000, statut: 'SOUMIS' }),
+        ligne({ montant: 7_000_000, statut: 'REJETE' }),
+        ligne({ montant: 6_000_000, statut: 'ANNULE' }),
+      ],
+      'racine',
+    );
+
+    expect(soldeConsolide(solde)).toBe(0);
+    expect(solde.recettesConsolidees).toBe(0);
+  });
+
+  it('ne compte RIEN en propre quand aucune entite n est designee', () => {
+    // Le cas du compte sans rattachement lisible : le consolide reste juste,
+    // et le propre s'annonce a zero plutot que de designer une entite au
+    // hasard.
+    const solde = soldeDeMouvements([ligne({ montant: 300 })], null);
+
+    expect(solde.recettesConsolidees).toBe(300);
+    expect(solde.recettesPropres).toBe(0);
+  });
+
+  it('rend un solde nul sur une selection vide', () => {
+    expect(soldeConsolide(soldeDeMouvements([], 'racine'))).toBe(0);
+  });
+
+  it('additionne les centimes sans les perdre', () => {
+    const solde = soldeDeMouvements(
+      [ligne({ montant: 0.1 }), ligne({ montant: 0.2 })],
+      'racine',
+    );
+    expect(solde.recettesConsolidees).toBeCloseTo(0.3, 10);
   });
 });
 

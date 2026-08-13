@@ -47,13 +47,15 @@ import { changerStatutMouvement, supprimerMouvement } from '@/lib/actions/financ
 import type { CategorieFinance, MouvementListe } from '@/lib/data/finances';
 import {
   LIBELLES_SENS,
-  PLAFOND_MOUVEMENTS,
   LIBELLES_STATUT_MOUVEMENT,
+  PLAFOND_MOUVEMENTS,
   type SensFinance,
   type Solde,
   type StatutMouvement,
+  compteDansLeSolde,
   estModifiable,
   soldeConsolide,
+  soldeDeMouvements,
   soldeDesDescendants,
   soldePropre,
 } from '@/lib/domain/finance';
@@ -139,6 +141,57 @@ export function FinancesClient({
     });
   }, [mouvements, recherche, statuts, sens, entite, entites]);
 
+  /** Un filtre est-il posé ? Décide si le triptyque suit l'écran ou la base. */
+  const filtreActif =
+    recherche.trim() !== '' || statuts.size > 0 || sens.size > 0 || entite !== null;
+
+  /**
+   * EF-FIN-10 — le triptyque SUIT les filtres.
+   *
+   * SANS FILTRE, on garde le solde calculé EN BASE : il porte sur tout
+   * l'historique, quand la liste s'arrête au plafond de chargement. Les deux
+   * coïncident tant qu'on est sous le plafond, et au-delà c'est la base qui a
+   * raison — recalculer en mémoire ce qu'elle a déjà fait juste ne servirait
+   * qu'à le rendre faux.
+   *
+   * AVEC UN FILTRE, la base ne sait pas ce qu'on regarde : on somme la
+   * sélection. `soldeDeMouvements` n'y compte que le validé (RG-18), quel que
+   * soit le filtre de statut posé.
+   */
+  const entitePropre = entite ?? entiteRacine?.id ?? null;
+
+  const soldeAffiche = useMemo(
+    () => (filtreActif ? soldeDeMouvements(filtres, entitePropre) : solde),
+    [filtreActif, filtres, entitePropre, solde],
+  );
+
+  /** Le nom sous lequel le « propre » s'annonce : celui de l'entité filtrée. */
+  const nomPropre = useMemo(() => {
+    if (!entite) return entiteRacine?.nom ?? '';
+    return entites.find((e) => e.id === entite)?.nom ?? entiteRacine?.nom ?? '';
+  }, [entite, entites, entiteRacine]);
+
+  /**
+   * Ce que la sélection contient MAIS que le solde ne compte pas.
+   *
+   * Filtrer sur « Brouillon » donne un triptyque à zéro. Sans un mot, cela se
+   * lit comme une panne ; avec, cela se lit comme la règle — seul le validé
+   * alimente un solde.
+   */
+  const nonComptes = useMemo(
+    () => (filtreActif ? filtres.filter((m) => !compteDansLeSolde(m.statut)).length : 0),
+    [filtreActif, filtres],
+  );
+
+  /**
+   * Le chargement a-t-il été TRONQUÉ ?
+   *
+   * Au plafond, la liste ne porte plus tout le périmètre, et une somme calculée
+   * dessus serait fausse sans le dire. On l'annonce plutôt que de laisser
+   * croire à un total.
+   */
+  const tronque = mouvements.length >= PLAFOND_MOUVEMENTS;
+
   /** Effectifs par statut : on voit AVANT de cliquer sur un filtre. */
   const parStatut = useMemo(() => {
     const compte = new Map<StatutMouvement, number>();
@@ -187,38 +240,72 @@ export function FinancesClient({
   return (
     <div className="space-y-8">
       {/* --- Le triptyque — EF-FIN-10, EF-FIN-12, EF-FIN-13 --------------- */}
-      {solde && entiteRacine && (
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <CarteSolde
-            libelle="Recettes"
-            valeur={solde.recettesConsolidees}
-            devise={devise}
-            ton="success"
-          />
-          <CarteSolde
-            libelle="Dépenses"
-            valeur={solde.depensesConsolidees}
-            devise={devise}
-            ton="danger"
-          />
-          <CarteSolde
-            libelle="Solde consolidé"
-            valeur={soldeConsolide(solde)}
-            devise={devise}
-            ton={soldeConsolide(solde) < 0 ? 'danger' : 'success'}
-            detail={`dont ${formatMontant(soldeDesDescendants(solde), devise)} au périmètre`}
-          />
+      {soldeAffiche && entiteRacine && (
+        <section className="space-y-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <CarteSolde
+              libelle="Recettes"
+              valeur={soldeAffiche.recettesConsolidees}
+              devise={devise}
+              ton="success"
+            />
+            <CarteSolde
+              libelle="Dépenses"
+              valeur={soldeAffiche.depensesConsolidees}
+              devise={devise}
+              ton="danger"
+            />
+            <CarteSolde
+              libelle="Solde consolidé"
+              valeur={soldeConsolide(soldeAffiche)}
+              devise={devise}
+              ton={soldeConsolide(soldeAffiche) < 0 ? 'danger' : 'success'}
+              detail={`dont ${formatMontant(soldeDesDescendants(soldeAffiche), devise)} au périmètre`}
+            />
+            {/*
+              EF-FIN-12 — le PROPRE est montré à part, et ce n'est pas cosmétique :
+              une paroisse dont le consolidé est confortable peut n'avoir rien en
+              propre. Confondre les deux fait engager l'argent de ses églises.
+            */}
+            <CarteSolde
+              libelle={`Solde propre — ${nomPropre}`}
+              valeur={soldePropre(soldeAffiche)}
+              devise={devise}
+              ton={soldePropre(soldeAffiche) < 0 ? 'danger' : 'neutral'}
+            />
+          </div>
+
           {/*
-            EF-FIN-12 — le PROPRE est montré à part, et ce n'est pas cosmétique :
-            une paroisse dont le consolidé est confortable peut n'avoir rien en
-            propre. Confondre les deux fait engager l'argent de ses églises.
+            CE QUE LES CARTES COMPTENT, DIT SANS DÉTOUR.
+
+            Un triptyque qui change avec les filtres doit annoncer sur quoi il
+            porte, sinon il devient impossible de savoir si l'on regarde le
+            solde de l'entité ou celui d'une sélection.
           */}
-          <CarteSolde
-            libelle={`Solde propre — ${entiteRacine.nom}`}
-            valeur={soldePropre(solde)}
-            devise={devise}
-            ton={soldePropre(solde) < 0 ? 'danger' : 'neutral'}
-          />
+          {filtreActif && (
+            <p className="text-muted-foreground text-xs">
+              Sur les{' '}
+              <span className="tabular-nums">{formatNombre(filtres.length)}</span>{' '}
+              mouvement{filtres.length > 1 ? 's' : ''} de la sélection.
+              {nonComptes > 0 && (
+                <>
+                  {' '}
+                  <span className="text-foreground">
+                    {formatNombre(nonComptes)} n’{nonComptes > 1 ? 'entrent' : 'entre'}{' '}
+                    pas dans le solde
+                  </span>{' '}
+                  — seul un mouvement validé y compte (RG-18).
+                </>
+              )}
+              {tronque && (
+                <>
+                  {' '}
+                  Le périmètre dépasse {formatNombre(PLAFOND_MOUVEMENTS)} mouvements : ces
+                  totaux ne portent que sur ceux qui sont chargés.
+                </>
+              )}
+            </p>
+          )}
         </section>
       )}
 
