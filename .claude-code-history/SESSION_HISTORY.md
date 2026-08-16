@@ -2579,3 +2579,42 @@ Ce qui mérite d'être retenu n'est pas le bogue — il est banal — mais le te
 qu'il a coûté. L'écran disait « L'opération n'a pas pu aboutir » ; la base
 nommait la cause depuis le début, et rien ne la laissait lire. Le correctif du
 message, écrit juste avant, l'a fait apparaître en une minute.
+
+---
+
+## 13 août 2026 (suite) — Trois corrections d'usage sur les dîmes
+
+**Le reçu porte sa propre description** (`0036`). La fonction ne rendait que la
+référence et un identifiant : devant dix reçus, personne ne savait lequel allait
+sur quel talon — or c'est précisément ce qu'on en fait, on les recopie un par
+un sur des enveloppes posées devant soi. Chaque reçu porte désormais le **nom**,
+le **prénom** et le **numéro d'enveloppe**, et le message les présente dans cet
+ordre : le nom d'abord, puisque c'est lui qu'on lit sur l'enveloppe.
+
+Le nom vient de la **fiche**, pas du fichier : c'est celui qui figurera au
+registre.
+
+**La suggestion devient la même liste déroulante que les croyants**, portrait
+compris, mais **sans recherche** : les porteurs connus d'un numéro se comptent
+sur une main, et un champ de recherche y prendrait le focus avant les
+propositions elles-mêmes. `CroyantPicker` accepte donc `avecRecherche={false}`.
+
+**Changer le numéro d'enveloppe détache le croyant.** Sans cela, le nom retenu
+sur une suggestion restait accroché à un numéro qui n'était plus le sien — et,
+la ligne portant déjà un croyant, **plus aucune suggestion ne s'affichait**. On
+enregistrait donc la dîme de quelqu'un d'autre, sans que rien ne l'annonce.
+C'est le même raisonnement que le changement d'entité qui vide la grille.
+
+**Le nombre de versements devient le bouton qui déplie.** Le chevron seul, dans
+une colonne étroite à l'autre bout de la ligne, ne se remarquait pas : on voyait
+« 2 » sans savoir qu'il s'ouvrait. C'est le chiffre qu'on regarde quand on veut
+le détail — c'est donc lui qu'il faut pouvoir viser. Le détail y montre déjà la
+référence de chaque reçu.
+
+Au passage, deux types mentaient depuis `0030` : `croyant_id` et `recu_numero`
+étaient déclarés non nuls alors qu'un versement anonyme n'a ni l'un ni l'autre.
+Le détail affichait donc un tiret là où il fallait dire **« Enveloppe sans
+nom »** ou **« En vrac »** — un tiret se lit comme une donnée manquante, donc
+comme un oubli de saisie.
+
+474 tests unitaires. `pnpm verify` vert.

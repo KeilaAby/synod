@@ -81,8 +81,20 @@ function messageErreurSql(erreur: {
 
 export interface ResultatCollecte {
   readonly mouvementId: string;
-  /** Le recu attribue a chaque croyant, dans l'ordre de la grille. */
-  readonly recus: { readonly croyantId: string; readonly recu: string }[];
+  /**
+   * Le recu attribue a chaque croyant, dans l'ordre de la grille.
+   *
+   * Il porte sa PROPRE DESCRIPTION — nom, prenom, enveloppe. Une reference
+   * seule ne dit pas sur quel talon la recopier, et c'est precisement ce qu'on
+   * en fait : on les reporte un par un, sur des enveloppes posees devant soi.
+   */
+  readonly recus: {
+    readonly croyantId: string;
+    readonly recu: string;
+    readonly nom: string | null;
+    readonly prenom: string | null;
+    readonly enveloppe: string | null;
+  }[];
 }
 
 export async function saisirCollecteDime(
@@ -201,7 +213,16 @@ export async function saisirCollecteDime(
     if (error) return ko(messageErreurSql(error));
 
     const ligne = (
-      resultat as { finance_entry_id: string; recus: { croyant_id: string; recu: string }[] }[]
+      resultat as {
+        finance_entry_id: string;
+        recus: {
+          croyant_id: string;
+          recu: string;
+          nom: string | null;
+          prenom: string | null;
+          enveloppe: string | null;
+        }[];
+      }[]
     )?.[0];
 
     if (!ligne) return ko("La collecte n'a pas pu etre enregistree.");
@@ -230,7 +251,13 @@ export async function saisirCollecteDime(
 
     return ok({
       mouvementId: ligne.finance_entry_id,
-      recus: (ligne.recus ?? []).map((r) => ({ croyantId: r.croyant_id, recu: r.recu })),
+      recus: (ligne.recus ?? []).map((r) => ({
+        croyantId: r.croyant_id,
+        recu: r.recu,
+        nom: r.nom,
+        prenom: r.prenom,
+        enveloppe: r.enveloppe,
+      })),
     });
   });
 }

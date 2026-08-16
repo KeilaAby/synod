@@ -2,7 +2,7 @@ import 'server-only';
 
 import { cache } from 'react';
 
-import type { EvenementDime, ModeDime } from '@/lib/domain/dime';
+import type { EvenementDime, ModeDime, NatureVersement } from '@/lib/domain/dime';
 import { createClient } from '@/lib/supabase/server';
 
 import { DataError } from './errors';
@@ -27,17 +27,20 @@ const CHAMPS = `
   collecteur:entities!finance_entries_entite_collecte_id_fkey (id, nom, code, type),
   categorie:finance_categories!finance_entries_categorie_id_fkey (id, libelle),
   versements:dime_versements!dime_versements_finance_entry_id_fkey (
-    id, croyant_id, enveloppe_numero, montant, recu_numero,
+    id, croyant_id, enveloppe_numero, montant, recu_numero, nature,
     croyant:croyants!dime_versements_croyant_id_fkey (id, nom, prenom, matricule)
   )
 ` as const;
 
 export interface VersementListe {
   id: string;
-  croyant_id: string;
+  /** `null` pour un versement anonyme — il n'y a personne a rattacher. */
+  croyant_id: string | null;
   enveloppe_numero: string | null;
   montant: number;
-  recu_numero: string;
+  /** `null` pour un anonyme : on ne remet pas de recu a personne. */
+  recu_numero: string | null;
+  nature: NatureVersement;
   croyant: { id: string; nom: string; prenom: string; matricule: string } | null;
 }
 

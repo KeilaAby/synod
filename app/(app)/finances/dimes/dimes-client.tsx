@@ -25,6 +25,7 @@ import type { CollecteListe } from '@/lib/data/dimes';
 import { normaliserRecherche } from '@/lib/domain/croyant';
 import {
   LIBELLES_EVENEMENT,
+  LIBELLES_NATURE,
   type ModeDime,
   detailConsultable,
   estEnRetard,
@@ -261,9 +262,23 @@ export function DimesClient({
                         )}
                       </TableCell>
 
+                      {/*
+                        LE NOMBRE EST LE BOUTON. Le chevron seul, dans une
+                        colonne étroite à l'autre bout de la ligne, ne se
+                        remarquait pas : on voyait « 2 » sans savoir qu'il
+                        s'ouvrait. C'est le chiffre qu'on regarde quand on veut
+                        le détail — c'est donc lui qu'il faut pouvoir viser.
+                      */}
                       <TableCell className="text-right text-sm tabular-nums">
                         {detail ? (
-                          formatNombre(c.versements.length)
+                          <button
+                            type="button"
+                            onClick={() => basculer(c.id)}
+                            className="hover:underline"
+                            aria-expanded={ouvert}
+                          >
+                            {formatNombre(c.versements.length)}
+                          </button>
                         ) : (
                           <span className="text-muted-foreground">global</span>
                         )}
@@ -300,9 +315,17 @@ export function DimesClient({
                                 className="flex flex-wrap items-center justify-between gap-4 py-2"
                               >
                                 <span className="text-sm">
-                                  {v.croyant
-                                    ? `${v.croyant.nom.toLocaleUpperCase('fr')} ${v.croyant.prenom}`
-                                    : '—'}
+                                  {v.croyant ? (
+                                    `${v.croyant.nom.toLocaleUpperCase('fr')} ${v.croyant.prenom}`
+                                  ) : (
+                                    /* Un anonyme n'a pas de nom : le DIRE vaut
+                                       mieux qu'un tiret, qui se lit comme une
+                                       donnée manquante — donc comme un oubli
+                                       de saisie. */
+                                    <span className="text-muted-foreground italic">
+                                      {LIBELLES_NATURE[v.nature]}
+                                    </span>
+                                  )}
                                   {v.enveloppe_numero && (
                                     <span className="text-muted-foreground ml-2 font-mono text-xs">
                                       enveloppe {v.enveloppe_numero}
@@ -310,8 +333,10 @@ export function DimesClient({
                                   )}
                                 </span>
                                 <span className="flex items-center gap-4">
+                                  {/* EF-FIN-33 — un anonyme n'ouvre aucun reçu :
+                                      il n'y a personne à qui le remettre. */}
                                   <span className="text-muted-foreground font-mono text-xs">
-                                    {v.recu_numero}
+                                    {v.recu_numero ?? '—'}
                                   </span>
                                   <span className="text-sm tabular-nums">
                                     {formatMontant(Number(v.montant), devise)}

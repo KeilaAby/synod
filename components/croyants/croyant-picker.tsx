@@ -49,6 +49,7 @@ export function CroyantPicker({
   placeholder = 'Choisir un croyant',
   emptyMessage = 'Aucun croyant à proposer.',
   disabled,
+  avecRecherche = true,
   id,
   'aria-label': ariaLabel,
   'aria-invalid': ariaInvalid,
@@ -61,6 +62,14 @@ export function CroyantPicker({
   placeholder?: string;
   emptyMessage?: string;
   disabled?: boolean;
+  /**
+   * Une liste COURTE n'a pas besoin d'etre cherchee.
+   *
+   * Les porteurs connus d'un numero d'enveloppe se comptent sur une main :
+   * un champ de recherche y ajouterait un geste pour rien, et prendrait le
+   * focus au clavier avant les propositions elles-memes.
+   */
+  avecRecherche?: boolean;
   id?: string;
   'aria-label'?: string;
   'aria-invalid'?: boolean;
@@ -133,10 +142,12 @@ export function CroyantPicker({
               : 0;
           }}
         >
-          <CommandInput
-            placeholder="Rechercher par nom ou par matricule…"
-            className="h-10"
-          />
+          {avecRecherche && (
+            <CommandInput
+              placeholder="Rechercher par nom ou par matricule…"
+              className="h-10"
+            />
+          )}
 
           {/*
             La barre de défilement est RENDUE VISIBLE : `CommandList` porte

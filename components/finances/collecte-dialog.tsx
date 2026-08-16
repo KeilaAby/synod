@@ -289,9 +289,24 @@ export function CollecteDialog({
      * (EF-FIN-27). Un pop-up qu'on ferme, pas une notification qui s'efface.
      */
     if (recus > 0) {
+      /**
+       * CHAQUE REÇU PORTE DE QUOI LE POSER SUR LE BON TALON.
+       *
+       * La référence seule ne disait pas lequel allait où : devant dix reçus,
+       * il fallait deviner. Le nom vient en premier — c'est lui qu'on lit sur
+       * l'enveloppe —, puis le numéro, puis la référence à recopier.
+       */
       avertir(
         `${formatNombre(recus)} reçu${recus > 1 ? 's' : ''} attribué${recus > 1 ? 's' : ''} :\n\n` +
-          resultat.data.recus.map((r) => `• ${r.recu}`).join('\n'),
+          resultat.data.recus
+            .map((r) => {
+              const nom = r.nom
+                ? `${r.nom.toLocaleUpperCase('fr')} ${r.prenom ?? ''}`.trim()
+                : 'Croyant';
+              const env = r.enveloppe ? ` — enveloppe ${r.enveloppe}` : '';
+              return `• ${nom}${env}\n  ${r.recu}`;
+            })
+            .join('\n\n'),
         { ton: 'information', titre: 'Reçus à reporter sur les talons' },
       );
     }
@@ -697,22 +712,37 @@ export function CollecteDialog({
                                     <p className="text-muted-foreground text-xs">
                                       Numéro déjà utilisé par :
                                     </p>
-                                    {suggestionsDe(index).map((p) => (
-                                      <button
-                                        key={p.croyantId}
-                                        type="button"
-                                        onClick={() =>
-                                          setValue(
-                                            `versements.${index}.croyantId`,
-                                            p.croyantId,
-                                            { shouldValidate: true },
-                                          )
-                                        }
-                                        className="text-foreground hover:underline block text-left text-xs"
-                                      >
-                                        {p.nom.toLocaleUpperCase('fr')} {p.prenom}
-                                      </button>
-                                    ))}
+                                    {/*
+                                      La MÊME liste déroulante que celle des
+                                      croyants — portrait compris — mais SANS
+                                      recherche : les porteurs connus d'un
+                                      numéro se comptent sur une main, et un
+                                      champ de recherche y prendrait le focus
+                                      avant les propositions elles-mêmes.
+                                    */}
+                                    <CroyantPicker
+                                      avecRecherche={false}
+                                      options={suggestionsDe(index).map((p) => ({
+                                        id: p.croyantId,
+                                        nom: p.nom,
+                                        prenom: p.prenom,
+                                        matricule:
+                                          croyants.find((c) => c.id === p.croyantId)
+                                            ?.matricule ?? '',
+                                        photoKey: croyants.find(
+                                          (c) => c.id === p.croyantId,
+                                        )?.photoKey,
+                                      }))}
+                                      value={null}
+                                      onChange={(id) =>
+                                        setValue(`versements.${index}.croyantId`, id, {
+                                          shouldValidate: true,
+                                        })
+                                      }
+                                      photos={photos}
+                                      placeholder="Retenir une suggestion"
+                                      aria-label={`Suggestions, ligne ${index + 1}`}
+                                    />
                                   </div>
                                 )}
                               </TableCell>
@@ -736,7 +766,24 @@ export function CollecteDialog({
                                   // ce qui le définit.
                                   disabled={natureDe(index) === 'EN_VRAC'}
                                   aria-label={`Enveloppe, ligne ${index + 1}`}
-                                  {...register(`versements.${index}.enveloppe`)}
+                                  {...register(`versements.${index}.enveloppe`, {
+                                    /**
+                                     * CHANGER LE NUMÉRO DÉTACHE LE CROYANT.
+                                     *
+                                     * Sans cela, le nom retenu sur la
+                                     * suggestion précédente restait accroché à
+                                     * un numéro qui n'est plus le sien — et,
+                                     * la ligne portant déjà un croyant, plus
+                                     * aucune suggestion ne s'affichait. On
+                                     * enregistrait donc la dîme de quelqu'un
+                                     * d'autre, sans que rien ne l'annonce.
+                                     */
+                                    onChange: () => {
+                                      if (lignes[index]?.croyantId) {
+                                        setValue(`versements.${index}.croyantId`, null);
+                                      }
+                                    },
+                                  })}
                                 />
                               </TableCell>
 
