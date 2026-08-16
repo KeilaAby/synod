@@ -203,15 +203,30 @@ export default async function TableauDeBordPage({
           granularite={granularite}
           ancre={ancre}
           devise={parametres.devise}
+          /*
+            CHAQUE BLOC PORTE UNE `key`, et ce n'est pas superflu.
+
+            Ces éléments sont construits ici puis traversent la frontière
+            serveur → client à l'intérieur d'un objet. React les voit alors
+            comme une COLLECTION venue d'un même parent et réclame une identité
+            stable ; sans elle, il avertit en console et se réserve le droit de
+            démonter puis remonter un bloc quand l'ordre change — ce que la
+            personnalisation fait précisément.
+
+            La clé du bloc est déjà cette identité : on la reprend telle quelle.
+          */
           blocs={{
             derniers_croyants: (
               <DerniersCroyants
+                key="derniers_croyants"
                 croyants={derniers}
                 photos={Object.fromEntries(photos)}
               />
             ),
+
             evolution_finances: synthese ? (
               <CourbeFinances
+                key="evolution_finances"
                 lignes={synthese.categories}
                 annee={annee}
                 devise={parametres.devise}
@@ -224,19 +239,41 @@ export default async function TableauDeBordPage({
               testé : l'ordre, les parts et le plafond n'ont pas à être refaits
               dans le composant.
             */
-            repartition_age: <RepartitionBarres {...preparerRepartition(repartitions, 'AGE')} titre="Repartition par age" />,
+            repartition_age: (
+              <RepartitionBarres
+                key="repartition_age"
+                {...preparerRepartition(repartitions, 'AGE')}
+                titre="Répartition par âge"
+              />
+            ),
+
             repartition_grade: (
-              <RepartitionBarres {...preparerRepartition(repartitions, 'GRADE')} titre="Repartition par grade" />
+              <RepartitionBarres
+                key="repartition_grade"
+                {...preparerRepartition(repartitions, 'GRADE')}
+                titre="Répartition par grade"
+              />
             ),
+
             repartition_nationalite: (
-              <RepartitionBarres {...preparerRepartition(repartitions, 'NATIONALITE')} titre="Repartition par nationalite" />
+              <RepartitionBarres
+                key="repartition_nationalite"
+                {...preparerRepartition(repartitions, 'NATIONALITE')}
+                titre="Répartition par nationalité"
+              />
             ),
+
             repartition_entite: (
-              <RepartitionBarres {...preparerRepartition(repartitions, 'ENTITE')} titre="Effectif par entite fille" />
+              <RepartitionBarres
+                key="repartition_entite"
+                {...preparerRepartition(repartitions, 'ENTITE')}
+                titre="Effectif par entité fille"
+              />
             ),
 
             couverture_bureaux: (
               <Jauge
+                key="couverture_bureaux"
                 valeur={couverture(
                   resultat.mesures.bureaux_actifs ?? 0,
                   resultat.mesures.entites_a_bureau ?? 0,

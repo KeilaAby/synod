@@ -3685,3 +3685,18 @@ pas fait : cela demande la table `dashboard_templates` (elle existe depuis
 en un clic — est livrée.
 
 573 tests unitaires, 27 fichiers. `pnpm verify` vert.
+
+### Correction — « Each child in a list should have a unique key »
+
+Les six blocs composés sont construits dans la page puis traversent la frontière
+serveur → client **à l'intérieur d'un objet**. React les voit alors comme une
+COLLECTION venue d'un même parent et réclame une identité stable.
+
+Ce n'était pas un simple bruit de console : sans clé, React se réserve de
+démonter puis remonter un bloc quand l'ordre change — ce que la personnalisation
+fait précisément. La clé du bloc EST cette identité ; elle est reprise telle
+quelle.
+
+Au passage, les titres d'export des répartitions retrouvent leurs accents :
+« Répartition par âge » plutôt que « Repartition par age ». Ils nomment le
+fichier téléchargé, donc ils se lisent.
