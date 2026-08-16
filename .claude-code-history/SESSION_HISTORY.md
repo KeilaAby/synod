@@ -2874,3 +2874,50 @@ d'origine. En émettre un second pour le même versement ferait exister deux
 papiers pour un seul don.
 
 490 tests unitaires, 24 fichiers. `pnpm verify` vert.
+
+---
+
+## 16 août 2026 (suite) — Le ticket de caisse
+
+Migration `0038` appliquée : une collecte de dîmes alimente désormais la recette
+du Siège au moment de la remise, et pas avant.
+
+### Deux formats, parce que ce sont deux gestes
+
+L'A4 à huit talons reste, et sert ce pour quoi il a été fait : imprimer la
+collecte entière une fois, après le culte, et découper.
+
+Le **rouleau de 80 mm** répond à autre chose — le croyant qui vient réclamer son
+talon, ou celui qu'on sert à l'instant. Sortir une feuille de huit pour une
+personne gâche sept talons et oblige à découper devant elle.
+
+Ce n'est pas une variante décorative : sur un rouleau, **la largeur est fixée
+par le matériel et la hauteur est libre**, l'inverse exact d'une feuille. Une
+mise en page prévue pour l'un ne tient pas sur l'autre. D'où deux feuilles de
+style et deux rendus, et non un paramètre glissé dans le premier.
+
+72 mm utiles ne laissent pas la place à deux colonnes : l'intitulé passe donc
+**au-dessus** de sa valeur, là où l'A4 les met côte à côte. Un ticket par coupe,
+`break-before: page` entre deux.
+
+Le talon de caisse porte une mention que l'A4 n'a pas : **« Dîme reçue pour le
+compte du Siège »** (EF-FIN-29). Il est remis en main propre au donateur, et
+c'est le seul moment où quelqu'un pourrait croire sa dîme acquise à l'église qui
+l'a reçue. Une ligne suffit à l'éviter.
+
+### Où on le déclenche
+
+Ligne par ligne, aux deux endroits où une ligne est un versement : le détail
+d'une collecte dans `/finances/dimes`, et l'historique de la fiche du croyant.
+Le bouton de lot, lui, dit désormais son format — « Imprimer les reçus (A4) ».
+
+Dans la liste des versements, l'emplacement du bouton est **réservé même sans
+reçu** : sans cela, les montants d'une liste mêlant nominatifs et anonymes
+cessaient de s'aligner d'une ligne à l'autre.
+
+Et la construction d'un reçu a été ramenée à **un seul endroit** par écran
+(règle 16) : le lot et le ticket unitaire doivent porter exactement la même
+chose, or deux constructions divergeraient au premier champ ajouté — et l'écart
+ne se verrait que sur du papier déjà remis.
+
+490 tests unitaires. `pnpm verify` vert.

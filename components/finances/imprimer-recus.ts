@@ -3,23 +3,35 @@ import { montantEnLettres } from '@/lib/domain/montant-en-lettres';
 import { formatDate, formatMontant } from '@/lib/utils/format';
 
 /**
- * Le ticket de reçu de dîme — EF-FIN-27, EF-FIN-31.
+ * Le reçu de dîme imprimé — EF-FIN-27, EF-FIN-31.
  *
  * LE REÇU EXISTE DÉJÀ : la base l'a numéroté à la collecte. Ce qui manquait,
  * c'est le papier. Sa référence se recopiait à la main sur un talon, et une
  * référence recopiée est une référence fausse un jour sur dix.
  *
+ * DEUX FORMATS, PARCE QUE CE SONT DEUX GESTES DIFFÉRENTS.
+ *
+ *   - `A4` — huit talons par feuille, deux colonnes, traits de coupe. C'est le
+ *     format d'un carnet à souches : on imprime la collecte entière une fois,
+ *     après le culte, et on découpe.
+ *   - `CAISSE` — un rouleau de 80 mm, un reçu par ticket. C'est ce qu'on tend à
+ *     quelqu'un qui est devant soi : le croyant qui vient réclamer le sien, ou
+ *     celui qu'on sert à l'instant.
+ *
+ * Le second n'est pas une variante décorative du premier. Sur un rouleau, la
+ * largeur est fixée par le matériel et la hauteur est libre — l'inverse exact
+ * d'une feuille. Une mise en page prévue pour l'un ne tient pas sur l'autre.
+ *
  * CE QUI S'IMPRIME N'A PAS DE RECOURS (règle 31). Un nom tronqué se survole à
  * l'écran ; sur un talon remis à quelqu'un, il est perdu. Rien n'est donc
- * coupé : le texte se replie entre les mots, et le cadre grandit s'il le faut.
- *
- * DEUX TICKETS PAR RANGÉE, QUATRE RANGÉES : huit par feuille A4, séparés par
- * des traits de coupe. C'est le format d'un carnet à souches — celui que les
- * bureaux utilisent déjà.
+ * coupé, dans aucun des deux formats : le texte se replie entre les mots, et
+ * le cadre grandit s'il le faut.
  *
  * LE MONTANT EST ÉCRIT EN TOUTES LETTRES. « 12 000 » devient « 112 000 » d'un
  * trait de stylo ; « douze mille ariary » ne se rallonge pas.
  */
+
+export type FormatRecu = 'A4' | 'CAISSE';
 
 /**
  * CHAQUE TICKET PORTE SA PROPRE CÉRÉMONIE.
@@ -51,17 +63,29 @@ function echapper(texte: string): string {
     .replace(/"/g, '&quot;');
 }
 
-function ticket(recu: RecuAImprimer, devise: string): string {
-  const lettres = montantEnLettres(recu.montant, devise);
-  const nom = `${recu.nom.toLocaleUpperCase('fr')} ${recu.prenom}`;
+/** La phrase du domaine est en minuscules : elle se cite aussi bien ailleurs. */
+function enLettres(montant: number, devise: string): string {
+  const phrase = montantEnLettres(montant, devise);
+  if (!phrase) return '';
+  return phrase.charAt(0).toLocaleUpperCase('fr') + phrase.slice(1);
+}
 
+function nomComplet(recu: RecuAImprimer): string {
+  return `${recu.nom.toLocaleUpperCase('fr')} ${recu.prenom}`;
+}
+
+// ---------------------------------------------------------------------------
+// A4 — le carnet à souches
+// ---------------------------------------------------------------------------
+
+function ticketA4(recu: RecuAImprimer, devise: string): string {
   return (
     '<article class="ticket">' +
     `<header><span class="entite">${echapper(recu.entite)}</span>` +
     '<span class="genre">Reçu de dîme</span></header>' +
     `<p class="reference">${echapper(recu.reference)}</p>` +
     '<dl>' +
-    `<dt>Reçu de</dt><dd class="nom">${echapper(nom)}` +
+    `<dt>Reçu de</dt><dd class="nom">${echapper(nomComplet(recu))}` +
     `<span class="matricule">${echapper(recu.matricule)}</span></dd>` +
     `<dt>Culte du</dt><dd>${echapper(formatDate(recu.dateOperation))}` +
     (recu.evenement ? ` · ${echapper(recu.evenement)}` : '') +
@@ -71,15 +95,13 @@ function ticket(recu: RecuAImprimer, devise: string): string {
       : '') +
     '</dl>' +
     `<p class="montant">${echapper(formatMontant(recu.montant, devise))}</p>` +
-    // La lettre capitale se pose ici : la fonction du domaine rend une phrase
-    // en minuscules, qui se cite aussi bien au milieu d'un texte.
-    `<p class="lettres">${echapper(lettres.charAt(0).toLocaleUpperCase('fr') + lettres.slice(1))}</p>` +
+    `<p class="lettres">${echapper(enLettres(recu.montant, devise))}</p>` +
     '<footer><span class="signature">Le trésorier</span></footer>' +
     '</article>'
   );
 }
 
-const STYLE = `
+const STYLE_A4 = `
 @page { size: A4 portrait; margin: 10mm }
 * { box-sizing: border-box }
 html, body { margin: 0; padding: 0 }
@@ -143,13 +165,119 @@ footer { margin-top: 1mm; border-top: 1px solid #cbd5e1; padding-top: 1mm }
 .signature { font-size: 9px; color: #64748b }
 `;
 
+// ---------------------------------------------------------------------------
+// CAISSE — le rouleau de 80 mm
+// ---------------------------------------------------------------------------
+
+/** Un champ du ticket de caisse : intitulé au-dessus, valeur en dessous. */
+function champ(intitule: string, valeur: string, classe = ''): string {
+  return (
+    `<div class="champ"><span class="intitule">${echapper(intitule)}</span>` +
+    `<span class="valeur ${classe}">${valeur}</span></div>`
+  );
+}
+
+function ticketCaisse(recu: RecuAImprimer, devise: string): string {
+  const ceremonie =
+    formatDate(recu.dateOperation) + (recu.evenement ? ` · ${recu.evenement}` : '');
+
+  return (
+    '<article class="caisse">' +
+    `<p class="entite">${echapper(recu.entite)}</p>` +
+    '<p class="genre">Reçu de dîme</p>' +
+    '<hr>' +
+    `<p class="reference">${echapper(recu.reference)}</p>` +
+    '<hr>' +
+    champ('Reçu de', echapper(nomComplet(recu)), 'nom') +
+    champ('Matricule', echapper(recu.matricule), 'mono') +
+    champ('Culte du', echapper(ceremonie)) +
+    (recu.enveloppe ? champ('Enveloppe', `n° ${echapper(recu.enveloppe)}`, 'mono') : '') +
+    '<hr>' +
+    `<p class="montant">${echapper(formatMontant(recu.montant, devise))}</p>` +
+    `<p class="lettres">${echapper(enLettres(recu.montant, devise))}</p>` +
+    '<hr>' +
+    /*
+      LA MENTION QUI ÉVITE UN MALENTENDU (EF-FIN-29).
+      Le croyant remet sa dîme à son église, mais elle appartient au Siège. Le
+      dire sur le talon coûte une ligne et évite qu'on la croie acquise à
+      l'église qui l'a reçue.
+    */
+    '<p class="mention">Dîme reçue pour le compte du Siège.</p>' +
+    '<p class="signature">Le trésorier</p>' +
+    '<p class="pied">Conservez ce reçu.</p>' +
+    '</article>'
+  );
+}
+
+const STYLE_CAISSE = `
+/*
+  80 mm est la largeur des rouleaux courants ; « auto » laisse la hauteur
+  libre. C'est l'inverse exact d'une feuille, ou la hauteur est fixee et la
+  largeur aussi — d'ou une mise en page a part et non une variante.
+*/
+@page { size: 80mm auto; margin: 4mm }
+* { box-sizing: border-box }
+html, body { margin: 0; padding: 0 }
+body {
+  font: 11px "Google Sans", system-ui, sans-serif;
+  color: #0f172a;
+  width: 72mm;
+}
+.caisse {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5mm;
+  text-align: center;
+  padding-bottom: 6mm;
+}
+/* Un ticket par coupe : le suivant repart d'une page. */
+.caisse + .caisse { break-before: page }
+hr { width: 100%; border: 0; border-top: 1px dashed #94a3b8; margin: 1mm 0 }
+.entite { margin: 0; font-size: 13px; font-weight: 700; overflow-wrap: anywhere }
+.genre { margin: 0; font-size: 9px; text-transform: uppercase; letter-spacing: .1em; color: #475569 }
+.reference {
+  margin: 0;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  overflow-wrap: anywhere;
+}
+/*
+  L'INTITULE EST AU-DESSUS DE SA VALEUR, jamais a cote : 72 mm ne laissent pas
+  la place a deux colonnes, et un nom long y serait pousse a la ligne au
+  milieu d'un mot.
+*/
+.champ { display: flex; flex-direction: column; gap: .3mm }
+.intitule { font-size: 8px; text-transform: uppercase; letter-spacing: .08em; color: #64748b }
+.valeur { font-size: 11px; overflow-wrap: anywhere; word-break: break-word }
+.nom { font-size: 13px; font-weight: 700 }
+.mono { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 10px }
+.montant {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.lettres { margin: 0; font-size: 10px; font-style: italic; color: #475569; overflow-wrap: anywhere }
+.mention { margin: 0; font-size: 9px; color: #475569 }
+.signature { margin: 4mm 0 0; font-size: 9px; color: #64748b }
+.pied { margin: 0; font-size: 8px; color: #94a3b8 }
+`;
+
+// ---------------------------------------------------------------------------
+
 /**
  * Ouvre la fenêtre d'impression du navigateur, qui sait enregistrer en PDF.
  *
  * Aucun `await` avant `window.open` : une pop-up qui suit une attente n'est
  * plus rattachée au clic qui l'a déclenchée, et le navigateur la bloque.
  */
-export function imprimerRecus(recus: readonly RecuAImprimer[], devise: string): void {
+export function imprimerRecus(
+  recus: readonly RecuAImprimer[],
+  devise: string,
+  format: FormatRecu = 'A4',
+): void {
   if (recus.length === 0) {
     /**
      * UNE FEUILLE BLANCHE NE DIT PAS POURQUOI ELLE EST BLANCHE.
@@ -177,11 +305,13 @@ export function imprimerRecus(recus: readonly RecuAImprimer[], devise: string): 
       ? `Reçu de dîme ${recus[0].reference}`
       : `Reçus de dîme — ${recus.length} talons`;
 
+  const caisse = format === 'CAISSE';
+
   fenetre.document.write(
     '<!doctype html><html lang="fr"><head><meta charset="utf-8">' +
       `<title>${echapper(titre)}</title>` +
-      `<style>${STYLE}</style></head><body>` +
-      recus.map((r) => ticket(r, devise)).join('') +
+      `<style>${caisse ? STYLE_CAISSE : STYLE_A4}</style></head><body>` +
+      recus.map((r) => (caisse ? ticketCaisse(r, devise) : ticketA4(r, devise))).join('') +
       '</body></html>',
   );
   fenetre.document.close();

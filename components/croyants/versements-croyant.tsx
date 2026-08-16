@@ -1,6 +1,6 @@
 'use client';
 
-import { Printer } from 'lucide-react';
+import { Printer, Receipt } from 'lucide-react';
 
 import { imprimerRecus } from '@/components/finances/imprimer-recus';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -43,6 +43,33 @@ export function VersementsCroyant({
 }) {
   const total = versements.reduce((s, v) => s + Number(v.montant), 0);
 
+  /**
+   * UN SEUL ENDROIT OÙ SE FORME UN REÇU (règle 16).
+   *
+   * Le lot et le ticket unitaire doivent porter exactement la même chose ;
+   * deux constructions divergeraient au premier champ ajouté, et l'écart ne se
+   * verrait que sur du papier déjà remis.
+   *
+   * Chaque talon porte SA cérémonie : ces versements viennent de collectes
+   * différentes, parfois d'églises différentes (EF-FIN-32).
+   */
+  const recuDe = (v: VersementDuCroyant) =>
+    v.recu_numero && v.entree
+      ? {
+          reference: v.recu_numero,
+          nom: croyant.nom,
+          prenom: croyant.prenom,
+          matricule: croyant.matricule,
+          enveloppe: v.enveloppe_numero,
+          montant: Number(v.montant),
+          entite: v.entree.collecteur?.nom ?? '—',
+          dateOperation: v.entree.date_operation,
+          evenement: v.entree.dime_evenement
+            ? LIBELLES_EVENEMENT[v.entree.dime_evenement]
+            : null,
+        }
+      : null;
+
   if (versements.length === 0) {
     return (
       <p className="text-muted-foreground text-sm">
@@ -69,6 +96,7 @@ export function VersementsCroyant({
               <TableHead className="w-36">Reçu</TableHead>
               <TableHead className="w-32 text-right">Montant</TableHead>
               <TableHead className="w-28">Remise</TableHead>
+              <TableHead className="w-12" />
             </TableRow>
           </TableHeader>
 
@@ -124,6 +152,29 @@ export function VersementsCroyant({
                     <StatusBadge tone="warning">Au bureau</StatusBadge>
                   )}
                 </TableCell>
+
+                {/*
+                  EF-FIN-27 — LE TICKET DE CAISSE, un reçu à la fois.
+
+                  C'est ici qu'il sert le plus : quelqu'un est devant le bureau
+                  et réclame le talon d'un versement précis. Sortir la feuille
+                  entière de ses reçus pour lui en donner un seul l'obligerait
+                  à découper devant nous.
+                */}
+                <TableCell>
+                  {v.recu_numero && v.entree && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-8"
+                      title="Imprimer le ticket"
+                      aria-label={`Imprimer le ticket ${v.recu_numero}`}
+                      onClick={() => imprimerRecus([recuDe(v)!], devise, 'CAISSE')}
+                    >
+                      <Receipt className="size-4" aria-hidden />
+                    </Button>
+                  )}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -153,29 +204,13 @@ export function VersementsCroyant({
           className="h-9"
           onClick={() =>
             imprimerRecus(
-              versements
-                .filter((v) => v.recu_numero && v.entree)
-                .map((v) => ({
-                  reference: v.recu_numero!,
-                  nom: croyant.nom,
-                  prenom: croyant.prenom,
-                  matricule: croyant.matricule,
-                  enveloppe: v.enveloppe_numero,
-                  montant: Number(v.montant),
-                  // Chaque talon porte SA cérémonie : ces reçus viennent de
-                  // collectes différentes, parfois d'églises différentes.
-                  entite: v.entree!.collecteur?.nom ?? '—',
-                  dateOperation: v.entree!.date_operation,
-                  evenement: v.entree!.dime_evenement
-                    ? LIBELLES_EVENEMENT[v.entree!.dime_evenement]
-                    : null,
-                })),
+              versements.map(recuDe).filter((r) => r !== null),
               devise,
             )
           }
         >
           <Printer className="mr-2 size-4" aria-hidden />
-          Réimprimer les reçus
+          Réimprimer les reçus (A4)
         </Button>
       </div>
     </div>

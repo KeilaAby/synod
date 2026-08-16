@@ -12,11 +12,10 @@
 
 ---
 
-## À FAIRE EN PREMIER — la migration `0038`
+## La migration `0038` — appliquée le 16 août 2026
 
-`supabase/migrations/0038_dime_validee_a_la_remise.sql` **n'est pas appliquée**.
-Sans elle, une collecte de dîmes n'alimente jamais la recette du Siège : elle
-naît en brouillon et y reste.
+Base à jour. Ce qu'elle a corrigé mérite d'être retenu, parce que le défaut
+était invisible à l'écran.
 
 C'était un défaut de conception, pas un oubli. Le statut de la collecte était
 laissé au workflow du Siège, ce qui ne donnait que deux issues, toutes deux
@@ -27,12 +26,7 @@ La migration tranche : la collecte naît `SOUMIS`, et **c'est la remise qui
 valide**. Ce qui est juste au fond — la dîme appartient au Siège dès qu'elle est
 collectée, mais elle n'est sa recette qu'une fois **remise en mains propres**.
 
-```bash
-# à passer dans l'éditeur SQL Supabase
-supabase/migrations/0038_dime_validee_a_la_remise.sql
-```
-
-Les migrations `0023` à `0037` sont appliquées.
+Les migrations `0023` à `0038` sont appliquées. **Aucune migration n'attend.**
 
 ---
 
@@ -53,7 +47,8 @@ livré pour l'essentiel**.
 | **File de validation par lot (EF-FIN-21)** | ✅ |
 | **Vue consolidée du Siège (EF-FIN-11)** | ✅ |
 | **Dîmes — collecte, anonymes, remise, import, rapprochement** | ✅ |
-| **Ticket de reçu A4, historique du croyant (EF-FIN-35)** | ✅ |
+| **Reçu imprimé — A4 à huit talons *et* rouleau 80 mm** | ✅ |
+| **Historique des versements sur la fiche (EF-FIN-35)** | ✅ |
 
 490 tests unitaires, 24 fichiers. `pnpm verify` vert.
 

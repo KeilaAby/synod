@@ -117,9 +117,15 @@ Excel/CSV** (EF-FIN-34) : aucune ligne portant un montant n'est rejetée ; un no
 inconnu donne un versement anonyme ET une ligne à rapprocher dans `/croyants`,
 où le travail est de l'identification, pas de la comptabilité.
 
-**Lot dîmes clos** — EF-FIN-27 à 35. Le **ticket de reçu** s'imprime
-(`components/finances/imprimer-recus.ts`, huit talons par A4) : le reçu existait
-déjà, la base le numérote à la collecte ; ce qui manquait, c'est le papier. Le
+**Lot dîmes clos** — EF-FIN-27 à 35. Le **reçu s'imprime**
+(`components/finances/imprimer-recus.ts`) : il existait déjà, la base le
+numérote à la collecte ; ce qui manquait, c'est le papier. **Deux formats, parce
+que ce sont deux gestes** — l'**A4** à huit talons pour la collecte entière
+après le culte, le **rouleau de 80 mm** pour celui qu'on tend à quelqu'un qui
+est devant soi. Ce n'est pas une variante : sur un rouleau la largeur est fixée
+et la hauteur libre, l'inverse d'une feuille, et 72 mm utiles n'admettent pas
+deux colonnes. Le talon de caisse porte seul la mention « Dîme reçue pour le
+compte du Siège » (EF-FIN-29) — c'est le seul papier que le donateur emporte. Le
 montant y figure **en toutes lettres** (`lib/domain/montant-en-lettres.ts`, sans
 dépendance) — « 12 000 » devient « 112 000 » d'un trait de stylo, « douze mille
 ariary » ne se rallonge pas. Chaque talon porte **sa** cérémonie, jamais celle du
@@ -141,9 +147,9 @@ les soldes consolidés, et quelqu'un finirait par y transférer un vrai croyant.
 **EF-BUR-11 clos** : l'export Excel de la composition est abandonné le 12 août
 2026, le PDF de l'organigramme couvre le besoin.
 
-Migrations écrites jusqu'à `0038`, **appliquées jusqu'à `0037`** : tant que
-`0038` n'est pas passée, une collecte de dîmes n'alimente jamais la recette du
-Siège. Le stockage de fichiers ne se
+Base à jour jusqu'à la migration `0038` — une collecte de dîmes naît `SOUMIS` et
+c'est la **remise** qui la valide, donc qui alimente le Siège. Le stockage de
+fichiers ne se
 configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` et
 `postgres` s'y voit refuser `CREATE POLICY` : `pnpm db:bucket` s'en charge par
 l'API.

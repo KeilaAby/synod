@@ -1,6 +1,14 @@
 'use client';
 
-import { ChevronDown, ChevronRight, Coins, Printer, Search, Truck } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronRight,
+  Coins,
+  Printer,
+  Receipt,
+  Search,
+  Truck,
+} from 'lucide-react';
 import { Fragment, useMemo, useState } from 'react';
 
 import {
@@ -409,6 +417,11 @@ export function DimesClient({
                             Le bouton est ICI, sous le détail, parce que c'est
                             le détail qu'on imprime — une collecte globale ou
                             entièrement anonyme n'ouvre aucun reçu (EF-FIN-33).
+
+                            CELUI-CI EST LE LOT : la feuille A4 qu'on découpe
+                            après le culte. Le ticket de caisse, lui, se
+                            déclenche ligne par ligne — c'est un geste qu'on
+                            fait devant quelqu'un.
                           */}
                           <div className="mb-3 flex justify-end">
                             <Button
@@ -417,7 +430,7 @@ export function DimesClient({
                               onClick={() => imprimerRecus(recusDe(c), devise)}
                             >
                               <Printer className="mr-2 size-3.5" aria-hidden />
-                              Imprimer les reçus
+                              Imprimer les reçus (A4)
                             </Button>
                           </div>
 
@@ -454,6 +467,44 @@ export function DimesClient({
                                   <span className="text-sm tabular-nums">
                                     {formatMontant(Number(v.montant), devise)}
                                   </span>
+
+                                  {/*
+                                    EF-FIN-27 — LE TICKET DE CAISSE, un reçu à
+                                    la fois.
+
+                                    C'est le geste qu'on fait devant quelqu'un :
+                                    le croyant vient réclamer son talon, on le
+                                    sort et on le lui tend. Imprimer la feuille
+                                    entière pour une personne gâcherait sept
+                                    talons et obligerait à découper.
+
+                                    L'emplacement est RÉSERVÉ même sans reçu :
+                                    sans cela, les montants d'une liste mêlant
+                                    nominatifs et anonymes ne s'aligneraient
+                                    plus d'une ligne à l'autre.
+                                  */}
+                                  {v.recu_numero && v.croyant ? (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="size-8"
+                                      title="Imprimer le ticket"
+                                      aria-label={`Imprimer le ticket de ${v.croyant.nom} ${v.croyant.prenom}`}
+                                      onClick={() =>
+                                        imprimerRecus(
+                                          recusDe(c).filter(
+                                            (r) => r.reference === v.recu_numero,
+                                          ),
+                                          devise,
+                                          'CAISSE',
+                                        )
+                                      }
+                                    >
+                                      <Receipt className="size-4" aria-hidden />
+                                    </Button>
+                                  ) : (
+                                    <span className="size-8" aria-hidden />
+                                  )}
                                 </span>
                               </li>
                             ))}
