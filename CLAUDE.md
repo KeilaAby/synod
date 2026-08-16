@@ -115,8 +115,18 @@ c'est elle, et elle seule, qui VALIDE le mouvement et alimente le Siège — une
 collecte naît `SOUMIS`, parce qu'elle annonce sans encaisser. **Import
 Excel/CSV** (EF-FIN-34) : aucune ligne portant un montant n'est rejetée ; un nom
 inconnu donne un versement anonyme ET une ligne à rapprocher dans `/croyants`,
-où le travail est de l'identification, pas de la comptabilité. Restent le ticket
-de reçu imprimable et l'historique sur la fiche du croyant.
+où le travail est de l'identification, pas de la comptabilité.
+
+**Lot dîmes clos** — EF-FIN-27 à 35. Le **ticket de reçu** s'imprime
+(`components/finances/imprimer-recus.ts`, huit talons par A4) : le reçu existait
+déjà, la base le numérote à la collecte ; ce qui manquait, c'est le papier. Le
+montant y figure **en toutes lettres** (`lib/domain/montant-en-lettres.ts`, sans
+dépendance) — « 12 000 » devient « 112 000 » d'un trait de stylo, « douze mille
+ariary » ne se rallonge pas. Chaque talon porte **sa** cérémonie, jamais celle du
+lot : depuis la fiche d'un croyant on réimprime des reçus de collectes, et
+parfois d'églises, différentes. L'**historique du croyant** (EF-FIN-35) affiche
+le numéro d'enveloppe **en vigueur le jour du versement**, pas celui
+d'aujourd'hui : c'est le reçu détenu qui fait foi, et il ne change pas.
 
 La file de rapprochement offre **trois** chemins et pas un de plus : le numéro
 d'enveloppe propose (`SuggestionsEnveloppe`, partagé avec la collecte — un

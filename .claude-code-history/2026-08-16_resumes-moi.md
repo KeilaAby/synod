@@ -53,8 +53,9 @@ livré pour l'essentiel**.
 | **File de validation par lot (EF-FIN-21)** | ✅ |
 | **Vue consolidée du Siège (EF-FIN-11)** | ✅ |
 | **Dîmes — collecte, anonymes, remise, import, rapprochement** | ✅ |
+| **Ticket de reçu A4, historique du croyant (EF-FIN-35)** | ✅ |
 
-478 tests unitaires, 23 fichiers. `pnpm verify` vert.
+490 tests unitaires, 24 fichiers. `pnpm verify` vert.
 
 ---
 
@@ -77,11 +78,10 @@ au Siège, qui valide et émet le bordereau.
 
 ## Ce qu'il reste
 
-### Dîmes
-- **Le ticket de reçu imprimable.** La référence se recopie aujourd'hui à la
-  main sur le talon ; le ticket était la seconde moitié de la demande.
-- **L'historique des versements sur la fiche du croyant** — EF-FIN-35. L'index
-  existe en base, l'écran non.
+### Dîmes — **rien**, le lot est clos
+
+Le ticket de reçu imprimable et l'historique du croyant (EF-FIN-35) ont été
+livrés le 16 août. EF-FIN-27 à 35 sont tous servis.
 
 ### Finances, hors dîmes
 - L'écran dédié de **saisie déléguée** (`finance.delegate`).

@@ -2807,3 +2807,70 @@ d'un district ou d'une paroisse — un rassemblement —, l'église est réellem
 inconnue et se choisit : un geste, et une donnée juste.
 
 478 tests unitaires. `pnpm verify` vert.
+
+---
+
+## 16 août 2026 (suite) — Le ticket de reçu et l'historique du croyant
+
+Les deux dernières pièces des dîmes. Le lot est clos.
+
+### Le montant en toutes lettres
+
+`lib/domain/montant-en-lettres.ts`, sans dépendance. La raison d'être tient en
+une ligne : **« 12 000 » devient « 112 000 » d'un trait de stylo ; « douze mille
+ariary » ne se rallonge pas.** C'est la seule justification d'écrire un nombre
+en lettres — partout ailleurs, le chiffre en `tabular-nums` se lit mieux.
+
+Le français n'a pas de règle unique, et ces accords ne sont pas de la
+coquetterie sur un reçu : c'est le document que le croyant garde, et une faute y
+est vue par tout le monde. « quatre-vingts » prend un s, « quatre-vingt mille »
+non ; « deux cents » en prend un, « deux cent mille » non, mais « deux cents
+millions » oui — parce que `million` est un nom et `mille` un numéral. Douze
+tests couvrent ces cas, plus les irrégularités de 70 et 90.
+
+Les centimes ne se disent que s'il y en a : l'ariary n'a pas de subdivision en
+usage, et « et zéro centime » ferait douter du reste.
+
+### Le ticket
+
+`components/finances/imprimer-recus.ts` — huit talons par feuille A4, deux
+colonnes, traits de coupe. Le format d'un carnet à souches, celui que les
+bureaux utilisent déjà.
+
+**Le reçu existait déjà** : la base le numérote à la collecte. Ce qui manquait,
+c'est le papier — la référence se recopiait à la main, et une référence
+recopiée est une référence fausse un jour sur dix.
+
+Règle 31 appliquée : rien n'est tronqué. Le nom se replie entre les mots et
+coupe le mot lui-même s'il le faut, le cadre grandissant plutôt que de perdre
+une syllabe. Un nom coupé se survole à l'écran ; sur un talon remis à
+quelqu'un, il est perdu.
+
+**Un défaut corrigé en cours de route** : l'en-tête (église, date du culte)
+était d'abord porté par le *lot*. C'est faux dès qu'on réimprime depuis la fiche
+d'un croyant — ces reçus viennent de collectes différentes, et parfois d'églises
+différentes (EF-FIN-32). La cérémonie appartient au **ticket**.
+
+Une collecte entièrement anonyme n'ouvre aucun reçu (EF-FIN-33) : le pop-up le
+dit, plutôt qu'une feuille blanche qui n'explique pas pourquoi elle l'est.
+
+### L'historique du croyant — EF-FIN-35
+
+Une carte sur la fiche, avant l'historique : la question « pouvez-vous retrouver
+ma dîme du mois dernier ? » n'est pas la même que « qu'est-il arrivé à cette
+personne ? ».
+
+**Le numéro d'enveloppe affiché est celui du jour du versement**, pas celui
+d'aujourd'hui — il est recopié sur chaque ligne à la saisie plutôt que lu par
+jointure. Un croyant qui change d'enveloppe ne doit pas voir ses anciens reçus
+se réécrire sous un numéro qu'ils n'ont jamais porté : c'est le reçu qu'il
+détient qui fait foi, et il ne change pas.
+
+Le tri se fait sur la date de **culte**, pas sur `created_at` : une feuille
+importée un mois plus tard placerait sinon un vieux culte en tête.
+
+La réimpression ne réémet rien — elle sort le reçu existant sous sa référence
+d'origine. En émettre un second pour le même versement ferait exister deux
+papiers pour un seul don.
+
+490 tests unitaires, 24 fichiers. `pnpm verify` vert.

@@ -335,3 +335,66 @@ export const chargerRapprochements = cache(
     return data ?? [];
   },
 );
+
+export interface VersementDuCroyant {
+  id: string;
+  /** Le numero EN VIGUEUR AU MOMENT DU VERSEMENT — EF-FIN-35. */
+  enveloppe_numero: string | null;
+  montant: number;
+  recu_numero: string | null;
+  nature: NatureVersement;
+  created_at: string;
+  entree: {
+    id: string;
+    date_operation: string;
+    dime_evenement: EvenementDime | null;
+    libelle: string | null;
+    dime_remise_id: string | null;
+    collecteur: { id: string; nom: string } | null;
+  } | null;
+}
+
+/**
+ * L'historique des versements d'un croyant — EF-FIN-35.
+ *
+ * LE NUMERO D'ENVELOPPE EST CELUI DU JOUR DU VERSEMENT, pas celui d'aujourd'hui.
+ * Il est recopie sur chaque ligne a la saisie (migration `0027`) plutot que lu
+ * par jointure : un croyant qui change d'enveloppe ne doit pas voir ses anciens
+ * recus se reecrire sous un numero qu'ils n'ont jamais porte. C'est le recu
+ * qu'il detient qui fait foi, et il ne change pas.
+ *
+ * LE TRI SE FAIT ICI, sur la date de CULTE et non sur `created_at` : une
+ * feuille importee un mois plus tard placerait sinon un vieux culte en tete.
+ * Le volume est celui d'une personne — quelques dizaines de lignes.
+ *
+ * Ce qui remonte est borne par la RLS : la politique de `dime_versements`
+ * delegue a la visibilite du mouvement parent. Une eglise voit donc ce qu'elle
+ * a collecte, et le Siege tout. Un versement fait ailleurs par un croyant de
+ * passage (EF-FIN-32) n'est pas cache : il appartient a une autre entite.
+ */
+export async function chargerVersementsDuCroyant(
+  croyantId: string,
+): Promise<VersementDuCroyant[]> {
+  const sb = await createClient();
+
+  const { data, error } = await sb
+    .from('dime_versements')
+    .select(
+      'id, enveloppe_numero, montant, recu_numero, nature, created_at, ' +
+        'entree:finance_entries!dime_versements_finance_entry_id_fkey (' +
+        '  id, date_operation, dime_evenement, libelle, dime_remise_id,' +
+        '  collecteur:entities!finance_entries_entite_collecte_id_fkey (id, nom)' +
+        ')',
+    )
+    .eq('croyant_id', croyantId)
+    .limit(500)
+    .returns<VersementDuCroyant[]>();
+
+  // Une fiche ne doit pas devenir illisible parce que l'historique l'est : la
+  // carte disparait, le reste de la page continue de servir.
+  if (error) return [];
+
+  return (data ?? []).sort((a, b) =>
+    (b.entree?.date_operation ?? '').localeCompare(a.entree?.date_operation ?? ''),
+  );
+}

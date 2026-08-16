@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, ChevronRight, Coins, Search, Truck } from 'lucide-react';
+import { ChevronDown, ChevronRight, Coins, Printer, Search, Truck } from 'lucide-react';
 import { Fragment, useMemo, useState } from 'react';
 
 import {
@@ -8,6 +8,7 @@ import {
   type CroyantOption,
 } from '@/components/finances/collecte-dialog';
 import { ImportVersementsDialog } from '@/components/finances/import-versements-dialog';
+import { imprimerRecus } from '@/components/finances/imprimer-recus';
 import { RemiseDialog } from '@/components/finances/remise-dialog';
 import { EmptyState } from '@/components/shared/empty-state';
 import { FiltreIcone, GroupeFiltres } from '@/components/shared/filtre-icone';
@@ -108,6 +109,29 @@ export function DimesClient({
       retards: lignes.filter((c) => estEnRetard(c.date_operation, aujourdhui)).length,
     };
   }, [collectes, aujourdhui]);
+
+  /**
+   * Les versements d'une collecte qui ouvrent un reçu — EF-FIN-33.
+   *
+   * Un anonyme n'en ouvre aucun : il n'y a personne à qui le remettre. C'est
+   * `recu_numero` qui fait foi, pas la nature — la base est seule à l'attribuer.
+   */
+  const recusDe = (c: CollecteListe) =>
+    c.versements
+      .filter((v) => v.recu_numero && v.croyant)
+      .map((v) => ({
+        reference: v.recu_numero!,
+        nom: v.croyant!.nom,
+        prenom: v.croyant!.prenom,
+        matricule: v.croyant!.matricule,
+        enveloppe: v.enveloppe_numero,
+        montant: Number(v.montant),
+        // La cérémonie est celle de la collecte : ici, toutes les lignes la
+        // partagent — mais c'est le TICKET qui la porte, pas le lot.
+        entite: c.collecteur?.nom ?? '—',
+        dateOperation: c.date_operation,
+        evenement: c.dime_evenement ? LIBELLES_EVENEMENT[c.dime_evenement] : null,
+      }));
 
   const basculer = (id: string) =>
     setDeplies((d) => {
@@ -374,6 +398,29 @@ export function DimesClient({
                       <TableRow className="bg-muted/40 hover:bg-muted/40">
                         <TableCell />
                         <TableCell colSpan={6} className="py-4">
+                          {/*
+                            EF-FIN-27 — LE TALON S'IMPRIME.
+
+                            Le reçu existe déjà, la base l'a numéroté à la
+                            collecte : ce qui manquait, c'est le papier. Sa
+                            référence se recopiait à la main, et une référence
+                            recopiée est une référence fausse un jour sur dix.
+
+                            Le bouton est ICI, sous le détail, parce que c'est
+                            le détail qu'on imprime — une collecte globale ou
+                            entièrement anonyme n'ouvre aucun reçu (EF-FIN-33).
+                          */}
+                          <div className="mb-3 flex justify-end">
+                            <Button
+                              variant="outline"
+                              className="h-8 text-xs"
+                              onClick={() => imprimerRecus(recusDe(c), devise)}
+                            >
+                              <Printer className="mr-2 size-3.5" aria-hidden />
+                              Imprimer les reçus
+                            </Button>
+                          </div>
+
                           <ul className="divide-border divide-y">
                             {c.versements.map((v) => (
                               <li

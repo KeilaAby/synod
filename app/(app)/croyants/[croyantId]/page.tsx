@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { ModifierCroyantDialog } from '@/components/croyants/croyant-dialog';
 import { HistoriqueCroyant } from '@/components/croyants/historique-croyant';
 import { PhotoUploader } from '@/components/croyants/photo-uploader';
+import { VersementsCroyant } from '@/components/croyants/versements-croyant';
 import { TransfertBouton } from '@/components/transferts/transfert-bouton';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge, TON_CROYANT } from '@/components/shared/status-badge';
@@ -12,7 +13,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { getCroyant } from '@/lib/data/croyants';
 import { getOptionsCroyant } from '@/lib/data/croyant-options';
 import { getArbrePerimetre, cheminLisible, indexerParChemin } from '@/lib/data/entities';
+import { chargerVersementsDuCroyant } from '@/lib/data/dimes';
 import { signerPhotos } from '@/lib/data/photos';
+import { getParametres } from '@/lib/data/settings';
 import { fonctionsDuCroyant } from '@/lib/data/bureaux';
 import { transfertsDuCroyant } from '@/lib/data/transferts';
 import { construireHistorique } from '@/lib/domain/historique';
@@ -45,15 +48,21 @@ export default async function FicheCroyantPage({ params }: Params) {
   const croyant = await getCroyant(croyantId);
   if (!croyant) notFound();
 
-  const [arbre, options, photos, transferts, mandats] = await Promise.all([
-    getArbrePerimetre(),
-    getOptionsCroyant(),
-    signerPhotos([croyant.photo_key]),
-    // EF-TRF-08 — l'historique complet des transferts du croyant.
-    transfertsDuCroyant(croyantId),
-    // EF-BUR-10 — les fonctions occupees, toutes entites confondues.
-    fonctionsDuCroyant(croyantId),
-  ]);
+  // Six lectures INDÉPENDANTES, donc une seule attente : ce qui coûte, c'est
+  // le nombre d'allers-retours, pas leur durée (règle 28).
+  const [arbre, options, photos, transferts, mandats, versements, parametres] =
+    await Promise.all([
+      getArbrePerimetre(),
+      getOptionsCroyant(),
+      signerPhotos([croyant.photo_key]),
+      // EF-TRF-08 — l'historique complet des transferts du croyant.
+      transfertsDuCroyant(croyantId),
+      // EF-BUR-10 — les fonctions occupees, toutes entites confondues.
+      fonctionsDuCroyant(croyantId),
+      // EF-FIN-35 — ses versements de dime, avec le numero d'enveloppe du jour.
+      chargerVersementsDuCroyant(croyantId),
+      getParametres(),
+    ]);
 
   const evenements = construireHistorique(croyant, transferts, mandats);
   const index = indexerParChemin(arbre);
@@ -214,6 +223,36 @@ export default async function FicheCroyantPage({ params }: Params) {
           </CardContent>
         </Card>
       </div>
+
+      {/*
+        EF-FIN-35 — les versements de dîme, AVANT l'historique.
+
+        C'est la réponse à « pouvez-vous retrouver ma dîme du mois dernier ? »,
+        la question qu'on pose à un bureau. L'historique, lui, retrace ce qui
+        est arrivé au croyant : deux lectures différentes, deux cartes.
+      */}
+      <Card>
+        <CardContent className="space-y-6 p-6">
+          <div className="space-y-1">
+            <p className="eyebrow">Versements de dîme</p>
+            <p className="text-muted-foreground text-sm">
+              Le numéro d&apos;enveloppe affiché est celui en vigueur le jour du
+              versement, pas celui d&apos;aujourd&apos;hui : c&apos;est le reçu détenu
+              par le croyant qui fait foi.
+            </p>
+          </div>
+
+          <VersementsCroyant
+            versements={versements}
+            croyant={{
+              nom: croyant.nom,
+              prenom: croyant.prenom,
+              matricule: croyant.matricule,
+            }}
+            devise={parametres.devise}
+          />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent className="space-y-6 p-6">
