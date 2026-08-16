@@ -255,3 +255,109 @@ export function kpiEstAlerte(definition: DefinitionKpi, valeur: number): boolean
   if (definition.alerteSiNegatif) return valeur < 0;
   return false;
 }
+
+// ---------------------------------------------------------------------------
+// EF-DSH-03, EF-DSH-07 — la disposition choisie par l'utilisateur
+// ---------------------------------------------------------------------------
+
+/**
+ * Ce qu'un compte a decide de son tableau de bord.
+ *
+ * DEUX LISTES, ET NON UNE SEULE LISTE DE VISIBLES. Une liste de « ce que je
+ * veux voir » serait plus courte a ecrire, mais un indicateur AJOUTE AU
+ * REGISTRE plus tard n'y figurerait pas — il n'apparaitrait jamais chez ceux
+ * qui ont personnalise, et personne ne saurait pourquoi. Ici, ce qui n'est ni
+ * ordonne ni masque est simplement NOUVEAU : il se montre, a la fin.
+ *
+ * C'est la meme regle que `null` pour le workflow financier : l'absence de
+ * decision n'est pas une decision.
+ */
+export interface DispositionTableauDeBord {
+  /** L'ordre voulu, par cle. Les cles inconnues sont ignorees. */
+  readonly ordre: readonly string[];
+  /** Ce qui est EXPLICITEMENT ecarte — a distinguer de ce qui est nouveau. */
+  readonly masques: readonly string[];
+}
+
+export const DISPOSITION_VIDE: DispositionTableauDeBord = { ordre: [], masques: [] };
+
+/** Un objet simple, et rien d'autre : il traverse serveur -> client (regle 24). */
+export function estDisposition(valeur: unknown): valeur is DispositionTableauDeBord {
+  if (typeof valeur !== 'object' || valeur === null) return false;
+  const v = valeur as Record<string, unknown>;
+  return (
+    Array.isArray(v.ordre) &&
+    Array.isArray(v.masques) &&
+    v.ordre.every((c) => typeof c === 'string') &&
+    v.masques.every((c) => typeof c === 'string')
+  );
+}
+
+/**
+ * Les indicateurs a rendre, dans l'ordre voulu.
+ *
+ * LES NOUVEAUX VIENNENT APRES, dans l'ordre du registre : un indicateur ajoute
+ * au produit doit se voir, sans quoi la personnalisation gelerait le tableau de
+ * bord au jour ou elle a ete faite.
+ *
+ * Ce qui n'est PLUS au registre disparait de lui-meme : la disposition garde sa
+ * cle, mais rien ne la resout — inutile de nettoyer la base pour cela.
+ */
+export function appliquerDisposition(
+  kpis: readonly DefinitionKpi[],
+  disposition: DispositionTableauDeBord,
+): DefinitionKpi[] {
+  const masques = new Set(disposition.masques);
+  const rang = new Map(disposition.ordre.map((cle, i) => [cle, i]));
+
+  return kpis
+    .filter((k) => !masques.has(k.cle))
+    .map((k, positionRegistre) => ({ k, positionRegistre }))
+    .sort((a, b) => {
+      const ra = rang.get(a.k.cle);
+      const rb = rang.get(b.k.cle);
+
+      // Deux connus : leur ordre. Deux inconnus : celui du registre.
+      if (ra !== undefined && rb !== undefined) return ra - rb;
+      if (ra === undefined && rb === undefined) {
+        return a.positionRegistre - b.positionRegistre;
+      }
+      // Un connu, un nouveau : le nouveau passe apres.
+      return ra === undefined ? 1 : -1;
+    })
+    .map(({ k }) => k);
+}
+
+/** Montre ou masque un indicateur. */
+export function basculerMasque(
+  disposition: DispositionTableauDeBord,
+  cle: string,
+): DispositionTableauDeBord {
+  const masques = disposition.masques.includes(cle)
+    ? disposition.masques.filter((c) => c !== cle)
+    : [...disposition.masques, cle];
+
+  return { ...disposition, masques };
+}
+
+/**
+ * Deplace un indicateur AVANT un autre.
+ *
+ * L'ORDRE EST REECRIT EN ENTIER a partir de ce qui est affiche, jamais corrige
+ * par un `splice` sur l'ancien tableau : celui-ci peut contenir des cles
+ * disparues du registre ou omettre les nouvelles, et un deplacement calcule sur
+ * des index qui ne correspondent pas a l'ecran deplace le mauvais bloc.
+ */
+export function deplacerKpi(
+  affiches: readonly string[],
+  cle: string,
+  avant: string,
+): string[] {
+  if (cle === avant) return [...affiches];
+
+  const sansLui = affiches.filter((c) => c !== cle);
+  const cible = sansLui.indexOf(avant);
+  if (cible < 0) return [...affiches];
+
+  return [...sansLui.slice(0, cible), cle, ...sansLui.slice(cible)];
+}

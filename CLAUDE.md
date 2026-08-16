@@ -197,16 +197,24 @@ flux** : ils n'ont pas la même borne temporelle, et le solde est un cumul depui
 l'origine à côté d'un mois. Le registre `lib/domain/kpi.ts` est déclaratif, et
 **l'indicateur non habilité DISPARAÎT** — la RLS le compte à zéro, et ce zéro
 affiché se lirait « nous n'avons rien » là où la vérité est « je n'ai pas le
-droit de savoir » (règle 15). Restent EF-DSH-03/06/07 : ils supposent une table
-de préférences, pas un chiffre de plus.
+droit de savoir » (règle 15).
+
+**EF-DSH-03/07/09 livrés** : la personnalisation, sans migration —
+`dashboard_layouts` existait depuis `0005`. La disposition porte un **ordre et
+des masques explicites**, jamais une liste de visibles : un indicateur ajouté au
+registre plus tard n'apparaîtrait sinon **jamais** chez ceux qui ont
+personnalisé. Ce qui n'est ni ordonné ni masqué est *nouveau*, et se montre à la
+fin. On réordonne **dans** un groupe — « Effectifs » et « Finances » ne sont pas
+des étiquettes arbitraires. Le glisser-déposer est en HTML natif (règle 29),
+doublé de deux flèches : inaccessible au clavier, il ne serait un réglage que
+pour ceux qui ont une souris. Restent EF-DSH-05/06/08/10.
 
 **EF-BUR-11 clos** : l'export Excel de la composition est abandonné le 12 août
 2026, le PDF de l'organigramme couvre le besoin.
 
-Migrations appliquées jusqu'à `0040`, **`0041` écrite mais pas appliquée** :
-sans elle, `/tableau-de-bord` n'affiche que des zéros. Une collecte de dîmes
-naît `SOUMIS` et c'est la **remise** qui la valide, donc qui alimente le Siège.
-Le stockage de fichiers ne se
+Base à jour jusqu'à la migration `0041`. Une collecte de dîmes naît `SOUMIS` et
+c'est la **remise** qui la valide, donc qui alimente le Siège. Le stockage de
+fichiers ne se
 configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` et
 `postgres` s'y voit refuser `CREATE POLICY` : `pnpm db:bucket` s'en charge par
 l'API.

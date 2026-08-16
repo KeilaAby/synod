@@ -3227,3 +3227,66 @@ fait sauter la page au moment où les données se posent — l'inverse exact de 
 qu'il est censé éviter (EF-DSH-11).
 
 540 tests unitaires, 27 fichiers. `pnpm verify` vert.
+
+---
+
+## 16 août 2026 (suite) — EF-DSH-03 et EF-DSH-07, la personnalisation
+
+Choisir ses indicateurs, leur ordre, et le retrouver d'une session à l'autre.
+**Aucune migration** : `dashboard_layouts` existe depuis `0005`, avec sa
+politique « strictement personnel », et n'avait jamais servi.
+
+### Deux listes, pas une liste de visibles
+
+C'est la décision qui structure tout. Une liste de « ce que je veux voir »
+serait plus courte à écrire — mais un indicateur **ajouté au registre plus
+tard** n'y figurerait pas : il n'apparaîtrait **jamais** chez ceux qui ont
+personnalisé, et personne ne saurait pourquoi.
+
+La disposition porte donc un **ordre** et des **masques explicites**. Ce qui
+n'est ni ordonné ni masqué est *nouveau* : il se montre, à la fin. C'est la
+même règle que le `null` du workflow financier — l'absence de décision n'est
+pas une décision.
+
+Une clé qui a quitté le registre disparaît d'elle-même : rien ne la résout,
+inutile de nettoyer la base.
+
+### Deux modes, un seul rendu
+
+En consultation les cartes se lisent et se cliquent ; en personnalisation les
+**mêmes** cartes se déplacent et se masquent. Deux rendus séparés auraient
+divergé, et l'on aurait réorganisé une grille qui n'est pas celle qu'on lit.
+
+Un indicateur masqué reste **visible, estompé**, pendant la personnalisation :
+s'il disparaissait, le geste ne serait réversible que pour qui se souvient de ce
+qu'il a caché.
+
+### Les groupes ne se mélangent pas
+
+« Effectifs » et « Finances » ne sont pas des étiquettes arbitraires. On
+réordonne **dans** un groupe — ce qui garde la lecture par thème tout en
+laissant choisir ce qui vient en premier — et le masquage, lui, est global :
+c'est bien la question que pose EF-DSH-03.
+
+### Le glisser-déposer n'est pas le seul chemin
+
+Le HTML natif suffit : aucune bibliothèque (règle 29). Mais il est **inaccessible
+au clavier**, et deux flèches doublent donc chaque carte. Un réglage qu'on ne
+peut poser qu'à la souris n'est pas un réglage pour tout le monde.
+
+### Enregistré au fil des gestes
+
+Pas de bouton « Valider » : une préférence d'affichage n'a pas de transaction, et
+la reperdre parce qu'on a quitté la page sans confirmer serait une punition pour
+un travail de dix secondes. **L'échec se dit, le succès non** (règle 30) : une
+carte qui se déplace se voit du coin de l'œil, un enregistrement qui échoue
+jamais — et l'on retrouverait l'ancienne disposition sans comprendre pourquoi.
+
+### Ce qui garde EF-DSH-12
+
+Le filtrage par habilitation reste **côté serveur**, avant que quoi que ce soit
+ne traverse : le client ne reçoit jamais la définition d'un indicateur qu'il n'a
+pas le droit de voir, et sa personnalisation ne peut donc pas le faire
+réapparaître.
+
+549 tests unitaires, 27 fichiers. `pnpm verify` vert.

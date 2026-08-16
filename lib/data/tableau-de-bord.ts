@@ -1,5 +1,10 @@
 import 'server-only';
 
+import {
+  DISPOSITION_VIDE,
+  type DispositionTableauDeBord,
+  estDisposition,
+} from '@/lib/domain/kpi';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -77,4 +82,32 @@ export async function chargerTableauDeBord(
   }
 
   return { mesures, illisible: false };
+}
+
+/**
+ * La disposition enregistree par le compte courant — EF-DSH-03, EF-DSH-07.
+ *
+ * LA COLONNE EST DU `jsonb` QUE RIEN NE CONTRAINT : elle a pu etre ecrite par
+ * une version anterieure du produit, ou a la main par un appel direct a l'API.
+ * `estDisposition` verifie donc la forme avant de la rendre — une valeur
+ * inattendue traversant vers le client ferait echouer la page ENTIERE
+ * (regle 24), et un tableau de bord blanc pour une preference d'affichage
+ * serait une panne absurde.
+ *
+ * En cas de doute, on retombe sur la disposition VIDE : l'ordre du registre,
+ * qui est un defaut valable pour tout le monde.
+ */
+export async function chargerDisposition(): Promise<DispositionTableauDeBord> {
+  const sb = await createClient();
+
+  const { data, error } = await sb
+    .from('dashboard_layouts')
+    .select('layout')
+    .maybeSingle<{ layout: unknown }>();
+
+  if (error || !data) return DISPOSITION_VIDE;
+
+  return estDisposition(data.layout)
+    ? { ordre: data.layout.ordre, masques: data.layout.masques }
+    : DISPOSITION_VIDE;
 }

@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  DISPOSITION_VIDE,
   KPI_REGISTRY,
   type DefinitionKpi,
+  appliquerDisposition,
+  basculerMasque,
+  deplacerKpi,
+  estDisposition,
   groupesVisibles,
   kpiEstAlerte,
   kpisVisibles,
@@ -120,5 +125,98 @@ describe('EF-DSH-05 — ce qui merite d attirer l oeil', () => {
 
     const signales = KPI_REGISTRY.filter((k) => k.alerteSiPositif || k.alerteSiNegatif);
     expect(signales.length).toBeLessThanOrEqual(3);
+  });
+});
+
+describe('EF-DSH-03, EF-DSH-07 — la disposition choisie', () => {
+  const kpi = (cle: string): DefinitionKpi => ({
+    cle,
+    libelle: cle,
+    groupe: 'EFFECTIFS',
+    format: 'NOMBRE',
+    permission: 'croyant.read',
+  });
+
+  const registre = ['a', 'b', 'c'].map(kpi);
+
+  it('rend l ordre du registre quand rien n est decide', () => {
+    expect(appliquerDisposition(registre, DISPOSITION_VIDE).map((k) => k.cle)).toEqual([
+      'a',
+      'b',
+      'c',
+    ]);
+  });
+
+  it('suit l ordre voulu', () => {
+    expect(
+      appliquerDisposition(registre, { ordre: ['c', 'a', 'b'], masques: [] }).map(
+        (k) => k.cle,
+      ),
+    ).toEqual(['c', 'a', 'b']);
+  });
+
+  it('retire ce qui est EXPLICITEMENT masque', () => {
+    expect(
+      appliquerDisposition(registre, { ordre: [], masques: ['b'] }).map((k) => k.cle),
+    ).toEqual(['a', 'c']);
+  });
+
+  it('MONTRE un indicateur ajoute apres la personnalisation', () => {
+    /**
+     * Le piege de l'exercice. Une simple liste de « ce que je veux voir »
+     * serait plus courte a ecrire, mais un indicateur ajoute au registre plus
+     * tard n'y figurerait pas : il n'apparaitrait JAMAIS chez ceux qui ont
+     * personnalise, et personne ne saurait pourquoi.
+     *
+     * Ce qui n'est ni ordonne ni masque est NOUVEAU : il se montre, a la fin.
+     */
+    const avecNouveau = [...registre, kpi('d'), kpi('e')];
+    const disposition = { ordre: ['c', 'a', 'b'], masques: [] };
+
+    expect(appliquerDisposition(avecNouveau, disposition).map((k) => k.cle)).toEqual([
+      'c',
+      'a',
+      'b',
+      'd',
+      'e',
+    ]);
+  });
+
+  it('ignore une cle qui a quitte le registre', () => {
+    // Inutile de nettoyer la base : rien ne resout la cle, elle disparait.
+    expect(
+      appliquerDisposition(registre, { ordre: ['zzz', 'b'], masques: ['yyy'] }).map(
+        (k) => k.cle,
+      ),
+    ).toEqual(['b', 'a', 'c']);
+  });
+
+  it('bascule un masque dans les deux sens', () => {
+    const pose = basculerMasque(DISPOSITION_VIDE, 'b');
+    expect(pose.masques).toEqual(['b']);
+    expect(basculerMasque(pose, 'b').masques).toEqual([]);
+  });
+
+  it('deplace un indicateur AVANT un autre', () => {
+    expect(deplacerKpi(['a', 'b', 'c'], 'c', 'a')).toEqual(['c', 'a', 'b']);
+    expect(deplacerKpi(['a', 'b', 'c'], 'a', 'c')).toEqual(['b', 'a', 'c']);
+  });
+
+  it('ne bouge rien quand la cible est le bloc lui-meme ou est absente', () => {
+    expect(deplacerKpi(['a', 'b'], 'a', 'a')).toEqual(['a', 'b']);
+    expect(deplacerKpi(['a', 'b'], 'a', 'zzz')).toEqual(['a', 'b']);
+  });
+
+  it('n accepte comme disposition qu un objet SIMPLE', () => {
+    /**
+     * Elle traverse la frontiere serveur -> client (regle 24), et elle vient
+     * d'une colonne `jsonb` que rien ne contraint : une valeur ecrite a la
+     * main par l'API ferait echouer la page entiere.
+     */
+    expect(estDisposition({ ordre: ['a'], masques: [] })).toBe(true);
+    expect(estDisposition(null)).toBe(false);
+    expect(estDisposition({ ordre: 'a', masques: [] })).toBe(false);
+    expect(estDisposition({ ordre: [1], masques: [] })).toBe(false);
+    expect(estDisposition({ ordre: [] })).toBe(false);
   });
 });
