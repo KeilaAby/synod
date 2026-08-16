@@ -144,12 +144,25 @@ c'en est une. Aucune entité « église inconnue » n'a été créée : elle ent
 dans la structure, recevrait un code, apparaîtrait dans chaque sélecteur et dans
 les soldes consolidés, et quelqu'un finirait par y transférer un vrai croyant.
 
+**EF-FIN-24 livré** : `/finances/synthese` — par catégorie, mois par mois, et
+entre entités sœurs. Migration `0039` : deux fonctions `SECURITY INVOKER` qui
+rendent **l'année entière et les deux portées** en un passage. Changer de mois,
+de granularité ou de portée est alors une somme faite dans le navigateur ; seuls
+l'année et l'entité repartent au serveur, parce que ce sont les deux seules
+choses qui changent le volume lu (règles 17 et 28). L'évolution du solde n'a
+**pas** de fonction — c'est la somme des catégories par mois. Le graphique est
+un **SVG écrit à la main** : Recharts pèse quelques centaines de kilooctets pour
+vingt-quatre rectangles (règle 29). Et la liste des sœurs est dressée par
+l'écran depuis l'arbre : une sœur sans mouvement doit figurer **à zéro**, pas
+disparaître (règle 15).
+
 **EF-BUR-11 clos** : l'export Excel de la composition est abandonné le 12 août
 2026, le PDF de l'organigramme couvre le besoin.
 
-Base à jour jusqu'à la migration `0038` — une collecte de dîmes naît `SOUMIS` et
-c'est la **remise** qui la valide, donc qui alimente le Siège. Le stockage de
-fichiers ne se
+Migrations appliquées jusqu'à `0038` — une collecte de dîmes naît `SOUMIS` et
+c'est la **remise** qui la valide, donc qui alimente le Siège. **`0039` est
+écrite mais pas appliquée** : sans elle, `/finances/synthese` n'a aucune
+fonction à appeler. Le stockage de fichiers ne se
 configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` et
 `postgres` s'y voit refuser `CREATE POLICY` : `pnpm db:bucket` s'en charge par
 l'API.

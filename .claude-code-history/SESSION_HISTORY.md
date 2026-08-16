@@ -2921,3 +2921,63 @@ chose, or deux constructions divergeraient au premier champ ajouté — et l'éc
 ne se verrait que sur du papier déjà remis.
 
 490 tests unitaires. `pnpm verify` vert.
+
+---
+
+## 16 août 2026 (suite) — EF-FIN-24, la synthèse périodique
+
+Le plus gros *Must* qui restait du lot 4. `/finances/synthese` répond à
+« qu'avons-nous fait ce trimestre ? », quand `/finances` répond à « de combien
+disposons-nous ? ». Les deux nombres sont plausibles et un seul répond à chaque
+question — d'où deux écrans, et une mention explicite sous le résultat de
+période pour qu'il ne se lise pas comme une trésorerie.
+
+### Les fonctions rendent l'année, pas la période demandée
+
+Migration `0039` — deux fonctions `SECURITY INVOKER`, qui rendent le **détail
+mensuel de l'année** et les **deux portées** (propre et consolidée) d'un seul
+passage.
+
+C'est un choix, pas une facilité. Changer de mois, passer du trimestre à
+l'année, basculer la portée deviennent des sommes faites dans le navigateur —
+instantanées — au lieu d'allers-retours de 0,5 à 4 s (règles 17 et 28). Celui
+qui ouvre une synthèse **compare** : il ne consulte pas une période, il en
+parcourt cinq ou six. Seuls l'année et l'entité repartent au serveur, parce que
+ce sont les deux seules choses qui changent le volume lu.
+
+Les deux portées viennent du même passage pour une seconde raison : deux appels
+séparés pourraient tomber de part et d'autre d'une validation et se contredire.
+
+**L'évolution du solde n'a pas de fonction** : c'est la somme des catégories par
+mois, que l'écran fait en une ligne. Une troisième fonction aurait reposé à la
+base une question à laquelle elle venait de répondre en détail.
+
+**La liste des sœurs est dressée par l'écran**, depuis l'arbre qu'il détient
+déjà. Une sœur sans aucun mouvement n'a pas de ligne en base et doit pourtant
+figurer à zéro : absente, elle se lirait « hors périmètre » quand la vérité est
+« elle n'a rien encaissé » (règle 15).
+
+### Le graphique, en SVG écrit à la main
+
+Recharts n'est pas installé, et ne le sera pas pour vingt-quatre rectangles.
+La règle 29 demande ce qu'une dépendance apporte vraiment ; le SVG de
+l'organigramme avait déjà tranché dans le même sens.
+
+**Des barres, pas une courbe** : une ligne suggère qu'entre deux points il
+existe des valeurs intermédiaires, alors qu'un mois est une somme close.
+
+**Les douze mois sont toujours là**, même quand la période retenue n'en couvre
+qu'un — c'est ce qui la situe. Les mois hors sélection sont estompés, jamais
+retirés : une année à laquelle il manque des mois ment sur la pente.
+
+### Le domaine
+
+`lib/domain/synthese.ts`, quinze tests. Tout est en chaînes « AAAA-MM-JJ » : une
+colonne `date` n'a pas de fuseau, et lui en inventer un a déjà fait basculer une
+collecte du 31 août dans le mois de septembre.
+
+Le test qui compte le plus : **reculer d'un mois depuis le 31 mars**. Un décalage
+naïf donnerait un « 31 février » que `Date` corrigerait silencieusement en
+3 mars — on aurait sauté février entier. On décale la période, pas le jour.
+
+505 tests unitaires, 25 fichiers. `pnpm verify` vert.

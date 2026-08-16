@@ -113,6 +113,8 @@ export const LIBELLES_SEGMENTS: Record<string, string> = {
   liste: 'Liste',
   synthese: 'Synthese',
   'a-valider': 'A valider',
+  consolide: 'Vue consolidee',
+  dimes: 'Dimes',
   'en-attente': 'En attente',
   delegation: 'Saisie deleguee',
   personnaliser: 'Personnaliser',

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { ClipboardCheck, Coins, LayoutList } from 'lucide-react';
+import { ChartColumn, ClipboardCheck, Coins, LayoutList } from 'lucide-react';
 
 import { WorkflowDialog } from '@/components/finances/workflow-dialog';
 import { PageHeader } from '@/components/shared/page-header';
@@ -133,6 +133,16 @@ export default async function FinancesPage() {
               <Link href="/finances/dimes">
                 <Coins className="mr-2 size-4" aria-hidden />
                 Dîmes
+              </Link>
+            </Button>
+
+            {/* EF-FIN-24 — la synthèse périodique. Elle répond à « qu'avons-nous
+                fait ce trimestre ? », quand le triptyque ci-dessous répond à
+                « de combien disposons-nous ? ». Deux questions, deux écrans. */}
+            <Button asChild variant="outline" className="h-10">
+              <Link href="/finances/synthese">
+                <ChartColumn className="mr-2 size-4" aria-hidden />
+                Synthèse
               </Link>
             </Button>
 

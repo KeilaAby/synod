@@ -339,3 +339,115 @@ export async function chargerReglagesWorkflow(): Promise<{
     })),
   };
 }
+
+// ---------------------------------------------------------------------------
+// EF-FIN-24 — la synthese periodique
+// ---------------------------------------------------------------------------
+
+/** Une categorie, un mois, dans les deux portees. */
+export interface LigneSynthese {
+  mois: string;
+  categorieId: string;
+  libelle: string;
+  sens: SensFinance;
+  montantPropre: number;
+  montantConsolide: number;
+  nombrePropre: number;
+  nombreConsolide: number;
+}
+
+/** Les montants consolides d'une soeur, un mois donne. */
+export interface LigneSoeur {
+  mois: string;
+  entityId: string;
+  recettes: number;
+  depenses: number;
+}
+
+export interface SyntheseAnnuelle {
+  categories: LigneSynthese[];
+  soeurs: LigneSoeur[];
+}
+
+/**
+ * EF-FIN-24 — une ANNEE de synthese, mois par mois.
+ *
+ * ELLE CHARGE L'ANNEE, PAS LA PERIODE DEMANDEE. Passer d'aout a juillet, ou du
+ * trimestre a l'annee, devient alors une somme faite dans le navigateur —
+ * instantanee — au lieu d'un aller-retour de 0,5 a 4 s (regles 17 et 28). Celui
+ * qui ouvre une synthese COMPARE : il ne consulte pas une periode, il en
+ * parcourt plusieurs.
+ *
+ * Les deux portees, propre et consolidee, viennent du MEME passage : deux
+ * appels separes pourraient tomber de part et d'autre d'une validation et se
+ * contredire.
+ *
+ * DEUX APPELS LANCES DE FRONT, donc une attente. L'evolution du solde n'en
+ * demande pas de troisieme : c'est la somme des categories par mois.
+ *
+ * Les deux fonctions sont `SECURITY INVOKER` : la RLS borne le resultat, cet
+ * ecran n'a aucun filtrage a refaire.
+ */
+export async function chargerSyntheseAnnuelle(
+  entityId: string,
+  annee: number,
+): Promise<SyntheseAnnuelle> {
+  const sb = await createClient();
+
+  const [categories, soeurs] = await Promise.all([
+    sb.rpc('fn_finance_synthese_categories', { p_entity: entityId, p_annee: annee }),
+    sb.rpc('fn_finance_synthese_soeurs', { p_entity: entityId, p_annee: annee }),
+  ]);
+
+  if (categories.error) {
+    throw new DataError('La synthese est momentanement incalculable.', categories.error);
+  }
+
+  /**
+   * `numeric` traverse PostgREST en CHAINE, pour ne pas perdre de precision en
+   * JSON : sans `Number()`, « 1000 » + « 200 » ferait « 1000200 ».
+   */
+  return {
+    categories: (
+      (categories.data ?? []) as {
+        mois: string;
+        categorie_id: string;
+        libelle: string;
+        sens: SensFinance;
+        montant_propre: number;
+        montant_consolide: number;
+        nombre_propre: number;
+        nombre_consolide: number;
+      }[]
+    ).map((l) => ({
+      mois: l.mois,
+      categorieId: l.categorie_id,
+      libelle: l.libelle,
+      sens: l.sens,
+      montantPropre: Number(l.montant_propre ?? 0),
+      montantConsolide: Number(l.montant_consolide ?? 0),
+      nombrePropre: Number(l.nombre_propre ?? 0),
+      nombreConsolide: Number(l.nombre_consolide ?? 0),
+    })),
+
+    /**
+     * Une comparaison illisible ne vide pas l'ecran : le tableau des soeurs
+     * disparait, la synthese de l'entite reste. C'est la lecture principale.
+     */
+    soeurs: soeurs.error
+      ? []
+      : (
+          (soeurs.data ?? []) as {
+            mois: string;
+            entity_id: string;
+            recettes: number;
+            depenses: number;
+          }[]
+        ).map((s) => ({
+          mois: s.mois,
+          entityId: s.entity_id,
+          recettes: Number(s.recettes ?? 0),
+          depenses: Number(s.depenses ?? 0),
+        })),
+  };
+}

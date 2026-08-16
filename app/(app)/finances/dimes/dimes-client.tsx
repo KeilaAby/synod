@@ -478,33 +478,39 @@ export function DimesClient({
                                     entière pour une personne gâcherait sept
                                     talons et obligerait à découper.
 
+                                    IL PORTE SON NOM. Une icône seule, sans
+                                    bordure, à l'extrémité droite d'une ligne
+                                    déjà chargée de deux nombres, ne se voyait
+                                    pas — c'est le retour qui en a été fait.
+                                    Un contrôle qu'il faut chercher n'existe
+                                    pas.
+
                                     L'emplacement est RÉSERVÉ même sans reçu :
                                     sans cela, les montants d'une liste mêlant
                                     nominatifs et anonymes ne s'aligneraient
                                     plus d'une ligne à l'autre.
                                   */}
-                                  {v.recu_numero && v.croyant ? (
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="size-8"
-                                      title="Imprimer le ticket"
-                                      aria-label={`Imprimer le ticket de ${v.croyant.nom} ${v.croyant.prenom}`}
-                                      onClick={() =>
-                                        imprimerRecus(
-                                          recusDe(c).filter(
-                                            (r) => r.reference === v.recu_numero,
-                                          ),
-                                          devise,
-                                          'CAISSE',
-                                        )
-                                      }
-                                    >
-                                      <Receipt className="size-4" aria-hidden />
-                                    </Button>
-                                  ) : (
-                                    <span className="size-8" aria-hidden />
-                                  )}
+                                  <span className="flex w-24 justify-end">
+                                    {v.recu_numero && v.croyant && (
+                                      <Button
+                                        variant="outline"
+                                        className="h-8 text-xs"
+                                        aria-label={`Imprimer le ticket de ${v.croyant.nom} ${v.croyant.prenom}`}
+                                        onClick={() =>
+                                          imprimerRecus(
+                                            recusDe(c).filter(
+                                              (r) => r.reference === v.recu_numero,
+                                            ),
+                                            devise,
+                                            'CAISSE',
+                                          )
+                                        }
+                                      >
+                                        <Receipt className="mr-2 size-3.5" aria-hidden />
+                                        Ticket
+                                      </Button>
+                                    )}
+                                  </span>
                                 </span>
                               </li>
                             ))}

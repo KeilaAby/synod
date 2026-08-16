@@ -96,7 +96,7 @@ export function VersementsCroyant({
               <TableHead className="w-36">Reçu</TableHead>
               <TableHead className="w-32 text-right">Montant</TableHead>
               <TableHead className="w-28">Remise</TableHead>
-              <TableHead className="w-12" />
+              <TableHead className="w-24" />
             </TableRow>
           </TableHeader>
 
@@ -164,14 +164,13 @@ export function VersementsCroyant({
                 <TableCell>
                   {v.recu_numero && v.entree && (
                     <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-8"
-                      title="Imprimer le ticket"
+                      variant="outline"
+                      className="h-8 text-xs"
                       aria-label={`Imprimer le ticket ${v.recu_numero}`}
                       onClick={() => imprimerRecus([recuDe(v)!], devise, 'CAISSE')}
                     >
-                      <Receipt className="size-4" aria-hidden />
+                      <Receipt className="mr-2 size-3.5" aria-hidden />
+                      Ticket
                     </Button>
                   )}
                 </TableCell>
