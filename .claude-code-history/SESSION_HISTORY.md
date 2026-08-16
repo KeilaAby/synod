@@ -2167,3 +2167,53 @@ La dîme est reconnue par le **code ou le libellé** de sa catégorie, accents e
 casse ignorés : le référentiel la nomme librement.
 
 432 tests unitaires. `pnpm verify` vert.
+
+---
+
+## 13 août 2026 (suite) — La collecte de dîmes : le droit, puis le domaine
+
+### `0029` — le droit qui manquait, et l'atomicité
+
+Une dîme appartient au Siège, donc son mouvement y est rattaché. Or c'est
+l'**église** qui la collecte, et son trésorier ne détient pas `finance.create`
+sur le Siège : la RLS aurait refusé son insertion. C'était le point noté
+d'avance dans `plan.md` §4.bis, et il fallait le régler avant tout écran.
+
+Des trois issues examinées, la retenue : un droit **dédié**,
+`finance.dime.collect`, de portée l'**église**, et une fonction
+`SECURITY DEFINER` qui le vérifie avant d'écrire au nom du Siège. Les deux
+autres étaient pires — élargir la politique RLS au cas des catégories de dîme
+l'aurait rendue illisible et toute nouvelle catégorie l'aurait contournée ;
+passer par la saisie déléguée aurait fait saisir le Siège à la place de
+cinquante églises, exactement ce que ce mode est censé éviter.
+
+La fonction rend aussi l'écriture **atomique** (règle 20). Un mouvement sans ses
+versements, ou des versements dont la somme ne fait pas le mouvement, sont des
+états *faux et indétectables* : on ne saurait plus lequel des deux nombres
+croire. Le total vient donc des versements, il ne se saisit jamais à côté.
+
+Le droit est **délégable** — le Siège le confie à chaque église pour elle-même —
+et figure d'office dans `ENTITE_ADMIN` et `ENTITE_OPERATEUR` : collecter la dîme
+du dimanche est le travail ordinaire d'un bureau d'église.
+
+### `lib/domain/dime.ts`
+
+Le sous-arbre décide qui peut verser : lors d'un rassemblement de district, tous
+les croyants du district le peuvent, quelle que soit leur église. Le chemin
+`ltree` porte la réponse, il n'y a rien d'autre à interroger.
+
+Un **événement national n'admet pas le détail** — personne ne tient trois mille
+enveloppes à la main. Le mode `null` prend le défaut de l'organisation, jamais
+celui du parent. Un croyant cité deux fois dans la même collecte est écarté : la
+base ne peut pas voir cette erreur, puisque deux versements du même croyant sont
+licites d'une collecte à l'autre.
+
+Le **retard se constate, il ne bloque pas** : refuser une remise tardive
+empêcherait de régulariser, exactement l'inverse du but. Et `estEnRetard`
+compare des chaînes « AAAA-MM-JJ » — même piège que `periodeDe`, une colonne
+`date` n'a pas de fuseau et lui en inventer un ferait basculer une collecte du
+31 dans le mois suivant.
+
+### Qualité
+
+449 tests unitaires (+17). `pnpm verify` vert.

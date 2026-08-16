@@ -179,6 +179,26 @@ export const PERMISSIONS = {
       + 'portee accordee.',
   },
   /**
+   * EF-FIN-27 — collecter les dimes d'une entite.
+   *
+   * DROIT DEDIE, et il ne pouvait pas en etre autrement. Une dime appartient au
+   * Siege (RG-33), donc son mouvement y est rattache — mais c'est l'EGLISE qui
+   * la collecte, et son tresorier ne detient pas `finance.create` sur le Siege.
+   *
+   * Ce droit porte sur l'entite COLLECTRICE : le detenir pour son eglise permet
+   * d'ecrire une recette du Siege, et rien d'autre. C'est
+   * `fn_saisir_collecte_dime` qui le verifie, seul chemin d'ecriture.
+   *
+   * DELEGABLE : le Siege le confie a chaque eglise pour elle-meme.
+   */
+  'finance.dime.collect': {
+    label: 'Collecter les dimes',
+    group: 'Finances',
+    description:
+      "Enregistrer une collecte de dimes et delivrer les recus. La dime revient au "
+      + 'Siege ; cette entite en tient le detail.',
+  },
+  /**
    * EF-FIN-18 — la levee de la separation saisie/validation.
    *
    * Elle SE DETIENT, elle ne se suppose pas. Une eglise de trois personnes n'a
@@ -347,6 +367,7 @@ export const ROLE_TEMPLATES: Record<UserRole, readonly Permission[]> = {
     'finance.submit',
     'finance.validate',
     'finance.workflow.manage',
+    'finance.dime.collect',
     'report.read',
     'report.create',
     'report.publish',
@@ -370,6 +391,7 @@ export const ROLE_TEMPLATES: Record<UserRole, readonly Permission[]> = {
     'finance.create',
     'finance.update',
     'finance.submit',
+    'finance.dime.collect',
     'report.read',
     'report.create',
     'dashboard.configure',
