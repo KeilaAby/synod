@@ -156,13 +156,22 @@ vingt-quatre rectangles (règle 29). Et la liste des sœurs est dressée par
 l'écran depuis l'arbre : une sœur sans mouvement doit figurer **à zéro**, pas
 disparaître (règle 15).
 
+**EF-FIN-22 livré** : les huit critères du registre — entité, sens, statut,
+catégorie, période, auteur, plage de montants, origine. **Aucune migration** :
+tout voyageait déjà avec chaque mouvement, les cinq critères ajoutés se posent
+en mémoire (règle 17). `filtrerMouvements` est descendu dans le domaine et
+décrit la forme minimale qu'il sait lire — une règle métier n'a pas à dépendre
+d'un embed PostgREST. Les deux bornes de période sont **incluses**, et les dates
+se comparent en chaînes. Les critères secondaires se replient, mais leur
+**compte reste visible** : un filtre caché qui vide la liste est pire que pas de
+filtre.
+
 **EF-BUR-11 clos** : l'export Excel de la composition est abandonné le 12 août
 2026, le PDF de l'organigramme couvre le besoin.
 
-Migrations appliquées jusqu'à `0038` — une collecte de dîmes naît `SOUMIS` et
-c'est la **remise** qui la valide, donc qui alimente le Siège. **`0039` est
-écrite mais pas appliquée** : sans elle, `/finances/synthese` n'a aucune
-fonction à appeler. Le stockage de fichiers ne se
+Base à jour jusqu'à la migration `0039`. Une collecte de dîmes naît `SOUMIS` et
+c'est la **remise** qui la valide, donc qui alimente le Siège. Le stockage de
+fichiers ne se
 configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` et
 `postgres` s'y voit refuser `CREATE POLICY` : `pnpm db:bucket` s'en charge par
 l'API.

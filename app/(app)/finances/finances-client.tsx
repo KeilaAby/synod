@@ -5,12 +5,16 @@ import {
   ArrowUpCircle,
   CheckCircle2,
   FileEdit,
+  FilterX,
   MoreVertical,
   Paperclip,
+  PenLine,
   Search,
   Send,
+  SlidersHorizontal,
   Trash2,
   Undo2,
+  UserCog,
   Wallet,
   XCircle,
 } from 'lucide-react';
@@ -20,6 +24,7 @@ import { toast } from 'sonner';
 
 import { MontantSigne, MouvementDialog } from '@/components/finances/mouvement-dialog';
 import { EmptyState } from '@/components/shared/empty-state';
+import { Field } from '@/components/shared/field';
 import { FiltreIcone, GroupeFiltres } from '@/components/shared/filtre-icone';
 import { avertir } from '@/components/shared/messages';
 import { OperationDialog } from '@/components/shared/operation-dialog';
@@ -36,6 +41,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Table,
   TableBody,
   TableCell,
@@ -46,14 +58,18 @@ import {
 import { changerStatutMouvement, supprimerMouvement } from '@/lib/actions/finances';
 import type { CategorieFinance, MouvementListe } from '@/lib/data/finances';
 import {
+  FILTRES_MOUVEMENTS_VIDES,
+  type FiltresMouvements,
   LIBELLES_SENS,
   LIBELLES_STATUT_MOUVEMENT,
   PLAFOND_MOUVEMENTS,
-  type SensFinance,
   type Solde,
   type StatutMouvement,
   compteDansLeSolde,
   estModifiable,
+  filtreEstActif,
+  filtrerMouvements,
+  nombreFiltresAvances,
   soldeConsolide,
   soldeDeMouvements,
   soldeDesDescendants,
@@ -109,53 +125,60 @@ export function FinancesClient({
   const [operation, setOperation] = useState<string | null>(null);
   const [motif, setMotif] = useState<ActionMotivee>(null);
 
-  const [recherche, setRecherche] = useState('');
-  const [statuts, setStatuts] = useState<Set<StatutMouvement>>(new Set());
-  const [sens, setSens] = useState<Set<SensFinance>>(new Set());
-  const [entite, setEntite] = useState<string | null>(null);
+  /**
+   * EF-FIN-22 — UN SEUL ÉTAT POUR TOUS LES CRITÈRES.
+   *
+   * Onze critères en onze `useState` auraient donné onze dépendances à tenir
+   * à jour dans chaque `useMemo`, et un oubli n'y produit pas une erreur mais
+   * un résultat périmé — la panne la plus difficile à voir.
+   *
+   * Le filtrage lui-même vit dans le domaine (`filtrerMouvements`), où il est
+   * testé : l'écran ne décide plus de ce qu'un critère signifie.
+   */
+  const [criteres, setCriteres] = useState<FiltresMouvements>(FILTRES_MOUVEMENTS_VIDES);
+  const [avances, setAvances] = useState(false);
 
-  const basculer = <T,>(ensemble: Set<T>, valeur: T): Set<T> => {
-    const suivant = new Set(ensemble);
-    if (suivant.has(valeur)) suivant.delete(valeur);
-    else suivant.add(valeur);
-    return suivant;
-  };
+  const poser = (modif: Partial<FiltresMouvements>) =>
+    setCriteres((c) => ({ ...c, ...modif }));
 
-  const filtres = useMemo(() => {
-    const terme = recherche.trim().toLocaleLowerCase('fr');
+  const basculer = <T,>(liste: readonly T[], valeur: T): T[] =>
+    liste.includes(valeur) ? liste.filter((v) => v !== valeur) : [...liste, valeur];
 
-    return mouvements.filter((m) => {
-      if (statuts.size > 0 && !statuts.has(m.statut)) return false;
-      if (sens.size > 0 && !sens.has(m.sens)) return false;
-      /**
-       * L'ENTITÉ SEULE, jamais son sous-arbre.
-       *
-       * Le filtre remontait les mouvements des descendants : choisir un
-       * régional donnait ceux de ses districts, de ses paroisses et de ses
-       * églises, et l'on ne pouvait plus voir ce que le régional avait saisi
-       * LUI-MÊME. Or chaque entité a son bureau et gère ses propres finances :
-       * « les finances du régional » désigne les siennes, pas la somme de
-       * celles de ses enfants.
-       *
-       * Le périmètre reste ce qui borne le CHOIX, pas le résultat : la liste
-       * déroulante ne propose que les entités habilitées (RLS), et chacune s'y
-       * sélectionne séparément. Qui peut voir ses enfants peut donc les
-       * filtrer — un par un.
-       */
-      if (entite && m.entity_id !== entite) return false;
-      if (!terme) return true;
+  const recherche = criteres.recherche;
+  const entite = criteres.entiteId;
 
-      return [m.libelle, m.reference, m.categorie?.libelle, m.entite?.nom]
-        .filter(Boolean)
-        .some((v) => v!.toLocaleLowerCase('fr').includes(terme));
-    });
-    // `entites` a disparu des dépendances avec le chemin ltree : le filtre
-    // compare désormais deux identifiants, il n'a plus besoin de l'arbre.
-  }, [mouvements, recherche, statuts, sens, entite]);
+  const filtres = useMemo(
+    /**
+     * L'ENTITÉ SEULE, jamais son sous-arbre — voir `filtrerMouvements`.
+     *
+     * Le filtre remontait les mouvements des descendants : choisir un régional
+     * donnait ceux de ses districts et de ses églises, et l'on ne pouvait plus
+     * voir ce que le régional avait saisi LUI-MÊME. Le périmètre borne le
+     * CHOIX, pas le résultat.
+     */
+    () => filtrerMouvements(mouvements, criteres),
+    [mouvements, criteres],
+  );
 
   /** Un filtre est-il posé ? Décide si le triptyque suit l'écran ou la base. */
-  const filtreActif =
-    recherche.trim() !== '' || statuts.size > 0 || sens.size > 0 || entite !== null;
+  const filtreActif = filtreEstActif(criteres);
+
+  /**
+   * LES AUTEURS SONT TIRÉS DES MOUVEMENTS CHARGÉS, pas de la table des comptes.
+   *
+   * On filtre sur qui a saisi ce qu'on regarde : proposer un compte qui n'a
+   * rien saisi dans ce périmètre ne peut donner qu'une liste vide, et une
+   * liste vide sans cause visible se lit comme une panne (règle 15).
+   */
+  const auteurs = useMemo(() => {
+    const connus = new Map<string, string>();
+    for (const m of mouvements) {
+      if (m.saisi_par && m.auteur) connus.set(m.saisi_par, m.auteur.nom_complet);
+    }
+    return [...connus.entries()]
+      .map(([id, nom]) => ({ id, nom }))
+      .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+  }, [mouvements]);
 
   /**
    * EF-FIN-10 — le triptyque SUIT les filtres.
@@ -355,7 +378,7 @@ export function FinancesClient({
           />
           <Input
             value={recherche}
-            onChange={(e) => setRecherche(e.target.value)}
+            onChange={(e) => poser({ recherche: e.target.value })}
             placeholder="Libellé, référence, catégorie, entité…"
             className="h-10 pl-9"
             aria-label="Rechercher un mouvement"
@@ -368,7 +391,7 @@ export function FinancesClient({
           <EntityPicker
             options={entites}
             value={entite}
-            onChange={setEntite}
+            onChange={(id) => poser({ entiteId: id })}
             placeholder="Toutes les entités"
             emptyMessage="Aucune entité dans votre périmètre."
           />
@@ -378,16 +401,16 @@ export function FinancesClient({
           <FiltreIcone
             icone={ArrowUpCircle}
             libelle="Recettes"
-            actif={sens.has('RECETTE')}
+            actif={criteres.sens.includes('RECETTE')}
             classeActive="bg-emerald-600 text-white"
-            onClick={() => setSens(basculer(sens, 'RECETTE'))}
+            onClick={() => poser({ sens: basculer(criteres.sens, 'RECETTE') })}
           />
           <FiltreIcone
             icone={ArrowDownCircle}
             libelle="Dépenses"
-            actif={sens.has('DEPENSE')}
+            actif={criteres.sens.includes('DEPENSE')}
             classeActive="bg-rose-600 text-white"
-            onClick={() => setSens(basculer(sens, 'DEPENSE'))}
+            onClick={() => poser({ sens: basculer(criteres.sens, 'DEPENSE') })}
           />
         </GroupeFiltres>
 
@@ -396,34 +419,57 @@ export function FinancesClient({
             icone={FileEdit}
             libelle="Brouillons"
             badge={parStatut.get('BROUILLON') ?? 0}
-            actif={statuts.has('BROUILLON')}
-            onClick={() => setStatuts(basculer(statuts, 'BROUILLON'))}
+            actif={criteres.statuts.includes('BROUILLON')}
+            onClick={() => poser({ statuts: basculer(criteres.statuts, 'BROUILLON') })}
           />
           <FiltreIcone
             icone={Send}
             libelle="À valider"
             badge={parStatut.get('SOUMIS') ?? 0}
-            actif={statuts.has('SOUMIS')}
+            actif={criteres.statuts.includes('SOUMIS')}
             classeActive="bg-amber-500 text-white"
-            onClick={() => setStatuts(basculer(statuts, 'SOUMIS'))}
+            onClick={() => poser({ statuts: basculer(criteres.statuts, 'SOUMIS') })}
           />
           <FiltreIcone
             icone={CheckCircle2}
             libelle="Validés"
             badge={parStatut.get('VALIDE') ?? 0}
-            actif={statuts.has('VALIDE')}
+            actif={criteres.statuts.includes('VALIDE')}
             classeActive="bg-emerald-600 text-white"
-            onClick={() => setStatuts(basculer(statuts, 'VALIDE'))}
+            onClick={() => poser({ statuts: basculer(criteres.statuts, 'VALIDE') })}
           />
           <FiltreIcone
             icone={XCircle}
             libelle="Rejetés ou annulés"
             badge={(parStatut.get('REJETE') ?? 0) + (parStatut.get('ANNULE') ?? 0)}
-            actif={statuts.has('REJETE')}
+            actif={criteres.statuts.includes('REJETE')}
             classeActive="bg-rose-600 text-white"
-            onClick={() => setStatuts(basculer(statuts, 'REJETE'))}
+            onClick={() => poser({ statuts: basculer(criteres.statuts, 'REJETE') })}
           />
         </GroupeFiltres>
+
+        {/*
+          EF-FIN-22 — LES CRITÈRES SECONDAIRES SE REPLIENT.
+
+          Onze contrôles de front noieraient les quatre qu'on emploie tous les
+          jours. Ceux-ci se déplient — mais le COMPTE de ceux qui sont posés
+          reste visible sur le bouton : un filtre caché qui vide la liste sans
+          qu'on puisse le voir est pire que pas de filtre du tout.
+        */}
+        <Button
+          variant={avances ? 'default' : 'outline'}
+          className="h-10"
+          aria-expanded={avances}
+          onClick={() => setAvances((v) => !v)}
+        >
+          <SlidersHorizontal className="mr-2 size-4" aria-hidden />
+          Plus de filtres
+          {nombreFiltresAvances(criteres) > 0 && (
+            <span className="bg-background text-foreground ml-2 rounded-full px-2 py-0.5 text-xs tabular-nums">
+              {nombreFiltresAvances(criteres)}
+            </span>
+          )}
+        </Button>
 
         <MouvementDialog
           entites={entites}
@@ -433,6 +479,157 @@ export function FinancesClient({
           peutDeleguer
         />
       </div>
+
+      {/* --- Les critères secondaires ------------------------------------- */}
+      {avances && (
+        <div className="border-border bg-muted/30 grid gap-4 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Field label="Catégorie">
+            {(aria) => (
+              /* Ensemble OUVERT — un référentiel que l'administration
+                 alimente : sélecteur, pas pictogrammes (règle 18). */
+              <Select
+                value={criteres.categorieId ?? 'toutes'}
+                onValueChange={(v) => poser({ categorieId: v === 'toutes' ? null : v })}
+              >
+                <SelectTrigger {...aria} className="h-10 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="toutes">Toutes les catégories</SelectItem>
+                  {categories.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.libelle} — {c.sens === 'RECETTE' ? 'recette' : 'dépense'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </Field>
+
+          <Field label="Saisi par">
+            {(aria) => (
+              <Select
+                value={criteres.auteurId ?? 'tous'}
+                onValueChange={(v) => poser({ auteurId: v === 'tous' ? null : v })}
+              >
+                <SelectTrigger {...aria} className="h-10 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="tous">Tous les auteurs</SelectItem>
+                  {auteurs.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.nom}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </Field>
+
+          {/* Les DEUX bornes sont incluses : « du 1er au 31 août » désigne
+              août entier pour tout le monde sauf pour un informaticien. */}
+          <Field label="Du" hint="Borne incluse.">
+            {(aria) => (
+              <Input
+                {...aria}
+                type="date"
+                value={criteres.du ?? ''}
+                onChange={(e) => poser({ du: e.target.value || null })}
+                className="h-10 tabular-nums"
+              />
+            )}
+          </Field>
+
+          <Field label="Au" hint="Borne incluse.">
+            {(aria) => (
+              <Input
+                {...aria}
+                type="date"
+                value={criteres.au ?? ''}
+                onChange={(e) => poser({ au: e.target.value || null })}
+                className="h-10 tabular-nums"
+              />
+            )}
+          </Field>
+
+          <Field label={`Montant minimum (${devise})`}>
+            {(aria) => (
+              <Input
+                {...aria}
+                type="number"
+                inputMode="numeric"
+                min={0}
+                value={criteres.montantMin ?? ''}
+                /* `''` donne `null`, jamais `0` : « au moins zéro » ne filtre
+                   rien mais afficherait un critère posé, et le compte du
+                   bouton mentirait. */
+                onChange={(e) =>
+                  poser({ montantMin: e.target.value === '' ? null : Number(e.target.value) })
+                }
+                className="h-10 tabular-nums"
+              />
+            )}
+          </Field>
+
+          <Field label={`Montant maximum (${devise})`}>
+            {(aria) => (
+              <Input
+                {...aria}
+                type="number"
+                inputMode="numeric"
+                min={0}
+                value={criteres.montantMax ?? ''}
+                onChange={(e) =>
+                  poser({ montantMax: e.target.value === '' ? null : Number(e.target.value) })
+                }
+                className="h-10 tabular-nums"
+              />
+            )}
+          </Field>
+
+          <div className="flex items-end">
+            {/* EF-FIN-06 — l'origine se FILTRE, et pas seulement se signale.
+                Ensemble clos de deux valeurs : pictogrammes (règle 18). */}
+            <GroupeFiltres libelle="Origine de la saisie">
+              <FiltreIcone
+                icone={PenLine}
+                libelle="Saisie directe"
+                actif={criteres.origine === 'DIRECTE'}
+                onClick={() =>
+                  poser({ origine: criteres.origine === 'DIRECTE' ? null : 'DIRECTE' })
+                }
+              />
+              <FiltreIcone
+                icone={UserCog}
+                libelle="Saisie déléguée"
+                actif={criteres.origine === 'DELEGUEE'}
+                classeActive="bg-indigo-600 text-white"
+                onClick={() =>
+                  poser({ origine: criteres.origine === 'DELEGUEE' ? null : 'DELEGUEE' })
+                }
+              />
+            </GroupeFiltres>
+          </div>
+
+          <div className="flex items-end justify-end">
+            {/*
+              TOUT REMETTRE À ZÉRO D'UN GESTE. Défaire onze critères un par un
+              pour repartir d'une liste complète est la façon la plus sûre d'en
+              oublier un — et de conclure à une donnée manquante.
+            */}
+            <Button
+              variant="ghost"
+              className="h-10"
+              disabled={!filtreActif}
+              onClick={() => setCriteres(FILTRES_MOUVEMENTS_VIDES)}
+            >
+              <FilterX className="mr-2 size-4" aria-hidden />
+              Tout effacer
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* --- Le registre -------------------------------------------------- */}
       {mouvements.length >= PLAFOND_MOUVEMENTS && (

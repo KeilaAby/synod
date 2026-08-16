@@ -12,20 +12,6 @@
 
 ---
 
-## À FAIRE EN PREMIER — la migration `0039`
-
-`supabase/migrations/0039_finance_synthese.sql` **n'est pas appliquée**. Sans
-elle, `/finances/synthese` ne peut rien calculer : les deux fonctions
-`fn_finance_synthese_categories` et `fn_finance_synthese_soeurs` n'existent pas
-encore en base.
-
-```bash
-# à passer dans l'éditeur SQL Supabase
-supabase/migrations/0039_finance_synthese.sql
-```
-
----
-
 ## La migration `0038` — appliquée le 16 août 2026
 
 Base à jour. Ce qu'elle a corrigé mérite d'être retenu, parce que le défaut
@@ -40,7 +26,7 @@ La migration tranche : la collecte naît `SOUMIS`, et **c'est la remise qui
 valide**. Ce qui est juste au fond — la dîme appartient au Siège dès qu'elle est
 collectée, mais elle n'est sa recette qu'une fois **remise en mains propres**.
 
-Les migrations `0023` à `0038` sont appliquées ; seule `0039` attend.
+Les migrations `0023` à `0039` sont appliquées. **Aucune migration n'attend.**
 
 ---
 
@@ -63,9 +49,10 @@ livré pour l'essentiel**.
 | **Dîmes — collecte, anonymes, remise, import, rapprochement** | ✅ |
 | **Reçu imprimé — A4 à huit talons *et* rouleau 80 mm** | ✅ |
 | **Historique des versements sur la fiche (EF-FIN-35)** | ✅ |
-| **Synthèse périodique — EF-FIN-24** *(migration `0039` à appliquer)* | ✅ |
+| **Synthèse périodique — EF-FIN-24** | ✅ |
+| **Filtres complets du registre — EF-FIN-22** | ✅ |
 
-505 tests unitaires, 25 fichiers. `pnpm verify` vert.
+514 tests unitaires, 25 fichiers. `pnpm verify` vert.
 
 ---
 
@@ -94,9 +81,6 @@ Le ticket de reçu imprimable et l'historique du croyant (EF-FIN-35) ont été
 livrés le 16 août. EF-FIN-27 à 35 sont tous servis.
 
 ### Finances, hors dîmes
-- **EF-FIN-22** — les filtres de `/finances` couvrent le sens et le statut ;
-  manquent la période, la catégorie, l'auteur, la plage de montants et
-  l'origine (directe / déléguée).
 - **EF-FIN-25** *(Should)* — l'export Excel/CSV/PDF des mouvements et synthèses.
 - **EF-FIN-26** *(Could)* — le verrouillage d'une période clôturée.
 

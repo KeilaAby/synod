@@ -2981,3 +2981,55 @@ naïf donnerait un « 31 février » que `Date` corrigerait silencieusement en
 3 mars — on aurait sauté février entier. On décale la période, pas le jour.
 
 505 tests unitaires, 25 fichiers. `pnpm verify` vert.
+
+---
+
+## 16 août 2026 (suite) — EF-FIN-22, les filtres du registre
+
+`/finances` filtrait par entité, sens et statut. L'exigence en demande huit :
+s'ajoutent la **catégorie**, l'**auteur**, la **période**, la **plage de
+montants** et l'**origine** (directe / déléguée).
+
+**Aucune migration, aucun changement serveur.** Tout ce qui manquait voyageait
+déjà avec chaque mouvement — `categorie`, `auteur`, `est_delegue`,
+`date_operation`, `montant`. Les cinq critères se posent donc en mémoire
+(règle 17). Vérifier avant d'ouvrir un fichier SQL a économisé la migration.
+
+### Le filtrage descend dans le domaine
+
+`filtrerMouvements` vit désormais dans `lib/domain/finance.ts`, avec neuf tests.
+L'écran ne décide plus de ce qu'un critère signifie — il ne fait que le poser.
+
+Le domaine décrit la forme minimale qu'il sait lire (`MouvementFiltrable`)
+plutôt que d'importer `MouvementListe` : une règle métier n'a pas à dépendre de
+la forme d'un embed PostgREST.
+
+**Les deux bornes de période sont incluses.** « Du 1er au 31 août » désigne août
+entier pour tout le monde sauf pour un informaticien, et une borne exclue
+amputerait silencieusement le dernier jour du mois — celui où l'on saisit le
+plus. Les dates se comparent **en chaînes** : une colonne `date` n'a pas de
+fuseau, et la convertir ferait basculer un mouvement du 31 dans le mois suivant
+selon la machine qui lit.
+
+### Un seul état, pas onze
+
+Onze `useState` auraient donné onze dépendances à tenir à jour dans chaque
+`useMemo`, et un oubli n'y produit pas une erreur mais un **résultat périmé** —
+la panne la plus difficile à voir. Un objet unique, et `filtrerMouvements` n'a
+qu'une dépendance.
+
+### Ce que l'écran montre du filtre
+
+Onze contrôles de front noieraient les quatre qu'on emploie tous les jours : les
+secondaires se replient. Mais **le compte de ceux qui sont posés reste sur le
+bouton** — un filtre caché qui vide la liste sans qu'on puisse le voir est pire
+que pas de filtre du tout. Et « Tout effacer » défait l'ensemble d'un geste :
+défaire onze critères un par un est la façon la plus sûre d'en oublier un, puis
+de conclure à une donnée manquante.
+
+**Les auteurs proposés sont tirés des mouvements chargés**, pas de la table des
+comptes : proposer quelqu'un qui n'a rien saisi dans ce périmètre ne peut donner
+qu'une liste vide, et une liste vide sans cause visible se lit comme une panne
+(règle 15).
+
+514 tests unitaires, 25 fichiers. `pnpm verify` vert.

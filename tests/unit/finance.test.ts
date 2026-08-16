@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  FILTRES_MOUVEMENTS_VIDES,
   type MouvementPourSolde,
   type Solde,
   attendUneValidation,
   compteDansLeSolde,
   estCritique,
   estModifiable,
+  filtreEstActif,
+  filtrerMouvements,
+  nombreFiltresAvances,
   peutValider,
   periodeDe,
   soldeConsolide,
@@ -264,5 +268,129 @@ describe('La periode est la maille des consolidations', () => {
     for (const jour of dernierJour) {
       expect(periodeDe(jour)).toBe(`${jour.slice(0, 7)}-01`);
     }
+  });
+});
+
+describe('EF-FIN-22 — filtrer les mouvements', () => {
+  const base = {
+    entity_id: 'e1',
+    categorie_id: 'c1',
+    sens: 'RECETTE' as const,
+    montant: 100_000,
+    date_operation: '2026-08-15',
+    libelle: 'Offrande du dimanche',
+    reference: 'REF-1',
+    statut: 'VALIDE' as const,
+    est_delegue: false,
+    saisi_par: 'p1',
+    categorie: { libelle: 'Offrandes' },
+    entite: { nom: 'Antsahatsiresy' },
+  };
+
+  const lot = [
+    base,
+    { ...base, entity_id: 'e2', categorie_id: 'c2', montant: 30_000,
+      date_operation: '2026-07-05', sens: 'DEPENSE' as const, saisi_par: 'p2',
+      est_delegue: true, libelle: 'Electricite', reference: 'REF-2',
+      categorie: { libelle: 'Charges' }, entite: { nom: 'Avaradrano' } },
+    { ...base, montant: 2_000_000, date_operation: '2026-09-20',
+      statut: 'BROUILLON' as const, libelle: 'Don exceptionnel', reference: 'REF-3' },
+  ];
+
+  it('ne retire rien sans critere', () => {
+    expect(filtrerMouvements(lot, FILTRES_MOUVEMENTS_VIDES)).toHaveLength(3);
+    expect(filtreEstActif(FILTRES_MOUVEMENTS_VIDES)).toBe(false);
+  });
+
+  it('filtre par categorie et par auteur', () => {
+    expect(
+      filtrerMouvements(lot, { ...FILTRES_MOUVEMENTS_VIDES, categorieId: 'c2' }),
+    ).toHaveLength(1);
+    expect(
+      filtrerMouvements(lot, { ...FILTRES_MOUVEMENTS_VIDES, auteurId: 'p1' }),
+    ).toHaveLength(2);
+  });
+
+  it('INCLUT les deux bornes de la periode', () => {
+    /**
+     * « Du 1er au 31 aout » designe aout entier pour tout le monde sauf pour
+     * un informaticien. Une borne exclue amputerait silencieusement le dernier
+     * jour d'un mois — celui ou l'on saisit le plus.
+     */
+    const aout = { ...FILTRES_MOUVEMENTS_VIDES, du: '2026-08-01', au: '2026-08-31' };
+    expect(filtrerMouvements(lot, aout)).toHaveLength(1);
+
+    const jourExact = { ...FILTRES_MOUVEMENTS_VIDES, du: '2026-08-15', au: '2026-08-15' };
+    expect(filtrerMouvements(lot, jourExact)).toHaveLength(1);
+  });
+
+  it('compare les dates en CHAINES, sans passer par un fuseau', () => {
+    // Une colonne `date` n'a pas de fuseau : la convertir ferait basculer un
+    // mouvement du 31 dans le mois suivant selon la machine qui lit.
+    const septembre = { ...FILTRES_MOUVEMENTS_VIDES, du: '2026-09-01' };
+    expect(filtrerMouvements(lot, septembre).map((m) => m.reference)).toEqual(['REF-3']);
+  });
+
+  it('filtre par plage de montants, bornes incluses', () => {
+    expect(
+      filtrerMouvements(lot, {
+        ...FILTRES_MOUVEMENTS_VIDES,
+        montantMin: 30_000,
+        montantMax: 100_000,
+      }),
+    ).toHaveLength(2);
+
+    // Une seule borne suffit : chercher « au-dessus d'un million » est le cas
+    // le plus courant, et n'a pas de plafond naturel.
+    expect(
+      filtrerMouvements(lot, { ...FILTRES_MOUVEMENTS_VIDES, montantMin: 1_000_000 }),
+    ).toHaveLength(1);
+  });
+
+  it('separe la saisie directe de la saisie deleguee', () => {
+    // EF-FIN-06 — l'origine se filtre, et pas seulement se signale.
+    expect(
+      filtrerMouvements(lot, { ...FILTRES_MOUVEMENTS_VIDES, origine: 'DELEGUEE' }),
+    ).toHaveLength(1);
+    expect(
+      filtrerMouvements(lot, { ...FILTRES_MOUVEMENTS_VIDES, origine: 'DIRECTE' }),
+    ).toHaveLength(2);
+  });
+
+  it('cumule les criteres', () => {
+    expect(
+      filtrerMouvements(lot, {
+        ...FILTRES_MOUVEMENTS_VIDES,
+        sens: ['RECETTE'],
+        statuts: ['VALIDE'],
+        du: '2026-08-01',
+      }),
+    ).toHaveLength(1);
+  });
+
+  it('cherche dans le libelle, la reference, la categorie et l entite', () => {
+    for (const terme of ['electricite', 'REF-2', 'charges', 'avaradrano']) {
+      expect(
+        filtrerMouvements(lot, { ...FILTRES_MOUVEMENTS_VIDES, recherche: terme }),
+      ).toHaveLength(1);
+    }
+  });
+
+  it('compte les criteres AVANCES, ceux qu un panneau replie cache', () => {
+    // Sans ce compte, un filtre pose derriere « Plus de filtres » explique un
+    // resultat vide sans qu'on puisse le voir.
+    expect(nombreFiltresAvances(FILTRES_MOUVEMENTS_VIDES)).toBe(0);
+    expect(
+      nombreFiltresAvances({
+        ...FILTRES_MOUVEMENTS_VIDES,
+        categorieId: 'c1',
+        du: '2026-08-01',
+        origine: 'DELEGUEE',
+      }),
+    ).toBe(3);
+    // L'entite et le sens ne sont PAS avances : ils restent visibles.
+    expect(
+      nombreFiltresAvances({ ...FILTRES_MOUVEMENTS_VIDES, entiteId: 'e1', sens: ['RECETTE'] }),
+    ).toBe(0);
   });
 });

@@ -261,3 +261,148 @@ export const PLAFOND_MOUVEMENTS = 5000;
 export function periodeDe(jourIso: string): string {
   return `${jourIso.slice(0, 7)}-01`;
 }
+
+// ---------------------------------------------------------------------------
+// EF-FIN-22 — filtrer les mouvements
+// ---------------------------------------------------------------------------
+
+/**
+ * Ce dont le filtrage a besoin, et RIEN DE PLUS.
+ *
+ * Le domaine ne connait pas `MouvementListe` : il decrit la forme minimale
+ * qu'il sait lire, et la couche de donnees s'y conforme sans le savoir. Un
+ * `MouvementListe` importe ici ferait dependre une regle metier de la forme
+ * d'un embed PostgREST.
+ */
+export interface MouvementFiltrable {
+  readonly entity_id: string;
+  readonly categorie_id: string;
+  readonly sens: SensFinance;
+  readonly montant: number;
+  readonly date_operation: string;
+  readonly libelle: string | null;
+  readonly reference: string | null;
+  readonly statut: StatutMouvement;
+  readonly est_delegue: boolean;
+  readonly saisi_par: string | null;
+  readonly categorie: { libelle: string } | null;
+  readonly entite: { nom: string } | null;
+}
+
+/** EF-FIN-22 — l'origine : saisie par l'entite elle-meme, ou pour son compte. */
+export const ORIGINES = ['DIRECTE', 'DELEGUEE'] as const;
+export type OrigineMouvement = (typeof ORIGINES)[number];
+
+export interface FiltresMouvements {
+  readonly recherche: string;
+  readonly statuts: readonly StatutMouvement[];
+  readonly sens: readonly SensFinance[];
+  readonly entiteId: string | null;
+  readonly categorieId: string | null;
+  readonly auteurId: string | null;
+  /** Bornes INCLUSES, en « AAAA-MM-JJ » — voir `filtrerMouvements`. */
+  readonly du: string | null;
+  readonly au: string | null;
+  readonly montantMin: number | null;
+  readonly montantMax: number | null;
+  readonly origine: OrigineMouvement | null;
+}
+
+export const FILTRES_MOUVEMENTS_VIDES: FiltresMouvements = {
+  recherche: '',
+  statuts: [],
+  sens: [],
+  entiteId: null,
+  categorieId: null,
+  auteurId: null,
+  du: null,
+  au: null,
+  montantMin: null,
+  montantMax: null,
+  origine: null,
+};
+
+/**
+ * Un filtre est-il pose ?
+ *
+ * Sert a decider si le triptyque suit l'ecran ou la base (EF-FIN-10) : sans
+ * filtre, c'est le solde calcule en base qui fait foi, parce qu'il porte sur
+ * tout l'historique quand la liste s'arrete au plafond.
+ */
+export function filtreEstActif(f: FiltresMouvements): boolean {
+  return (
+    f.recherche.trim() !== '' ||
+    f.statuts.length > 0 ||
+    f.sens.length > 0 ||
+    f.entiteId !== null ||
+    f.categorieId !== null ||
+    f.auteurId !== null ||
+    f.du !== null ||
+    f.au !== null ||
+    f.montantMin !== null ||
+    f.montantMax !== null ||
+    f.origine !== null
+  );
+}
+
+/** Combien de criteres SECONDAIRES sont poses — ceux qu'un panneau replie cache. */
+export function nombreFiltresAvances(f: FiltresMouvements): number {
+  return [
+    f.categorieId,
+    f.auteurId,
+    f.du,
+    f.au,
+    f.montantMin,
+    f.montantMax,
+    f.origine,
+  ].filter((v) => v !== null).length;
+}
+
+/**
+ * EF-FIN-22 — le filtrage complet, en memoire.
+ *
+ * TOUT EST DEJA CHARGE : categorie, auteur, origine et montant voyagent avec
+ * chaque mouvement. Interroger le serveur a chaque changement de critere
+ * couterait un aller-retour par frappe (regles 17 et 28).
+ *
+ * LES DATES SE COMPARENT EN CHAINES. « AAAA-MM-JJ » s'ordonne lexicalement, et
+ * une colonne `date` n'a pas de fuseau : la convertir en `Date` ferait basculer
+ * un mouvement du 31 dans le mois suivant selon la machine qui lit.
+ *
+ * LES BORNES SONT INCLUSES, les deux. « Du 1er au 31 aout » designe aout
+ * entier pour tout le monde sauf pour un informaticien.
+ *
+ * L'ENTITE SEULE, jamais son sous-arbre : chaque entite gere ses propres
+ * finances, et « les finances du regional » designe les siennes, pas la somme
+ * de celles de ses enfants. Le perimetre borne le CHOIX, pas le resultat.
+ */
+export function filtrerMouvements<T extends MouvementFiltrable>(
+  mouvements: readonly T[],
+  f: FiltresMouvements,
+): T[] {
+  const terme = f.recherche.trim().toLocaleLowerCase('fr');
+
+  return mouvements.filter((m) => {
+    if (f.statuts.length > 0 && !f.statuts.includes(m.statut)) return false;
+    if (f.sens.length > 0 && !f.sens.includes(m.sens)) return false;
+    if (f.entiteId && m.entity_id !== f.entiteId) return false;
+    if (f.categorieId && m.categorie_id !== f.categorieId) return false;
+    if (f.auteurId && m.saisi_par !== f.auteurId) return false;
+
+    if (f.du && m.date_operation < f.du) return false;
+    if (f.au && m.date_operation > f.au) return false;
+
+    const montant = Number(m.montant);
+    if (f.montantMin !== null && montant < f.montantMin) return false;
+    if (f.montantMax !== null && montant > f.montantMax) return false;
+
+    if (f.origine === 'DELEGUEE' && !m.est_delegue) return false;
+    if (f.origine === 'DIRECTE' && m.est_delegue) return false;
+
+    if (!terme) return true;
+
+    return [m.libelle, m.reference, m.categorie?.libelle, m.entite?.nom]
+      .filter(Boolean)
+      .some((v) => v!.toLocaleLowerCase('fr').includes(terme));
+  });
+}
