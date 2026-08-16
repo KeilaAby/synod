@@ -281,9 +281,11 @@ rangées pleines.
 **EF-BUR-11 clos** : l'export Excel de la composition est abandonné le 12 août
 2026, le PDF de l'organigramme couvre le besoin.
 
-Migrations appliquées jusqu'à `0042`, **`0043` écrite mais pas appliquée** :
-elle pose les deux tables du lot 6. Une collecte de dîmes naît `SOUMIS` et c'est
-la **remise** qui la valide, donc qui alimente le Siège. Le stockage de
+Base à jour jusqu'à la migration `0043`. **Toute migration qui crée ou remplace
+une fonction doit finir par `notify pgrst, 'reload schema'`** : sans lui, l'API
+répond « fonction inconnue » sur du SQL pourtant en place — constaté deux fois,
+sur les dîmes (`0034`) et sur la synthèse. Une collecte de dîmes naît `SOUMIS`
+et c'est la **remise** qui la valide, donc qui alimente le Siège. Le stockage de
 fichiers ne se
 configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` et
 `postgres` s'y voit refuser `CREATE POLICY` : `pnpm db:bucket` s'en charge par

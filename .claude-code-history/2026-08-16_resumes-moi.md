@@ -12,21 +12,20 @@
 
 ---
 
-## À FAIRE EN PREMIER — la migration `0043`
+## Aucune migration n'attend
 
-`supabase/migrations/0043_rapports.sql` **n'est pas appliquée**. Elle pose les
-deux tables du lot 6 — `report_templates` et `report_instances` — leur RLS, et
-les deux triggers qui tiennent RG-27 (un rapport généré est figé) et EF-RAP-18
-(publier est un droit à part).
+Les migrations `0023` à `0043` sont appliquées.
 
-```bash
-# à passer dans l'éditeur SQL Supabase
-supabase/migrations/0043_rapports.sql
-```
+**Le bloc « Évolution des finances » tombait, et il ne tombe plus depuis `0043`.**
+La cause n'a pas été prouvée, mais elle est très probablement le **cache de
+schéma de PostgREST** : les fonctions de `0039` existaient, PostgREST ne les
+avait pas relues. `0043` se termine par `notify pgrst, 'reload schema'`, ce qui
+l'a purgé au passage. C'est un piège déjà rencontré sur les dîmes (migration
+`0034`) — **toute migration qui crée ou remplace une fonction doit finir par ce
+`notify`**, sans quoi l'API répond « fonction inconnue » sur du SQL pourtant en
+place.
 
-Les migrations `0023` à `0042` sont appliquées.
-
-Deux pièges rencontrés sur `0042`, qui valent d'être retenus :
+Trois pièges rencontrés sur `0042`, qui valent d'être retenus :
 
 - **`nationalites` porte `code_iso`**, pas `code` — les quatre référentiels ne
   sont pas uniformes, et le supposer coûte une migration refusée.
@@ -35,6 +34,9 @@ Deux pièges rencontrés sur `0042`, qui valent d'être retenus :
   de type de retour (42P13). Il faut `drop function if exists` juste avant — et
   l'erreur n'arrive qu'à **l'application**, jamais à l'écriture. Règle 23
   amendée.
+- **Un `<@` sur `ltree` a besoin du chemin, pas de l'identifiant** :
+  `current_entity_id()` n'existe pas dans ce projet, c'est `current_scope_path()`
+  qui rend le chemin de l'entité de rattachement.
 
 ---
 
@@ -87,7 +89,7 @@ livré pour l'essentiel**.
 | **Périmètre et période réglables — EF-DSH-06** | ✅ |
 | **Impression, exports, icônes — EF-DSH-10** | ✅ |
 | **Modèles applicables en un clic — EF-DSH-08 (partiel)** | ✅ |
-| **Lot 6 — schéma, RLS et registre des blocs** *(migration `0043`)* | ✅ |
+| **Lot 6 — schéma, RLS et registre des blocs** | ✅ |
 
 589 tests unitaires, 28 fichiers. `pnpm verify` vert.
 
@@ -133,18 +135,31 @@ livrés. Restent :
   imposer demande `dashboard_templates` (elle existe depuis `0005`) et un écran
   d'administration.
 
-### Lot 6 — générateur de rapports, la suite
+### Lot 6 — générateur de rapports : **c'est ici qu'on reprend**
 
 Le socle est posé (migration `0043`, `lib/domain/rapport.ts`) : schéma, RLS,
-registre des onze blocs, résolution RG-26 et gel RG-27. Restent :
+registre des onze blocs, résolution RG-26 et gel RG-27. **Aucun écran n'existe
+encore** — `/rapports` est à créer de zéro.
 
-- **`ReportEditor`** — palette, composition, panneau de réglages,
-  auto-sauvegarde (EF-RAP-01, EF-RAP-04).
-- **`A4Preview`** — rendu paginé fidèle au PDF, en temps réel (EF-RAP-05).
-- **La chaîne de génération** — résolution des sources, gel du contenu, rendu,
-  PDF, audit (EF-RAP-12 à 16).
-- **La bibliothèque de modèles** — officiels, personnels, partagés ;
-  duplication, archivage (EF-RAP-08, EF-RAP-11).
+L'ordre qui me paraît juste, du plus utile au plus coûteux :
+
+1. **La bibliothèque de modèles** — `/rapports`, la liste, la création, la
+   duplication, l'archivage (EF-RAP-07, 08, 09, 11). C'est le premier écran qui
+   rend les deux tables utiles, et il ne demande aucun rendu complexe.
+2. **L'éditeur** — palette, composition, panneau de réglages, auto-sauvegarde
+   (EF-RAP-01, EF-RAP-04). Le glisser-déposer natif du tableau de bord a montré
+   qu'aucune bibliothèque n'est nécessaire (règle 29).
+3. **La prévisualisation A4** — rendu paginé fidèle au PDF, en temps réel
+   (EF-RAP-05). Le précédent est `organigramme-svg.ts` : une feuille A4 se rend
+   sans dépendance.
+4. **La chaîne de génération** — résolution des sources, **gel** du contenu,
+   rendu, PDF, audit (EF-RAP-12 à 16). `resoudreStructure` fait déjà l'omission
+   RG-26 ; il reste à remplir les blocs depuis les six sources.
+
+Ce qui est déjà réutilisable : `imprimerRecus` et `exporterPdf` pour le passage
+au papier, `CourbeAnnuelle` / `CourbeFinances` / `RepartitionBarres` / `Jauge`
+pour quatre des onze types de blocs, et `chargerSyntheseAnnuelle` pour la source
+FINANCES.
 
 ### Finances — **le lot 4 est complet**
 
