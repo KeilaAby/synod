@@ -264,11 +264,26 @@ inapplicable reste visible, éteint et expliqué : le retirer ferait croire qu'i
 n'existe pas. Reste « imposer un modèle par niveau », qui demande
 `dashboard_templates` et un écran d'administration.
 
+**Lot 6 — fondations posées** (migration `0043`, `lib/domain/rapport.ts`) :
+`report_templates` décrit **comment composer**, `report_instances` conserve **ce
+qui a été produit** — d'où la copie de la structure dans chaque rapport, pour
+qu'archiver un modèle ne change rien à ce qui est diffusé. **RG-27** est un
+trigger : ni les données, ni la structure, ni la période d'un rapport généré ne
+changent — « corriger » un rapport diffusé réécrirait l'histoire sans trace.
+**RG-26** omet les blocs non habilités et les **trace** : un tableau de finances
+rendu vide afficherait « aucun mouvement », ce qui est faux. Une section qui perd
+tous ses blocs disparaît ; les blocs de mise en page ne s'omettent jamais ; et la
+mention **compte** sans énumérer — « tableau des recettes » dirait qu'il y a des
+recettes. L'habilitation est portée par la **source**, pas par le type de bloc.
+Trois largeurs seulement (pleine, demie, tiers) : elles se combinent toujours en
+rangées pleines.
+
 **EF-BUR-11 clos** : l'export Excel de la composition est abandonné le 12 août
 2026, le PDF de l'organigramme couvre le besoin.
 
-Base à jour jusqu'à la migration `0042`. Une collecte de dîmes naît `SOUMIS` et
-c'est la **remise** qui la valide, donc qui alimente le Siège. Le stockage de
+Migrations appliquées jusqu'à `0042`, **`0043` écrite mais pas appliquée** :
+elle pose les deux tables du lot 6. Une collecte de dîmes naît `SOUMIS` et c'est
+la **remise** qui la valide, donc qui alimente le Siège. Le stockage de
 fichiers ne se
 configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` et
 `postgres` s'y voit refuser `CREATE POLICY` : `pnpm db:bucket` s'en charge par

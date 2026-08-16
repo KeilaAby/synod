@@ -3700,3 +3700,69 @@ quelle.
 Au passage, les titres d'export des répartitions retrouvent leurs accents :
 « Répartition par âge » plutôt que « Repartition par age ». Ils nomment le
 fichier téléchargé, donc ils se lisent.
+
+---
+
+## 16 août 2026 — Lot 6, les fondations du générateur de rapports
+
+Migration `0043` et `lib/domain/rapport.ts`. Le socle : le schéma, la RLS, le
+registre des blocs et la résolution RG-26. L'éditeur, la prévisualisation A4 et
+la chaîne de génération viennent après.
+
+### Deux tables, et la seconde ne dépend pas de la première
+
+`report_templates` décrit **comment composer** ; `report_instances` conserve **ce
+qui a été produit**. Un rapport généré porte donc une **copie** de la structure
+du modèle en plus de ses données : modifier un modèle — ou l'archiver — ne doit
+rien changer à ce qui a déjà été diffusé. Même raison pour le `on delete set
+null` sur `template_id` : le rapport survit à la disparition de son modèle.
+
+### RG-27 — un rapport généré est figé, et le verrou est en base
+
+Ni ses données, ni la structure qui les a produites, ni sa période ne changent
+après coup. Sans ce trigger, « corriger » un rapport diffusé réécrirait
+l'histoire sans laisser de trace — et deux personnes citant le même rapport ne
+parleraient plus du même document.
+
+Un rapport qui se recalculerait à chaque ouverture ne serait pas un rapport,
+mais un écran.
+
+### RG-26 — les blocs sont OMIS, pas vidés
+
+Un tableau de finances rendu vide à qui n'a pas `finance.read` afficherait
+« aucun mouvement » — ce qui est faux, et se lit comme une information.
+L'omission, elle, se **trace** et se mentionne en pied de page.
+
+Trois décisions en découlent :
+
+- **Une section qui perd tous ses blocs disparaît.** Un intertitre « Finances »
+  suivi de rien apprendrait qu'il existe des finances, ce que l'omission vise
+  précisément à taire, et laisserait un blanc qu'on prendrait pour un défaut de
+  mise en page.
+- **Les blocs de mise en page ne s'omettent jamais** — titre, texte, image, saut
+  de page, signature n'interrogent rien. Un rapport dont le titre disparaîtrait
+  faute de droit serait illisible pour une raison qui n'a rien à voir avec lui.
+- **La mention compte, elle n'énumère pas.** Lister les blocs manquants
+  apprendrait exactement ce que l'omission cache : « tableau des recettes » dit
+  qu'il y a des recettes.
+
+### L'habilitation est portée par la SOURCE
+
+Pas par le type de bloc : un tableau de finances et une courbe de finances
+demandent le même droit, et le déclarer deux fois les ferait diverger le jour où
+l'un des deux change.
+
+### Trois largeurs, et pas davantage
+
+Pleine, demie, tiers — trois valeurs qui se combinent **toujours** en rangées
+pleines. Une grille libre en douzièmes laisserait composer des rangées qui ne
+bouclent pas, et le rendu A4 devrait alors inventer ce qu'il en fait.
+
+### Publier est un droit à part
+
+`report.publish` ne se confond pas avec `report.create` : composer un rapport
+pour soi et le rendre lisible par tout un périmètre ne sont pas le même geste.
+Le trigger le vérifie, parce qu'une politique RLS ne sait pas comparer l'ancien
+statut au nouveau.
+
+589 tests unitaires, 28 fichiers. `pnpm verify` vert.

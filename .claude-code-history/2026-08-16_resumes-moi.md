@@ -12,7 +12,17 @@
 
 ---
 
-## Aucune migration n'attend
+## À FAIRE EN PREMIER — la migration `0043`
+
+`supabase/migrations/0043_rapports.sql` **n'est pas appliquée**. Elle pose les
+deux tables du lot 6 — `report_templates` et `report_instances` — leur RLS, et
+les deux triggers qui tiennent RG-27 (un rapport généré est figé) et EF-RAP-18
+(publier est un droit à part).
+
+```bash
+# à passer dans l'éditeur SQL Supabase
+supabase/migrations/0043_rapports.sql
+```
 
 Les migrations `0023` à `0042` sont appliquées.
 
@@ -77,8 +87,9 @@ livré pour l'essentiel**.
 | **Périmètre et période réglables — EF-DSH-06** | ✅ |
 | **Impression, exports, icônes — EF-DSH-10** | ✅ |
 | **Modèles applicables en un clic — EF-DSH-08 (partiel)** | ✅ |
+| **Lot 6 — schéma, RLS et registre des blocs** *(migration `0043`)* | ✅ |
 
-573 tests unitaires, 27 fichiers. `pnpm verify` vert.
+589 tests unitaires, 28 fichiers. `pnpm verify` vert.
 
 ---
 
@@ -122,6 +133,19 @@ livrés. Restent :
   imposer demande `dashboard_templates` (elle existe depuis `0005`) et un écran
   d'administration.
 
+### Lot 6 — générateur de rapports, la suite
+
+Le socle est posé (migration `0043`, `lib/domain/rapport.ts`) : schéma, RLS,
+registre des onze blocs, résolution RG-26 et gel RG-27. Restent :
+
+- **`ReportEditor`** — palette, composition, panneau de réglages,
+  auto-sauvegarde (EF-RAP-01, EF-RAP-04).
+- **`A4Preview`** — rendu paginé fidèle au PDF, en temps réel (EF-RAP-05).
+- **La chaîne de génération** — résolution des sources, gel du contenu, rendu,
+  PDF, audit (EF-RAP-12 à 16).
+- **La bibliothèque de modèles** — officiels, personnels, partagés ;
+  duplication, archivage (EF-RAP-08, EF-RAP-11).
+
 ### Finances — **le lot 4 est complet**
 
 EF-FIN-01 à 35 sont tous servis. Reste une dette technique, pas une exigence :
@@ -152,7 +176,7 @@ nulle part — il ferait un second chemin pour la même création (règle 16).
 pnpm install      # installe aussi le hook pre-commit de détection de secrets
 pnpm dev          # http://localhost:3000
 pnpm dev:propre   # même chose, cache Turbopack vidé au préalable
-pnpm verify       # lint + types + 573 tests + build
+pnpm verify       # lint + types + 589 tests + build
 pnpm db:bucket    # le stockage ne se configure PAS en SQL
 ```
 
