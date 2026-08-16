@@ -209,6 +209,57 @@ export async function chargerSolde(
   };
 }
 
+/**
+ * EF-FIN-11 — le solde de CHAQUE entite du perimetre, en une passe.
+ *
+ * UN SEUL APPEL, quel que soit le nombre d'entites. Boucler sur `chargerSolde`
+ * couterait un aller-retour par ligne du tableau : cinquante eglises, plusieurs
+ * minutes (regle 28).
+ *
+ * La RLS borne le resultat — la fonction est `SECURITY INVOKER` — : cet ecran
+ * n'a aucun filtrage a refaire, et ne peut donc pas se tromper en le refaisant.
+ */
+export async function chargerSoldesPerimetre(
+  debut?: string | null,
+  fin?: string | null,
+): Promise<Map<string, Solde>> {
+  const sb = await createClient();
+
+  const { data, error } = await sb.rpc('fn_finance_soldes_perimetre', {
+    p_debut: debut ?? null,
+    p_fin: fin ?? null,
+  });
+
+  if (error) {
+    throw new DataError('Les soldes du perimetre sont momentanement incalculables.', error);
+  }
+
+  const lignes = data as
+    | {
+        entity_id: string;
+        recettes_propres: number;
+        depenses_propres: number;
+        recettes_consolidees: number;
+        depenses_consolidees: number;
+      }[]
+    | null;
+
+  return new Map(
+    (lignes ?? []).map((l) => [
+      l.entity_id,
+      {
+        // `numeric` traverse PostgREST en CHAINE, pour ne pas perdre de
+        // precision en JSON : sans `Number()`, « 1000 » + « 200 » ferait
+        // « 1000200 ».
+        recettesPropres: Number(l.recettes_propres ?? 0),
+        depensesPropres: Number(l.depenses_propres ?? 0),
+        recettesConsolidees: Number(l.recettes_consolidees ?? 0),
+        depensesConsolidees: Number(l.depenses_consolidees ?? 0),
+      },
+    ]),
+  );
+}
+
 export interface CategorieFinance {
   id: string;
   code: string;

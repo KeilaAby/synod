@@ -72,7 +72,13 @@ fige aussi sa pièce (RG-17).
 **EF-FIN-21 livré** : la file `/finances/a-valider`, du plus **ancien** au plus
 récent, avec sélection et traitement par lot. Quatre allers-retours pour N
 mouvements, et un refus partiel n'arrête pas le lot — la ligne écartée est
-nommée, le reste passe. Reste **EF-FIN-11**, la vue consolidée du Siège.
+nommée, le reste passe.
+
+**EF-FIN-11 livré** : `/finances/consolide`, le solde propre et consolidé de
+chaque entité, trié CROISSANT — ce qui va mal remonte en tête. Migration `0026`
+(`fn_finance_soldes_perimetre`) calcule tout en UNE passe et reste
+`SECURITY INVOKER` : la RLS borne le résultat, l'écran n'a aucun filtrage à
+refaire.
 
 L'**écran de réglage** du workflow est livré — bouton de `/finances`, trois
 choix par entité — ainsi que **`finance.validate_own`** (EF-FIN-18), qui lève la
@@ -92,13 +98,13 @@ appartient au Siège, à qui elle est remise en mains propres. Le mouvement port
 donc `entity_id = <Siège>` et jamais l'église, sans quoi `fn_finance_solde`
 compterait le même argent deux fois — chez celui qui l'a collecté et chez celui
 à qui il appartient, deux soldes plausibles et tous deux faux. Le lien avec
-l'église passe par `eglise_collecte_id`, qui sert la traçabilité et n'entre dans
+l'église passe par `entite_collecte_id`, qui sert la traçabilité et n'entre dans
 aucun solde.
 
 **EF-BUR-11 clos** : l'export Excel de la composition est abandonné le 12 août
 2026, le PDF de l'organigramme couvre le besoin.
 
-Base à jour jusqu'à la migration `0025`. Le stockage de fichiers ne se
+Base à jour jusqu'à la migration `0026`. Le stockage de fichiers ne se
 configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` et
 `postgres` s'y voit refuser `CREATE POLICY` : `pnpm db:bucket` s'en charge par
 l'API.

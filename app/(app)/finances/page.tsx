@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { ClipboardCheck } from 'lucide-react';
+import { ClipboardCheck, LayoutList } from 'lucide-react';
 
 import { WorkflowDialog } from '@/components/finances/workflow-dialog';
 import { PageHeader } from '@/components/shared/page-header';
@@ -122,6 +122,18 @@ export default async function FinancesPage() {
                   <span className="bg-foreground text-background ml-2 rounded-full px-2 py-0.5 text-xs tabular-nums">
                     {formatNombre(aValider)}
                   </span>
+                </Link>
+              </Button>
+            )}
+
+            {/* EF-FIN-11 — le solde de chaque entité, dès qu'il y en a
+                plusieurs à comparer. Sur une seule église, le triptyque
+                ci-dessous dit déjà tout. */}
+            {arbre.length > 1 && (
+              <Button asChild variant="outline" className="h-10">
+                <Link href="/finances/consolide">
+                  <LayoutList className="mr-2 size-4" aria-hidden />
+                  Vue consolidée
                 </Link>
               </Button>
             )}

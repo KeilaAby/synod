@@ -2068,3 +2068,50 @@ menu auquel on cesse de se fier.
 ### Qualité
 
 432 tests unitaires. `pnpm verify` vert.
+
+---
+
+## 13 août 2026 (suite) — EF-FIN-11, la vue consolidée
+
+**Le solde de chaque entité, pas un total.** Le triptyque de `/finances` répond
+à « de combien disposons-nous ? » ; `/finances/consolide` répond à « laquelle de
+mes entités va mal ? ». Un total ne peut pas répondre à la seconde : c'est
+justement lui qui masque l'église en déficit sous l'excédent de sa voisine.
+
+**Migration `0026` — `fn_finance_soldes_perimetre`.** `fn_finance_solde` répond
+pour UNE entité ; la vue en demande autant qu'il y a d'entités. Cinquante
+églises, c'était cinquante allers-retours à 0,5–4 s pièce — plusieurs minutes
+pour un tableau (règle 28). La nouvelle fonction les calcule tous en une passe.
+
+Elle est `SECURITY INVOKER`, et c'est essentiel : la RLS s'applique à
+l'appelant, donc un gestionnaire de district n'obtient que son district. L'écran
+n'a **aucun filtrage à refaire** — ce qu'on ne refait pas, on ne peut pas le
+rater.
+
+Un `left join`, pas un `join` : une entité sans aucun mouvement doit sortir **à
+zéro**, pas disparaître. Une église absente du tableau se lit « je ne la vois
+pas », quand la vérité est « elle n'a rien encaissé ».
+
+**Le tri par défaut est croissant**, sur le solde consolidé : les entités en
+difficulté remontent en tête. Décroissant, l'écran aurait mis les plus riches en
+haut — celles dont on n'a rien à faire — et il aurait fallu dérouler jusqu'en
+bas pour trouver ce que l'écran est censé montrer (EF-FIN-13). Le compte des
+soldes négatifs s'affiche **avant** le tableau : un badge rouge à la trentième
+ligne ne se voit pas.
+
+Propre et consolidé figurent **côte à côte**, avec la part du sous-arbre en
+troisième colonne (EF-FIN-12) : c'est l'écart entre les deux qui doit sauter aux
+yeux.
+
+### Le compilateur React, une fois de plus
+
+`EnTeteTriable` était défini dans le corps du composant, où il capturait `tri`
+et `croissant` — pratique à écrire, et refusé à juste titre. Un composant
+recréé à chaque rendu a une identité neuve à chaque fois : React démonte et
+remonte son sous-arbre au lieu de le mettre à jour. Ici cela n'aurait coûté
+qu'un peu de travail ; sur un champ de saisie, cela lui ferait perdre le focus
+à chaque frappe.
+
+### Qualité
+
+432 tests unitaires. `pnpm verify` vert.

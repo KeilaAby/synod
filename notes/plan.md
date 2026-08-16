@@ -2546,7 +2546,8 @@ describe('RG-26 / RG-27 — rapports', () => {
 - [ ] **Écran de saisie déléguée** dédié, réservé à `finance.delegate`.
 - [ ] **Dîmes** — voir §4.bis ci-dessous.
 - [ ] `mv_finance_kpis`, `mv_finance_par_categorie`, `SoldeCard`, synthèse (courbes, barres, comparatifs).
-- [ ] Vue consolidée du Siège, entité par entité (EF-FIN-11) ; export PDF.
+- [x] Vue consolidée, entité par entité, classée, soldes négatifs signalés (EF-FIN-11, EF-FIN-13). *(13 août 2026)*
+- [ ] Export PDF de la vue consolidée.
 - [ ] Tests : RG-13 à RG-18.
 
 #### 4.bis — Les dîmes, un cas particulier *(spécifié le 12 août 2026, à construire)*
@@ -2577,7 +2578,7 @@ l'écran ne trahirait l'erreur : deux soldes plausibles, tous les deux faux.
 
 > Le mouvement financier d'une dîme porte `entity_id = <Siège>`, **jamais**
 > l'église. Le lien avec l'église collectrice est une colonne à part,
-> `eglise_collecte_id`, qui sert la **traçabilité** et n'entre dans aucun calcul
+> `entite_collecte_id`, qui sert la **traçabilité** et n'entre dans aucun calcul
 > de solde.
 
 **Deux moments, pas un.** L'argent voyage physiquement : il est collecté un
@@ -2628,9 +2629,13 @@ bureau gère ses finances, la hiérarchie les consulte.
 alter table entities add column dime_mode text;   -- 'DETAILLE' | 'GLOBAL' | null
 
 -- RG-33 : l'eglise qui a COLLECTE. Le mouvement, lui, reste rattache au Siege
--- par `entity_id` — cette colonne sert la tracabilite, jamais le solde.
+-- Siege. Le mouvement, lui, reste rattache au SIEGE par `entity_id` : cette
+-- colonne sert la tracabilite, jamais le solde.
 alter table finance_entries
-  add column eglise_collecte_id uuid references entities(id) on delete restrict;
+  add column entite_collecte_id uuid references entities(id) on delete restrict;
+
+-- Le contexte de la collecte : culte ordinaire ou rassemblement (voir §2).
+alter table finance_entries add column dime_evenement text;
 
 -- L'enveloppe APPARTIENT au croyant, dans une eglise donnee. Elle survit aux
 -- collectes : c'est son identite de donateur, pas un numero de transaction.
@@ -2657,11 +2662,11 @@ create table dime_versements (
 ```
 
 **La lecture de l'église ne passe donc pas par son solde.** Elle lit ses
-collectes par `eglise_collecte_id`, avec leur statut : ce qu'elle a recueilli, ce
+collectes par `entite_collecte_id`, avec leur statut : ce qu'elle a recueilli, ce
 qu'elle a remis, ce qui reste à remettre. La RLS de `finance_entries` doit s'en
 souvenir — sa politique `select` teste aujourd'hui `entity_in_scope(entity_id)`,
 et un mouvement rattaché au Siège serait **invisible** à l'église qui l'a
-collecté. Il faut y ajouter `or entity_in_scope(eglise_collecte_id)`, faute de
+collecté. Il faut y ajouter `or entity_in_scope(entite_collecte_id)`, faute de
 quoi EF-FIN-31 est impossible à tenir : une église ne pourrait pas répondre au
 croyant qui lui demande la trace de sa dîme.
 
@@ -2688,19 +2693,81 @@ croyant qui lui demande la trace de sa dîme.
    explicitement — « Dîmes collectées », « Remises au Siège », « En attente de
    remise » — et à tenir **hors** du triptyque Recettes / Dépenses / Solde.
 
-**Ce qui reste à décider** :
+##### Les quatre questions, tranchées le 13 août 2026
 
-- Le reçu s'imprime-t-il (feuille A4, comme l'organigramme) ou suffit-il de le
-  numéroter à l'écran ?
-- Le mode se change-t-il en cours d'exercice, et que deviennent alors les
-  collectes déjà saisies ?
-- La remise au Siège se fait-elle **collecte par collecte** ou par **bordereau**
-  regroupant plusieurs dimanches ? Le second est ce qui se pratique
-  vraisemblablement — on ne traverse pas la ville chaque semaine — et il change
-  le modèle : la remise devient une entité à part, qui rassemble des collectes.
-- Une dîme peut-elle être versée **ailleurs qu'à son église de rattachement**,
-  lors d'un grand rassemblement ? Si oui, `eglise_collecte_id` diffère de
-  l'église du croyant, et le reçu doit le dire.
+**1. La remise se fait par BORDEREAU, et le délai est une règle.**
+
+Elle est portée en mains propres au Siège par le **trésorier principal de
+l'église ou son adjoint** — l'église se déplace. Les dîmes d'un culte doivent
+parvenir **au plus tard dans la semaine suivante**.
+
+Le regroupement de plusieurs cultes est possible mais **mal vu du Siège** :
+c'est un retard, pas une organisation. Il n'est donc ni interdit ni encouragé —
+le bordereau doit alors **détailler la date de chaque culte** dont il porte la
+collecte. C'est ce qui rend le retard visible au lieu de le noyer dans un total.
+
+Conséquences pour le modèle :
+
+- `dime_remises` — porteur (un croyant, membre du bureau à fonction financière
+  RG-31), date de remise, entité réceptrice (le Siège) ; elle **rassemble** des
+  collectes.
+- Le bordereau imprimé liste **une ligne par culte** avec sa date : sans cela,
+  un bordereau de quatre dimanches est indistinguable d'un bordereau d'un seul.
+- Le **retard se calcule** : collecte non remise plus de sept jours après son
+  culte. C'est un indicateur, pas un blocage — refuser une remise tardive
+  reviendrait à empêcher de régulariser.
+
+**2. La dîme se verse aussi lors d'un RASSEMBLEMENT, et l'hôte n'est pas une
+église.**
+
+Quatre cas, et le troisième invalide le nom `eglise_collecte_id` retenu plus
+haut :
+
+| Événement | Qui peut y verser | Qui collecte |
+|---|---|---|
+| Culte ordinaire | Les croyants de l'église | L'église |
+| **Rassemblement de paroisse** | Tous les croyants de la paroisse | La paroisse |
+| **Rassemblement de district** | Tous ceux du district | Le district |
+| **Rassemblement régional** | Tous ceux du régional | Le régional |
+| **Événement national** | Toute l'organisation | Le **Siège**, directement |
+
+> **La colonne s'appelle donc `entite_collecte_id`, pas `eglise_collecte_id`.**
+> Une paroisse, un district ou un régional peut collecter. Le nom initial aurait
+> forcé à ranger une collecte de district sous une église arbitraire, ou à
+> laisser la colonne vide — deux façons de perdre l'information.
+
+Les **donateurs éligibles** sont ceux du sous-arbre de l'entité hôte : c'est le
+seul contrôle à faire, et il se lit directement dans le chemin `ltree`.
+
+L'**événement national** est à part : le Siège encaisse lui-même et saisit un
+**montant global** par libellé, sans détail par croyant. Le mode *détaillé* n'y
+a pas de sens — personne ne tient trois mille enveloppes à la main.
+
+**3. Le reçu est PAPIER *et* numérique — les deux, pas l'un ou l'autre.**
+
+La pratique actuelle est un reçu papier remis au croyant. Elle ne change pas,
+elle s'outille :
+
+- l'application **génère la référence** ; le membre du bureau la recopie sur le
+  papier. C'est ce qui relie le talon physique à l'enregistrement ;
+- l'application **imprime aussi un ticket**, façon ticket de caisse, avec le
+  maximum d'informations — nom, enveloppe, montant, date, église, événement,
+  référence.
+
+Le premier fonctionne sans imprimante, le second la remplace quand il y en a
+une. Aucun des deux ne dépend de l'autre.
+
+**4. Un changement de mode ne cache RIEN.**
+
+Les collectes déjà saisies en mode *détaillé* gardent leur détail, et il reste
+consultable après le passage en mode *global*. Le mode décide de ce qu'on
+**saisit désormais**, jamais de ce qu'on **peut relire**.
+
+La contrainte se déplace donc sur l'écran : un registre qui mêle des collectes
+détaillées et des collectes globales doit rester lisible — le détail se replie,
+il ne disparaît pas (`designrules.md`).
+
+**Ce qui reste ouvert** : rien de bloquant pour commencer.
 
 ### Lot 5 — Tableaux de bord *(3 semaines)*
 
