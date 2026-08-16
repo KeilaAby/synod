@@ -2293,3 +2293,33 @@ pas » — et quelqu'un créerait une fiche en double pour le faire apparaître.
 **La clé du fragment.** `<>` ne peut pas en porter : React réclamait alors celle
 des `TableRow` enfants, qui ne sont pas ce que le `map` rend. `Fragment` nommé,
 clé sur lui.
+
+**Le sélecteur de croyant** — `components/croyants/croyant-picker.tsx`, sur le
+modèle de l'`EntityPicker` : recherche, matricule et **portrait**.
+
+Un `<select>` ne convenait pas. Une église de deux cents membres donne deux
+cents lignes qu'il faut parcourir à l'œil — on cherche « Razafindraparany », pas
+« la cent quarantième entrée ». Et deux homonymes y sont indiscernables : c'est
+le matricule, puis le visage, qui les séparent.
+
+Trois points repris du sélecteur d'entité, parce qu'ils avaient déjà été payés
+une fois : la recherche **ignore accents et casse** (`normaliserRecherche`) —
+« Razafindraparany » ne se tape pas deux fois de la même façon ; le panneau a un
+**plancher de 24 rem**, sans quoi il se serait aligné sur une colonne de grille
+et aurait tronqué le nom ; et la **barre de défilement est rendue visible**,
+faute de quoi deux cents croyants paraissent s'arrêter au sixième.
+
+**Aucun fond au survol**, demandé et justifié : la ligne porte déjà un portrait,
+un nom, un matricule et un détail — un aplat y ajoute un quatrième plan visuel.
+L'état reste signalé par la couleur du texte, ce qui reste nécessaire au
+clavier, où rien ne suit le curseur.
+
+Les portraits sont signés **en lot** par la page, comme partout ailleurs.
+
+**Changer d'entité vide la grille des versements.** Les croyants déjà saisis
+appartiennent à l'entité précédente : les garder enverrait des versements de
+croyants qui n'ont pas le droit de verser là (EF-FIN-30), et le refus
+n'arriverait qu'à l'enregistrement — une fois trente lignes remplies.
+
+Seule la **grille** est vidée. La date, le libellé, l'événement et la catégorie
+n'ont rien à voir avec l'entité et se ressaisiraient pour rien.

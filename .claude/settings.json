@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(node -e ' *)",
-      "PowerShell(pnpm verify 2>&1 | Select-String -Pattern \"error|Error|✖|failed|Tests |Test Files\" | Select-Object -First 15; \"exit=$LASTEXITCODE\")"
+      "PowerShell(pnpm verify 2>&1 | Select-String -Pattern \"error|Error|✖|failed|Tests |Test Files\" | Select-Object -First 15; \"exit=$LASTEXITCODE\")",
+      "Bash(grep -n \"useFieldArray\\({ control, name: 'versements' }\\)\" components/finances/collecte-dialog.tsx)"
     ]
   }
 }

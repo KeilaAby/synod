@@ -6,6 +6,7 @@ import { chargerCroyants } from '@/lib/data/croyants';
 import { getArbrePerimetre } from '@/lib/data/entities';
 import { versOptions } from '@/lib/data/entity-options';
 import { listerCategoriesFinance } from '@/lib/data/finances';
+import { signerPhotos } from '@/lib/data/photos';
 import { getParametres } from '@/lib/data/settings';
 import { formatNombre } from '@/lib/utils/format';
 
@@ -45,6 +46,15 @@ export default async function DimesPage() {
     chargerEnveloppesPerimetre(),
   ]);
 
+  /**
+   * EF-CRO-09 — les portraits, signes EN UNE FOIS.
+   *
+   * Un visage se reconnait plus vite qu'un nom, surtout entre homonymes : le
+   * selecteur de croyant les affiche. Les URL signees ne sont jamais persistees
+   * (regle 11) et se fabriquent a l'affichage.
+   */
+  const photos = await signerPhotos(lot.lignes.map((c) => c.photo_key));
+
   const actives = arbre.filter((e) => e.is_active);
 
   return (
@@ -76,9 +86,11 @@ export default async function DimesPage() {
             // Le CHEMIN, pas l'identifiant : un rassemblement de district
             // accueille les croyants de tout son sous-arbre (EF-FIN-30).
             eglisePath: c.eglise!.path,
+            photoKey: c.photo_key,
           }))}
         croyantsTronques={lot.tronque}
         enveloppes={Object.fromEntries(enveloppes)}
+        photos={Object.fromEntries(photos)}
       />
     </div>
   );

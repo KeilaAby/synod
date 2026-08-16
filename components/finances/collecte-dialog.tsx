@@ -7,6 +7,7 @@ import { useMemo, useState } from 'react';
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
+import { CroyantPicker } from '@/components/croyants/croyant-picker';
 import { Field, TextField } from '@/components/shared/field';
 import { avertir } from '@/components/shared/messages';
 import { PermissionGate } from '@/components/shared/permission-gate';
@@ -78,6 +79,8 @@ export interface CroyantOption {
    * (EF-FIN-30) ; c'est le sous-arbre qui décide, et il se lit dans le chemin.
    */
   readonly eglisePath: string;
+  /** Cle de stockage de la photo (EF-CRO-09), resolue par `photos`. */
+  readonly photoKey?: string | null;
 }
 
 export function CollecteDialog({
@@ -88,6 +91,7 @@ export function CollecteDialog({
   croyants = [],
   croyantsTronques = false,
   enveloppes = {},
+  photos = {},
 }: {
   entites: OptionEntite[];
   categories: CategorieFinance[];
@@ -99,6 +103,8 @@ export function CollecteDialog({
   croyantsTronques?: boolean;
   /** Numéro d'enveloppe connu de chaque croyant, pour ne pas le retaper. */
   enveloppes?: Record<string, string>;
+  /** Clé de stockage -> URL signée, signées en lot par la page (EF-CRO-09). */
+  photos?: Record<string, string>;
 }) {
   const router = useRouter();
   const [ouvert, setOuvert] = useState(false);
@@ -122,7 +128,10 @@ export function CollecteDialog({
     } as Partial<SaisirCollecteInput> as SaisirCollecteInput,
   });
 
-  const { fields, append, remove } = useFieldArray({ control, name: 'versements' });
+  const { fields, append, remove, replace } = useFieldArray({
+    control,
+    name: 'versements',
+  });
 
   const entiteChoisie = useWatch({ control, name: 'entiteCollecteId' });
   const evenement = useWatch({ control, name: 'evenement' });
@@ -264,7 +273,25 @@ export function CollecteDialog({
                             {...aria}
                             options={entites}
                             value={field.value ?? null}
-                            onChange={field.onChange}
+                            onChange={(v) => {
+                              /**
+                               * CHANGER D'ENTITÉ VIDE LES VERSEMENTS.
+                               *
+                               * Les croyants déjà saisis appartiennent à
+                               * l'entité précédente : les garder enverrait des
+                               * versements de croyants qui n'ont pas le droit
+                               * de verser ici (EF-FIN-30), et le refus
+                               * n'arriverait qu'à l'enregistrement, une fois
+                               * trente lignes remplies.
+                               *
+                               * Seule la GRILLE est vidée : la date, le
+                               * libellé, l'événement et la catégorie n'ont rien
+                               * à voir avec l'entité et se ressaisiraient pour
+                               * rien.
+                               */
+                              if (v !== field.value) replace([]);
+                              field.onChange(v);
+                            }}
                             placeholder="Choisir une entité"
                             emptyMessage="Aucune entité dans votre périmètre."
                           />
@@ -480,28 +507,22 @@ export function CollecteDialog({
                               </TableCell>
 
                               <TableCell>
+                                {/* Une église de deux cents membres ne se
+                                    parcourt pas à l'œil : recherche, matricule
+                                    et portrait — deux homonymes sont sinon
+                                    indiscernables. */}
                                 <Controller
                                   control={control}
                                   name={`versements.${index}.croyantId`}
                                   render={({ field }) => (
-                                    <Select
-                                      value={field.value ?? ''}
-                                      onValueChange={field.onChange}
-                                    >
-                                      <SelectTrigger
-                                        className="h-9 w-full"
-                                        aria-label={`Croyant, ligne ${index + 1}`}
-                                      >
-                                        <SelectValue placeholder="Choisir" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {eligibles.map((c) => (
-                                          <SelectItem key={c.id} value={c.id}>
-                                            {c.nom.toLocaleUpperCase('fr')} {c.prenom}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
+                                    <CroyantPicker
+                                      options={eligibles}
+                                      value={field.value ?? null}
+                                      onChange={field.onChange}
+                                      photos={photos}
+                                      placeholder="Choisir"
+                                      aria-label={`Croyant, ligne ${index + 1}`}
+                                    />
                                   )}
                                 />
                               </TableCell>
