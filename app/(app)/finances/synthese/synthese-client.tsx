@@ -12,6 +12,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
 
+import { BoutonExport } from '@/components/finances/bouton-export';
 import { CourbeAnnuelle } from '@/components/finances/courbe-annuelle';
 import { EmptyState } from '@/components/shared/empty-state';
 import { FiltreIcone, GroupeFiltres } from '@/components/shared/filtre-icone';
@@ -337,6 +338,40 @@ export function SyntheseClient({
             </p>
           </div>
 
+          {parCategorie.length > 0 && (
+            <div className="flex justify-end">
+              <BoutonExport
+                nombre={parCategorie.length}
+                libelle="Exporter la synthèse"
+                tableau={() => ({
+                  titre: `Synthese ${libellePeriode(granularite, ancre)}`,
+                  sousTitre: `${entiteNom} — ${consolide ? 'périmètre entier' : 'entité seule'}`,
+                  entetes: [
+                    'Catégorie',
+                    'Sens',
+                    'Mouvements',
+                    `Montant (${devise})`,
+                    'Part (%)',
+                  ],
+                  lignes: parCategorie.map((c) => [
+                    c.libelle,
+                    c.sens === 'RECETTE' ? 'Recette' : 'Dépense',
+                    c.nombre,
+                    c.montant,
+                    // Arrondi à la décimale AFFICHÉE : un export qui rendrait
+                    // 66,666666 ne se rapprocherait plus de l'écran.
+                    Number(
+                      partDeCategorie(
+                        c.montant,
+                        c.sens === 'RECETTE' ? totalRecettes : totalDepenses,
+                      ).toFixed(1),
+                    ),
+                  ]),
+                })}
+              />
+            </div>
+          )}
+
           {parCategorie.length === 0 ? (
             <EmptyState
               icon={PieChart}
@@ -396,6 +431,31 @@ export function SyntheseClient({
                 propres ne dirait rien : là où l&apos;une encaisse elle-même,
                 l&apos;autre laisse ses églises le faire.
               </p>
+            </div>
+
+            <div className="flex justify-end">
+              <BoutonExport
+                nombre={comparatif.length}
+                libelle="Exporter le comparatif"
+                tableau={() => ({
+                  titre: `Comparatif ${libellePeriode(granularite, ancre)}`,
+                  sousTitre: `Entités de même rang que ${entiteNom} — consolidé`,
+                  entetes: [
+                    'Entité',
+                    'Code',
+                    `Recettes (${devise})`,
+                    `Dépenses (${devise})`,
+                    `Résultat (${devise})`,
+                  ],
+                  lignes: comparatif.map((e) => [
+                    e.nom,
+                    e.code,
+                    e.recettes,
+                    e.depenses,
+                    e.solde,
+                  ]),
+                })}
+              />
             </div>
 
             <div className="border-border overflow-x-auto rounded-lg border">

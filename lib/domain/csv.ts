@@ -126,3 +126,41 @@ export function separerEntetes(lignes: string[][]): {
     donnees: reste.filter((l) => l.some((c) => c.trim() !== '')),
   };
 }
+
+/**
+ * Ecriture d'un CSV — EF-FIN-25.
+ *
+ * LE POINT-VIRGULE, PAS LA VIRGULE. Excel choisit son separateur d'apres la
+ * langue de l'installation, et en francais c'est le point-virgule : un fichier
+ * a la virgule s'y ouvre en UNE colonne, ce que l'utilisateur lit comme un
+ * export casse. `detecterSeparateur` fait le chemin inverse a la lecture.
+ *
+ * LE GUILLEMET SE DOUBLE, il ne s'echappe pas par une contre-oblique : c'est la
+ * convention du format (RFC 4180), et la seule que les tableurs comprennent.
+ *
+ * CRLF EN FIN DE LIGNE, pour la meme raison de compatibilite.
+ */
+export function ecrireCsv(lignes: readonly (readonly string[])[], separateur = ';'): string {
+  const champ = (valeur: string) => {
+    // On ne cite QUE ce qui l'exige : un fichier tout entre guillemets se lit
+    // mal a l'oeil, et l'oeil est le premier outil de verification d'un export.
+    const doitCiter =
+      valeur.includes(separateur) ||
+      valeur.includes('"') ||
+      valeur.includes('\n') ||
+      valeur.includes('\r');
+
+    return doitCiter ? `"${valeur.replace(/"/g, '""')}"` : valeur;
+  };
+
+  return lignes.map((ligne) => ligne.map(champ).join(separateur)).join('\r\n');
+}
+
+/**
+ * La marque d'ordre des octets, qu'Excel EXIGE pour lire de l'UTF-8.
+ *
+ * Sans elle, « Antsahatsiresy » passe, mais « Andrianjafy Ratsimbazafy » perd
+ * ses accents et le fichier se lit en latin-1. Trois octets qui epargnent une
+ * conversion manuelle a chaque export.
+ */
+export const BOM_UTF8 = '\uFEFF';

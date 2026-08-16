@@ -3033,3 +3033,66 @@ qu'une liste vide, et une liste vide sans cause visible se lit comme une panne
 (règle 15).
 
 514 tests unitaires, 25 fichiers. `pnpm verify` vert.
+
+---
+
+## 16 août 2026 (suite) — EF-FIN-25, les exports
+
+Trois formats, trois usages, et aucun ne remplace les deux autres :
+
+- **XLSX** pour **retravailler**. Les montants y restent des **nombres** : on
+  les somme, on les trie, on en fait un tableau croisé. C'est la première chose
+  qu'on fait d'un export financier, et le seul format qui le permette.
+- **CSV** pour **reprendre ailleurs** — un logiciel comptable, un script, un
+  tableur qui n'est pas Excel.
+- **PDF** pour **transmettre**. Un conseil ne reçoit pas un classeur
+  modifiable ; il reçoit une pièce, datée, qu'on ne retouche pas.
+
+### Un écrivain XLSX, sans dépendance
+
+`lib/domain/xlsx-ecriture.ts`. Un `.xlsx` est une archive ZIP de quelques
+fichiers XML ; écrite en **STORED** — sans compression —, elle ne demande qu'un
+CRC32 et des en-têtes. Deux cents lignes contre plusieurs centaines de
+kilooctets embarqués chez chaque utilisateur (règle 29). Le lecteur du projet
+avait déjà tranché dans ce sens.
+
+**Le test qui rend la chose vérifiable sans Excel** : l'aller-retour. Le lecteur
+applique la spécification, pas les conventions de l'écrivain — s'ils se
+comprennent, c'est que le fichier est conforme. Entités XML et nombres compris.
+
+Trois détails qui font échouer un classeur sans dire pourquoi, et qui sont
+traités : les **caractères de contrôle** (Excel refuse le fichier entier, pas la
+cellule fautive), le **nom de feuille** au-delà de 31 caractères ou portant un
+`/`, et `NaN` / l'infini, qui n'ont pas de représentation.
+
+La date du ZIP est **fixe**, volontairement : le format MS-DOS n'a pas de
+fuseau, et y écrire l'heure locale ferait varier le fichier octet à octet d'une
+machine à l'autre. Excel ne la lit pas.
+
+### Le CSV pour Excel français
+
+Séparateur **point-virgule** — Excel le choisit d'après la langue de
+l'installation, et un fichier à la virgule s'y ouvre en **une colonne**, ce que
+l'utilisateur lit comme un export cassé. Et une **marque d'ordre des octets**,
+sans laquelle les accents se perdent à l'ouverture. Le guillemet se **double**,
+selon RFC 4180 : une contre-oblique resterait dans la cellule.
+
+### On exporte ce qu'on voit
+
+Les lignes viennent de la sélection affichée, filtres compris — et le **nombre
+de lignes est annoncé sur le menu**. C'est ce qui rattache le fichier à ce qu'on
+vient de lire : un export qui rendrait tout le périmètre alors que l'écran en
+montre un dixième serait impossible à rapprocher.
+
+Le tableau est construit **à l'ouverture du menu**, pas à chaque rendu : la
+sélection change à chaque frappe dans la recherche, et reconstruire quelques
+milliers de lignes de tableur à chacune ferait ramer la saisie pour un fichier
+que personne n'a demandé.
+
+Le **sens reste une colonne à part**, plutôt qu'une dépense en négatif : elle se
+sommerait bien, mais ne se lirait plus comme une dépense.
+
+Trois points de sortie : le registre `/finances`, la synthèse par catégorie et
+le comparatif entre sœurs.
+
+526 tests unitaires, 26 fichiers. `pnpm verify` vert.

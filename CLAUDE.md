@@ -166,6 +166,17 @@ se comparent en chaînes. Les critères secondaires se replient, mais leur
 **compte reste visible** : un filtre caché qui vide la liste est pire que pas de
 filtre.
 
+**EF-FIN-25 livré** : trois exports, trois usages. **XLSX** pour retravailler —
+les montants y restent des **nombres**, ce qu'un CSV perd et qui est la première
+chose qu'on fait d'un export financier ; **CSV** pour un autre logiciel ;
+**PDF** pour transmettre une pièce datée. `lib/domain/xlsx-ecriture.ts` écrit
+l'archive en **STORED** : un CRC32 et des en-têtes suffisent, contre plusieurs
+centaines de kilooctets embarqués (règle 29). Le test est un **aller-retour**
+avec notre propre lecteur — s'ils se comprennent, le fichier est conforme. Le
+CSV sort au **point-virgule** avec une marque d'ordre des octets, sans quoi
+Excel français l'ouvre en une colonne et sans accents. **On exporte ce qu'on
+voit** : la sélection filtrée, dont le nombre de lignes est annoncé sur le menu.
+
 **EF-BUR-11 clos** : l'export Excel de la composition est abandonné le 12 août
 2026, le PDF de l'organigramme couvre le besoin.
 

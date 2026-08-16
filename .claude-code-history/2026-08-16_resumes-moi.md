@@ -51,8 +51,9 @@ livré pour l'essentiel**.
 | **Historique des versements sur la fiche (EF-FIN-35)** | ✅ |
 | **Synthèse périodique — EF-FIN-24** | ✅ |
 | **Filtres complets du registre — EF-FIN-22** | ✅ |
+| **Exports XLSX / CSV / PDF — EF-FIN-25** | ✅ |
 
-514 tests unitaires, 25 fichiers. `pnpm verify` vert.
+526 tests unitaires, 26 fichiers. `pnpm verify` vert.
 
 ---
 
@@ -80,9 +81,13 @@ au Siège, qui valide et émet le bordereau.
 Le ticket de reçu imprimable et l'historique du croyant (EF-FIN-35) ont été
 livrés le 16 août. EF-FIN-27 à 35 sont tous servis.
 
-### Finances, hors dîmes
-- **EF-FIN-25** *(Should)* — l'export Excel/CSV/PDF des mouvements et synthèses.
-- **EF-FIN-26** *(Could)* — le verrouillage d'une période clôturée.
+### Finances
+- **EF-FIN-26** *(Could)* — le verrouillage d'une période clôturée, seule
+  exigence financière encore ouverte.
+- La **règle 17 à moitié tenue** sur `/finances` : les filtres sont bien en
+  mémoire, mais l'écran n'a jamais synchronisé l'URL par `history.replaceState`.
+  Le faire pour les cinq nouveaux critères seulement aurait donné un
+  comportement incohérent — c'est un changement propre à part entière.
 
 La **saisie déléguée** est livrée depuis le lot 4 (EF-FIN-05/06) : la case du
 pop-up de mouvement et le badge dans les listes. Un écran dédié n'est exigé

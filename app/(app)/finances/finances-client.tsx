@@ -22,6 +22,8 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
+import { BoutonExport } from '@/components/finances/bouton-export';
+import type { TableauExportable } from '@/components/finances/exporter';
 import { MontantSigne, MouvementDialog } from '@/components/finances/mouvement-dialog';
 import { EmptyState } from '@/components/shared/empty-state';
 import { Field } from '@/components/shared/field';
@@ -243,6 +245,50 @@ export function FinancesClient({
     for (const m of mouvements) compte.set(m.statut, (compte.get(m.statut) ?? 0) + 1);
     return compte;
   }, [mouvements]);
+
+  /**
+   * EF-FIN-25 — le registre exporté, dans l'ordre où il est lu.
+   *
+   * UNE FONCTION, appelée à l'ouverture du menu : la sélection change à chaque
+   * frappe dans la recherche, et reconstruire quelques milliers de lignes de
+   * tableur à chacune ferait ramer la saisie pour un fichier que personne n'a
+   * demandé.
+   *
+   * LE MONTANT PART EN NOMBRE, le reste en texte. C'est ce qui permet de le
+   * sommer dans le classeur — la première chose qu'on fait d'un export
+   * financier. Le SENS reste une colonne à part : une dépense en négatif se
+   * sommerait bien, mais ne se lirait plus comme une dépense.
+   */
+  const tableauExportable = (): TableauExportable => ({
+    titre: 'Mouvements financiers',
+    sousTitre: filtreActif
+      ? `Sélection filtrée — ${formatNombre(filtres.length)} mouvement${filtres.length > 1 ? 's' : ''}`
+      : `${nomPropre} et son périmètre — ${formatNombre(filtres.length)} mouvement${filtres.length > 1 ? 's' : ''}`,
+    entetes: [
+      'Date',
+      'Entité',
+      'Catégorie',
+      'Sens',
+      `Montant (${devise})`,
+      'Libellé',
+      'Référence',
+      'Statut',
+      'Saisi par',
+      'Origine',
+    ],
+    lignes: filtres.map((m) => [
+      m.date_operation,
+      m.entite?.nom ?? '',
+      m.categorie?.libelle ?? '',
+      LIBELLES_SENS[m.sens],
+      Number(m.montant),
+      m.libelle ?? '',
+      m.reference ?? '',
+      LIBELLES_STATUT_MOUVEMENT[m.statut],
+      m.auteur?.nom_complet ?? '',
+      m.est_delegue ? 'Saisie déléguée' : 'Saisie directe',
+    ]),
+  });
 
   async function changerStatut(
     id: string,
@@ -470,6 +516,15 @@ export function FinancesClient({
             </span>
           )}
         </Button>
+
+        {/*
+          EF-FIN-25 — ON EXPORTE CE QU'ON VOIT.
+
+          Les lignes sont celles de la sélection, filtres compris : un fichier
+          qui rendrait tout le périmètre alors que l'écran en montre un dixième
+          serait impossible à rapprocher de ce qu'on vient de lire.
+        */}
+        <BoutonExport nombre={filtres.length} tableau={tableauExportable} />
 
         <MouvementDialog
           entites={entites}
