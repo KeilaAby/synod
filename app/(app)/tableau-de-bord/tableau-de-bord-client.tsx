@@ -292,7 +292,16 @@ function CarteKpi({
 }) {
   const alerte = kpiEstAlerte(definition, valeur);
   const rendu = definition.rendu ?? 'VALEUR';
-  const largeur = LARGEURS[definition.taille ?? 1];
+
+  /**
+   * SUR FOND BLANC, C'EST L'OMBRE QUI SÉPARE.
+   *
+   * Une carte blanche sur le gris de page se découpe d'elle-même ; ici, il n'y
+   * a plus de contraste de fond à emprunter. Le relief prend le relais —
+   * discret, parce qu'une ombre marquée sur vingt cartes fabrique un bruit que
+   * l'œil doit trier avant d'atteindre les chiffres.
+   */
+  const largeur = `${LARGEURS[definition.taille ?? 1]} border-border/70 shadow-sm`;
   const part = definition.partDe ? partDeLEffectif(valeur, total ?? 0) : null;
 
   const contenu = (
@@ -362,7 +371,9 @@ function CarteKpi({
 
     return (
       <Card
-        className={`group hover:border-foreground/20 transition-colors ${largeur}`}
+        // Le survol RENFORCE l'ombre plutôt que la bordure : c'est le même
+        // signal que celui qui sépare déjà les cartes, en plus marqué.
+        className={`group hover:shadow-md transition-shadow ${largeur}`}
       >
         {/* EF-DSH-09 — le chiffre mène à son détail. Voir « 12 transferts à
             décider » sans pouvoir y aller oblige à retrouver l'écran et à y

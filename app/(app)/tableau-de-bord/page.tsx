@@ -110,7 +110,13 @@ export default async function TableauDeBordPage() {
   const photos = await signerPhotos(derniers.map((c) => c.photoKey));
 
   return (
-    <div className="space-y-8">
+    /*
+      FOND BLANC pour cet écran : les cartes s'y détachent par leur OMBRE, pas
+      par un contraste de fond. Sur le gris de page, une carte blanche se
+      découpe toute seule ; ici, c'est le relief qui la sépare — et la lecture
+      y gagne, parce que rien ne vient concurrencer les chiffres.
+    */
+    <div data-fond="blanc" className="space-y-8">
       <PageHeader
         eyebrow={`Périmètre — ${libelleType} ${session.entiteNom}`}
         title="Tableau de bord"

@@ -328,6 +328,13 @@ Ce qu'il reste à faire est décrit dans le dernier point d'étape
     fichier incrémental est régénéré à chaque nouvelle migration et rien ne
     garantit qu'il ne recouvre pas du déjà-appliqué ; une migration qui échoue
     au rejeu bloque toutes les suivantes du même lot.
+    **`create or replace function` ne suffit pas pour un `returns table`** : les
+    paramètres `OUT` font partie de la signature, donc *ajouter une colonne* est
+    un changement de type de retour, que PostgreSQL refuse (42P13). Il faut
+    `drop function if exists <nom>(<types des paramètres IN>)` juste avant —
+    ce qui reste rejouable. Le vérifier **avant** de croire qu'une fonction se
+    remplace : l'erreur n'arrive qu'à l'application, jamais à l'écriture
+    *(constaté le 16 août 2026 sur `0042`)*.
 24. Ne traverse la frontière serveur → client que des **objets simples**. Un
     schéma Zod, une `Map`, une classe font échouer la page entière. Quand un
     registre pur porte la donnée, passer sa **clé** et laisser le client le

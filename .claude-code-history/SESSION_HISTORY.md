@@ -3459,3 +3459,39 @@ Deux corrections faites dans la foulée :
   le plancher de 2 % accordé aux tranches rares.
 
 564 tests unitaires. `pnpm verify` vert.
+
+### `0042`, second refus — le type de retour d'une fonction
+
+`ERROR 42P13: cannot change return type of existing function`. **`create or
+replace` ne suffit pas pour un `returns table`** : les paramètres `OUT` font
+partie de la signature, si bien qu'*ajouter une colonne* — ici
+`entites_a_bureau` — est un changement de type de retour, que PostgreSQL refuse
+en remplacement.
+
+Il faut `drop function if exists <nom>(<types IN>)` juste avant, ce qui reste
+rejouable. Les deux fonctions du fichier le font désormais, y compris
+`fn_repartitions` qui est neuve : le faire tout de suite évite de buter dessus à
+sa première évolution.
+
+La règle 23 de `CLAUDE.md` est amendée. Le point qui la justifie : **l'erreur
+n'arrive qu'à l'application**, jamais à l'écriture — rien dans le fichier ne
+signale que le remplacement est impossible.
+
+### Fond blanc du tableau de bord
+
+Demandé : page blanche, cartes séparées par une ombre. Sur le gris de page, une
+carte blanche se découpe d'elle-même ; sur fond blanc, il n'y a plus de
+contraste à emprunter et c'est le **relief** qui sépare — discret, parce qu'une
+ombre marquée sur vingt cartes fabrique un bruit que l'œil doit trier avant
+d'atteindre les chiffres.
+
+**Sans marges négatives.** La zone principale porte
+`has-[[data-fond=blanc]]:bg-card` et la page pose l'attribut. Faire déborder un
+fond depuis la page aurait demandé des marges négatives à recompenser à chaque
+point de rupture — et un écran court aurait laissé une bande grise en bas, qu'on
+lirait comme un défaut d'affichage.
+
+Le squelette reprend l'attribut **et** l'ombre : sans cela, l'écran s'ouvrirait
+sur le gris puis basculerait au blanc, et les cartes prendraient du volume au
+moment où les données se posent — le clignotement que le squelette est
+précisément censé éviter (EF-DSH-11).

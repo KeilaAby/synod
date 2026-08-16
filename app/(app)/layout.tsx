@@ -49,7 +49,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <div className="flex min-w-0 flex-1 flex-col">
             <Topbar compteurs={compteurs} />
 
-            <main className="flex-1 px-4 py-6 md:px-8">
+            {/*
+              LE FOND SE DÉCIDE PAR LA PAGE, sans marges négatives.
+
+              `has-[[data-fond=blanc]]` : la zone principale devient blanche dès
+              qu'une page pose l'attribut. Faire déborder un fond depuis la page
+              elle-même aurait demandé des marges négatives à recompenser à
+              chaque point de rupture — et un écran court aurait laissé une
+              bande grise en bas, qu'on lirait comme un défaut d'affichage.
+            */}
+            <main className="flex-1 px-4 py-6 md:px-8 has-[[data-fond=blanc]]:bg-card">
               <div className="mx-auto w-full max-w-[1600px]">{children}</div>
             </main>
           </div>

@@ -32,7 +32,13 @@
 -- trier sur le libelle mettrait « 18 a 25 » apres « 0 a 17 » mais aussi apres
 -- « 61 ans et plus ».
 
-create or replace function fn_repartitions(p_entity uuid)
+-- On depose avant de creer, pour la meme raison que plus bas : ajouter une
+-- colonne au `returns table` d'une fonction existante est un changement de type
+-- de retour, et `create or replace` le refuse. Le faire des maintenant evite de
+-- buter dessus a la premiere evolution.
+drop function if exists fn_repartitions(uuid);
+
+create function fn_repartitions(p_entity uuid)
 returns table (
   dimension text,
   cle       text,
@@ -155,8 +161,18 @@ comment on function fn_repartitions is
 -- cellule de priere n'en a pas : les inclure ferait plonger la couverture de
 -- toute organisation qui en compte beaucoup — c'est-a-dire de celles qui vont
 -- le mieux.
+--
+-- IL FAUT DEPOSER LA FONCTION AVANT DE LA RECREER, et `create or replace` n'y
+-- suffit pas : les parametres OUT font partie de la signature, si bien
+-- qu'AJOUTER UNE COLONNE au `returns table` est un changement de type de
+-- retour, que PostgreSQL refuse en remplacement (42P13).
+--
+-- Le `drop ... if exists` garde la migration rejouable (regle 23). Aucune vue
+-- ni aucun trigger ne depend de cette fonction : rien ne tombe avec elle.
 
-create or replace function fn_tableau_de_bord(
+drop function if exists fn_tableau_de_bord(uuid, date, date);
+
+create function fn_tableau_de_bord(
   p_entity uuid,
   p_debut  date,
   p_fin    date

@@ -41,7 +41,10 @@ export function PageHeaderSkeleton({ avecActions = true }: { avecActions?: boole
 
 export function StatCardSkeleton() {
   return (
-    <Card>
+    // `shadow-sm` : la meme separation que les cartes reelles. Un squelette
+    // sans relief sur fond blanc paraitrait plat, puis les cartes prendraient
+    // du volume — un saut visuel pour rien.
+    <Card className="shadow-sm">
       <CardContent className="p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2">
@@ -58,7 +61,7 @@ export function StatCardSkeleton() {
 
 export function ChartSkeleton({ className }: { className?: string }) {
   return (
-    <Card className={className}>
+    <Card className={`shadow-sm ${className ?? ''}`}>
       <CardContent className="space-y-4 p-6">
         <Skeleton className="h-3 w-40" />
         <Skeleton className="h-64 w-full rounded-md" />
