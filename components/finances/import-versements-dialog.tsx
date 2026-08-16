@@ -202,7 +202,12 @@ export function ImportVersementsDialog({
       </Button>
 
       <Dialog open={ouvert} onOpenChange={(v) => (v ? setOuvert(true) : fermer())}>
-        <DialogContent className="max-h-[92vh] w-[min(96vw,56rem)] overflow-x-hidden overflow-y-auto">
+        {/*
+          `sm:max-w-none` EST INDISPENSABLE, pas décoratif : `DialogContent`
+          porte `sm:max-w-sm` en base, et un `max-width` l'emporte toujours sur
+          une `width`. Sans lui, ce pop-up demandait 56 rem et s'affichait à 24.
+        */}
+        <DialogContent className="max-h-[92vh] w-[min(96vw,64rem)] overflow-x-hidden overflow-y-auto sm:max-w-none">
           <DialogHeader>
             <DialogTitle className="text-2xl">
               {etape === 'rapport' ? 'Rapport d’import' : 'Importer une feuille de versements'}

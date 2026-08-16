@@ -7,8 +7,8 @@ import { useMemo, useState } from 'react';
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
-import { AvatarCroyant } from '@/components/croyants/avatar-croyant';
 import { CroyantPicker } from '@/components/croyants/croyant-picker';
+import { SuggestionsEnveloppe } from '@/components/finances/suggestions-enveloppe';
 import { Field, TextField } from '@/components/shared/field';
 import { avertir } from '@/components/shared/messages';
 import { PermissionGate } from '@/components/shared/permission-gate';
@@ -49,6 +49,7 @@ import {
   type NatureVersement,
   admetLeDetail,
   modeEffectif,
+  suggestionsPourEnveloppe,
   totalCollecte,
 } from '@/lib/domain/dime';
 import { formatMontant, formatNombre } from '@/lib/utils/format';
@@ -159,25 +160,15 @@ export function CollecteDialog({
     [versementsSurveilles],
   );
 
-  /**
-   * QUATRE CARACTERES AVANT DE SUGGERER.
-   *
-   * En deca, le numero est encore en cours de frappe : « 1 » repondrait
-   * « 1024 », « 1103 », « 1250 »… et la suggestion changerait a chaque touche
-   * au lieu d'aider. Quatre est le format courant des enveloppes.
-   */
-  const LONGUEUR_SUGGESTION = 4;
-
   const suggestionsDe = (index: number) => {
     const ligne = lignes[index];
     if (!ligne || (ligne.nature ?? 'NOMINATIF') !== 'NOMINATIF') return [];
     // Déjà choisi : la suggestion n'a plus rien à proposer.
     if (ligne.croyantId) return [];
 
-    const numero = (ligne.enveloppe ?? '').trim().toUpperCase();
-    if (numero.length < LONGUEUR_SUGGESTION) return [];
-
-    return porteurs[numero] ?? [];
+    // Le seuil de quatre caractères vit dans le domaine : la file de
+    // rapprochement l'applique au numéro lu dans un fichier.
+    return suggestionsPourEnveloppe(ligne.enveloppe, porteurs);
   };
 
   /** La nature d'une ligne, avec son defaut : elle commande trois controles. */
@@ -695,96 +686,29 @@ export function CollecteDialog({
                                   )}
                                 />
 
-                                {/*
-                                  EF-FIN-27 — QUI A DÉJÀ PORTÉ CE NUMÉRO.
-
-                                  Un membre du bureau tient l'enveloppe en main
-                                  et en lit le NUMÉRO avant le nom — souvent il
-                                  n'y a pas de nom du tout. L'historique sait
-                                  qui l'utilisait ; il le propose.
-
-                                  Une SUGGESTION, jamais une attribution : deux
-                                  personnes peuvent avoir porté le même numéro à
-                                  des années d'écart, et c'est l'utilisateur qui
-                                  reconnaît l'écriture sur l'enveloppe.
-                                */}
-                                {suggestionsDe(index).length > 0 && (
-                                  /*
-                                    LE MÊME RENDU QUE LA LISTE DES CROYANTS —
-                                    portrait, nom, matricule, église — mais
-                                    posé À PLAT, sans déclencheur ni recherche.
-
-                                    L'en-tête remplace le champ de recherche :
-                                    il dit d'où viennent ces noms, ce qu'un
-                                    champ vide n'aurait jamais expliqué.
-                                  */
-                                  <div className="border-border mt-1 rounded-md border">
-                                    <p className="text-muted-foreground border-border border-b px-2 py-1.5 text-xs">
-                                      Numéro déjà utilisé par :
-                                    </p>
-                                    {/*
-                                      DES NOMS CLIQUABLES, pas un menu.
-
-                                      Une liste déroulante demandait un clic
-                                      pour l'ouvrir avant celui qui retient le
-                                      nom : deux gestes pour une suggestion
-                                      qu'on accepte ou qu'on ignore d'un coup
-                                      d'œil. Les porteurs sont peu nombreux —
-                                      ils tiennent à l'écran.
-                                    */}
-                                    {suggestionsDe(index).map((p) => {
-                                      const fiche = croyants.find(
-                                        (c) => c.id === p.croyantId,
-                                      );
-
-                                      return (
-                                        <button
-                                          key={p.croyantId}
-                                          type="button"
-                                          onClick={() =>
-                                            setValue(
-                                              `versements.${index}.croyantId`,
-                                              p.croyantId,
-                                              { shouldValidate: true },
-                                            )
-                                          }
-                                          className="hover:bg-muted flex w-full cursor-pointer items-center gap-2 p-2 text-left"
-                                        >
-                                          {/* Un visage se reconnaît plus vite
-                                              qu'un nom, surtout entre
-                                              homonymes. */}
-                                          <AvatarCroyant
-                                            nom={p.nom}
-                                            prenom={p.prenom}
-                                            url={
-                                              fiche?.photoKey
-                                                ? photos[fiche.photoKey]
-                                                : null
-                                            }
-                                          />
-                                          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                                            <span className="flex items-center gap-2">
-                                              <span className="truncate text-sm font-medium">
-                                                {p.nom.toLocaleUpperCase('fr')} {p.prenom}
-                                              </span>
-                                              {/* Le matricule sépare deux
-                                                  homonymes quand le visage
-                                                  manque. */}
-                                              <span className="text-muted-foreground font-mono text-xs">
-                                                {fiche?.matricule}
-                                              </span>
-                                            </span>
-                                            {fiche?.egliseNom && (
-                                              <span className="text-muted-foreground truncate text-xs">
-                                                {fiche.egliseNom}
-                                              </span>
-                                            )}
-                                          </span>
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                )}
+                                {/* EF-FIN-27 — qui a déjà porté ce numéro. Le
+                                    rendu vit dans `SuggestionsEnveloppe` : la
+                                    file de rapprochement pose la même question
+                                    sur un numéro lu dans un fichier. */}
+                                <SuggestionsEnveloppe
+                                  porteurs={suggestionsDe(index)}
+                                  photos={photos}
+                                  fiche={(id) => {
+                                    const f = croyants.find((c) => c.id === id);
+                                    return f
+                                      ? {
+                                          matricule: f.matricule,
+                                          detail: f.egliseNom,
+                                          photoKey: f.photoKey,
+                                        }
+                                      : null;
+                                  }}
+                                  onChoisir={(id) =>
+                                    setValue(`versements.${index}.croyantId`, id, {
+                                      shouldValidate: true,
+                                    })
+                                  }
+                                />
                               </TableCell>
 
                               <TableCell>

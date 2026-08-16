@@ -144,7 +144,9 @@ export function RemiseDialog({
       </Button>
 
       <Dialog open={ouvert} onOpenChange={(v) => (v ? setOuvert(true) : fermer())}>
-        <DialogContent className="max-h-[92vh] w-[min(96vw,48rem)] overflow-x-hidden overflow-y-auto">
+        {/* `sm:max-w-none` : voir `import-versements-dialog` — la base impose
+            `sm:max-w-sm`, et un `max-width` l'emporte sur une `width`. */}
+        <DialogContent className="max-h-[92vh] w-[min(96vw,48rem)] overflow-x-hidden overflow-y-auto sm:max-w-none">
           <DialogHeader>
             <DialogTitle className="text-2xl">Remettre les dîmes au Siège</DialogTitle>
             <DialogDescription>

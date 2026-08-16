@@ -5,7 +5,7 @@ import { ImportCroyantsDialog } from '@/components/croyants/import-dialog';
 import { RapprochementsDimes } from '@/components/croyants/rapprochements-dimes';
 import { PageHeader } from '@/components/shared/page-header';
 import { chargerCroyants } from '@/lib/data/croyants';
-import { chargerRapprochements } from '@/lib/data/dimes';
+import { chargerPorteursDEnveloppe, chargerRapprochements } from '@/lib/data/dimes';
 import { getOptionsCroyant } from '@/lib/data/croyant-options';
 import { signerPhotos } from '@/lib/data/photos';
 import { getParametres } from '@/lib/data/settings';
@@ -41,7 +41,7 @@ export default async function CroyantsPage({
 }) {
   const params = await searchParams;
 
-  const [lot, options, rapprochements, parametres] = await Promise.all([
+  const [lot, options, rapprochements, porteurs, parametres] = await Promise.all([
     // Le périmètre chargé se restreint à l'église choisie : c'est le seul
     // filtre qui change le VOLUME lu, et donc le seul qui reste côté serveur.
     chargerCroyants(params.eglise),
@@ -54,6 +54,14 @@ export default async function CroyantsPage({
      * ce qu'on cherche, c'est qui est « Razafindraparany » écrit autrement.
      */
     chargerRapprochements(),
+    /**
+     * EF-FIN-27 — qui a déjà porté chaque numéro d'enveloppe.
+     *
+     * La ligne d'import apporte souvent un NUMÉRO en même temps que le nom
+     * qu'on n'a pas reconnu : c'est la piste la plus sûre des deux, une
+     * enveloppe se gardant d'une année sur l'autre.
+     */
+    chargerPorteursDEnveloppe(),
     getParametres(),
   ]);
 
@@ -95,6 +103,8 @@ export default async function CroyantsPage({
         }))}
         photos={Object.fromEntries(photos)}
         devise={parametres.devise}
+        options={options}
+        porteurs={Object.fromEntries(porteurs)}
       />
 
       <CroyantsClient

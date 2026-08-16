@@ -129,6 +129,18 @@ type Props = Presentation &
         mode: 'creation';
         eglisePreselectionnee?: string;
         rattachement?: RattachementImpose;
+        /**
+         * Nom et prénom déjà connus — EF-FIN-34.
+         *
+         * La création part parfois d'un nom LU AILLEURS : une ligne de feuille
+         * de versements qu'aucune fiche ne reconnaît. Le retaper serait une
+         * occasion de le taper autrement, et l'écart serait recréé au moment
+         * même où on le comble.
+         *
+         * Une AMORCE, pas un verrou : l'orthographe du fichier est justement
+         * ce dont on doute, et elle reste corrigeable.
+         */
+        identite?: { nom: string; prenom: string };
       } & Commun)
     | ({ mode: 'modification'; croyant: CroyantExistant } & Commun)
   );
@@ -183,8 +195,9 @@ export function CroyantForm(props: Props) {
     // erreur trois écrans plus loin oblige à revenir en arrière.
     mode: 'onBlur',
     defaultValues: {
-      nom: existant?.nom ?? '',
-      prenom: existant?.prenom ?? '',
+      nom: existant?.nom ?? (props.mode === 'creation' ? props.identite?.nom : '') ?? '',
+      prenom:
+        existant?.prenom ?? (props.mode === 'creation' ? props.identite?.prenom : '') ?? '',
       sexe: existant?.sexe,
       statutMarital:
         (existant?.statut_marital as CroyantInput['statutMarital']) ?? undefined,

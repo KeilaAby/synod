@@ -67,12 +67,23 @@ interface CroyantAModifier {
 export function NouveauCroyantDialog({
   options,
   rattachement,
+  identite,
+  eglisePreselectionnee,
   libelle = 'Nouveau croyant',
   open,
   onOpenChange,
   onCree,
 }: {
   options: OptionsCroyant;
+  /**
+   * Nom et prénom déjà connus — voir `CroyantForm`. Une amorce, pas un verrou.
+   */
+  identite?: { nom: string; prenom: string };
+  /**
+   * L'église la plus probable, amorcée mais LIBRE — à distinguer de
+   * `rattachement`, qui la verrouille parce que le geste en est parti.
+   */
+  eglisePreselectionnee?: string;
   /**
    * EF-CRO-01 — le geste part d'une église ou d'une cellule de la structure :
    * le rattachement se lit au lieu de se choisir (`RattachementImpose`).
@@ -129,9 +140,18 @@ export function NouveauCroyantDialog({
               de la saisie précédente, sans effet de resynchronisation. */}
           {ouvert && (
             <CroyantForm
-              key={rattachement?.celluleId ?? rattachement?.egliseId ?? 'creation'}
+              /* La `key` porte AUSSI l'identité amorcée : sans elle, ouvrir le
+                 pop-up sur une deuxième ligne de la file rendrait le nom de la
+                 première — `defaultValues` ne se relit pas. */
+              key={
+                rattachement?.celluleId ??
+                rattachement?.egliseId ??
+                (identite ? `${identite.nom} ${identite.prenom}` : 'creation')
+              }
               mode="creation"
               rattachement={rattachement}
+              identite={identite}
+              eglisePreselectionnee={eglisePreselectionnee}
               {...options}
               onAnnuler={() => definirOuvert(false)}
               onSucces={(id) => {

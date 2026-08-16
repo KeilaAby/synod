@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   DELAI_REMISE_JOURS,
+  LONGUEUR_SUGGESTION_ENVELOPPE,
   type VersementDime,
   admetLeDetail,
   datesDuBordereau,
@@ -12,6 +13,7 @@ import {
   modeEffectif,
   ouvreUnRecu,
   peutVerser,
+  suggestionsPourEnveloppe,
   totalCollecte,
   trouverCategorieDime,
 } from '@/lib/domain/dime';
@@ -244,5 +246,45 @@ describe('EF-FIN-30 — le bordereau detaille chaque culte', () => {
 
   it('rend une liste vide pour un bordereau sans collecte', () => {
     expect(datesDuBordereau([])).toEqual([]);
+  });
+});
+
+describe('EF-FIN-27 — la suggestion par numero d enveloppe', () => {
+  const porteurs = {
+    '1024': [{ croyantId: 'a' }],
+    'ENV-2874': [{ croyantId: 'b' }, { croyantId: 'c' }],
+  };
+
+  it('se tait sous quatre caracteres', () => {
+    /**
+     * Le numero est encore en cours de frappe : « 1 » repondrait « 1024 »,
+     * « 1103 », « 1250 »… et la suggestion changerait a chaque touche.
+     */
+    expect(suggestionsPourEnveloppe('1', porteurs)).toEqual([]);
+    expect(suggestionsPourEnveloppe('102', porteurs)).toEqual([]);
+    expect(suggestionsPourEnveloppe('1024', porteurs)).toHaveLength(1);
+  });
+
+  it('ignore la casse et les espaces autour du numero', () => {
+    // Le meme numero lu dans un fichier arrive souvent avec une espace de fin
+    // et une casse quelconque : le seuil ne doit pas s en trouver change.
+    expect(suggestionsPourEnveloppe('  env-2874 ', porteurs)).toHaveLength(2);
+  });
+
+  it('rend une liste vide pour un numero absent ou manquant', () => {
+    // Une ligne anonyme n a pas de numero : elle ne suggere rien, mais ne
+    // casse pas la file pour autant.
+    expect(suggestionsPourEnveloppe(null, porteurs)).toEqual([]);
+    expect(suggestionsPourEnveloppe('9999', porteurs)).toEqual([]);
+  });
+
+  it('applique LE MEME seuil quelle que soit l origine du numero', () => {
+    /**
+     * Saisi a la main pendant une collecte ou lu dans une colonne de fichier,
+     * un numero de trois chiffres est aussi ambigu. Deux seuils ecrits a deux
+     * endroits finiraient par diverger : c est la meme fonction qui sert les
+     * deux ecrans.
+     */
+    expect(LONGUEUR_SUGGESTION_ENVELOPPE).toBe(4);
   });
 });

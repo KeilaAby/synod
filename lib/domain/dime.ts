@@ -273,3 +273,33 @@ export function estEnRetard(
 export function datesDuBordereau(collectes: readonly { dateOperation: string }[]): string[] {
   return [...new Set(collectes.map((c) => c.dateOperation))].sort();
 }
+
+/**
+ * QUATRE CARACTERES AVANT DE SUGGERER.
+ *
+ * En deca, le numero est encore en cours de frappe : « 1 » repondrait « 1024 »,
+ * « 1103 », « 1250 »… et la suggestion changerait a chaque touche au lieu
+ * d'aider. Quatre est le format courant des enveloppes.
+ */
+export const LONGUEUR_SUGGESTION_ENVELOPPE = 4;
+
+/**
+ * Qui a deja porte ce numero d'enveloppe — EF-FIN-27.
+ *
+ * LE MEME SEUIL POUR LES DEUX ORIGINES du numero. Saisi a la main pendant une
+ * collecte ou lu dans une colonne de fichier importe, un « 1 » est aussi
+ * ambigu : ce qui rend une suggestion utile, c'est la longueur du numero, pas
+ * la facon dont il est arrive. Deux seuils ecrits a deux endroits finiraient
+ * par diverger.
+ *
+ * C'est une SUGGESTION, jamais une attribution : deux personnes peuvent avoir
+ * porte le meme numero a des annees d'ecart.
+ */
+export function suggestionsPourEnveloppe<T>(
+  numero: string | null | undefined,
+  porteurs: Readonly<Record<string, readonly T[]>>,
+): readonly T[] {
+  const cle = (numero ?? '').trim().toUpperCase();
+  if (cle.length < LONGUEUR_SUGGESTION_ENVELOPPE) return [];
+  return porteurs[cle] ?? [];
+}
