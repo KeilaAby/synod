@@ -3096,3 +3096,69 @@ Trois points de sortie : le registre `/finances`, la synthèse par catégorie et
 le comparatif entre sœurs.
 
 526 tests unitaires, 26 fichiers. `pnpm verify` vert.
+
+---
+
+## 16 août 2026 (suite) — EF-FIN-26, la clôture d'une période
+
+La dernière exigence financière ouverte. Migration `0040`.
+
+### Le verrou est en base
+
+Une clôture qui ne tiendrait qu'à un bouton grisé se contourne par un appel
+direct à l'API — et une écriture rétroactive ne se voit qu'au moment où l'on
+rapproche deux états qui auraient dû être identiques, c'est-à-dire des mois plus
+tard. Le contrôle est donc greffé sur `fn_finance_before_write`.
+
+**Rien n'entre dans une période close, et rien n'en sort.** La seconde moitié
+compte autant que la première : déplacer une écriture *hors* d'un exercice
+arrêté — par un changement de date ou d'entité — est exactement ce que la
+clôture interdit, et c'est la forme la plus discrète de la modification
+rétroactive.
+
+### Aucun héritage, mais une cascade qui se demande
+
+Même raisonnement que pour le workflow (EF-FIN-15 amendé). Une période est close
+pour l'entité qui la nomme : le Siège qui arrête janvier gèlerait sinon deux
+cents églises qui ne l'ont pas décidé, et que seul lui pourrait dégeler. La
+cascade existe — `p_avec_perimetre` — mais elle **se demande**, et écrit alors
+une ligne par entité, visible et réversible une par une. Chaque entité y est
+évaluée **avec sa portée** (RG-25) : celles hors habilitation sont ignorées,
+jamais closes en silence.
+
+### On ne clôt pas sur du travail en cours
+
+`fn_cloturer_periode` refuse tant qu'un brouillon ou un mouvement soumis
+subsiste dans la période. Clos, il ne pourrait plus être ni validé ni rejeté et
+resterait bloqué jusqu'à une réouverture, sans que rien à l'écran n'en dise la
+cause. Le pop-up donne le **compte avant le clic** : un refus qui arrive après
+n'explique pas quoi faire.
+
+### L'asymétrie entre clore et rouvrir
+
+Clore peut cascader ; rouvrir non. Arrêter vingt entités d'un geste fait gagner
+du temps sans rien risquer, tandis que les rouvrir toutes pour corriger **une**
+écriture ouvrirait dix-neuf portes que personne n'a demandées.
+
+`finance.periode.reopen` est **non délégable** — l'exigence dit « sans
+réouverture par le SuperAdmin ». Si celui qui clôt pouvait s'accorder de quoi
+rouvrir, la clôture ne serait plus qu'une convention entre soi : elle
+n'arrêterait rien, elle ajouterait une étape. `finance.periode.close`, lui, est
+délégable : c'est le bureau qui arrête ses propres comptes.
+
+### Le test d'alignement TypeScript / SQL a été réparé
+
+Il pointait `0025_droits_non_delegables.sql` **en dur**. `0040` redéfinit la
+fonction : le test aurait continué de comparer le domaine à une version périmée,
+en affichant du vert — il aurait garanti l'alignement sur une base qui n'existe
+plus, ce qui est pire que pas de test parce qu'il rassure. Il cherche désormais
+la **dernière** migration qui définit la fonction. Son motif ne reconnaissait
+pas non plus un droit à trois segments (`finance.periode.reopen`).
+
+### Ce que l'écran en montre
+
+Le verrou se voit **sur la ligne**, daté. Sans cette mention, un menu ⋮ vide se
+lit comme un droit manquant, et l'on cherche sur soi une habilitation qui ne
+manque pas.
+
+530 tests unitaires, 26 fichiers. `pnpm verify` vert.

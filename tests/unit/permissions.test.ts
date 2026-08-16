@@ -267,9 +267,15 @@ describe('RG-24 — delegation : on ne delegue que ce que l on detient', () => {
        * celui-la meme qu'elle surveille.
        */
       'finance.validate_own',
+      /**
+       * EF-FIN-26 — rouvrir une periode cloturee. Si celui qui clot pouvait
+       * s'accorder de quoi rouvrir, la cloture ne serait plus qu'une
+       * convention entre soi : elle n'arreterait rien.
+       */
+      'finance.periode.reopen',
       'referentiel.manage',
       'settings.manage',
-    ]);
+    ].sort());
     expect(estDelegable('croyant.create')).toBe(true);
     expect(estDelegable('settings.manage')).toBe(false);
     // `bureau.manage` reste delegable : gerer le present n'est pas reecrire
@@ -289,18 +295,34 @@ describe('RG-24 — delegation : on ne delegue que ce que l on detient', () => {
      * C'est le defaut le plus courant d'une regle ecrite a deux endroits :
      * elle ne diverge jamais le jour ou on l'ecrit.
      */
-    const { readFile } = await import('node:fs/promises');
-    const sql = await readFile(
-      new URL(
-        '../../supabase/migrations/0025_droits_non_delegables.sql',
-        import.meta.url,
-      ),
-      'utf8',
-    );
+    const { readFile, readdir } = await import('node:fs/promises');
+    const dossier = new URL('../../supabase/migrations/', import.meta.url);
+
+    /**
+     * ON LIT LA DERNIERE MIGRATION QUI DEFINIT LA FONCTION, jamais un fichier
+     * nomme en dur.
+     *
+     * Le test pointait `0025`. Une migration ulterieure a redefini la
+     * fonction : le test aurait continue de comparer le domaine a une version
+     * PERIMEE, en affichant du vert. Il aurait alors garanti l'alignement sur
+     * une base qui n'existe plus — pire que pas de test, parce qu'il rassure.
+     */
+    const fichiers = (await readdir(dossier)).filter((f) => f.endsWith('.sql')).sort();
+
+    let derniere: string | null = null;
+    for (const fichier of fichiers) {
+      const contenu = await readFile(new URL(fichier, dossier), 'utf8');
+      if (contenu.includes('function fn_permissions_non_delegables')) derniere = contenu;
+    }
+
+    expect(derniere, 'aucune migration ne definit fn_permissions_non_delegables').not.toBeNull();
 
     // Le corps du `select array[...]`, dont on extrait les chaines citees.
+    const sql = derniere!;
     const tableau = sql.slice(sql.indexOf('select array['), sql.indexOf(']::text[]'));
-    const cotes = [...tableau.matchAll(/'([a-z_]+\.[a-z_]+)'/g)].map((m) => m[1]!);
+    // Deux segments au moins, mais pas seulement : `finance.periode.reopen` en
+    // porte trois, et un motif fige a deux l'aurait ignore en silence.
+    const cotes = [...tableau.matchAll(/'([a-z_]+(?:\.[a-z_]+)+)'/g)].map((m) => m[1]!);
 
     expect(cotes.sort()).toEqual([...NON_DELEGABLES].sort());
   });

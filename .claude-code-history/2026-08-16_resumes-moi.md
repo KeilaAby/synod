@@ -12,6 +12,23 @@
 
 ---
 
+## À FAIRE EN PREMIER — la migration `0040`
+
+`supabase/migrations/0040_cloture_periode.sql` **n'est pas appliquée**. Sans
+elle, l'écran de clôture n'a aucune table ni fonction à appeler, et le verrou
+d'EF-FIN-26 n'existe pas.
+
+```bash
+# à passer dans l'éditeur SQL Supabase
+supabase/migrations/0040_cloture_periode.sql
+```
+
+Elle apporte aussi `finance.periode.reopen` à `fn_permissions_non_delegables()`,
+et **redéfinit `fn_finance_before_write`** — la version de `0023` reste intacte
+dans son fichier, celle-ci la remplace.
+
+---
+
 ## La migration `0038` — appliquée le 16 août 2026
 
 Base à jour. Ce qu'elle a corrigé mérite d'être retenu, parce que le défaut
@@ -52,8 +69,9 @@ livré pour l'essentiel**.
 | **Synthèse périodique — EF-FIN-24** | ✅ |
 | **Filtres complets du registre — EF-FIN-22** | ✅ |
 | **Exports XLSX / CSV / PDF — EF-FIN-25** | ✅ |
+| **Clôture d'une période — EF-FIN-26** *(migration `0040` à appliquer)* | ✅ |
 
-526 tests unitaires, 26 fichiers. `pnpm verify` vert.
+530 tests unitaires, 26 fichiers. `pnpm verify` vert.
 
 ---
 
@@ -81,9 +99,10 @@ au Siège, qui valide et émet le bordereau.
 Le ticket de reçu imprimable et l'historique du croyant (EF-FIN-35) ont été
 livrés le 16 août. EF-FIN-27 à 35 sont tous servis.
 
-### Finances
-- **EF-FIN-26** *(Could)* — le verrouillage d'une période clôturée, seule
-  exigence financière encore ouverte.
+### Finances — **le lot 4 est complet**
+
+EF-FIN-01 à 35 sont tous servis. Reste une dette technique, pas une exigence :
+
 - La **règle 17 à moitié tenue** sur `/finances` : les filtres sont bien en
   mémoire, mais l'écran n'a jamais synchronisé l'URL par `history.replaceState`.
   Le faire pour les cinq nouveaux critères seulement aurait donné un

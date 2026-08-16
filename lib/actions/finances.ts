@@ -16,8 +16,10 @@ import { createClient } from '@/lib/supabase/server';
 import { sanitize } from '@/lib/utils/sanitize';
 import {
   changerStatutSchema,
+  cloturerPeriodeSchema,
   modifierMouvementSchema,
   reglerWorkflowSchema,
+  rouvrirPeriodeSchema,
   saisirMouvementSchema,
   supprimerMouvementSchema,
   traiterLotSchema,
@@ -634,5 +636,118 @@ export async function traiterMouvementsEnLot(
     revalidatePath('/tableau-de-bord');
 
     return ok({ traites: retenus.length, refuses });
+  });
+}
+
+// -----------------------------------------------------------------------------
+// Cloture d'une periode — EF-FIN-26
+// -----------------------------------------------------------------------------
+
+/**
+ * Arrete les comptes d'un mois — EF-FIN-26.
+ *
+ * LE DROIT SE VERIFIE DEUX FOIS, ET CE N'EST PAS UNE REDONDANCE INUTILE. Ici,
+ * pour refuser tot et avec un message lisible ; en base, dans
+ * `fn_cloturer_periode`, parce que la cascade porte sur des entites que cette
+ * action ne connait pas une a une — et que la fonction, elle, les evalue
+ * toutes avec leur portee (RG-25).
+ *
+ * L'ECRITURE EST ATOMIQUE (regle 20) : N entites closes ou aucune. Une cascade
+ * a moitie posee laisserait une hierarchie dont une partie est arretee et
+ * l'autre non, sans que rien ne dise laquelle.
+ */
+export async function cloturerPeriode(input: unknown): Promise<ActionResult<number>> {
+  return executerAction('cloturerPeriode', async () => {
+    const session = await requireSession();
+
+    const analyse = cloturerPeriodeSchema.safeParse(input);
+    if (!analyse.success) return ko('Demande invalide.');
+    const data = analyse.data;
+
+    const cible = await cheminDe(data.entiteId);
+    if (!cible) return ko('Cette entite est introuvable ou hors de votre perimetre.');
+
+    await requirePermission(session, 'finance.periode.close', cible.chemin);
+
+    const sb = await createClient();
+
+    const { data: nombre, error } = await sb.rpc('fn_cloturer_periode', {
+      p_entity: data.entiteId,
+      p_periode: data.periode,
+      p_avec_perimetre: data.avecPerimetre,
+    });
+
+    if (error) return ko(messageErreurSql(error));
+
+    await auditer({
+      session,
+      action: 'CREATE',
+      table: 'finance_periodes_cloturees',
+      recordId: data.entiteId,
+      entityId: data.entiteId,
+      diff: {
+        apres: {
+          periode: data.periode,
+          avec_perimetre: data.avecPerimetre,
+          entites: nombre,
+        },
+      },
+    });
+
+    revalidatePath('/finances');
+    revalidatePath('/finances/synthese');
+    return ok(Number(nombre ?? 0));
+  });
+}
+
+/**
+ * Rouvre une periode close, sur motif — EF-FIN-26.
+ *
+ * RESERVEE AU SIEGE, et l'exigence est explicite. `finance.periode.reopen` est
+ * non delegable : si celui qui clot pouvait s'accorder de quoi rouvrir, la
+ * cloture ne serait plus qu'une convention entre soi.
+ *
+ * LA REOUVERTURE NE CASCADE PAS, alors que la cloture le peut. L'asymetrie est
+ * voulue : arreter vingt entites d'un geste fait gagner du temps sans rien
+ * risquer, tandis que les rouvrir toutes pour corriger UNE ecriture ouvrirait
+ * dix-neuf portes que personne n'a demandees.
+ */
+export async function rouvrirPeriode(input: unknown): Promise<ActionResult<void>> {
+  return executerAction('rouvrirPeriode', async () => {
+    const session = await requireSession();
+
+    const analyse = rouvrirPeriodeSchema.safeParse(input);
+    if (!analyse.success) {
+      return ko(analyse.error.issues[0]?.message ?? 'Demande invalide.');
+    }
+    const data = analyse.data;
+
+    const cible = await cheminDe(data.entiteId);
+    if (!cible) return ko('Cette entite est introuvable ou hors de votre perimetre.');
+
+    await requirePermission(session, 'finance.periode.reopen', cible.chemin);
+
+    const sb = await createClient();
+
+    const { error } = await sb.rpc('fn_rouvrir_periode', {
+      p_entity: data.entiteId,
+      p_periode: data.periode,
+      p_motif: data.motif,
+    });
+
+    if (error) return ko(messageErreurSql(error));
+
+    await auditer({
+      session,
+      action: 'UPDATE',
+      table: 'finance_periodes_cloturees',
+      recordId: data.entiteId,
+      entityId: data.entiteId,
+      diff: { apres: { periode: data.periode, motif_reouverture: data.motif } },
+    });
+
+    revalidatePath('/finances');
+    revalidatePath('/finances/synthese');
+    return ok();
   });
 }

@@ -451,3 +451,56 @@ export async function chargerSyntheseAnnuelle(
         })),
   };
 }
+
+// ---------------------------------------------------------------------------
+// EF-FIN-26 — les periodes cloturees
+// ---------------------------------------------------------------------------
+
+export interface PeriodeClose {
+  entityId: string;
+  /** Premier jour du mois, « AAAA-MM-JJ ». */
+  periode: string;
+  clotureLe: string;
+  clotureParNom: string | null;
+}
+
+/**
+ * Les periodes CLOSES du perimetre — EF-FIN-26.
+ *
+ * Seules les clotures VIVANTES sont chargees : une periode rouverte n'est plus
+ * close, et sa ligne ne sert plus qu'a l'historique. La RLS borne la lecture au
+ * perimetre.
+ *
+ * Une lecture illisible ne vide pas l'ecran : la liste est vide, et le verrou
+ * reste tenu PAR LA BASE de toute facon — l'ecran ne fait que l'annoncer.
+ */
+export async function chargerPeriodesCloses(): Promise<PeriodeClose[]> {
+  const sb = await createClient();
+
+  const { data, error } = await sb
+    .from('finance_periodes_cloturees')
+    .select(
+      'entity_id, periode, cloture_le, ' +
+        'auteur:profiles!finance_periodes_cloturees_cloture_par_fkey (nom_complet)',
+    )
+    .is('rouverte_le', null)
+    .order('periode', { ascending: false })
+    .limit(2000)
+    .returns<
+      {
+        entity_id: string;
+        periode: string;
+        cloture_le: string;
+        auteur: { nom_complet: string } | null;
+      }[]
+    >();
+
+  if (error) return [];
+
+  return (data ?? []).map((c) => ({
+    entityId: c.entity_id,
+    periode: c.periode,
+    clotureLe: c.cloture_le,
+    clotureParNom: c.auteur?.nom_complet ?? null,
+  }));
+}

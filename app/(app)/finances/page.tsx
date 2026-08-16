@@ -3,6 +3,7 @@ import Link from 'next/link';
 
 import { ChartColumn, ClipboardCheck, Coins, LayoutList } from 'lucide-react';
 
+import { ClotureDialog } from '@/components/finances/cloture-dialog';
 import { WorkflowDialog } from '@/components/finances/workflow-dialog';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
@@ -10,12 +11,14 @@ import { getArbrePerimetre } from '@/lib/data/entities';
 import { versOptions } from '@/lib/data/entity-options';
 import {
   chargerMouvements,
+  chargerPeriodesCloses,
   chargerSolde,
   compterMouvementsAValider,
   listerCategoriesFinance,
 } from '@/lib/data/finances';
 import { signerJustificatifs } from '@/lib/data/photos';
 import { getParametres } from '@/lib/data/settings';
+import { clePeriode } from '@/lib/domain/finance';
 import { detient } from '@/lib/domain/permissions';
 import { getSession } from '@/lib/session';
 import { formatNombre } from '@/lib/utils/format';
@@ -38,11 +41,14 @@ export const metadata: Metadata = { title: 'Finances' };
 export default async function FinancesPage() {
   const session = await getSession();
 
-  const [mouvements, categories, arbre, parametres] = await Promise.all([
+  const [mouvements, categories, arbre, parametres, closes] = await Promise.all([
     chargerMouvements(),
     listerCategoriesFinance(),
     getArbrePerimetre(),
     getParametres(),
+    // EF-FIN-26 — les periodes arretees. L'ecran ne fait que les annoncer :
+    // le verrou est tenu par `fn_finance_before_write`.
+    chargerPeriodesCloses(),
   ]);
 
   /**
@@ -158,6 +164,18 @@ export default async function FinancesPage() {
               </Button>
             )}
 
+            {/* EF-FIN-26 — arrêter les comptes d'un mois. Le bouton porte le
+                nombre de périodes déjà closes : un verrou qu'on ne voit pas
+                se lit comme une panne le jour où il refuse une saisie. */}
+            <ClotureDialog
+              entites={versOptions(
+                arbre.filter((e) => e.is_active),
+                arbre,
+              )}
+              closes={closes}
+              mouvements={mouvements}
+            />
+
             <WorkflowDialog
               lignes={reglages}
               defautOrganisation={parametres.finance_validation_active}
@@ -179,6 +197,9 @@ export default async function FinancesPage() {
         entiteRacine={racine ? { id: racine.id, nom: racine.nom } : null}
         devise={parametres.devise}
         justificatifs={Object.fromEntries(justificatifs)}
+        // EF-FIN-26 — des CLÉS, pas des objets : seul du simple traverse la
+        // frontière serveur → client (règle 24), et le client en fait un `Set`.
+        periodesCloses={closes.map((c) => clePeriode(c.entityId, c.periode))}
       />
     </div>
   );

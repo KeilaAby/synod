@@ -177,12 +177,25 @@ CSV sort au **point-virgule** avec une marque d'ordre des octets, sans quoi
 Excel français l'ouvre en une colonne et sans accents. **On exporte ce qu'on
 voit** : la sélection filtrée, dont le nombre de lignes est annoncé sur le menu.
 
+**EF-FIN-26 livré — le lot 4 est complet.** La clôture d'une période
+(migration `0040`) : le verrou est greffé sur `fn_finance_before_write`, pas sur
+un bouton grisé — sinon il se contourne par un appel direct à l'API. **Rien
+n'entre dans une période close, et rien n'en sort** : déplacer une écriture
+*hors* d'un exercice arrêté est la forme la plus discrète de la modification
+rétroactive. **Aucun héritage**, mais une cascade qui **se demande**, entité par
+entité et avec sa portée. On ne clôt pas sur un brouillon ou un mouvement
+soumis : clos, il ne pourrait plus être ni validé ni rejeté. `finance.periode.
+close` est délégable — c'est le bureau qui arrête ses comptes ;
+`finance.periode.reopen` ne l'est pas, sinon celui qui clôt s'accorderait de
+quoi rouvrir et la clôture ne serait qu'une convention entre soi.
+
 **EF-BUR-11 clos** : l'export Excel de la composition est abandonné le 12 août
 2026, le PDF de l'organigramme couvre le besoin.
 
-Base à jour jusqu'à la migration `0039`. Une collecte de dîmes naît `SOUMIS` et
-c'est la **remise** qui la valide, donc qui alimente le Siège. Le stockage de
-fichiers ne se
+Migrations appliquées jusqu'à `0039`, **`0040` écrite mais pas appliquée** :
+sans elle, l'écran de clôture n'a ni table ni fonction, et le verrou d'EF-FIN-26
+n'existe pas. Une collecte de dîmes naît `SOUMIS` et c'est la **remise** qui la
+valide, donc qui alimente le Siège. Le stockage de fichiers ne se
 configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` et
 `postgres` s'y voit refuser `CREATE POLICY` : `pnpm db:bucket` s'en charge par
 l'API.

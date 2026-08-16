@@ -155,3 +155,38 @@ export const reglerWorkflowSchema = z.object({
 });
 
 export type ReglerWorkflowInput = z.input<typeof reglerWorkflowSchema>;
+
+/**
+ * Cloture d'une periode — EF-FIN-26.
+ *
+ * LA PERIODE EST UN MOIS, transmis comme son premier jour. Un champ `<input
+ * type="month">` rend « 2026-08 » : le schema le complete plutot que d'exiger
+ * de l'appelant qu'il y pense — un serveur qui revalide ce que le client a
+ * deja transforme doit accepter les deux formes (regle 12).
+ */
+const moisSchema = z.preprocess(
+  (v) => (typeof v === 'string' && /^\d{4}-\d{2}$/.test(v) ? `${v}-01` : v),
+  z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Mois invalide.'),
+);
+
+export const cloturerPeriodeSchema = z.object({
+  entiteId: z.uuid(),
+  periode: moisSchema,
+  /**
+   * LA CASCADE SE DEMANDE, elle ne se deduit pas : sans cela, le Siege qui
+   * arrete ses comptes gelerait deux cents eglises qui ne l'ont pas decide.
+   */
+  avecPerimetre: z.boolean().default(false),
+});
+
+export type CloturerPeriodeInput = z.input<typeof cloturerPeriodeSchema>;
+
+export const rouvrirPeriodeSchema = z.object({
+  entiteId: z.uuid(),
+  periode: moisSchema,
+  // Une reouverture non motivee laisse un historique qui dit qu'on a rouvert
+  // sans dire pourquoi — a peine mieux que pas d'historique.
+  motif: z.string().trim().min(3, 'Le motif est trop court.').max(500),
+});
+
+export type RouvrirPeriodeInput = z.input<typeof rouvrirPeriodeSchema>;

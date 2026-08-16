@@ -406,3 +406,56 @@ export function filtrerMouvements<T extends MouvementFiltrable>(
       .some((v) => v!.toLocaleLowerCase('fr').includes(terme));
   });
 }
+
+// ---------------------------------------------------------------------------
+// EF-FIN-26 — periodes cloturees
+// ---------------------------------------------------------------------------
+
+/**
+ * La CLE d'une periode close : l'entite et son mois.
+ *
+ * Une chaine plutot qu'une paire, parce qu'un `Set` de chaines repond en temps
+ * constant la ou une recherche dans un tableau coute une passe par ligne du
+ * registre — cinq mille lignes fois cinquante clotures.
+ */
+export function clePeriode(entityId: string, jourIso: string): string {
+  return `${entityId}|${jourIso.slice(0, 7)}`;
+}
+
+/**
+ * Ce mouvement appartient-il a une periode close ?
+ *
+ * L'ECRAN NE FAIT QU'ANNONCER LE VERROU : il est tenu par la base, dans
+ * `fn_finance_before_write`. Ce predicat sert a griser une action avant qu'elle
+ * echoue, pas a decider si elle est permise — un controle qui ne vit que dans
+ * l'ecran se contourne par un appel direct a l'API.
+ */
+export function estEnPeriodeClose(
+  mouvement: { entity_id: string; date_operation: string },
+  closes: ReadonlySet<string>,
+): boolean {
+  return closes.has(clePeriode(mouvement.entity_id, mouvement.date_operation));
+}
+
+/**
+ * Une periode peut-elle etre close ? — EF-FIN-26.
+ *
+ * NON tant qu'un brouillon ou un mouvement soumis y subsiste : clos, il ne
+ * pourrait plus etre ni valide ni rejete et resterait bloque jusqu'a une
+ * reouverture. La base refuse pour la meme raison ; l'ecran le dit AVANT, avec
+ * le compte de ce qui reste a decider — un refus qui arrive apres le clic
+ * n'explique pas quoi faire.
+ */
+export function mouvementsEnAttenteDe(
+  mouvements: readonly MouvementFiltrable[],
+  entityId: string,
+  mois: string,
+): number {
+  const cle = mois.slice(0, 7);
+  return mouvements.filter(
+    (m) =>
+      m.entity_id === entityId &&
+      m.date_operation.slice(0, 7) === cle &&
+      (m.statut === 'BROUILLON' || m.statut === 'SOUMIS'),
+  ).length;
+}

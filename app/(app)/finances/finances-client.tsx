@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   FileEdit,
   FilterX,
+  Lock,
   MoreVertical,
   Paperclip,
   PenLine,
@@ -68,6 +69,7 @@ import {
   type Solde,
   type StatutMouvement,
   compteDansLeSolde,
+  estEnPeriodeClose,
   estModifiable,
   filtreEstActif,
   filtrerMouvements,
@@ -112,6 +114,7 @@ export function FinancesClient({
   entiteRacine,
   devise,
   justificatifs,
+  periodesCloses = [],
 }: {
   mouvements: MouvementListe[];
   categories: CategorieFinance[];
@@ -121,6 +124,8 @@ export function FinancesClient({
   devise: string;
   /** EF-FIN-07 — cle de stockage -> URL signee, signees en lot par la page. */
   justificatifs: Record<string, string>;
+  /** EF-FIN-26 — les mois arrêtés, en clés `entite|AAAA-MM`. */
+  periodesCloses?: readonly string[];
 }) {
   const router = useRouter();
   const [enCours, demarrer] = useTransition();
@@ -137,6 +142,14 @@ export function FinancesClient({
    * Le filtrage lui-même vit dans le domaine (`filtrerMouvements`), où il est
    * testé : l'écran ne décide plus de ce qu'un critère signifie.
    */
+  /**
+   * Un `Set` plutôt qu'un tableau : la question se pose une fois par ligne du
+   * registre, et une recherche linéaire y coûterait cinq mille lignes fois
+   * cinquante clôtures. Les clés traversent en chaînes — un `Set` ne franchit
+   * pas la frontière serveur → client (règle 24).
+   */
+  const closes = useMemo(() => new Set(periodesCloses), [periodesCloses]);
+
   const [criteres, setCriteres] = useState<FiltresMouvements>(FILTRES_MOUVEMENTS_VIDES);
   const [avances, setAvances] = useState(false);
 
@@ -791,6 +804,20 @@ export function FinancesClient({
                     <StatusBadge tone={TON_STATUT[m.statut]}>
                       {LIBELLES_STATUT_MOUVEMENT[m.statut]}
                     </StatusBadge>
+
+                    {/*
+                      EF-FIN-26 — LE VERROU SE VOIT SUR LA LIGNE.
+
+                      Sans cette mention, le menu ⋮ vide se lit comme un droit
+                      manquant : on cherche sur soi une habilitation qui ne
+                      manque pas. La cause est ici, et elle est datée.
+                    */}
+                    {estEnPeriodeClose(m, closes) && (
+                      <span className="text-muted-foreground mt-1 flex items-center gap-1 text-xs">
+                        <Lock className="size-3" aria-hidden />
+                        Période close
+                      </span>
+                    )}
                   </TableCell>
 
                   <TableCell>
@@ -800,6 +827,10 @@ export function FinancesClient({
                           variant="ghost"
                           size="icon"
                           className="size-8"
+                          // Une période close ne laisse RIEN faire : ni
+                          // modifier, ni soumettre, ni annuler. Le verrou est
+                          // tenu par la base ; l'écran ne fait que l'annoncer.
+                          disabled={estEnPeriodeClose(m, closes)}
                           aria-label={`Actions sur le mouvement du ${formatDate(m.date_operation)}`}
                         >
                           <MoreVertical className="size-4" aria-hidden />

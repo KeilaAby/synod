@@ -214,6 +214,36 @@ export const PERMISSIONS = {
       'Leve la separation entre saisie et validation. A reserver aux entites ou une '
       + 'seule personne tient les comptes.',
   },
+  /**
+   * EF-FIN-26 — arreter les comptes d'un mois.
+   *
+   * DELEGABLE, et il doit l'etre : c'est le bureau qui arrete ses propres
+   * comptes, pas le Siege a sa place. Il s'evalue AVEC SA PORTEE (RG-25), y
+   * compris quand la cloture est demandee pour tout un perimetre — les entites
+   * hors portee sont alors ignorees, jamais closes en silence.
+   */
+  'finance.periode.close': {
+    label: 'Cloturer une periode',
+    group: 'Finances',
+    description:
+      'Arreter les comptes d un mois : plus aucune ecriture ne peut y entrer ni en '
+      + 'sortir. Refuse tant qu un mouvement y attend une decision.',
+  },
+  /**
+   * EF-FIN-26 — rouvrir, et l'exigence est explicite : « sans reouverture par
+   * le SuperAdmin ».
+   *
+   * NON DELEGABLE. Si celui qui clot pouvait s'accorder de quoi rouvrir, la
+   * cloture ne serait plus qu'une convention entre soi — elle n'arreterait
+   * rien, elle ajouterait une etape.
+   */
+  'finance.periode.reopen': {
+    label: 'Rouvrir une periode cloturee',
+    group: 'Finances',
+    description:
+      'Lever le verrou d un mois arrete, sur motif. Reserve au Siege : celui qui '
+      + 'clot ne rouvre pas.',
+  },
 
   // --- Rapports --------------------------------------------------------------
   'report.read': {
@@ -314,6 +344,12 @@ export const NON_DELEGABLES: readonly Permission[] = [
    * celui-la meme qu'elle surveille.
    */
   'finance.validate_own',
+  /**
+   * EF-FIN-26 — rouvrir une periode cloturee. Si celui qui clot pouvait
+   * s'accorder de quoi rouvrir, la cloture ne serait plus qu'une convention
+   * entre soi : elle n'arreterait rien, elle ajouterait une etape.
+   */
+  'finance.periode.reopen',
 ];
 
 export function estDelegable(permission: Permission): boolean {
@@ -368,6 +404,9 @@ export const ROLE_TEMPLATES: Record<UserRole, readonly Permission[]> = {
     'finance.validate',
     'finance.workflow.manage',
     'finance.dime.collect',
+    // EF-FIN-26 — c'est le bureau qui arrete ses propres comptes. La
+    // REOUVERTURE, elle, reste au Siege : elle n'est dans aucun gabarit.
+    'finance.periode.close',
     'report.read',
     'report.create',
     'report.publish',

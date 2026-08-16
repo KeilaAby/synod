@@ -5,11 +5,14 @@ import {
   type MouvementPourSolde,
   type Solde,
   attendUneValidation,
+  clePeriode,
   compteDansLeSolde,
   estCritique,
+  estEnPeriodeClose,
   estModifiable,
   filtreEstActif,
   filtrerMouvements,
+  mouvementsEnAttenteDe,
   nombreFiltresAvances,
   peutValider,
   periodeDe,
@@ -392,5 +395,70 @@ describe('EF-FIN-22 — filtrer les mouvements', () => {
     expect(
       nombreFiltresAvances({ ...FILTRES_MOUVEMENTS_VIDES, entiteId: 'e1', sens: ['RECETTE'] }),
     ).toBe(0);
+  });
+});
+
+describe('EF-FIN-26 — les periodes cloturees', () => {
+  const closes = new Set(['e1|2026-07', 'e2|2026-08']);
+
+  const base = {
+    entity_id: 'e1',
+    categorie_id: 'c1',
+    sens: 'RECETTE' as const,
+    montant: 100_000,
+    date_operation: '2026-08-15',
+    libelle: null,
+    reference: null,
+    statut: 'VALIDE' as const,
+    est_delegue: false,
+    saisi_par: 'p1',
+    categorie: null,
+    entite: null,
+  };
+
+  it('reconnait un mouvement d une periode close', () => {
+    expect(
+      estEnPeriodeClose({ entity_id: 'e1', date_operation: '2026-07-15' }, closes),
+    ).toBe(true);
+  });
+
+  it('ne clot QUE le mois nomme, et QUE l entite nommee', () => {
+    /**
+     * Aucun heritage : le Siege qui arrete ses comptes de janvier gelerait
+     * sinon deux cents eglises qui ne l'ont pas decide, et que seul le
+     * SuperAdmin pourrait degeler.
+     */
+    expect(
+      estEnPeriodeClose({ entity_id: 'e1', date_operation: '2026-08-15' }, closes),
+    ).toBe(false);
+    expect(
+      estEnPeriodeClose({ entity_id: 'e2', date_operation: '2026-07-15' }, closes),
+    ).toBe(false);
+  });
+
+  it('borne la cle au mois, quel que soit le jour', () => {
+    // Le dernier jour du mois est celui ou l'on saisit le plus : une cle qui
+    // porterait le jour laisserait passer exactement ces ecritures-la.
+    expect(clePeriode('e1', '2026-07-01')).toBe(clePeriode('e1', '2026-07-31'));
+  });
+
+  it('compte ce qui attend encore une decision dans le mois', () => {
+    /**
+     * Clore sur un mouvement soumis le rendrait impossible a valider comme a
+     * rejeter : il resterait bloque jusqu'a une reouverture, sans que rien a
+     * l'ecran n'en dise la cause.
+     */
+    const lot = [
+      { ...base, entity_id: 'e1', date_operation: '2026-08-03', statut: 'SOUMIS' as const },
+      { ...base, entity_id: 'e1', date_operation: '2026-08-20', statut: 'BROUILLON' as const },
+      { ...base, entity_id: 'e1', date_operation: '2026-08-20', statut: 'VALIDE' as const },
+      // Un autre mois, et une autre entite : hors du compte.
+      { ...base, entity_id: 'e1', date_operation: '2026-07-20', statut: 'SOUMIS' as const },
+      { ...base, entity_id: 'e2', date_operation: '2026-08-20', statut: 'SOUMIS' as const },
+    ];
+
+    expect(mouvementsEnAttenteDe(lot, 'e1', '2026-08-01')).toBe(2);
+    // Rien a decider : la cloture peut passer.
+    expect(mouvementsEnAttenteDe(lot, 'e2', '2026-09-01')).toBe(0);
   });
 });
