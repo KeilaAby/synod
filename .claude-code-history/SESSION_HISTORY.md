@@ -2566,3 +2566,16 @@ ce que `0032` a fait — le cache peut rester en retard. L'appel échoue alors s
 « Could not find the function … in the schema cache » alors que la fonction
 existe et qu'un `select` direct la trouve. Le symptôme est déroutant : la base
 est juste, le code est juste, et l'écran dit non.
+
+**`0035` — `COALESCE types nature_versement and text cannot be matched`.**
+
+`coalesce` exige des types compatibles. Le premier argument était un
+`nature_versement`, le second un `case` ne rendant que des littéraux non typés
+— donc du `text`. PostgreSQL refusait l'appariement, et la saisie échouait
+**avant d'écrire quoi que ce soit** : rien n'a été perdu, rien n'a pu être
+enregistré non plus. Une conversion explicite du second terme lève l'ambiguïté.
+
+Ce qui mérite d'être retenu n'est pas le bogue — il est banal — mais le temps
+qu'il a coûté. L'écran disait « L'opération n'a pas pu aboutir » ; la base
+nommait la cause depuis le début, et rien ne la laissait lire. Le correctif du
+message, écrit juste avant, l'a fait apparaître en une minute.
