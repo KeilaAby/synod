@@ -126,8 +126,21 @@ export default async function TableauDeBordPage({
      * Écrire une seconde fonction SQL pour la même somme aurait créé deux
      * chiffres que rien ne garantit égaux.
      */
+    /**
+     * `catch` — UN BLOC QUI ÉCHOUE N'EMPORTE PAS LES DIX-NEUF AUTRES.
+     *
+     * `chargerSyntheseAnnuelle` LÈVE, et c'est juste sur `/finances/synthese`
+     * où elle EST l'écran : mieux vaut une erreur franche qu'une page vide.
+     * Ici elle n'alimente qu'un bloc parmi vingt, et sa panne faisait tomber le
+     * tableau de bord entier — effectifs, structure et gouvernance compris,
+     * qui n'ont rien à voir avec les finances.
+     *
+     * Toutes les autres lectures de cet écran dégradent déjà ainsi ; celle-ci
+     * était la seule à ne pas le faire, parce qu'elle avait été écrite pour un
+     * autre écran. Le bloc affiche alors « Ce bloc n'a pas pu être chargé ».
+     */
     veut('evolution_finances')
-      ? chargerSyntheseAnnuelle(entiteId, annee)
+      ? chargerSyntheseAnnuelle(entiteId, annee).catch(() => null)
       : Promise.resolve(null),
     /**
      * QUATRE RÉPARTITIONS, UNE SEULE LECTURE. Elles répondent à la même

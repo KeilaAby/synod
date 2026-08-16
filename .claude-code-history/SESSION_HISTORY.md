@@ -3766,3 +3766,25 @@ Le trigger le vérifie, parce qu'une politique RLS ne sait pas comparer l'ancien
 statut au nouveau.
 
 589 tests unitaires, 28 fichiers. `pnpm verify` vert.
+
+### Deux défauts révélés par une panne du tableau de bord
+
+**`chargerSyntheseAnnuelle` levait, et emportait la page entière.** C'est juste
+sur `/finances/synthese`, où elle EST l'écran : mieux vaut une erreur franche
+qu'une page vide. Sur le tableau de bord, elle n'alimente qu'un bloc parmi
+vingt — et sa panne faisait tomber les effectifs, la structure et la
+gouvernance, qui n'ont rien à voir avec les finances.
+
+Toutes les autres lectures de cet écran dégradent déjà (liste vide, `illisible`,
+`null`) ; celle-ci était la seule à ne pas le faire, **parce qu'elle avait été
+écrite pour un autre écran**. C'est le prix ordinaire d'une réutilisation : la
+fonction est bonne, c'est son contrat d'erreur qui appartenait à son premier
+appelant.
+
+**Le journal disait `{}`.** `DataError` passait un objet en second argument de
+`console.error` : lisible dans le terminal, il devenait « {} » dans la
+superposition de Next — et l'on repartait chercher une panne dont le seul indice
+avait été mangé par l'affichage. `decrire` rend désormais une **chaîne**, et
+elle est concaténée au message : une chaîne se lit partout de la même façon.
+Elle relève aussi les propriétés **non énumérables** — `Error.message` en est
+une, et `Object.keys` la manque.

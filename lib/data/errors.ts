@@ -15,25 +15,41 @@ import 'server-only';
  * la trace se reduisait a `{}`. Un journal qui dit « quelque chose a echoue »
  * sans dire quoi coute une session entiere de recherche.
  */
-function decrire(cause: unknown): unknown {
-  if (typeof cause !== 'object' || cause === null) return cause;
+function decrire(cause: unknown): string {
+  if (typeof cause !== 'object' || cause === null) return String(cause);
 
   const erreur = cause as Record<string, unknown>;
-  const postgrest = {
-    code: erreur.code,
-    message: erreur.message,
-    details: erreur.details,
-    hint: erreur.hint,
-  };
 
-  if (Object.values(postgrest).some((v) => v !== undefined)) return postgrest;
+  /**
+   * UNE CHAINE, ET PLUS UN OBJET.
+   *
+   * `console.error` recevait un objet. Dans le terminal il s'affichait ; dans la
+   * superposition d'erreurs de Next, il devenait « {} » — et l'on repartait
+   * chercher une panne dont le seul indice avait ete mange par l'affichage.
+   * Une chaine se lit partout de la meme facon.
+   */
+  const morceaux = [
+    ['code', erreur.code],
+    ['message', erreur.message],
+    ['details', erreur.details],
+    ['hint', erreur.hint],
+  ]
+    .filter(([, v]) => v !== undefined && v !== null && v !== '')
+    .map(([cle, v]) => `${cle}=${String(v)}`);
 
-  // Aucun champ PostgREST : on retombe sur ce que l'objet sait dire de lui.
-  return {
-    type: cause.constructor?.name ?? typeof cause,
-    texte: String((erreur.message as string) ?? cause),
-    cles: Object.keys(erreur),
-  };
+  if (morceaux.length > 0) return morceaux.join(' · ');
+
+  /**
+   * Aucun champ PostgREST : la panne vient d'ailleurs — requete interrompue,
+   * coupure reseau, `TypeError`. On rend alors ce que l'objet sait dire de
+   * lui-meme, y compris ses proprietes NON ENUMERABLES : `Error.message` en
+   * est une, et `Object.keys` la manque.
+   */
+  const nom = (cause as { constructor?: { name?: string } }).constructor?.name ?? 'objet';
+  const texte = String(erreur.message ?? cause);
+  const cles = Object.keys(erreur);
+
+  return `${nom} — ${texte}${cles.length > 0 ? ` (clés : ${cles.join(', ')})` : ''}`;
 }
 
 export class DataError extends Error {
@@ -45,7 +61,9 @@ export class DataError extends Error {
     this.cause = cause;
 
     if (cause) {
-      console.error(`[data] ${message}`, decrire(cause));
+      // Un seul argument : la superposition de Next n'affiche fidelement que
+      // le premier, et le detail est justement ce qu'on vient y chercher.
+      console.error(`[data] ${message} — ${decrire(cause)}`);
     }
   }
 }
