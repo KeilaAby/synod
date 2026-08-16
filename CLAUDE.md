@@ -246,13 +246,30 @@ donnerait les bornes du mois sous un libellé annonçant un trimestre, et une
 entité hors portée donnerait des zéros qu'on lirait « nous n'avons rien »
 (règle 15).
 
+**EF-DSH-10 livré** : **imprimer, c'est imprimer l'écran** — refabriquer un
+document des mêmes données aurait donné un second rendu à maintenir (règle 16).
+D'où *pas* de PDF dans le menu « Exporter » : deux boutons pour deux PDF du même
+écran feraient hésiter à chaque clic. Le **CSV est là où la donnée est
+tabulaire** — les chiffres en un fichier, chaque répartition exportant sa table.
+Les **icônes** ne sont pas dans `KPI_REGISTRY` : une icône est une fonction
+React, elle ne traverse pas la frontière (règle 24) — la table vit côté client et
+se lit par la clé, rendue par `createElement` parce qu'une variable majuscule
+liée en cours de rendu est un composant *créé* pour le compilateur React.
+
+**EF-DSH-08 livré pour moitié** : quatre **modèles** applicables en un clic,
+déclarés dans le domaine. Un modèle déclare ce qu'il **garde**, jamais ce qu'il
+masque — les masques se calculent à l'application contre le registre du jour, si
+bien qu'un indicateur ajouté plus tard **apparaît** quand même. Un modèle
+inapplicable reste visible, éteint et expliqué : le retirer ferait croire qu'il
+n'existe pas. Reste « imposer un modèle par niveau », qui demande
+`dashboard_templates` et un écran d'administration.
+
 **EF-BUR-11 clos** : l'export Excel de la composition est abandonné le 12 août
 2026, le PDF de l'organigramme couvre le besoin.
 
-Migrations appliquées jusqu'à `0041`, **`0042` écrite mais pas appliquée** :
-sans elle, les répartitions et la jauge du tableau de bord restent vides. Une
-collecte de dîmes naît `SOUMIS` et c'est la **remise** qui la valide, donc qui
-alimente le Siège. Le stockage de fichiers ne se
+Base à jour jusqu'à la migration `0042`. Une collecte de dîmes naît `SOUMIS` et
+c'est la **remise** qui la valide, donc qui alimente le Siège. Le stockage de
+fichiers ne se
 configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` et
 `postgres` s'y voit refuser `CREATE POLICY` : `pnpm db:bucket` s'en charge par
 l'API.

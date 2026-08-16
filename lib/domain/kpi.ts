@@ -647,3 +647,126 @@ export function couverture(couvertes: number, total: number): number | null {
   if (!Number.isFinite(couvertes) || !Number.isFinite(total) || total <= 0) return null;
   return Math.min(100, (couvertes / total) * 100);
 }
+
+// ---------------------------------------------------------------------------
+// EF-DSH-08 — les modeles de tableau de bord
+// ---------------------------------------------------------------------------
+
+/**
+ * Un tableau de bord tout fait, applicable en un clic.
+ *
+ * IL DECLARE CE QU'IL GARDE, jamais ce qu'il masque. Deux raisons :
+ *
+ *   - une liste de six cles se lit et se corrige ; la liste des vingt autres
+ *     ne se relit jamais, et personne ne s'apercevrait qu'un indicateur y
+ *     manque ;
+ *   - les masques sont calcules A L'APPLICATION, contre le registre du jour.
+ *     Un indicateur ajoute PLUS TARD n'y figure donc pas, et se montre — la
+ *     meme propriete que pour une disposition faite a la main.
+ *
+ * L'ORDRE DE `garde` EST L'ORDRE VOULU : un modele ne choisit pas seulement
+ * quoi montrer, mais dans quel ordre — c'est ce qui en fait un point de vue et
+ * non une simple selection.
+ */
+export interface ModeleTableauDeBord {
+  readonly cle: string;
+  readonly nom: string;
+  readonly description: string;
+  readonly garde: readonly string[];
+}
+
+export const MODELES_TABLEAU_DE_BORD: readonly ModeleTableauDeBord[] = [
+  {
+    cle: 'essentiel',
+    nom: 'L’essentiel',
+    description: 'Les quelques chiffres qu’on regarde tous les jours.',
+    garde: [
+      'croyants',
+      'femmes',
+      'hommes',
+      'eglises',
+      'solde_consolide',
+      'derniers_croyants',
+      'evolution_finances',
+    ],
+  },
+  {
+    cle: 'tresorier',
+    nom: 'Trésorerie',
+    description: 'Ce qui entre, ce qui sort, et ce qui attend une décision.',
+    garde: [
+      'recettes',
+      'depenses',
+      'solde_consolide',
+      'mouvements_attente',
+      'evolution_finances',
+    ],
+  },
+  {
+    cle: 'effectifs',
+    nom: 'Effectifs',
+    description: 'Qui nous sommes, et comment cela se décompose.',
+    garde: [
+      'croyants',
+      'femmes',
+      'hommes',
+      'nouveaux_baptises',
+      'encellules',
+      'derniers_croyants',
+      'repartition_age',
+      'repartition_grade',
+    ],
+  },
+  {
+    cle: 'structure',
+    nom: 'Structure et bureaux',
+    description: 'Le maillage des entités et la couverture de leurs bureaux.',
+    garde: [
+      'regionaux',
+      'districts',
+      'paroisses',
+      'eglises',
+      'cellules',
+      'bureaux_actifs',
+      'couverture_bureaux',
+      'repartition_entite',
+      'transferts_attente',
+    ],
+  },
+];
+
+/**
+ * La disposition que produit un modele, contre le registre du jour.
+ *
+ * `masques` est calcule ICI et non ecrit dans le modele : c'est ce qui laisse
+ * un indicateur ajoute plus tard apparaitre chez ceux qui ont applique un
+ * modele. Un modele fige un POINT DE VUE, pas l'etat du produit.
+ */
+export function dispositionDuModele(
+  modele: ModeleTableauDeBord,
+  registre: readonly DefinitionKpi[],
+): DispositionTableauDeBord {
+  const gardees = new Set(modele.garde);
+
+  return {
+    // On ne garde que les cles qui existent : un modele ecrit avant un
+    // renommage ne doit pas laisser de cle morte dans la disposition.
+    ordre: modele.garde.filter((cle) => registre.some((k) => k.cle === cle)),
+    masques: registre.filter((k) => !gardees.has(k.cle)).map((k) => k.cle),
+  };
+}
+
+/**
+ * Ce modele montrerait-il quelque chose A CET UTILISATEUR ?
+ *
+ * Un modele « Tresorerie » applique par un compte sans `finance.read` ne
+ * masquerait pas des finances qu'il ne voit deja pas : il masquerait TOUT LE
+ * RESTE, et laisserait un ecran vide dont la cause serait introuvable. Il vaut
+ * mieux le proposer eteint, et dire pourquoi.
+ */
+export function modeleApplicable(
+  modele: ModeleTableauDeBord,
+  visibles: readonly DefinitionKpi[],
+): boolean {
+  return visibles.some((k) => modele.garde.includes(k.cle));
+}

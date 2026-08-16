@@ -12,19 +12,19 @@
 
 ---
 
-## À FAIRE EN PREMIER — la migration `0042`
+## Aucune migration n'attend
 
-`supabase/migrations/0042_repartitions.sql` **n'est pas appliquée**. Sans elle,
-les quatre répartitions et la jauge de couverture restent vides — et
-`fn_tableau_de_bord`, qu'elle redéfinit pour ajouter le dénominateur de la
-jauge, ne rendra pas la colonne `entites_a_bureau`.
+Les migrations `0023` à `0042` sont appliquées.
 
-```bash
-# à passer dans l'éditeur SQL Supabase
-supabase/migrations/0042_repartitions.sql
-```
+Deux pièges rencontrés sur `0042`, qui valent d'être retenus :
 
-Les migrations `0023` à `0041` sont appliquées.
+- **`nationalites` porte `code_iso`**, pas `code` — les quatre référentiels ne
+  sont pas uniformes, et le supposer coûte une migration refusée.
+- **`create or replace` ne suffit pas pour un `returns table`** : les paramètres
+  `OUT` font partie de la signature, donc *ajouter une colonne* est un changement
+  de type de retour (42P13). Il faut `drop function if exists` juste avant — et
+  l'erreur n'arrive qu'à **l'application**, jamais à l'écriture. Règle 23
+  amendée.
 
 ---
 
@@ -42,7 +42,8 @@ La migration tranche : la collecte naît `SOUMIS`, et **c'est la remise qui
 valide**. Ce qui est juste au fond — la dîme appartient au Siège dès qu'elle est
 collectée, mais elle n'est sa recette qu'une fois **remise en mains propres**.
 
-Les migrations `0023` à `0039` sont appliquées. **Aucune migration n'attend.**
+C'est ce qui explique pourquoi une collecte de dîmes ne peut pas alimenter le
+Siège avant d'avoir été remise.
 
 ---
 
@@ -74,8 +75,10 @@ livré pour l'essentiel**.
 | **Blocs composés et parts — EF-DSH-05/06 (partiel)** | ✅ |
 | **Répartitions, classement et jauge — EF-DSH-05** *(migration `0042`)* | ✅ |
 | **Périmètre et période réglables — EF-DSH-06** | ✅ |
+| **Impression, exports, icônes — EF-DSH-10** | ✅ |
+| **Modèles applicables en un clic — EF-DSH-08 (partiel)** | ✅ |
 
-566 tests unitaires, 27 fichiers. `pnpm verify` vert.
+573 tests unitaires, 27 fichiers. `pnpm verify` vert.
 
 ---
 
@@ -114,10 +117,10 @@ livrés. Restent :
   désormais pour **tout l'écran** (barre en tête, portée par l'URL). Le cahier
   des charges les veut aussi *widget par widget* : reste à poser une surcharge
   dans la disposition, pour les seuls indicateurs qui dépendent d'une période.
-- **EF-DSH-08** — modèles par rôle. `dashboard_templates` existe depuis `0005`
-  et n'est pas encore utilisée.
-- **EF-DSH-10** — export PDF du tableau et CSV par widget. `exporterPdf` du
-  lot 4 s'y branche.
+- **EF-DSH-08, la seconde moitié** — « le SuperAdmin peut IMPOSER un modèle par
+  défaut à un niveau donné ». Les modèles applicables en un clic sont livrés ;
+  imposer demande `dashboard_templates` (elle existe depuis `0005`) et un écran
+  d'administration.
 
 ### Finances — **le lot 4 est complet**
 
@@ -149,7 +152,7 @@ nulle part — il ferait un second chemin pour la même création (règle 16).
 pnpm install      # installe aussi le hook pre-commit de détection de secrets
 pnpm dev          # http://localhost:3000
 pnpm dev:propre   # même chose, cache Turbopack vidé au préalable
-pnpm verify       # lint + types + 478 tests + build
+pnpm verify       # lint + types + 573 tests + build
 pnpm db:bucket    # le stockage ne se configure PAS en SQL
 ```
 

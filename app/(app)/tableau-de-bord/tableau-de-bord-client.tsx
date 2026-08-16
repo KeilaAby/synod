@@ -10,6 +10,7 @@ import {
   Eye,
   EyeOff,
   GripVertical,
+  LayoutTemplate,
   Printer,
   RotateCcw,
   SlidersHorizontal,
@@ -32,12 +33,15 @@ import {
   type DispositionTableauDeBord,
   type GroupeKpi,
   LIBELLES_GROUPE_KPI,
+  MODELES_TABLEAU_DE_BORD,
   type TailleKpi,
   appliquerDisposition,
   basculerMasque,
   deplacerKpi,
+  dispositionDuModele,
   groupesVisibles,
   kpiEstAlerte,
+  modeleApplicable,
   partDeLEffectif,
 } from '@/lib/domain/kpi';
 import { type Granularite, decalerPeriode, libellePeriode } from '@/lib/domain/synthese';
@@ -364,6 +368,66 @@ export function TableauDeBordClient({
           </Button>
         </div>
       </div>
+
+      {/*
+        EF-DSH-08 — LES MODÈLES, EN UN CLIC.
+
+        Composer son tableau de bord carte par carte est le travail de quelqu'un
+        qui sait déjà ce qu'il veut. Un modèle donne un POINT DE VUE tout fait —
+        « la trésorerie », « les effectifs » — dont on part, et qu'on ajuste
+        ensuite : c'est l'inverse de la page blanche.
+
+        Ils ne s'affichent qu'en personnalisation : hors de ce mode, ils
+        proposeraient de tout rebattre à côté d'un écran qu'on est en train de
+        lire.
+      */}
+      {personnalise && (
+        <div className="border-border bg-muted/30 no-print space-y-3 rounded-lg border p-4">
+          <p className="eyebrow">Partir d’un modèle</p>
+
+          <div className="flex flex-wrap gap-2">
+            {MODELES_TABLEAU_DE_BORD.map((modele) => {
+              const applicable = modeleApplicable(modele, kpis);
+
+              return (
+                <button
+                  key={modele.cle}
+                  type="button"
+                  disabled={!applicable || enregistrement}
+                  onClick={() => poser(dispositionDuModele(modele, kpis))}
+                  /*
+                    UN MODÈLE INAPPLICABLE RESTE VISIBLE, éteint et expliqué.
+                    Le retirer laisserait croire qu'il n'existe pas ; le
+                    proposer sans avertir donnerait un écran vide dont la cause
+                    serait introuvable.
+                  */
+                  title={
+                    applicable
+                      ? modele.description
+                      : 'Ce modèle ne retiendrait aucun indicateur que vous puissiez voir.'
+                  }
+                  className="border-border bg-card hover:border-foreground/30 flex max-w-72 cursor-pointer flex-col gap-0.5 rounded-lg border p-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <span className="flex items-center gap-2 text-sm font-medium">
+                    <LayoutTemplate className="size-4 shrink-0" aria-hidden />
+                    {modele.nom}
+                  </span>
+                  <span className="text-muted-foreground text-xs">
+                    {applicable
+                      ? modele.description
+                      : 'Aucun de ses indicateurs ne vous est accessible.'}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <p className="text-muted-foreground text-xs">
+            Un modèle remplace votre disposition — il ne l’efface pas définitivement : «
+            Rétablir l’ordre d’origine » revient au registre complet.
+          </p>
+        </div>
+      )}
 
       {groupes.map((groupe) => {
         const duGroupe = affiches.filter((k) => k.groupe === groupe);

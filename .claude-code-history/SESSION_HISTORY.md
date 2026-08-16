@@ -3637,3 +3637,51 @@ justifie. L'ordre choisi joue donc À L'INTÉRIEUR de chaque famille.
 Les deux voies gardent leur grille : là, le nombre de colonnes est **décidé**
 (trois pour des compteurs, deux quand ils portent des montants), et c'est
 précisément ce qu'on veut y tenir.
+
+---
+
+## 16 août 2026 (suite) — EF-DSH-08, les modèles de tableau de bord
+
+Quatre points de vue tout faits — l'essentiel, la trésorerie, les effectifs, la
+structure — applicables en un clic depuis le panneau de personnalisation.
+**Aucune migration** : ils sont déclarés dans le domaine, comme le registre.
+
+### Un modèle déclare ce qu'il GARDE
+
+Jamais ce qu'il masque, et pour deux raisons :
+
+- une liste de six clés se lit et se corrige ; la liste des vingt autres ne se
+  relit jamais, et personne ne s'apercevrait qu'un indicateur y manque ;
+- les masques sont calculés **à l'application**, contre le registre du jour. Un
+  indicateur ajouté **plus tard** n'y figure donc pas, et se montre — la même
+  propriété que pour une disposition faite à la main. Un modèle fige un point de
+  vue, pas l'état du produit.
+
+L'ordre de `garde` est l'ordre voulu : un modèle ne choisit pas seulement quoi
+montrer, mais dans quel ordre — c'est ce qui en fait un point de vue et non une
+simple sélection.
+
+### Un modèle inapplicable reste visible, éteint et expliqué
+
+« Trésorerie » appliqué par un compte sans droit financier ne masquerait pas des
+finances qu'il ne voit déjà pas : il masquerait **tout le reste**, et laisserait
+un écran vide dont la cause serait introuvable. Le retirer laisserait croire
+qu'il n'existe pas ; le proposer sans avertir donnerait l'écran vide.
+
+### Un test qui avait tort
+
+`modeleApplicable(tresorerie, sansFinanceRead)` devait rendre `false` — il rendait
+`true`. Le code avait raison : « Mouvements à valider » relève de
+`finance.validate`, pas de `finance.read`. Un validateur qui ne consulte pas les
+soldes voit donc encore quelque chose de ce modèle, et doit pouvoir l'appliquer.
+C'est le test qui a été corrigé, et le cas du validateur seul est désormais
+couvert explicitement.
+
+### Ce qui reste d'EF-DSH-08
+
+« Le SuperAdmin peut **imposer** un modèle par défaut à un niveau donné » n'est
+pas fait : cela demande la table `dashboard_templates` (elle existe depuis
+`0005`) et un écran d'administration. La moitié utile — les modèles applicables
+en un clic — est livrée.
+
+573 tests unitaires, 27 fichiers. `pnpm verify` vert.

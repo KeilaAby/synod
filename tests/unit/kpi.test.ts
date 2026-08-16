@@ -3,14 +3,17 @@ import { describe, expect, it } from 'vitest';
 import {
   DISPOSITION_VIDE,
   KPI_REGISTRY,
+  MODELES_TABLEAU_DE_BORD,
   type DefinitionKpi,
   appliquerDisposition,
   basculerMasque,
   deplacerKpi,
+  dispositionDuModele,
   estDisposition,
   groupesVisibles,
   kpiEstAlerte,
   kpisVisibles,
+  modeleApplicable,
   couverture,
   partDeLEffectif,
   preparerRepartition,
@@ -405,5 +408,105 @@ describe('EF-DSH-05, EF-DSH-06 — la jauge de couverture', () => {
      * qui a son propre endroit, l'index unique `bureaux_un_seul_actif`.
      */
     expect(couverture(26, 20)).toBe(100);
+  });
+});
+
+describe('EF-DSH-08 — les modeles de tableau de bord', () => {
+  it('ne garde que des cles QUI EXISTENT au registre', () => {
+    /**
+     * Une cle mal orthographiee ne leverait aucune erreur : le modele
+     * afficherait un indicateur de moins, et personne ne saurait lequel.
+     */
+    const cles = new Set(KPI_REGISTRY.map((k) => k.cle));
+    for (const modele of MODELES_TABLEAU_DE_BORD) {
+      for (const cle of modele.garde) expect(cles.has(cle)).toBe(true);
+    }
+  });
+
+  it('n a aucune cle de modele en double', () => {
+    const cles = MODELES_TABLEAU_DE_BORD.map((m) => m.cle);
+    expect(new Set(cles).size).toBe(cles.length);
+  });
+
+  it('garde l ORDRE voulu par le modele', () => {
+    // Un modele ne choisit pas seulement quoi montrer, mais dans quel ordre :
+    // c'est ce qui en fait un point de vue et non une simple selection.
+    const modele = {
+      cle: 'x',
+      nom: 'X',
+      description: '',
+      garde: ['hommes', 'croyants'],
+    };
+
+    expect(dispositionDuModele(modele, KPI_REGISTRY).ordre).toEqual([
+      'hommes',
+      'croyants',
+    ]);
+  });
+
+  it('masque tout le reste du registre DU JOUR', () => {
+    const modele = { cle: 'x', nom: 'X', description: '', garde: ['croyants'] };
+    const d = dispositionDuModele(modele, KPI_REGISTRY);
+
+    expect(d.masques).not.toContain('croyants');
+    expect(d.masques).toContain('recettes');
+    expect(d.masques.length).toBe(KPI_REGISTRY.length - 1);
+  });
+
+  it('LAISSE APPARAITRE un indicateur ajoute apres le modele', () => {
+    /**
+     * Le point qui compte. Les masques sont calcules A L'APPLICATION, contre le
+     * registre du jour : un indicateur ajoute plus tard n'y figure pas, donc il
+     * se montre. Un modele fige un POINT DE VUE, pas l'etat du produit.
+     */
+    const modele = { cle: 'x', nom: 'X', description: '', garde: ['croyants'] };
+    const d = dispositionDuModele(modele, KPI_REGISTRY);
+
+    const plusTard = [
+      ...KPI_REGISTRY,
+      {
+        cle: 'tout_neuf',
+        libelle: 'Tout neuf',
+        groupe: 'EFFECTIFS' as const,
+        format: 'NOMBRE' as const,
+        permission: 'croyant.read' as const,
+      },
+    ];
+
+    expect(appliquerDisposition(plusTard, d).map((k) => k.cle)).toEqual([
+      'croyants',
+      'tout_neuf',
+    ]);
+  });
+
+  it('ignore une cle disparue du registre', () => {
+    const modele = { cle: 'x', nom: 'X', description: '', garde: ['zzz', 'croyants'] };
+    expect(dispositionDuModele(modele, KPI_REGISTRY).ordre).toEqual(['croyants']);
+  });
+
+  it('n est APPLICABLE que s il montre quelque chose', () => {
+    /**
+     * « Tresorerie » applique par un compte sans `finance.read` ne masquerait
+     * pas des finances qu'il ne voit deja pas : il masquerait TOUT LE RESTE, et
+     * laisserait un ecran vide dont la cause serait introuvable.
+     */
+    const tresorerie = MODELES_TABLEAU_DE_BORD.find((m) => m.cle === 'tresorier')!;
+
+    /**
+     * « Sans finances » veut dire SANS AUCUN droit financier, et pas seulement
+     * sans `finance.read` : « Mouvements à valider » relève de
+     * `finance.validate`. Un validateur qui ne consulte pas les soldes voit
+     * donc encore quelque chose de ce modèle — et il doit pouvoir l'appliquer.
+     */
+    const sansRienDeFinancier = KPI_REGISTRY.filter(
+      (k) => !k.permission.startsWith('finance.'),
+    );
+    const validateurSeulement = KPI_REGISTRY.filter(
+      (k) => k.permission === 'finance.validate',
+    );
+
+    expect(modeleApplicable(tresorerie, KPI_REGISTRY)).toBe(true);
+    expect(modeleApplicable(tresorerie, validateurSeulement)).toBe(true);
+    expect(modeleApplicable(tresorerie, sansRienDeFinancier)).toBe(false);
   });
 });
