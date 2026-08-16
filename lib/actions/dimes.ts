@@ -1,7 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 
+import { chargerDonateurs } from '@/lib/data/dimes';
 import { getArbrePerimetre } from '@/lib/data/entities';
 import { listerCategoriesFinance } from '@/lib/data/finances';
 import {
@@ -9,11 +11,17 @@ import {
   doublonsDeCollecte,
   trouverCategorieDime,
 } from '@/lib/domain/dime';
+import {
+  type CorrespondanceVersement,
+  analyserVersements,
+  indexerDonateurs,
+} from '@/lib/domain/import-dimes';
 import { type ActionResult, ko, ok } from '@/lib/domain/result';
 import { auditer, requirePermission, requireSession } from '@/lib/session';
 import { createClient } from '@/lib/supabase/server';
 import { sanitize } from '@/lib/utils/sanitize';
 import {
+  importerVersementsSchema,
   reglerModeDimeSchema,
   remettreCollectesSchema,
   saisirCollecteSchema,
@@ -398,5 +406,206 @@ export async function remettreCollectes(
     revalidatePath('/finances/dimes');
 
     return ok({ reference: ligne.reference, collectes: ligne.collectes });
+  });
+}
+
+// -----------------------------------------------------------------------------
+// Import d'une feuille de versements — EF-FIN-34
+// -----------------------------------------------------------------------------
+
+export interface ResultatImportVersements {
+  readonly mouvementId: string;
+  /** Lignes reellement enregistrees. */
+  readonly enregistrees: number;
+  /** Montant total de la collecte importee. */
+  readonly total: number;
+  /** Lignes portant un nom qu'aucune fiche ne reconnait — a resoudre. */
+  readonly aRapprocher: number;
+  /** Lignes ECARTEES : elles ne portaient aucun montant exploitable. */
+  readonly ecartees: { readonly ligne: number; readonly motif: string }[];
+  readonly recus: number;
+}
+
+/**
+ * Importe une feuille de versements — EF-FIN-34.
+ *
+ * LE SERVEUR REANALYSE TOUT. Le navigateur a deja produit un apercu, mais cet
+ * apercu lui appartient : rien n'empeche d'envoyer des lignes qui ne l'ont
+ * jamais traverse. Le rapprochement se refait donc ici, contre les donateurs
+ * REELS.
+ *
+ * AUCUNE LIGNE PORTANT UN MONTANT N'EST REJETEE. Elle represente de l'argent
+ * deja recu : l'enveloppe est dans l'urne, elle ne disparaitra pas parce que le
+ * fichier est imparfait. Un nom inconnu donne un versement anonyme ET une ligne
+ * a rapprocher — le montant compte des maintenant, le nom se retrouve ensuite.
+ */
+export async function importerVersementsDime(
+  input: unknown,
+): Promise<ActionResult<ResultatImportVersements>> {
+  return executerAction('importerVersementsDime', async () => {
+    const session = await requireSession();
+
+    const analyse = importerVersementsSchema.safeParse(input);
+    if (!analyse.success) {
+      return ko('Formulaire invalide.', champsEnErreur(analyse.error));
+    }
+    const data = analyse.data;
+
+    if (data.lignes.length === 0) return ko('Le fichier ne contient aucune ligne.');
+
+    // Trois lectures INDEPENDANTES, donc simultanees (regle 28).
+    const [arbre, categories, donateurs] = await Promise.all([
+      getArbrePerimetre(),
+      listerCategoriesFinance(),
+      chargerDonateurs(),
+    ]);
+
+    if (arbre.length === 0) {
+      return ko("La structure n'a pas pu etre chargee. Reessayez.");
+    }
+
+    const hote = arbre.find((e) => e.id === data.entiteCollecteId);
+    if (!hote) return ko('Cette entite est introuvable ou hors de votre perimetre.');
+
+    await requirePermission(session, 'finance.dime.collect', hote.path);
+
+    const categorieId = trouverCategorieDime(
+      categories as { id: string; libelle: string; code?: string }[],
+    );
+    if (!categorieId) {
+      return ko(
+        'Aucune categorie de dime dans le referentiel. Creez-la dans '
+          + 'Referentiels > Categories financieres, puis reessayez.',
+      );
+    }
+
+    const rapport = analyserVersements(
+      data.lignes,
+      data.correspondance as CorrespondanceVersement,
+      indexerDonateurs(donateurs.donateurs),
+    );
+
+    if (rapport.retenues.length === 0) {
+      return ko(
+        'Aucune ligne exploitable : verifiez la colonne du montant dans la '
+          + 'correspondance.',
+      );
+    }
+
+    const sb = await createClient();
+
+    const { data: resultat, error } = await sb.rpc('fn_saisir_collecte_dime', {
+      p_entite_collecte: data.entiteCollecteId,
+      p_categorie: categorieId,
+      p_date_operation: data.dateOperation.toISOString().slice(0, 10),
+      p_evenement: data.evenement,
+      p_libelle: data.libelle ? sanitize(data.libelle) : null,
+      p_reference: data.reference ? sanitize(data.reference) : null,
+      p_versements: rapport.retenues.map((l) => ({
+        croyant_id: l.croyantId,
+        montant: l.montant,
+        enveloppe: l.enveloppe ? sanitize(l.enveloppe) : null,
+        nature: l.nature,
+        // EF-FIN-34 — ce que le fichier disait, conserve TEL QUEL : c'est
+        // contre lui que le rapprochement se fera.
+        nom_source: l.nomSource ? sanitize(l.nomSource) : null,
+        prenom_source: l.prenomSource ? sanitize(l.prenomSource) : null,
+      })),
+    });
+
+    if (error) return ko(messageErreurSql(error));
+
+    const ligne = (
+      resultat as { finance_entry_id: string; recus: unknown[] }[]
+    )?.[0];
+
+    if (!ligne) return ko("La collecte n'a pas pu etre enregistree.");
+
+    const aRapprocher = rapport.retenues.filter((l) => l.aRapprocher).length;
+
+    await auditer({
+      session,
+      action: 'CREATE',
+      table: 'finance_entries',
+      recordId: ligne.finance_entry_id,
+      entityId: data.entiteCollecteId,
+      diff: {
+        apres: {
+          dime: true,
+          import: true,
+          lignes: rapport.retenues.length,
+          total: rapport.total,
+          aRapprocher,
+          ecartees: rapport.ecartees.length,
+        },
+      },
+    });
+
+    revalidatePath('/finances');
+    revalidatePath('/finances/dimes');
+    revalidatePath('/croyants');
+
+    return ok({
+      mouvementId: ligne.finance_entry_id,
+      enregistrees: rapport.retenues.length,
+      total: rapport.total,
+      aRapprocher,
+      ecartees: rapport.ecartees,
+      recus: (ligne.recus ?? []).length,
+    });
+  });
+}
+
+// -----------------------------------------------------------------------------
+// Resolution d'un rapprochement — EF-FIN-34
+// -----------------------------------------------------------------------------
+
+const resoudreSchema = z.object({
+  rapprochementId: z.uuid(),
+  croyantId: z.uuid('Selectionnez le croyant.'),
+});
+
+/**
+ * Rattache une ligne d'import a une fiche — EF-FIN-34.
+ *
+ * `fn_resoudre_rapprochement` fait les DEUX ecritures (regle 20) : le versement
+ * devient nominatif ET la ligne se ferme. L'une sans l'autre laisserait soit un
+ * versement attribue que la file garde pour non resolu, soit une file vide pour
+ * un versement toujours anonyme.
+ *
+ * LE RECU EST EMIS A CE MOMENT : c'est maintenant qu'il y a quelqu'un a qui le
+ * remettre.
+ */
+export async function resoudreRapprochement(
+  input: unknown,
+): Promise<ActionResult<{ recu: string }>> {
+  return executerAction('resoudreRapprochement', async () => {
+    const session = await requireSession();
+
+    const analyse = resoudreSchema.safeParse(input);
+    if (!analyse.success) return ko('Demande invalide.');
+    const data = analyse.data;
+
+    const sb = await createClient();
+
+    const { data: recu, error } = await sb.rpc('fn_resoudre_rapprochement', {
+      p_rapprochement: data.rapprochementId,
+      p_croyant: data.croyantId,
+    });
+
+    if (error) return ko(messageErreurSql(error));
+
+    await auditer({
+      session,
+      action: 'UPDATE',
+      table: 'dime_rapprochements',
+      recordId: data.rapprochementId,
+      diff: { apres: { croyant_id: data.croyantId, recu } },
+    });
+
+    revalidatePath('/croyants');
+    revalidatePath('/finances/dimes');
+
+    return ok({ recu: String(recu ?? '') });
   });
 }

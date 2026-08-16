@@ -7,6 +7,7 @@ import {
   CollecteDialog,
   type CroyantOption,
 } from '@/components/finances/collecte-dialog';
+import { ImportVersementsDialog } from '@/components/finances/import-versements-dialog';
 import { RemiseDialog } from '@/components/finances/remise-dialog';
 import { EmptyState } from '@/components/shared/empty-state';
 import { FiltreIcone, GroupeFiltres } from '@/components/shared/filtre-icone';
@@ -168,6 +169,8 @@ export function DimesClient({
               devise={devise}
             />
 
+            <ImportVersementsDialog entites={entites} />
+
             <CollecteDialog
               entites={entites}
               devise={devise}
@@ -205,6 +208,10 @@ export function DimesClient({
             onClick={() => setARemettre((v) => !v)}
           />
         </GroupeFiltres>
+
+        {enAttente.nombre === 0 && (
+          <ImportVersementsDialog entites={entites} />
+        )}
 
         {enAttente.nombre === 0 && (
           <CollecteDialog

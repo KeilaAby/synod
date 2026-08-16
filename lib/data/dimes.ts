@@ -284,3 +284,54 @@ export async function chargerPorteursDEnveloppe(): Promise<
  * n'y a aucun heritage a resoudre (EF-FIN-28).
  */
 export type ModeParEntite = Map<string, ModeDime | null>;
+
+export interface RapprochementEnAttente {
+  id: string;
+  entite_id: string;
+  nom_source: string;
+  prenom_source: string | null;
+  enveloppe_source: string | null;
+  created_at: string;
+  versement: {
+    id: string;
+    montant: number;
+    entree: { id: string; date_operation: string } | null;
+  } | null;
+  entite: { id: string; nom: string } | null;
+}
+
+/**
+ * Les lignes d'import qui attendent un NOM — EF-FIN-34.
+ *
+ * Elles ne sont pas des erreurs : le montant est deja compte, l'argent est
+ * recu. Ce qui manque, c'est de savoir A QUI l'attribuer — et cela se decide
+ * dans `/croyants`, ou l'on connait les gens.
+ *
+ * Seules les NON RESOLUES sont chargees : une fois rapprochee, la ligne a fait
+ * son office et n'a plus rien a demander.
+ */
+export const chargerRapprochements = cache(
+  async (): Promise<RapprochementEnAttente[]> => {
+    const sb = await createClient();
+
+    const { data, error } = await sb
+      .from('dime_rapprochements')
+      .select(
+        'id, entite_id, nom_source, prenom_source, enveloppe_source, created_at, ' +
+          'versement:dime_versements!dime_rapprochements_versement_id_fkey (' +
+          '  id, montant,' +
+          '  entree:finance_entries!dime_versements_finance_entry_id_fkey (id, date_operation)' +
+          '), ' +
+          'entite:entities!dime_rapprochements_entite_id_fkey (id, nom)',
+      )
+      .is('croyant_id', null)
+      .order('created_at', { ascending: true })
+      .limit(2000)
+      .returns<RapprochementEnAttente[]>();
+
+    // Une file illisible ne doit pas casser la page des croyants : elle
+    // disparait, et le reste de l'ecran continue de servir.
+    if (error) return [];
+    return data ?? [];
+  },
+);

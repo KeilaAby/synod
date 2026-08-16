@@ -2,10 +2,13 @@ import type { Metadata } from 'next';
 
 import { NouveauCroyantDialog } from '@/components/croyants/croyant-dialog';
 import { ImportCroyantsDialog } from '@/components/croyants/import-dialog';
+import { RapprochementsDimes } from '@/components/croyants/rapprochements-dimes';
 import { PageHeader } from '@/components/shared/page-header';
 import { chargerCroyants } from '@/lib/data/croyants';
+import { chargerRapprochements } from '@/lib/data/dimes';
 import { getOptionsCroyant } from '@/lib/data/croyant-options';
 import { signerPhotos } from '@/lib/data/photos';
+import { getParametres } from '@/lib/data/settings';
 import {
   FILTRES_LISTE_VIDES,
   type FiltresListeCroyants,
@@ -38,11 +41,20 @@ export default async function CroyantsPage({
 }) {
   const params = await searchParams;
 
-  const [lot, options] = await Promise.all([
+  const [lot, options, rapprochements, parametres] = await Promise.all([
     // Le périmètre chargé se restreint à l'église choisie : c'est le seul
     // filtre qui change le VOLUME lu, et donc le seul qui reste côté serveur.
     chargerCroyants(params.eglise),
     getOptionsCroyant(),
+    /**
+     * EF-FIN-34 — les versements de dîme dont le nom n'a pas été reconnu.
+     *
+     * Ils sont ICI, et non dans les finances : le travail à faire est de
+     * l'IDENTIFICATION, pas de la comptabilité. Le montant est déjà compté ;
+     * ce qu'on cherche, c'est qui est « Razafindraparany » écrit autrement.
+     */
+    chargerRapprochements(),
+    getParametres(),
   ]);
 
   // EF-CRO-09 — une seule signature pour tout le lot ; aucune requête si
@@ -67,6 +79,22 @@ export default async function CroyantsPage({
             <NouveauCroyantDialog options={options} />
           </>
         }
+      />
+
+      {/* Ce qui ATTEND passe avant ce qui se consulte : une file invisible ne
+          se traite jamais. */}
+      <RapprochementsDimes
+        rapprochements={rapprochements}
+        croyants={lot.lignes.map((c) => ({
+          id: c.id,
+          nom: c.nom,
+          prenom: c.prenom,
+          matricule: c.matricule,
+          photoKey: c.photo_key,
+          detail: c.eglise?.nom ?? null,
+        }))}
+        photos={Object.fromEntries(photos)}
+        devise={parametres.devise}
       />
 
       <CroyantsClient

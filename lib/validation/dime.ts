@@ -175,3 +175,29 @@ export const remettreCollectesSchema = z.object({
 });
 
 export type RemettreCollectesInput = z.input<typeof remettreCollectesSchema>;
+
+/**
+ * Import d'une feuille de versements — EF-FIN-34.
+ *
+ * L'EN-TETE EST CELUI D'UNE COLLECTE. Un fichier ne porte que des lignes : la
+ * date du culte, l'entite et l'evenement restent saisis a l'ecran, une fois
+ * pour tout le lot. C'est aussi ce qui empeche d'importer par megarde une
+ * feuille dans la mauvaise eglise.
+ */
+export const importerVersementsSchema = z.object({
+  entiteCollecteId: z.uuid("Selectionnez l'entite qui collecte."),
+  dateOperation: z.coerce.date({ message: 'Date invalide.' }),
+  evenement: z.enum(EVENEMENTS_DIME, { message: "Precisez le type d'evenement." }),
+  libelle: optionnel(z.string().trim().max(255)),
+  reference: optionnel(z.string().trim().max(80)),
+
+  /** Champ importe -> index de colonne. `null` : colonne non fournie. */
+  correspondance: z.record(z.string(), z.number().int().nullable()),
+
+  lignes: z
+    .array(z.array(z.string()))
+    // Au-dela, la feuille releve d'un traitement par lots, pas d'un import.
+    .max(5000, 'Une feuille porte 5 000 lignes au plus.'),
+});
+
+export type ImporterVersementsInput = z.input<typeof importerVersementsSchema>;

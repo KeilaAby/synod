@@ -2710,3 +2710,49 @@ utilisé par : » remplace le champ de recherche : il dit d'où viennent ces nom
 ce qu'un champ vide n'aurait jamais expliqué.
 
 474 tests unitaires. `pnpm verify` vert.
+
+---
+
+## 13 août 2026 (suite) — EF-FIN-34 livré : l'import et la file de résolution
+
+### L'import — `/finances/dimes`
+
+Trois temps, comme l'import de croyants : on dépose, on dit à quoi correspondent
+les colonnes, on lit le rapport. Rien n'est écrit avant le dernier.
+
+**Seul le montant est obligatoire.** Une feuille peut ne porter que des
+versements anonymes — un cahier de caisse qui note des sommes sans noms est un
+cas ordinaire, pas une exception à refuser.
+
+**L'en-tête de la collecte reste à l'écran** : le fichier ne porte que des
+lignes, l'entité et la date du culte se saisissent une fois pour tout le lot.
+C'est aussi ce qui empêche d'importer par mégarde une feuille dans la mauvaise
+église.
+
+**Le lecteur XLSX est chargé à la demande** (règle 7) : c'est un lecteur
+d'archive ZIP, il n'a rien à faire dans le paquet de ceux qui déposent un CSV.
+
+**Le serveur réanalyse tout.** Le navigateur a produit un aperçu, mais cet
+aperçu lui appartient : rien n'empêche d'envoyer des lignes qui ne l'ont jamais
+traversé. Le rapprochement se refait contre les donateurs réels.
+
+### La file de résolution — `/croyants`
+
+Elle est **là**, et non dans les finances, parce que le travail à faire est de
+l'**identification**, pas de la comptabilité. Le montant est déjà compté ; ce
+qu'on cherche, c'est qui est « Razafindraparany » écrit autrement.
+
+Ce n'est pas une file d'erreurs : l'enveloppe était dans l'urne, elle n'a pas
+disparu parce que le fichier écrivait le nom autrement que la fiche. La ligne
+affiche **ce que le fichier disait, tel quel** — le corriger effacerait la trace
+contre laquelle on rapproche.
+
+**Le reçu est émis à la résolution**, et annoncé dans un pop-up : c'est à ce
+moment qu'il y a quelqu'un à qui le remettre. Sans cette mention, la référence
+resterait en base et le croyant n'aurait jamais rien en main.
+
+La file passe **avant** la liste des croyants : une file invisible ne se traite
+jamais.
+
+474 tests unitaires. `pnpm verify` vert. **Le lot dîmes est complet**, hors le
+ticket de reçu imprimable et l'historique sur la fiche du croyant.

@@ -110,13 +110,18 @@ borne à `entite_collecte_id is null` pour rester rejouable) et `0029`
 Siège, et rend l'écriture atomique).
 
 Écran `/finances/dimes` — un **relevé de collecte**, jamais un solde : aucune
-carte de solde n'y figure, délibérément. Restent le bordereau de remise et le
-ticket de reçu imprimable.
+carte de solde n'y figure, délibérément. **Remise par bordereau** (EF-FIN-30) :
+c'est elle, et elle seule, qui VALIDE le mouvement et alimente le Siège — une
+collecte naît `SOUMIS`, parce qu'elle annonce sans encaisser. **Import
+Excel/CSV** (EF-FIN-34) : aucune ligne portant un montant n'est rejetée ; un nom
+inconnu donne un versement anonyme ET une ligne à rapprocher dans `/croyants`,
+où le travail est de l'identification, pas de la comptabilité. Restent le ticket
+de reçu imprimable et l'historique sur la fiche du croyant.
 
 **EF-BUR-11 clos** : l'export Excel de la composition est abandonné le 12 août
 2026, le PDF de l'organigramme couvre le besoin.
 
-Base à jour jusqu'à la migration `0029`. Le stockage de fichiers ne se
+Base à jour jusqu'à la migration `0038`. Le stockage de fichiers ne se
 configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` et
 `postgres` s'y voit refuser `CREATE POLICY` : `pnpm db:bucket` s'en charge par
 l'API.
