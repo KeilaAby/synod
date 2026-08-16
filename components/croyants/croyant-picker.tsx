@@ -47,7 +47,7 @@ export function CroyantPicker({
   onChange,
   photos = {},
   placeholder = 'Choisir un croyant',
-  emptyMessage = 'Aucun croyant disponible.',
+  emptyMessage = 'Aucun croyant à proposer.',
   disabled,
   id,
   'aria-label': ariaLabel,

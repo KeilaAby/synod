@@ -2326,3 +2326,19 @@ n'arriverait qu'à l'enregistrement — une fois trente lignes remplies.
 
 Seule la **grille** est vidée. La date, le libellé, l'événement et la catégorie
 n'ont rien à voir avec l'entité et se ressaisiraient pour rien.
+
+**Un croyant déjà cité disparaît du menu des autres lignes.** Le serveur
+refusait déjà la répétition (`doublonsDeCollecte`), mais l'apprendre à
+l'enregistrement, après trente lignes remplies, arrive trop tard : l'erreur
+cesse d'être possible au lieu d'être rattrapée.
+
+Chaque ligne garde évidemment son propre choix — sans quoi le nom retenu
+disparaîtrait de son propre sélecteur.
+
+« Ajouter une enveloppe » se désactive quand tous les croyants éligibles sont
+cités : une ligne de plus ne pourrait pas être remplie, et proposer de l'ajouter
+serait mentir.
+
+Le contrôle serveur reste en place, et ce n'est pas une redite : l'écran rend
+l'erreur impraticable, la base la rend impossible — y compris à un appel direct
+de l'API qui ne passerait jamais par ce menu.

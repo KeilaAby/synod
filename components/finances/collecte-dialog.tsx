@@ -186,6 +186,26 @@ export function CollecteDialog({
     [lignes],
   );
 
+  /**
+   * Les croyants DÉJÀ cités, et à quelle ligne.
+   *
+   * Un croyant ne remet qu'une enveloppe par collecte : le serveur refuse la
+   * répétition (`doublonsDeCollecte`), mais l'apprendre à l'enregistrement,
+   * après trente lignes remplies, arrive trop tard. On le retire donc du menu
+   * des AUTRES lignes — l'erreur cesse d'être possible au lieu d'être
+   * rattrapée.
+   *
+   * Chaque ligne garde évidemment son propre choix, sans quoi le nom retenu
+   * disparaîtrait de son propre sélecteur.
+   */
+  const ligneDuCroyant = useMemo(() => {
+    const index = new Map<string, number>();
+    lignes.forEach((l, i) => {
+      if (l.croyantId && !index.has(l.croyantId)) index.set(l.croyantId, i);
+    });
+    return index;
+  }, [lignes]);
+
   function fermer() {
     reset();
     setErreur(null);
@@ -430,11 +450,16 @@ export function CollecteDialog({
                           {formatMontant(total, devise)}
                         </span>
                       </p>
+                      {/* Désactivé quand tous les croyants éligibles sont
+                          déjà cités : une ligne de plus ne pourrait pas être
+                          remplie, et proposer de l'ajouter serait mentir. */}
                       <Button
                         type="button"
                         variant="outline"
                         className="h-9"
-                        disabled={!entiteChoisie}
+                        disabled={
+                          !entiteChoisie || ligneDuCroyant.size >= eligibles.length
+                        }
                         onClick={() =>
                           /*
                             `NonNullable` : le schéma porte un `.default([])`,
@@ -531,7 +556,13 @@ export function CollecteDialog({
                                   name={`versements.${index}.croyantId`}
                                   render={({ field }) => (
                                     <CroyantPicker
-                                      options={eligibles}
+                                      /* Ceux d'une AUTRE ligne sont retirés :
+                                         un croyant ne remet qu'une enveloppe
+                                         par collecte. */
+                                      options={eligibles.filter((c) => {
+                                        const prise = ligneDuCroyant.get(c.id);
+                                        return prise === undefined || prise === index;
+                                      })}
                                       value={field.value ?? null}
                                       onChange={field.onChange}
                                       photos={photos}
