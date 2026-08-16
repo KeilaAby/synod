@@ -2115,3 +2115,55 @@ qu'un peu de travail ; sur un champ de saisie, cela lui ferait perdre le focus
 ### Qualité
 
 432 tests unitaires. `pnpm verify` vert.
+
+---
+
+## 13 août 2026 (suite) — Le schéma des dîmes, et la reprise de l'existant
+
+Les quatre questions ayant reçu réponse, le modèle est écrit. Deux migrations,
+et la seconde est celle qu'on aurait oubliée.
+
+### `0027` — le schéma
+
+**`entite_collecte_id`, et non `eglise_collecte_id`.** Une paroisse, un district
+ou un régional peut collecter lors d'un rassemblement de son niveau. Le nom
+initial aurait forcé à ranger une collecte de district sous une église
+arbitraire, ou à laisser la colonne vide — deux façons de perdre l'information.
+
+**La politique de lecture est corrigée en même temps**, et c'était une
+nécessité, pas un raffinement : elle ne testait que `entity_in_scope(entity_id)`.
+Un mouvement de dîme étant rattaché au **Siège**, il serait devenu invisible à
+l'église qui l'a collecté — laquelle n'aurait pas pu répondre au croyant qui lui
+demande la trace de sa dîme, alors qu'elle lui en a remis le reçu (EF-FIN-31).
+
+Le reste suit le plan : `dime_enveloppes` (l'enveloppe appartient au croyant et
+survit aux collectes), `dime_versements` (le détail, avec le numéro d'enveloppe
+**recopié** — un reçu remis il y a deux ans porte l'ancien), `dime_remises` avec
+son bordereau, et deux séquences attribuées **par la base** (règle 14) : deux
+membres du bureau encaissent en même temps au fond de la même salle.
+
+`entities.dime_mode` suit exactement `finance_validation_active` : propre à
+l'entité, **aucun héritage**.
+
+### `0028` — la reprise
+
+15 000 000 Ar de dîmes étaient rattachés à cinq églises. Construire les dîmes
+n'y aurait rien changé : cela change ce qu'on saisira désormais, pas ce qui est
+déjà écrit.
+
+Deux difficultés, toutes deux traitées explicitement dans le fichier :
+
+- **RG-17 s'y oppose** — un mouvement validé est immuable, et le trigger refuse
+  l'`update` de `entity_id`. Il est donc désactivé le temps de la reprise, avec
+  le commentaire qui dit pourquoi et la remise en service trois lignes plus bas.
+  Une règle qu'on suspend doit se lire, pas se glisser.
+- **Le rejeu l'aurait détruite** — une fois basculées, ces lignes portent
+  `entity_id = <Siège>` et l'église d'origine n'est plus lisible ailleurs que
+  dans `entite_collecte_id`. La condition `entite_collecte_id is null` borne
+  donc la reprise : sans elle, un second passage aurait fait du Siège sa propre
+  église collectrice.
+
+La dîme est reconnue par le **code ou le libellé** de sa catégorie, accents et
+casse ignorés : le référentiel la nomme librement.
+
+432 tests unitaires. `pnpm verify` vert.

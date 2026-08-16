@@ -2767,6 +2767,47 @@ La contrainte se déplace donc sur l'écran : un registre qui mêle des collecte
 détaillées et des collectes globales doit rester lisible — le détail se replie,
 il ne disparaît pas (`designrules.md`).
 
+##### La reprise des dîmes déjà enregistrées
+
+*(Constaté le 13 août 2026 : 15 000 000 Ar de dîmes en base, rattachés à cinq
+églises.)*
+
+Construire les dîmes ne suffira pas. Cela change ce qu'on **saisira désormais**,
+pas ce qui est **déjà écrit** — et ce qui est déjà écrit est faux au sens de
+RG-33 : ces mouvements portent `entity_id = <église>` alors qu'ils appartiennent
+au Siège.
+
+Deux conséquences, dont la seconde est la plus grave :
+
+- ils **gonflent le solde propre** des églises, qui pourraient croire disponible
+  un argent qui ne leur appartient pas ;
+- ils remontent en consolidé chez chaque ancêtre, où ils seront comptés **une
+  seconde fois** le jour où le Siège les enregistrera pour de bon.
+
+**La reprise**, pour chaque mouvement de catégorie « Dîme » :
+
+```
+entity_id          <- le Siège
+entite_collecte_id <- l'église d'origine (l'ancien entity_id)
+montant, date, référence, justificatif : INCHANGÉS
+```
+
+**Deux pièges à ne pas manquer :**
+
+1. **RG-17 s'y oppose.** Un mouvement validé est immuable, et le trigger
+   refusera l'`update` de `entity_id`. La reprise devra donc **désactiver
+   temporairement `trg_finance_biu`**, à l'intérieur de la migration. C'est
+   légitime pour une reprise — mais cela doit être **écrit et justifié** dans le
+   fichier, jamais glissé discrètement : le jour où quelqu'un relit la migration,
+   il doit comprendre pourquoi la règle a été suspendue.
+
+2. **Elle n'est pas rejouable naïvement**, ce que la règle 23 exige pourtant.
+   Une fois basculés, ces mouvements portent `entity_id = <Siège>` et l'église
+   d'origine n'est plus lisible nulle part ailleurs que dans
+   `entite_collecte_id`. La migration doit donc se **borner à ceux dont
+   `entite_collecte_id is null`** — sinon un second passage écraserait la
+   traçabilité qu'elle vient d'établir.
+
 **Ce qui reste ouvert** : rien de bloquant pour commencer.
 
 ### Lot 5 — Tableaux de bord *(3 semaines)*
