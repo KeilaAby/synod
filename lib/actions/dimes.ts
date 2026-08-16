@@ -120,6 +120,9 @@ export async function saisirCollecteDime(
           croyant_id: v.croyantId,
           montant: v.montant,
           enveloppe: v.enveloppe ? sanitize(v.enveloppe) : null,
+          // EF-FIN-33 — la nature decide du recu : seul le nominatif en ouvre
+          // un, et la fonction SQL s'en charge.
+          nature: v.nature,
         }));
 
     const sb = await createClient();

@@ -2342,3 +2342,69 @@ serait mentir.
 Le contrôle serveur reste en place, et ce n'est pas une redite : l'écran rend
 l'erreur impraticable, la base la rend impossible — y compris à un appel direct
 de l'API qui ne passerait jamais par ce menu.
+
+---
+
+## 13 août 2026 (suite) — La dîme sans nom, et le croyant de passage
+
+Trois demandes, dont deux amendent la spécification. `cdg.md` gagne **EF-FIN-32
+à 35**, datés.
+
+### EF-FIN-32 — la liste des croyants n'est plus bornée au sous-arbre
+
+Le premier jet limitait le menu au sous-arbre de l'entité collectrice, ce que
+disait EF-FIN-30. C'était trop étroit : **un croyant de passage** assiste au
+culte d'une autre église et y remet son enveloppe. Le refuser obligeait à le
+saisir en anonyme, perdant justement la trace que le reçu doit porter.
+
+La seule borne qui subsiste est l'**habilitation** du saisissant — la RLS ne
+livre que les croyants de son périmètre. Un visiteur venu d'un autre district
+n'apparaîtra donc toujours pas, et c'est à cela que servent les deux points
+suivants.
+
+Le nom de l'**église** figure désormais sous chaque nom dans le menu : deux
+croyants d'églises voisines s'y côtoient, et sans ce repère on ne voit pas
+qu'on saisit un visiteur — ce qui est licite, mais mérite d'être vu.
+
+### EF-FIN-33 — les versements anonymes (`0030`)
+
+Toute dîme n'a pas de nom. Une collecte réelle comprend des enveloppes
+**nominatives**, des enveloppes **sans nom** — quelqu'un a oublié de s'inscrire,
+ou n'a pas voulu — et des espèces **en vrac** déposées dans l'urne.
+
+`croyant_id` devient donc **nullable**, et c'est le cœur de la migration. Le
+forcer aurait conduit à inventer un croyant « Anonyme » : une fiche fictive qui
+apparaîtrait dans les effectifs, les statistiques par sexe, la répartition par
+grade — et finirait par recevoir un transfert.
+
+`recu_numero` devient facultatif pour la même raison : **on ne remet pas un reçu
+à personne**, et consommer la séquence brouillerait la numérotation de ceux qui
+existent vraiment.
+
+Les trois natures entrent en revanche dans le **total** : l'argent est dans
+l'urne, quelle que soit la façon dont il y est arrivé. N'y compter que le
+nominatif ferait un mouvement plus petit que la collecte réelle — un écart que
+personne ne saurait expliquer.
+
+Une contrainte `check` porte les trois cas, et la grille les rend impraticables
+autrement : passer une ligne en anonyme **détache** le croyant, le vrac
+**désactive** l'enveloppe. Trois boutons d'ajout plutôt qu'un seul suivi d'une
+requalification : le geste qu'on fait est « j'ajoute une enveloppe sans nom ».
+
+### EF-FIN-34 — la table des non-rapprochés, préparée
+
+`dime_rapprochements` attend l'import. Le principe qu'elle inscrit : une ligne
+de fichier sans correspondance ne se **rejette pas**. L'enveloppe est dans
+l'urne — elle ne disparaîtra pas parce que le fichier est imparfait. Le
+versement est donc enregistré (en anonyme, il compte dans le total) **et** la
+ligne conservée, en attente de résolution dans `/croyants`. La collecte est
+juste dès le premier jour ; le nom se retrouve ensuite.
+
+### EF-FIN-35 — l'historique était déjà acquis
+
+Le numéro d'enveloppe est **recopié** sur chaque versement depuis `0027` : un
+changement d'enveloppe ne réécrit jamais le passé. Il ne manquait qu'un index
+pour lire les versements d'un croyant depuis sa fiche.
+
+454 tests unitaires. `pnpm verify` vert. **Reste à construire : l'import
+Excel/CSV lui-même (EF-FIN-34) et la zone de résolution dans `/croyants`.**

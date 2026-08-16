@@ -77,15 +77,14 @@ export default async function DimesPage() {
         devise={parametres.devise}
         modes={Object.fromEntries(actives.map((e) => [e.id, e.dime_mode ?? null]))}
         croyants={lot.lignes
-          .filter((c) => c.eglise?.path)
           .map((c) => ({
             id: c.id,
             nom: c.nom,
             prenom: c.prenom,
             matricule: c.matricule,
-            // Le CHEMIN, pas l'identifiant : un rassemblement de district
-            // accueille les croyants de tout son sous-arbre (EF-FIN-30).
-            eglisePath: c.eglise!.path,
+            // EF-FIN-32 — la liste est globale : le nom de l'église dit
+            // qu'on saisit un visiteur, ce qui est licite mais se voit.
+            egliseNom: c.eglise?.nom ?? null,
             photoKey: c.photo_key,
           }))}
         croyantsTronques={lot.tronque}

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { EVENEMENTS_DIME, MODES_DIME } from '@/lib/domain/dime';
+import { EVENEMENTS_DIME, MODES_DIME, NATURES_VERSEMENT } from '@/lib/domain/dime';
 
 /**
  * Saisie d'une collecte de dimes — EF-FIN-27 a 31, RG-33.
@@ -47,18 +47,40 @@ const montant = z.preprocess(
     .transform((n) => Math.round(n * 100) / 100),
 );
 
-export const versementSchema = z.object({
-  croyantId: z.uuid('Selectionnez le croyant.'),
-  montant,
-  /**
-   * L'enveloppe est FACULTATIVE a la saisie.
-   *
-   * Un croyant peut verser sans la sienne — il l'a oubliee, ou c'est sa
-   * premiere fois. Exiger le numero ferait refuser une dime reellement remise,
-   * ce qu'aucune regle ne demande.
-   */
-  enveloppe: optionnel(z.string().trim().max(30)),
-});
+export const versementSchema = z
+  .object({
+    /**
+     * `null` pour un versement ANONYME — il n'y a personne a rattacher
+     * (EF-FIN-33). Inventer un croyant « Anonyme » aurait produit une fiche
+     * fictive qui compterait dans les effectifs et finirait par recevoir un
+     * transfert.
+     */
+    croyantId: optionnel(z.uuid()),
+    montant,
+    /**
+     * L'enveloppe est FACULTATIVE pour un nominatif.
+     *
+     * Un croyant peut verser sans la sienne — il l'a oubliee, ou c'est sa
+     * premiere fois. Exiger le numero ferait refuser une dime reellement
+     * remise, ce qu'aucune regle ne demande.
+     */
+    enveloppe: optionnel(z.string().trim().max(30)),
+    nature: z.enum(NATURES_VERSEMENT).default('NOMINATIF'),
+  })
+  // Les trois natures, chacune avec ce qu'elle exige. La base porte la meme
+  // regle (`dime_versements_nature_coherente`) ; ici on l'explique.
+  .refine((v) => v.nature !== 'NOMINATIF' || v.croyantId !== null, {
+    message: 'Selectionnez le croyant, ou passez la ligne en anonyme.',
+    path: ['croyantId'],
+  })
+  .refine((v) => v.nature !== 'ENVELOPPE_ANONYME' || v.enveloppe !== null, {
+    message: "Une enveloppe sans nom porte un NUMERO : c'est ce qui la distingue du vrac.",
+    path: ['enveloppe'],
+  })
+  .refine((v) => v.nature !== 'EN_VRAC' || v.croyantId === null, {
+    message: 'Un versement en vrac ne se rattache a personne.',
+    path: ['croyantId'],
+  });
 
 export type VersementInput = z.input<typeof versementSchema>;
 

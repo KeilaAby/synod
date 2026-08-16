@@ -116,10 +116,39 @@ export function peutVerser(cheminEglise: string, cheminHote: string): boolean {
 // Le total, et la seule verite — EF-FIN-27
 // -----------------------------------------------------------------------------
 
+/**
+ * EF-FIN-33 — toute dime n'a pas de nom.
+ *
+ * Une collecte reelle comprend des enveloppes nominatives, des enveloppes SANS
+ * NOM — quelqu'un a oublie de s'inscrire, ou n'a pas voulu — et des especes EN
+ * VRAC deposees dans l'urne. Les trois entrent dans le total ; seule la
+ * premiere ouvre un recu, parce qu'on ne remet pas un recu a personne.
+ */
+export const NATURES_VERSEMENT = ['NOMINATIF', 'ENVELOPPE_ANONYME', 'EN_VRAC'] as const;
+export type NatureVersement = (typeof NATURES_VERSEMENT)[number];
+
+export const LIBELLES_NATURE: Record<NatureVersement, string> = {
+  NOMINATIF: 'Nominatif',
+  ENVELOPPE_ANONYME: 'Enveloppe sans nom',
+  EN_VRAC: 'En vrac',
+};
+
+/** Seul un versement NOMINATIF ouvre un reçu : il faut quelqu'un à qui le remettre. */
+export function ouvreUnRecu(nature: NatureVersement): boolean {
+  return nature === 'NOMINATIF';
+}
+
+/** Une enveloppe anonyme porte un NUMERO — c'est ce qui la distingue du vrac. */
+export function exigeUneEnveloppe(nature: NatureVersement): boolean {
+  return nature === 'ENVELOPPE_ANONYME';
+}
+
 export interface VersementDime {
-  readonly croyantId: string;
+  /** `null` pour un versement anonyme — il n'y a personne à rattacher. */
+  readonly croyantId: string | null;
   readonly montant: number;
   readonly enveloppe?: string | null;
+  readonly nature?: NatureVersement;
 }
 
 /**
@@ -147,6 +176,8 @@ export function doublonsDeCollecte(versements: readonly VersementDime[]): number
   const repetes: number[] = [];
 
   versements.forEach((v, index) => {
+    // Un versement ANONYME n'a personne a repeter : dix enveloppes sans nom
+    // dans la meme collecte sont dix enveloppes, pas neuf doublons.
     if (!v.croyantId) return;
     if (vus.has(v.croyantId)) repetes.push(index);
     else vus.add(v.croyantId);

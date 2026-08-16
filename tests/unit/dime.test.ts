@@ -8,7 +8,9 @@ import {
   detailConsultable,
   doublonsDeCollecte,
   estEnRetard,
+  exigeUneEnveloppe,
   modeEffectif,
+  ouvreUnRecu,
   peutVerser,
   totalCollecte,
 } from '@/lib/domain/dime';
@@ -107,6 +109,49 @@ describe('EF-FIN-27 — le total ne se saisit pas, il se calcule', () => {
   it('ne prend pas une ligne vide pour un doublon', () => {
     expect(
       doublonsDeCollecte([versement({ croyantId: '' }), versement({ croyantId: '' })]),
+    ).toEqual([]);
+  });
+});
+
+describe('EF-FIN-33 — toute dime n a pas de nom', () => {
+  it('ne delivre un recu QU AU nominatif', () => {
+    // On ne remet pas un recu a personne : consommer la sequence pour une
+    // enveloppe sans nom brouillerait la numerotation de ceux qui existent.
+    expect(ouvreUnRecu('NOMINATIF')).toBe(true);
+    expect(ouvreUnRecu('ENVELOPPE_ANONYME')).toBe(false);
+    expect(ouvreUnRecu('EN_VRAC')).toBe(false);
+  });
+
+  it('exige un NUMERO pour une enveloppe sans nom', () => {
+    // C'est ce qui la distingue du vrac, et ce qui permettra de la rattacher
+    // plus tard si son porteur se manifeste.
+    expect(exigeUneEnveloppe('ENVELOPPE_ANONYME')).toBe(true);
+    expect(exigeUneEnveloppe('EN_VRAC')).toBe(false);
+    expect(exigeUneEnveloppe('NOMINATIF')).toBe(false);
+  });
+
+  it('compte les trois natures dans le TOTAL', () => {
+    /**
+     * L'argent est dans l'urne quelle que soit la facon dont il y est arrive.
+     * N'y compter que le nominatif ferait un mouvement plus petit que la
+     * collecte reelle — un ecart que personne ne saurait expliquer.
+     */
+    const total = totalCollecte([
+      { croyantId: 'c1', montant: 10_000, nature: 'NOMINATIF' },
+      { croyantId: null, montant: 5_000, nature: 'ENVELOPPE_ANONYME' },
+      { croyantId: null, montant: 2_500, nature: 'EN_VRAC' },
+    ]);
+    expect(total).toBe(17_500);
+  });
+
+  it('ne voit AUCUN doublon entre deux versements anonymes', () => {
+    // Dix enveloppes sans nom dans la meme collecte sont dix enveloppes, pas
+    // neuf doublons.
+    expect(
+      doublonsDeCollecte([
+        { croyantId: null, montant: 1000, nature: 'EN_VRAC' },
+        { croyantId: null, montant: 2000, nature: 'EN_VRAC' },
+      ]),
     ).toEqual([]);
   });
 });

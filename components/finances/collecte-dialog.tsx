@@ -43,10 +43,12 @@ import type { CategorieFinance } from '@/lib/data/finances';
 import {
   EVENEMENTS_DIME,
   LIBELLES_EVENEMENT,
+  LIBELLES_NATURE,
+  NATURES_VERSEMENT,
   type ModeDime,
+  type NatureVersement,
   admetLeDetail,
   modeEffectif,
-  peutVerser,
   totalCollecte,
 } from '@/lib/domain/dime';
 import { formatMontant, formatNombre } from '@/lib/utils/format';
@@ -71,14 +73,13 @@ export interface CroyantOption {
   readonly prenom: string;
   readonly matricule: string;
   /**
-   * Le CHEMIN de son église, pas seulement son identifiant.
+   * Le NOM de son église, affiché sous le sien.
    *
-   * Lors d'un rassemblement de district, tous les croyants du district peuvent
-   * verser — pas seulement ceux rattachés au district lui-même, qui sont
-   * généralement zéro. Comparer les identifiants n'aurait donc rien proposé
-   * (EF-FIN-30) ; c'est le sous-arbre qui décide, et il se lit dans le chemin.
+   * Depuis que la liste est globale (EF-FIN-32), deux croyants de deux églises
+   * voisines s'y côtoient : sans ce repère, on ne voit pas qu'on est en train
+   * de saisir un visiteur — ce qui est licite, mais mérite d'être vu.
    */
-  readonly eglisePath: string;
+  readonly egliseNom: string | null;
   /** Cle de stockage de la photo (EF-CRO-09), resolue par `photos`. */
   readonly photoKey?: string | null;
 }
@@ -115,6 +116,7 @@ export function CollecteDialog({
     handleSubmit,
     control,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<SaisirCollecteInput>({
     resolver: zodResolver(saisirCollecteSchema),
@@ -146,9 +148,32 @@ export function CollecteDialog({
   const versementsSurveilles = useWatch({ control, name: 'versements' });
 
   const lignes = useMemo(
-    () => (versementsSurveilles ?? []) as { croyantId?: string; montant?: string }[],
+    () =>
+      (versementsSurveilles ?? []) as {
+        croyantId?: string | null;
+        montant?: string;
+        nature?: NatureVersement;
+      }[],
     [versementsSurveilles],
   );
+
+  /** La nature d'une ligne, avec son defaut : elle commande trois controles. */
+  const natureDe = (index: number): NatureVersement =>
+    lignes[index]?.nature ?? 'NOMINATIF';
+
+  /**
+   * Ajoute une ligne DE LA NATURE DEMANDÉE.
+   *
+   * `NonNullable` : le schéma porte un `.default([])`, donc le type d'entrée
+   * admet `undefined` et ne s'indexe pas directement.
+   */
+  const ajouter = (nature: NatureVersement) =>
+    append({
+      croyantId: nature === 'NOMINATIF' ? '' : null,
+      montant: '',
+      enveloppe: '',
+      nature,
+    } as NonNullable<SaisirCollecteInput['versements']>[number]);
 
   /**
    * Le mode EFFECTIF : celui de l'entité, sinon le défaut de l'organisation.
@@ -159,21 +184,26 @@ export function CollecteDialog({
   const detaille = mode === 'DETAILLE' && admetLeDetail(evenement ?? 'CULTE');
 
   /**
-   * EF-FIN-30 — qui peut verser lors de CETTE collecte.
+   * EF-FIN-32 — TOUS les croyants, pas ceux du sous-arbre de l'hôte.
    *
-   * Le critère est le SOUS-ARBRE de l'entité hôte : lors d'un rassemblement de
-   * district, tous les croyants du district peuvent verser, quelle que soit
-   * leur église. Comparer les identifiants n'aurait rien proposé — presque
-   * aucun croyant n'est rattaché à un district directement.
+   * Le premier jet bornait la liste au sous-arbre de l'entité collectrice, ce
+   * que disait EF-FIN-30. C'était trop étroit : un croyant de passage assiste
+   * au culte d'une autre église et y remet son enveloppe — c'est fréquent, et
+   * le refuser obligerait à le saisir en anonyme, perdant justement la trace
+   * que le reçu doit porter.
+   *
+   * La seule borne qui subsiste est l'HABILITATION du saisissant : la RLS ne
+   * livre que les croyants de son périmètre. Un visiteur venu d'un autre
+   * district n'apparaîtra donc pas — c'est à cela que servent l'enveloppe
+   * anonyme (EF-FIN-33) et la reprise des non-rapprochés (EF-FIN-34).
    */
-  const eligibles = useMemo(() => {
-    const hote = entites.find((e) => e.id === entiteChoisie);
-    if (!hote) return [];
-
-    return croyants
-      .filter((c) => peutVerser(c.eglisePath, hote.path))
-      .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
-  }, [croyants, entiteChoisie, entites]);
+  const eligibles = useMemo(
+    () =>
+      [...croyants]
+        .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'))
+        .map((c) => ({ ...c, detail: c.egliseNom })),
+    [croyants],
+  );
 
   const total = useMemo(
     () =>
@@ -450,9 +480,18 @@ export function CollecteDialog({
                           {formatMontant(total, devise)}
                         </span>
                       </p>
-                      {/* Désactivé quand tous les croyants éligibles sont
-                          déjà cités : une ligne de plus ne pourrait pas être
-                          remplie, et proposer de l'ajouter serait mentir. */}
+                      {/*
+                        Trois boutons, un par nature (EF-FIN-33) — plutôt qu'un
+                        seul suivi d'un changement de nature. Le geste qu'on
+                        fait est « j'ajoute une enveloppe sans nom », pas
+                        « j'ajoute une ligne puis je la requalifie ».
+
+                        Le nominatif se désactive quand tous les croyants
+                        lisibles sont déjà cités : une ligne de plus ne pourrait
+                        pas être remplie, et la proposer serait mentir. Les deux
+                        autres n'ont pas cette limite — on peut compter dix
+                        enveloppes sans nom.
+                      */}
                       <Button
                         type="button"
                         variant="outline"
@@ -460,21 +499,32 @@ export function CollecteDialog({
                         disabled={
                           !entiteChoisie || ligneDuCroyant.size >= eligibles.length
                         }
-                        onClick={() =>
-                          /*
-                            `NonNullable` : le schéma porte un `.default([])`,
-                            donc le type d'entrée admet `undefined` et ne
-                            s'indexe pas directement.
-                          */
-                          append({
-                            croyantId: '',
-                            montant: '',
-                            enveloppe: '',
-                          } as NonNullable<SaisirCollecteInput['versements']>[number])
-                        }
+                        onClick={() => ajouter('NOMINATIF')}
                       >
                         <Plus className="mr-2 size-4" aria-hidden />
-                        Ajouter une enveloppe
+                        Enveloppe nominative
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-9"
+                        disabled={!entiteChoisie}
+                        onClick={() => ajouter('ENVELOPPE_ANONYME')}
+                      >
+                        <Plus className="mr-2 size-4" aria-hidden />
+                        Sans nom
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-9"
+                        disabled={!entiteChoisie}
+                        onClick={() => ajouter('EN_VRAC')}
+                      >
+                        <Plus className="mr-2 size-4" aria-hidden />
+                        En vrac
                       </Button>
                     </div>
                   </div>
@@ -493,23 +543,19 @@ export function CollecteDialog({
 
                   {!entiteChoisie ? (
                     <p className="text-muted-foreground border-border rounded-lg border p-6 text-center text-sm">
-                      Choisissez d’abord l’entité collectrice : ce sont ses croyants qui
-                      pourront verser.
-                    </p>
-                  ) : eligibles.length === 0 ? (
-                    <p className="text-muted-foreground border-border rounded-lg border p-6 text-center text-sm">
-                      Aucun croyant n’est rattaché à cette entité ni à ses descendants.
+                      Choisissez d’abord l’entité collectrice.
                     </p>
                   ) : (
                     <div className="border-border min-w-0 rounded-lg border">
                       <Table className="table-fixed">
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="w-[6%]">#</TableHead>
-                            <TableHead className="w-[46%]">Croyant *</TableHead>
-                            <TableHead className="w-[20%]">Enveloppe</TableHead>
-                            <TableHead className="w-[22%]">Montant *</TableHead>
-                            <TableHead className="w-[6%]" />
+                            <TableHead className="w-[5%]">#</TableHead>
+                            <TableHead className="w-[18%]">Nature</TableHead>
+                            <TableHead className="w-[35%]">Croyant</TableHead>
+                            <TableHead className="w-[18%]">Enveloppe</TableHead>
+                            <TableHead className="w-[19%]">Montant *</TableHead>
+                            <TableHead className="w-[5%]" />
                           </TableRow>
                         </TableHeader>
 
@@ -517,10 +563,10 @@ export function CollecteDialog({
                           {fields.length === 0 && (
                             <TableRow>
                               <TableCell
-                                colSpan={5}
+                                colSpan={6}
                                 className="text-muted-foreground py-6 text-center text-sm"
                               >
-                                Aucune enveloppe. Ajoutez-en une pour commencer.
+                                Aucun versement. Ajoutez-en un pour commencer.
                               </TableCell>
                             </TableRow>
                           )}
@@ -546,6 +592,52 @@ export function CollecteDialog({
                                 {index + 1}
                               </TableCell>
 
+                              {/* EF-FIN-33 — la nature du versement. Ensemble
+                                  CLOS et connu, mais trois pictogrammes dans
+                                  une colonne de grille seraient illisibles :
+                                  le sélecteur reste ici le bon contrôle. */}
+                              <TableCell>
+                                <Controller
+                                  control={control}
+                                  name={`versements.${index}.nature`}
+                                  render={({ field }) => (
+                                    <Select
+                                      value={(field.value as string) ?? 'NOMINATIF'}
+                                      onValueChange={(v) => {
+                                        /*
+                                          Passer une ligne en anonyme DÉTACHE le
+                                          croyant : le garder enverrait un nom
+                                          sur un versement qui n'en a pas, et la
+                                          contrainte de la base le refuserait à
+                                          l'enregistrement.
+                                        */
+                                        if (v !== 'NOMINATIF') {
+                                          setValue(`versements.${index}.croyantId`, null);
+                                        }
+                                        if (v === 'EN_VRAC') {
+                                          setValue(`versements.${index}.enveloppe`, '');
+                                        }
+                                        field.onChange(v);
+                                      }}
+                                    >
+                                      <SelectTrigger
+                                        className="h-9 w-full"
+                                        aria-label={`Nature, ligne ${index + 1}`}
+                                      >
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {NATURES_VERSEMENT.map((n) => (
+                                          <SelectItem key={n} value={n}>
+                                            {LIBELLES_NATURE[n]}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  )}
+                                />
+                              </TableCell>
+
                               <TableCell>
                                 {/* Une église de deux cents membres ne se
                                     parcourt pas à l'œil : recherche, matricule
@@ -563,10 +655,18 @@ export function CollecteDialog({
                                         const prise = ligneDuCroyant.get(c.id);
                                         return prise === undefined || prise === index;
                                       })}
-                                      value={field.value ?? null}
+                                      value={(field.value as string | null) ?? null}
                                       onChange={field.onChange}
                                       photos={photos}
-                                      placeholder="Choisir"
+                                      // Un versement anonyme n'a personne à
+                                      // rattacher : le champ n'est pas vide, il
+                                      // est sans objet.
+                                      disabled={natureDe(index) !== 'NOMINATIF'}
+                                      placeholder={
+                                        natureDe(index) === 'NOMINATIF'
+                                          ? 'Choisir'
+                                          : 'Sans nom'
+                                      }
                                       aria-label={`Croyant, ligne ${index + 1}`}
                                     />
                                   )}
@@ -583,9 +683,14 @@ export function CollecteDialog({
                                     tape la sienne par-dessus.
                                   */
                                   placeholder={
-                                    enveloppes[lignes[index]?.croyantId ?? ''] ??
-                                    'N° enveloppe'
+                                    natureDe(index) === 'EN_VRAC'
+                                      ? '—'
+                                      : (enveloppes[lignes[index]?.croyantId ?? ''] ??
+                                        'N° enveloppe')
                                   }
+                                  // En vrac : il n'y a pas d'enveloppe, c'est
+                                  // ce qui le définit.
+                                  disabled={natureDe(index) === 'EN_VRAC'}
                                   aria-label={`Enveloppe, ligne ${index + 1}`}
                                   {...register(`versements.${index}.enveloppe`)}
                                 />
