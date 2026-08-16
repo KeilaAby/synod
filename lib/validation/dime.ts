@@ -73,13 +73,14 @@ export const versementSchema = z
     message: 'Selectionnez le croyant, ou passez la ligne en anonyme.',
     path: ['croyantId'],
   })
-  .refine((v) => v.nature !== 'ENVELOPPE_ANONYME' || v.enveloppe !== null, {
-    message: "Une enveloppe sans nom porte un NUMERO : c'est ce qui la distingue du vrac.",
-    path: ['enveloppe'],
-  })
   .refine((v) => v.nature !== 'EN_VRAC' || v.croyantId === null, {
     message: 'Un versement en vrac ne se rattache a personne.',
     path: ['croyantId'],
+  })
+  // Le vrac, ce sont des especes SANS enveloppe : c'est sa definition.
+  .refine((v) => v.nature !== 'EN_VRAC' || v.enveloppe === null, {
+    message: "Un versement en vrac n'a pas d'enveloppe.",
+    path: ['enveloppe'],
   });
 
 export type VersementInput = z.input<typeof versementSchema>;
@@ -94,7 +95,12 @@ export const VERSEMENTS_MAX = 500;
 export const saisirCollecteSchema = z
   .object({
     entiteCollecteId: z.uuid("Selectionnez l'entite qui collecte."),
-    categorieId: z.uuid('Selectionnez une categorie.'),
+    /**
+     *  NE FIGURE PAS ICI. Sur l'ecran des dimes, tout EST une
+     * dime : le serveur la resout (). La laisser arriver
+     * du client rouvrirait la porte a une collecte rangee sous « Offrande »,
+     * qui disparaitrait du suivi des dimes.
+     */
     dateOperation: z.coerce.date({ message: 'Date invalide.' }),
     evenement: z.enum(EVENEMENTS_DIME, { message: "Precisez le type d'evenement." }),
     libelle: optionnel(z.string().trim().max(255)),

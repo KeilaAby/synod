@@ -2518,3 +2518,33 @@ partout, y compris ces suggestions. Deux « RAKOTO » se rangent alors entre eux
 et la liste se parcourt comme un registre ; un ordre de création ferait chercher
 un nom là où rien ne le fait attendre. Le tri par date reste dans la **requête**,
 où il sert à dédoublonner : le versement le plus récent l'emporte.
+
+---
+
+## 13 août 2026 (suite) — La catégorie ne se demande plus, l'enveloppe n'exige plus de numéro
+
+**Le champ « Catégorie » disparaît du pop-up.** Sur `/finances/dimes`, tout
+**est** une dîme : le champ n'offrait pas un choix mais une occasion de se
+tromper — une collecte rangée sous « Offrande » disparaîtrait du suivi des dîmes
+sans qu'aucune ligne ne paraisse anormale.
+
+Le serveur la **résout** (`trouverCategorieDime`) au lieu de la recevoir :
+un formulaire qui n'affiche pas un champ n'a pas à l'envoyer (règle 19). Même
+raisonnement que le grade d'un nouveau baptisé. Si le référentiel n'en contient
+aucune, l'opération est **refusée en le disant**.
+
+**`0033` — une enveloppe anonyme n'a pas forcément de numéro.** La contrainte de
+`0030` l'exigeait et renvoyait au vrac ce qui n'en avait pas. C'était une
+distinction d'informaticien, pas de trésorier :
+
+- une enveloppe **sans numéro reste une enveloppe** — elle a été pliée, remise,
+  ouverte. L'appeler « en vrac » — des espèces jetées dans l'urne — décrit autre
+  chose que ce qui s'est passé ;
+- et surtout, cela **ôtait un choix à l'utilisateur**. Devant une enveloppe
+  numérotée mais sans nom, c'est à lui de trancher : chercher le porteur par le
+  numéro (la suggestion), ou la classer « enveloppe anonyme ». La contrainte
+  décidait à sa place.
+
+Ce qui reste vrai : le **vrac** n'a ni nom ni numéro — c'est sa définition même.
+
+474 tests unitaires. `pnpm verify` vert.

@@ -138,9 +138,52 @@ export function ouvreUnRecu(nature: NatureVersement): boolean {
   return nature === 'NOMINATIF';
 }
 
-/** Une enveloppe anonyme porte un NUMERO — c'est ce qui la distingue du vrac. */
-export function exigeUneEnveloppe(nature: NatureVersement): boolean {
-  return nature === 'ENVELOPPE_ANONYME';
+/**
+ * Une enveloppe anonyme ADMET un numero, elle ne l'exige pas.
+ *
+ * La contrainte initiale renvoyait au vrac ce qui n'avait pas de numero.
+ * C'etait une distinction d'informaticien, pas de tresorier : une enveloppe
+ * sans numero reste une enveloppe — elle a ete pliee, remise, ouverte. Et
+ * surtout, cela otait un CHOIX a l'utilisateur, seul juge de ce qu'il tient en
+ * main.
+ *
+ * Le VRAC, lui, n'a ni nom ni enveloppe : c'est sa definition.
+ */
+export function admetUnNumero(nature: NatureVersement): boolean {
+  return nature !== 'EN_VRAC';
+}
+
+/**
+ * La categorie d'une collecte de dimes — EF-FIN-27.
+ *
+ * ELLE NE SE DEMANDE PAS. Sur l'ecran des dimes, tout EST une dime : le champ
+ * n'offrait pas un choix mais une occasion de se tromper — enregistrer une
+ * collecte sous « Offrande » et la voir disparaitre du suivi des dimes.
+ *
+ * Le serveur la RESOUT, il ne la recoit pas : un formulaire qui n'affiche pas
+ * un champ n'a pas a l'envoyer (regle 19). Meme raisonnement que le grade d'un
+ * nouveau baptise.
+ *
+ * Rend `null` si le referentiel n'en contient aucune — l'appelant le DIT,
+ * plutot que de ranger une collecte sous une categorie prise au hasard.
+ */
+export function trouverCategorieDime(
+  categories: readonly { readonly id: string; readonly libelle: string; readonly code?: string }[],
+): string | null {
+  const normaliser = (v: string) =>
+    v
+      .trim()
+      .toLocaleLowerCase('fr')
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '');
+
+  return (
+    categories.find(
+      (c) =>
+        normaliser(c.libelle).includes('dime') ||
+        (c.code ? normaliser(c.code).includes('dime') : false),
+    )?.id ?? null
+  );
 }
 
 export interface VersementDime {

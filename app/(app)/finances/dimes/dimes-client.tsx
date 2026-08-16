@@ -22,7 +22,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import type { CollecteListe } from '@/lib/data/dimes';
-import type { CategorieFinance } from '@/lib/data/finances';
 import { normaliserRecherche } from '@/lib/domain/croyant';
 import {
   LIBELLES_EVENEMENT,
@@ -48,7 +47,6 @@ import { formatDate, formatMontant, formatNombre } from '@/lib/utils/format';
 export function DimesClient({
   collectes,
   entites,
-  categories,
   devise,
   modes,
   croyants,
@@ -59,7 +57,6 @@ export function DimesClient({
 }: {
   collectes: CollecteListe[];
   entites: OptionEntite[];
-  categories: CategorieFinance[];
   devise: string;
   /** EF-FIN-28 — le mode DÉCIDÉ par chaque entité ; `null` = défaut. */
   modes: Record<string, ModeDime | null>;
@@ -146,7 +143,6 @@ export function DimesClient({
 
           <CollecteDialog
             entites={entites}
-            categories={categories}
             devise={devise}
             modes={modes}
             croyants={croyants}
@@ -185,7 +181,6 @@ export function DimesClient({
         {enAttente.nombre === 0 && (
           <CollecteDialog
             entites={entites}
-            categories={categories}
             devise={devise}
             modes={modes}
             croyants={croyants}

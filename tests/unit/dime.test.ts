@@ -8,11 +8,12 @@ import {
   detailConsultable,
   doublonsDeCollecte,
   estEnRetard,
-  exigeUneEnveloppe,
+  admetUnNumero,
   modeEffectif,
   ouvreUnRecu,
   peutVerser,
   totalCollecte,
+  trouverCategorieDime,
 } from '@/lib/domain/dime';
 
 /**
@@ -113,6 +114,41 @@ describe('EF-FIN-27 — le total ne se saisit pas, il se calcule', () => {
   });
 });
 
+describe('EF-FIN-27 — la categorie ne se demande pas', () => {
+  const categories = [
+    { id: 'x', libelle: 'Offrande' },
+    { id: 'y', libelle: 'Dime' },
+    { id: 'z', libelle: 'Loyer' },
+  ];
+
+  it('resout la dime sans la demander a l utilisateur', () => {
+    /**
+     * Sur l'ecran des dimes, tout EST une dime : le champ n'offrait pas un
+     * choix mais une occasion de se tromper. Une collecte rangee sous
+     * « Offrande » disparaitrait du suivi sans qu'aucune ligne ne paraisse
+     * anormale.
+     */
+    expect(trouverCategorieDime(categories)).toBe('y');
+  });
+
+  it('ignore la casse et les accents du referentiel', () => {
+    expect(trouverCategorieDime([{ id: 'a', libelle: '  DÎMES ' }])).toBe('a');
+  });
+
+  it('reconnait aussi par le CODE', () => {
+    expect(
+      trouverCategorieDime([{ id: 'b', libelle: 'Recette du culte', code: 'DIME' }]),
+    ).toBe('b');
+  });
+
+  it('ne prend RIEN par defaut quand aucune categorie ne convient', () => {
+    // Ranger une collecte sous une categorie prise au hasard serait pire qu'un
+    // refus : personne ne le verrait.
+    expect(trouverCategorieDime([{ id: 'x', libelle: 'Offrande' }])).toBeNull();
+    expect(trouverCategorieDime([])).toBeNull();
+  });
+});
+
 describe('EF-FIN-33 — toute dime n a pas de nom', () => {
   it('ne delivre un recu QU AU nominatif', () => {
     // On ne remet pas un recu a personne : consommer la sequence pour une
@@ -122,12 +158,17 @@ describe('EF-FIN-33 — toute dime n a pas de nom', () => {
     expect(ouvreUnRecu('EN_VRAC')).toBe(false);
   });
 
-  it('exige un NUMERO pour une enveloppe sans nom', () => {
-    // C'est ce qui la distingue du vrac, et ce qui permettra de la rattacher
-    // plus tard si son porteur se manifeste.
-    expect(exigeUneEnveloppe('ENVELOPPE_ANONYME')).toBe(true);
-    expect(exigeUneEnveloppe('EN_VRAC')).toBe(false);
-    expect(exigeUneEnveloppe('NOMINATIF')).toBe(false);
+  it('ADMET un numero sur une enveloppe sans nom, sans l exiger', () => {
+    /**
+     * La premiere version l'exigeait, et renvoyait au vrac ce qui n'en avait
+     * pas. C'etait une distinction d'informaticien, pas de tresorier : une
+     * enveloppe sans numero reste une enveloppe. Surtout, cela otait un CHOIX
+     * a l'utilisateur, seul juge de ce qu'il tient en main.
+     */
+    expect(admetUnNumero('ENVELOPPE_ANONYME')).toBe(true);
+    expect(admetUnNumero('NOMINATIF')).toBe(true);
+    // Le vrac, lui, n'a ni nom ni enveloppe : c'est sa definition.
+    expect(admetUnNumero('EN_VRAC')).toBe(false);
   });
 
   it('compte les trois natures dans le TOTAL', () => {

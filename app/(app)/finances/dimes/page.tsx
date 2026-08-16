@@ -9,7 +9,6 @@ import {
 } from '@/lib/data/dimes';
 import { getArbrePerimetre } from '@/lib/data/entities';
 import { versOptions } from '@/lib/data/entity-options';
-import { listerCategoriesFinance } from '@/lib/data/finances';
 import { signerPhotos } from '@/lib/data/photos';
 import { getParametres } from '@/lib/data/settings';
 import { formatNombre } from '@/lib/utils/format';
@@ -32,11 +31,10 @@ export const metadata: Metadata = { title: 'Dîmes' };
  * d'équivalent ici.
  */
 export default async function DimesPage() {
-  const [collectes, arbre, categories, parametres, donateurs, enveloppes, porteurs] =
+  const [collectes, arbre, parametres, donateurs, enveloppes, porteurs] =
     await Promise.all([
     chargerCollectes(),
     getArbrePerimetre(),
-    listerCategoriesFinance(),
     getParametres(),
     /**
      * Les donateurs possibles — TOUTE l'organisation (EF-FIN-32).
@@ -86,8 +84,6 @@ export default async function DimesPage() {
       <DimesClient
         collectes={collectes}
         entites={versOptions(actives, arbre)}
-        // Seules les catégories de RECETTE : une dîme en est une (RG-13).
-        categories={categories.filter((c) => c.sens === 'RECETTE')}
         devise={parametres.devise}
         modes={Object.fromEntries(actives.map((e) => [e.id, e.dime_mode ?? null]))}
         croyants={donateurs.donateurs.map((c) => ({

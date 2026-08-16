@@ -39,7 +39,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { saisirCollecteDime } from '@/lib/actions/dimes';
-import type { CategorieFinance } from '@/lib/data/finances';
 import {
   EVENEMENTS_DIME,
   LIBELLES_EVENEMENT,
@@ -86,7 +85,6 @@ export interface CroyantOption {
 
 export function CollecteDialog({
   entites,
-  categories,
   devise,
   modes,
   croyants = [],
@@ -96,7 +94,6 @@ export function CollecteDialog({
   porteurs = {},
 }: {
   entites: OptionEntite[];
-  categories: CategorieFinance[];
   devise: string;
   /** EF-FIN-28 — le mode DÉCIDÉ par chaque entité ; `null` = défaut. */
   modes: Record<string, ModeDime | null>;
@@ -409,28 +406,6 @@ export function CollecteDialog({
                     )}
                   </Field>
 
-                  <Field label="Catégorie" required error={errors.categorieId?.message}>
-                    {(aria) => (
-                      <Controller
-                        control={control}
-                        name="categorieId"
-                        render={({ field }) => (
-                          <Select value={field.value ?? ''} onValueChange={field.onChange}>
-                            <SelectTrigger {...aria} className="h-10 w-full">
-                              <SelectValue placeholder="Choisir" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {categories.map((c) => (
-                                <SelectItem key={c.id} value={c.id}>
-                                  {c.libelle}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                    )}
-                  </Field>
                 </section>
 
                 <section className="space-y-6 md:border-border md:border-l md:pl-10">

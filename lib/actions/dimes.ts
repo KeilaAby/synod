@@ -3,7 +3,12 @@
 import { revalidatePath } from 'next/cache';
 
 import { getArbrePerimetre } from '@/lib/data/entities';
-import { admetLeDetail, doublonsDeCollecte } from '@/lib/domain/dime';
+import { listerCategoriesFinance } from '@/lib/data/finances';
+import {
+  admetLeDetail,
+  doublonsDeCollecte,
+  trouverCategorieDime,
+} from '@/lib/domain/dime';
 import { type ActionResult, ko, ok } from '@/lib/domain/result';
 import { auditer, requirePermission, requireSession } from '@/lib/session';
 import { createClient } from '@/lib/supabase/server';
@@ -61,7 +66,12 @@ export async function saisirCollecteDime(
     }
     const data = analyse.data;
 
-    const arbre = await getArbrePerimetre();
+    // Deux lectures INDEPENDANTES, donc simultanees (regle 28).
+    const [arbre, categories] = await Promise.all([
+      getArbrePerimetre(),
+      listerCategoriesFinance(),
+    ]);
+
     // Une absence de donnees n'est pas un refus de droit (regle 15).
     if (arbre.length === 0) {
       return ko(
@@ -71,6 +81,26 @@ export async function saisirCollecteDime(
 
     const hote = arbre.find((e) => e.id === data.entiteCollecteId);
     if (!hote) return ko('Cette entite est introuvable ou hors de votre perimetre.');
+
+    /**
+     * La categorie est RESOLUE, pas recue — EF-FIN-27.
+     *
+     * Sur l'ecran des dimes, tout EST une dime : le champ n'offrait pas un
+     * choix mais une occasion de se tromper. Une collecte rangee sous
+     * « Offrande » disparaitrait du suivi des dimes sans qu'aucune ligne ne
+     * paraisse anormale.
+     */
+    const categorieId = trouverCategorieDime(
+      categories as { id: string; libelle: string; code?: string }[],
+    );
+
+    if (!categorieId) {
+      return ko(
+        'Aucune categorie de dime dans le referentiel : c\'est celle sous laquelle ' +
+          'toute collecte est enregistree. Creez-la dans Referentiels > Categories ' +
+          'financieres, puis reessayez.',
+      );
+    }
 
     /**
      * Le droit est verifie DEUX FOIS, et ce n'est pas une redite.
@@ -129,7 +159,7 @@ export async function saisirCollecteDime(
 
     const { data: resultat, error } = await sb.rpc('fn_saisir_collecte_dime', {
       p_entite_collecte: data.entiteCollecteId,
-      p_categorie: data.categorieId,
+      p_categorie: categorieId,
       p_date_operation: data.dateOperation.toISOString().slice(0, 10),
       p_evenement: data.evenement,
       p_libelle: data.libelle ? sanitize(data.libelle) : null,
