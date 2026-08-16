@@ -23,7 +23,6 @@ import {
   type DispositionTableauDeBord,
   type GroupeKpi,
   LIBELLES_GROUPE_KPI,
-  type RenduKpi,
   type TailleKpi,
   appliquerDisposition,
   basculerMasque,
@@ -65,14 +64,18 @@ export function TableauDeBordClient({
   disposition: DispositionTableauDeBord;
   devise: string;
   /**
-   * EF-DSH-06 — le contenu des blocs qui ne sont pas un chiffre, par rendu.
+   * EF-DSH-06 — le contenu des blocs qui ne sont pas un chiffre, PAR CLÉ.
    *
-   * ILS SONT CONSTRUITS PAR LA PAGE, pas ici. Chacun lit ses propres données —
-   * les dernières fiches, douze mois de finances — et cette grille n'a pas à
-   * savoir d'où elles viennent : elle place, ordonne et masque. Un bloc de plus
-   * ne la rouvre pas.
+   * PAR CLÉ ET NON PAR RENDU : quatre répartitions partagent le même rendu et
+   * n'affichent pas la même chose. Les indexer par rendu aurait donné la
+   * pyramide des âges sous le titre « Par grade », sans qu'aucun type ne s'en
+   * plaigne.
+   *
+   * ILS SONT CONSTRUITS PAR LA PAGE, pas ici. Chacun lit ses propres données,
+   * et cette grille n'a pas à savoir d'où elles viennent : elle place, ordonne
+   * et masque. Un bloc de plus ne la rouvre pas.
    */
-  blocs?: Partial<Record<RenduKpi, ReactNode>>;
+  blocs?: Record<string, ReactNode>;
 }) {
   const [disposition, setDisposition] = useState(dispositionInitiale);
   const [personnalise, setPersonnalise] = useState(false);
@@ -189,7 +192,7 @@ export function TableauDeBordClient({
                   definition={kpi}
                   valeur={mesures[kpi.cle] ?? 0}
                   total={kpi.partDe ? (mesures[kpi.partDe] ?? 0) : null}
-                  contenu={blocs[kpi.rendu ?? 'VALEUR']}
+                  contenu={blocs[kpi.cle]}
                   devise={devise}
                   personnalise={personnalise}
                   masque={masques.has(kpi.cle)}

@@ -37,7 +37,13 @@ export const LIBELLES_GROUPE_KPI: Record<GroupeKpi, string> = {
  * Chaque rendu a ses donnees et son composant ; la personnalisation, elle, ne
  * les distingue pas — tout bloc s'ordonne et se masque de la meme facon.
  */
-export const RENDUS_KPI = ['VALEUR', 'LISTE_CROYANTS', 'COURBE_FINANCES'] as const;
+export const RENDUS_KPI = [
+  'VALEUR',
+  'LISTE_CROYANTS',
+  'COURBE_FINANCES',
+  'REPARTITION',
+  'JAUGE',
+] as const;
 export type RenduKpi = (typeof RENDUS_KPI)[number];
 
 /**
@@ -318,6 +324,82 @@ export const KPI_REGISTRY: readonly DefinitionKpi[] = [
     taille: 6,
     lien: '/finances/synthese',
   },
+
+  // --- Les répartitions — EF-DSH-05 ------------------------------------------
+  /**
+   * COMMENT SE DECOMPOSE L'EFFECTIF.
+   *
+   * Un total dit la taille, jamais la FORME. « Mille croyants » ne distingue
+   * pas une assemblee de jeunes menages d'une assemblee vieillissante — et ce
+   * ne sont pas les memes decisions qui suivent.
+   */
+  {
+    cle: 'repartition_age',
+    libelle: 'Pyramide des âges',
+    groupe: 'EFFECTIFS',
+    format: 'NOMBRE',
+    permission: 'croyant.read',
+    rendu: 'REPARTITION',
+    taille: 3,
+    lien: '/croyants',
+  },
+  {
+    cle: 'repartition_grade',
+    libelle: 'Par grade',
+    groupe: 'EFFECTIFS',
+    format: 'NOMBRE',
+    permission: 'croyant.read',
+    rendu: 'REPARTITION',
+    taille: 3,
+    lien: '/croyants',
+  },
+  {
+    cle: 'repartition_nationalite',
+    libelle: 'Par nationalité',
+    groupe: 'EFFECTIFS',
+    format: 'NOMBRE',
+    permission: 'croyant.read',
+    rendu: 'REPARTITION',
+    taille: 3,
+    lien: '/croyants',
+  },
+  /**
+   * LE CLASSEMENT DES ENTITES FILLES.
+   *
+   * C'est une repartition, pas un palmares : on y cherche celle qui decroche,
+   * pas celle qui gagne. Les FILLES DIRECTES uniquement, avec le total de leur
+   * sous-arbre — comparer un district a une cellule n'aurait aucun sens.
+   */
+  {
+    cle: 'repartition_entite',
+    libelle: 'Effectif par entité fille',
+    groupe: 'STRUCTURE',
+    format: 'NOMBRE',
+    permission: 'entity.read',
+    rendu: 'REPARTITION',
+    taille: 3,
+    lien: '/structure/liste',
+  },
+  /**
+   * LA COUVERTURE DES BUREAUX — EF-DSH-05.
+   *
+   * RG-10 veut un bureau par entite. Le chiffre brut « 12 bureaux » ne dit pas
+   * s'il en manque huit ; le rapport, si. Les cellules de priere sont hors du
+   * compte : elles n'ont pas de bureau, et les inclure ferait plonger la
+   * couverture de toute organisation qui en compte beaucoup — c'est-a-dire de
+   * celles qui vont le mieux.
+   */
+  {
+    cle: 'couverture_bureaux',
+    libelle: 'Couverture des bureaux',
+    groupe: 'GOUVERNANCE',
+    format: 'NOMBRE',
+    permission: 'bureau.read',
+    rendu: 'JAUGE',
+    taille: 2,
+    aide: 'Entités pourvues d’un bureau en fonction. Hors cellules de prière.',
+    lien: '/bureaux',
+  },
 ];
 
 /**
@@ -457,4 +539,101 @@ export function deplacerKpi(
   if (cible < 0) return [...affiches];
 
   return [...sansLui.slice(0, cible), cle, ...sansLui.slice(cible)];
+}
+
+// ---------------------------------------------------------------------------
+// EF-DSH-05 — les repartitions
+// ---------------------------------------------------------------------------
+
+export const DIMENSIONS = ['GRADE', 'NATIONALITE', 'AGE', 'ENTITE'] as const;
+export type Dimension = (typeof DIMENSIONS)[number];
+
+export interface TrancheRepartition {
+  readonly dimension: string;
+  readonly cle: string;
+  readonly libelle: string;
+  readonly effectif: number;
+}
+
+export interface BarreRepartition {
+  readonly cle: string;
+  readonly libelle: string;
+  readonly effectif: number;
+  /** Part dans le total de la dimension, en pourcentage. */
+  readonly part: number;
+  /** Part rapportee a la PLUS GRANDE tranche : c'est la longueur de la barre. */
+  readonly longueur: number;
+}
+
+/**
+ * Le plafond de tranches affichees.
+ *
+ * Une repartition sert a VOIR LA FORME d'un ensemble, pas a l'enumerer : au-dela
+ * d'une dizaine de barres, on ne compare plus, on lit une liste — et il existe
+ * un ecran pour cela.
+ */
+export const TRANCHES_AFFICHEES = 8;
+
+/**
+ * Prepare une repartition pour l'affichage — EF-DSH-05.
+ *
+ * DEUX POURCENTAGES, ET CE N'EST PAS UNE REDONDANCE. `part` est ce qu'on LIT
+ * (« 34 % des croyants ») ; `longueur` est ce qu'on VOIT. Dessiner les barres a
+ * l'echelle de la part rendrait illisible toute repartition ou aucune tranche
+ * ne depasse 20 % — huit traits minuscules dont on ne distingue pas le plus
+ * long. Les mettre a l'echelle du MAXIMUM garde la comparaison visible, et le
+ * chiffre reste la pour dire la verite.
+ *
+ * TRIEES PAR EFFECTIF DECROISSANT, sauf l'age. Les tranches d'age ont un ordre
+ * NATUREL — les lire de la plus jeune a la plus vieille est la seule facon d'y
+ * voir une pyramide ; les trier par effectif en ferait un classement, ce qu'une
+ * pyramide des ages n'est pas.
+ */
+export function preparerRepartition(
+  tranches: readonly TrancheRepartition[],
+  dimension: Dimension,
+  plafond: number = TRANCHES_AFFICHEES,
+): { barres: BarreRepartition[]; total: number; reste: number } {
+  const retenues = tranches.filter((t) => t.dimension === dimension && t.effectif > 0);
+  const total = retenues.reduce((s, t) => s + t.effectif, 0);
+
+  const ordonnees =
+    dimension === 'AGE'
+      ? [...retenues].sort((a, b) => a.cle.localeCompare(b.cle))
+      : [...retenues].sort(
+          (a, b) => b.effectif - a.effectif || a.libelle.localeCompare(b.libelle, 'fr'),
+        );
+
+  const gardees = ordonnees.slice(0, plafond);
+  const maximum = Math.max(1, ...gardees.map((t) => t.effectif));
+
+  return {
+    barres: gardees.map((t) => ({
+      cle: t.cle,
+      libelle: t.libelle,
+      effectif: t.effectif,
+      part: total > 0 ? (t.effectif / total) * 100 : 0,
+      longueur: (t.effectif / maximum) * 100,
+    })),
+    total,
+    /** Ce que le plafond a ecarte : on le DIT, plutot que de le taire. */
+    reste: ordonnees.length - gardees.length,
+  };
+}
+
+/**
+ * La couverture, en pourcentage — EF-DSH-05.
+ *
+ * Rend `null` quand il n'y a rien a couvrir : « 0 % de bureaux » sur un
+ * perimetre sans entite eligible se lirait comme un manquement, alors qu'il n'y
+ * a simplement rien a pourvoir (regle 15).
+ *
+ * ELLE SE BORNE A CENT. Une entite peut porter plusieurs bureaux au fil du
+ * temps ; si un jour deux se retrouvaient actifs, une jauge a 130 % ferait
+ * douter de tout l'ecran plutot que de signaler l'anomalie — qui a son propre
+ * endroit, l'index unique `bureaux_un_seul_actif`.
+ */
+export function couverture(couvertes: number, total: number): number | null {
+  if (!Number.isFinite(couvertes) || !Number.isFinite(total) || total <= 0) return null;
+  return Math.min(100, (couvertes / total) * 100);
 }

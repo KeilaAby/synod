@@ -12,7 +12,17 @@
 
 ---
 
-## Aucune migration n'attend
+## À FAIRE EN PREMIER — la migration `0042`
+
+`supabase/migrations/0042_repartitions.sql` **n'est pas appliquée**. Sans elle,
+les quatre répartitions et la jauge de couverture restent vides — et
+`fn_tableau_de_bord`, qu'elle redéfinit pour ajouter le dénominateur de la
+jauge, ne rendra pas la colonne `entites_a_bureau`.
+
+```bash
+# à passer dans l'éditeur SQL Supabase
+supabase/migrations/0042_repartitions.sql
+```
 
 Les migrations `0023` à `0041` sont appliquées.
 
@@ -62,8 +72,9 @@ livré pour l'essentiel**.
 | **Tableau de bord — EF-DSH-01/02/04/11/12** | ✅ |
 | **Personnalisation du tableau de bord — EF-DSH-03/07/09** | ✅ |
 | **Blocs composés et parts — EF-DSH-05/06 (partiel)** | ✅ |
+| **Répartitions, classement et jauge — EF-DSH-05** *(migration `0042`)* | ✅ |
 
-555 tests unitaires, 27 fichiers. `pnpm verify` vert.
+563 tests unitaires, 27 fichiers. `pnpm verify` vert.
 
 ---
 
@@ -94,14 +105,10 @@ livrés le 16 août. EF-FIN-27 à 35 sont tous servis.
 ### Lot 5 — tableau de bord, la suite
 
 Indicateurs, masquage, squelette, **personnalisation**, parts en pourcentage,
-liste des dernières fiches et **courbe financière par catégorie** sont livrés.
-Restent :
+dernières fiches, **courbe financière par catégorie**, **quatre répartitions**
+(âge, grade, nationalité, entités filles) et **jauge de couverture** sont
+livrés. Restent :
 
-- **EF-DSH-06, la suite** — jauge, barres, camembert. L'ossature est en place :
-  un rendu s'ajoute au registre (`rendu`, `taille`) et la page lui passe son
-  contenu ; la grille n'a pas à être rouverte.
-- **EF-DSH-05, la suite** — répartitions par grade, nationalité, tranche
-  d'âge ; couverture des bureaux ; classement des entités filles.
 - **EF-DSH-06 par indicateur** — le cahier des charges veut le périmètre et la
   période réglables *widget par widget*. Aujourd'hui la période est commune
   (mois courant) et le périmètre est celui de la session.

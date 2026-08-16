@@ -11,7 +11,9 @@ import {
   groupesVisibles,
   kpiEstAlerte,
   kpisVisibles,
+  couverture,
   partDeLEffectif,
+  preparerRepartition,
 } from '@/lib/domain/kpi';
 import { ALL_PERMISSIONS, type Permission } from '@/lib/domain/permissions';
 
@@ -281,5 +283,108 @@ describe('EF-DSH-05, EF-DSH-06 — la part et les rendus', () => {
     const masques = composes.map((k) => k.cle);
     const restants = appliquerDisposition(KPI_REGISTRY, { ordre: [], masques });
     expect(restants.some((k) => masques.includes(k.cle))).toBe(false);
+  });
+});
+
+describe('EF-DSH-05 — les repartitions', () => {
+  const t = (dimension: string, cle: string, libelle: string, effectif: number) => ({
+    dimension,
+    cle,
+    libelle,
+    effectif,
+  });
+
+  const tranches = [
+    t('GRADE', 'CRO', 'Croyant', 800),
+    t('GRADE', 'DIA', 'Diacre', 150),
+    t('GRADE', 'PAS', 'Pasteur', 50),
+    t('AGE', '3', '26 à 40 ans', 400),
+    t('AGE', '1', '0 à 17 ans', 200),
+    t('AGE', '2', '18 à 25 ans', 300),
+    // Une tranche a zero n'est pas une tranche : elle n'a rien a montrer.
+    t('AGE', '5', '61 ans et plus', 0),
+  ];
+
+  it('trie par effectif DECROISSANT, sauf l age', () => {
+    /**
+     * Les tranches d'age ont un ordre NATUREL : les lire de la plus jeune a la
+     * plus vieille est la seule facon d'y voir une pyramide. Les trier par
+     * effectif en ferait un classement, ce qu'une pyramide n'est pas.
+     */
+    expect(preparerRepartition(tranches, 'GRADE').barres.map((b) => b.libelle)).toEqual([
+      'Croyant',
+      'Diacre',
+      'Pasteur',
+    ]);
+
+    expect(preparerRepartition(tranches, 'AGE').barres.map((b) => b.cle)).toEqual([
+      '1',
+      '2',
+      '3',
+    ]);
+  });
+
+  it('ecarte les tranches vides', () => {
+    // « 61 ans et plus : 0 » occupe une ligne pour ne rien dire.
+    expect(preparerRepartition(tranches, 'AGE').barres.some((b) => b.cle === '5')).toBe(
+      false,
+    );
+  });
+
+  it('distingue LA PART de LA LONGUEUR', () => {
+    /**
+     * Ce n'est pas une redondance. `part` est ce qu'on LIT, `longueur` ce qu'on
+     * VOIT : dessiner les barres a l'echelle de la part rendrait illisible
+     * toute repartition ou rien ne depasse 20 %.
+     */
+    const { barres, total } = preparerRepartition(tranches, 'GRADE');
+
+    expect(total).toBe(1000);
+    expect(barres[0]!.part).toBeCloseTo(80, 5);
+    // La plus grande occupe TOUTE la largeur, quelle que soit sa part.
+    expect(barres[0]!.longueur).toBe(100);
+    expect(barres[1]!.longueur).toBeCloseTo(18.75, 2);
+  });
+
+  it('borne le nombre de barres et DIT ce qu il a ecarte', () => {
+    /**
+     * Une repartition sert a voir la FORME d'un ensemble, pas a l'enumerer.
+     * Mais un plafond silencieux ferait croire qu'il n'y a rien d'autre.
+     */
+    const nombreuses = Array.from({ length: 12 }, (_, i) =>
+      t('NATIONALITE', `n${i}`, `Pays ${i}`, 12 - i),
+    );
+
+    const { barres, reste } = preparerRepartition(nombreuses, 'NATIONALITE', 8);
+    expect(barres).toHaveLength(8);
+    expect(reste).toBe(4);
+  });
+
+  it('rend un ensemble vide sans se plaindre', () => {
+    expect(preparerRepartition([], 'GRADE')).toEqual({ barres: [], total: 0, reste: 0 });
+  });
+});
+
+describe('EF-DSH-05, EF-DSH-06 — la jauge de couverture', () => {
+  it('rapporte les couvertes au total', () => {
+    expect(couverture(12, 20)).toBeCloseTo(60, 5);
+    expect(couverture(20, 20)).toBe(100);
+  });
+
+  it('rend NULL quand il n y a rien a couvrir', () => {
+    /**
+     * « 0 % de bureaux » sur un perimetre sans entite eligible se lirait comme
+     * un manquement, alors qu'il n'y a simplement rien a pourvoir (regle 15).
+     */
+    expect(couverture(0, 0)).toBeNull();
+  });
+
+  it('se BORNE a cent', () => {
+    /**
+     * Si deux bureaux se retrouvaient actifs sur une meme entite, une jauge a
+     * 130 % ferait douter de tout l'ecran plutot que de signaler l'anomalie —
+     * qui a son propre endroit, l'index unique `bureaux_un_seul_actif`.
+     */
+    expect(couverture(26, 20)).toBe(100);
   });
 });

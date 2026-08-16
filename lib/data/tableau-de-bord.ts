@@ -3,6 +3,7 @@ import 'server-only';
 import {
   DISPOSITION_VIDE,
   type DispositionTableauDeBord,
+  type TrancheRepartition,
   estDisposition,
 } from '@/lib/domain/kpi';
 import { createClient } from '@/lib/supabase/server';
@@ -35,6 +36,8 @@ const VIDE: MesuresTableauDeBord = {
   membres_bureau: 0,
   membres_finances: 0,
   bureaux_actifs: 0,
+  // EF-DSH-05 — le denominateur de la couverture des bureaux (migration 0042).
+  entites_a_bureau: 0,
   recettes: 0,
   depenses: 0,
   solde_consolide: 0,
@@ -179,5 +182,38 @@ export async function chargerDerniersCroyants(): Promise<CroyantRecent[]> {
     dateBapteme: c.date_bapteme,
     createdAt: c.created_at,
     egliseNom: c.eglise?.nom ?? null,
+  }));
+}
+
+/**
+ * Les repartitions analytiques — EF-DSH-05.
+ *
+ * UNE SEULE LECTURE POUR QUATRE DIMENSIONS : grade, nationalite, tranche d'age
+ * et entite fille. Elles repondent a la meme question — « comment se decompose
+ * notre effectif ? » — et ne different que par la colonne de regroupement
+ * (regle 28).
+ *
+ * `fn_repartitions` est SECURITY INVOKER : la RLS borne le resultat, l'ecran
+ * n'a aucun filtrage a refaire.
+ *
+ * Une repartition illisible fait disparaitre ses barres, pas la page : le reste
+ * du tableau de bord continue de servir.
+ */
+export async function chargerRepartitions(
+  entityId: string,
+): Promise<TrancheRepartition[]> {
+  const sb = await createClient();
+
+  const { data, error } = await sb.rpc('fn_repartitions', { p_entity: entityId });
+
+  if (error) return [];
+
+  return ((data ?? []) as TrancheRepartition[]).map((t) => ({
+    dimension: t.dimension,
+    cle: t.cle,
+    libelle: t.libelle,
+    // `integer` traverse PostgREST en nombre, mais `count(*)` peut arriver en
+    // chaine selon la version : on ne parie pas sur la forme.
+    effectif: Number(t.effectif ?? 0),
   }));
 }

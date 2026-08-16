@@ -422,9 +422,9 @@ Les habilitations sont **unitaires**, regroupées par catégorie, et chacune peu
 
 | Réf. | Exigence | Priorité |
 |---|---|---|
-| **EF-AUT-01** | S'authentifier par e-mail et mot de passe. | **Must** |
-| **EF-AUT-02** | Réinitialiser son mot de passe par lien envoyé par e-mail (valide 60 minutes, usage unique). | **Must** |
-| **EF-AUT-03** | Fermer la session automatiquement après 8 heures d'inactivité. | **Must** |
+| **EF-AUT-01** | S'authentifier par e-mail ou un matricule et mot de passe. | **Must** |
+| **EF-AUT-02** | Réinitialiser son mot de passe par lien envoyé par e-mail (valide 60 minutes, usage unique) ou communiquer par le SuperAdmin. | **Must** |
+| **EF-AUT-03** | Fermer la session automatiquement après 30 minutes d'inactivité. | **Must** |
 | **EF-AUT-04** | Modifier son profil, son mot de passe et ses préférences d'affichage. | **Must** |
 | **EF-AUT-05** | Consulter ses propres habilitations en lecture seule (transparence). | **Should** |
 | **EF-AUT-06** | Proposer une double authentification (TOTP) pour les comptes SuperAdmin. | **Could** |

@@ -5,16 +5,25 @@ import { PageHeader } from '@/components/shared/page-header';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CourbeFinances } from '@/components/tableau-de-bord/courbe-finances';
 import { DerniersCroyants } from '@/components/tableau-de-bord/derniers-croyants';
+import { Jauge } from '@/components/tableau-de-bord/jauge';
+import { RepartitionBarres } from '@/components/tableau-de-bord/repartition-barres';
 import { chargerSyntheseAnnuelle } from '@/lib/data/finances';
 import { signerPhotos } from '@/lib/data/photos';
 import { getParametres } from '@/lib/data/settings';
 import {
   chargerDerniersCroyants,
   chargerDisposition,
+  chargerRepartitions,
   chargerTableauDeBord,
 } from '@/lib/data/tableau-de-bord';
 import { ENTITY_LABELS, type EntityType } from '@/lib/domain/hierarchy';
-import { KPI_REGISTRY, kpisVisibles } from '@/lib/domain/kpi';
+import {
+  KPI_REGISTRY,
+  type TrancheRepartition,
+  couverture,
+  kpisVisibles,
+  preparerRepartition,
+} from '@/lib/domain/kpi';
 import { detient } from '@/lib/domain/permissions';
 import { bornesPeriode, libellePeriode } from '@/lib/domain/synthese';
 import { requireSession } from '@/lib/session';
@@ -66,7 +75,12 @@ export default async function TableauDeBordPage() {
   const veut = (cle: string) => visibles.some((k) => k.cle === cle);
   const annee = new Date().getFullYear();
 
-  const [resultat, disposition, parametres, derniers, synthese] = await Promise.all([
+  const veutUneRepartition = ['age', 'grade', 'nationalite', 'entite'].some((d) =>
+    veut(`repartition_${d}`),
+  );
+
+  const [resultat, disposition, parametres, derniers, synthese, repartitions] =
+    await Promise.all([
     chargerTableauDeBord(session.entityId, bornes.debut, bornes.fin),
     chargerDisposition(),
     getParametres(),
@@ -80,6 +94,15 @@ export default async function TableauDeBordPage() {
     veut('evolution_finances')
       ? chargerSyntheseAnnuelle(session.entityId, annee)
       : Promise.resolve(null),
+    /**
+     * QUATRE RÉPARTITIONS, UNE SEULE LECTURE. Elles répondent à la même
+     * question — « comment se décompose notre effectif ? » — et ne diffèrent
+     * que par la colonne de regroupement (règle 28). Il suffit donc qu'UNE
+     * seule soit visible pour que la lecture vaille la peine.
+     */
+    veutUneRepartition
+      ? chargerRepartitions(session.entityId)
+      : Promise.resolve([] as TrancheRepartition[]),
   ]);
 
   // EF-CRO-09 — une seule signature pour tout le lot ; aucune requête si
@@ -128,19 +151,48 @@ export default async function TableauDeBordPage() {
           disposition={disposition}
           devise={parametres.devise}
           blocs={{
-            LISTE_CROYANTS: (
+            derniers_croyants: (
               <DerniersCroyants
                 croyants={derniers}
                 photos={Object.fromEntries(photos)}
               />
             ),
-            COURBE_FINANCES: synthese ? (
+            evolution_finances: synthese ? (
               <CourbeFinances
                 lignes={synthese.categories}
                 annee={annee}
                 devise={parametres.devise}
               />
             ) : null,
+
+            /*
+              LES QUATRE RÉPARTITIONS SORTENT DE LA MÊME LECTURE, préparées
+              chacune selon sa dimension. `preparerRepartition` est pur et
+              testé : l'ordre, les parts et le plafond n'ont pas à être refaits
+              dans le composant.
+            */
+            repartition_age: <RepartitionBarres {...preparerRepartition(repartitions, 'AGE')} />,
+            repartition_grade: (
+              <RepartitionBarres {...preparerRepartition(repartitions, 'GRADE')} />
+            ),
+            repartition_nationalite: (
+              <RepartitionBarres {...preparerRepartition(repartitions, 'NATIONALITE')} />
+            ),
+            repartition_entite: (
+              <RepartitionBarres {...preparerRepartition(repartitions, 'ENTITE')} />
+            ),
+
+            couverture_bureaux: (
+              <Jauge
+                valeur={couverture(
+                  resultat.mesures.bureaux_actifs ?? 0,
+                  resultat.mesures.entites_a_bureau ?? 0,
+                )}
+                couvertes={resultat.mesures.bureaux_actifs ?? 0}
+                total={resultat.mesures.entites_a_bureau ?? 0}
+                suffixe="entités"
+              />
+            ),
           }}
         />
       )}

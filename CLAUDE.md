@@ -220,12 +220,27 @@ catégorie sélectionnable, qui réutilise `chargerSyntheseAnnuelle` du lot 4
 plutôt que d'écrire une seconde somme que rien ne garantirait égale. Une aire et
 non des barres : « dans quel sens allons-nous ? » se répond par une pente.
 
+**EF-DSH-05 livré** (migration `0042`) : quatre **répartitions** — âge, grade,
+nationalité, entités filles — en **une** fonction, parce qu'elles ne diffèrent
+que par la colonne de regroupement ; le classement des filles *est* une
+répartition. Deux pourcentages par barre, et ce n'est pas une redondance : la
+`part` se **lit**, la `longueur` se **voit** — à l'échelle de la part, une
+répartition où rien ne dépasse 20 % ne donnerait que huit traits minuscules.
+Tri par effectif **sauf l'âge**, qui a un ordre naturel : le trier en ferait un
+classement, ce qu'une pyramide n'est pas. Des **barres horizontales** et non un
+camembert — l'œil compare des longueurs, pas des angles, et le libellé est à
+côté de sa barre. La **jauge** dit « 12 sur 20 » et pas seulement « 60 % » : un
+pourcentage seul ne distingue pas trois entités sur cinq de six cents sur mille.
+Les cellules sont hors du dénominateur — elles n'ont pas de bureau, et les
+compter ferait plonger la couverture de celles qui vont le mieux.
+
 **EF-BUR-11 clos** : l'export Excel de la composition est abandonné le 12 août
 2026, le PDF de l'organigramme couvre le besoin.
 
-Base à jour jusqu'à la migration `0041`. Une collecte de dîmes naît `SOUMIS` et
-c'est la **remise** qui la valide, donc qui alimente le Siège. Le stockage de
-fichiers ne se
+Migrations appliquées jusqu'à `0041`, **`0042` écrite mais pas appliquée** :
+sans elle, les répartitions et la jauge du tableau de bord restent vides. Une
+collecte de dîmes naît `SOUMIS` et c'est la **remise** qui la valide, donc qui
+alimente le Siège. Le stockage de fichiers ne se
 configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` et
 `postgres` s'y voit refuser `CREATE POLICY` : `pnpm db:bucket` s'en charge par
 l'API.

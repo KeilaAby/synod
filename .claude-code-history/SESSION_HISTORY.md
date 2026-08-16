@@ -3364,3 +3364,73 @@ masque coûterait deux allers-retours pour rien.
 Le squelette a été réaligné une seconde fois sur la grille réelle (EF-DSH-11).
 
 555 tests unitaires, 27 fichiers. `pnpm verify` vert.
+
+---
+
+## 16 août 2026 (suite) — EF-DSH-05, les répartitions
+
+Migration `0042`. Quatre répartitions, un classement et une jauge.
+
+### Une fonction pour quatre répartitions
+
+Grade, nationalité, tranche d'âge et entité fille répondent à la **même**
+question — « comment se décompose notre effectif ? » — et ne diffèrent que par
+la colonne de regroupement. Quatre fonctions auraient donné quatre allers-retours
+et quatre endroits où corriger la même borne de périmètre (règle 28).
+
+**Le classement des entités filles est une répartition**, lui aussi : « combien
+de croyants par église » se décompose exactement comme « combien par grade ».
+Lui donner sa propre fonction aurait dupliqué le même calcul sous un autre nom.
+Ce sont les **filles directes**, avec le total de leur sous-arbre : compter les
+croyants rattachés en propre à un district donnerait zéro — ils sont dans ses
+églises.
+
+### Les bornes d'âge sont écrites, pas déduites
+
+« 0 à 17 » et « 18 à 25 » n'ont pas la même largeur parce qu'elles ne répondent
+pas à la même question — l'une est la jeunesse, l'autre l'entrée dans la vie
+adulte. Un découpage par tranches de dix ans serait régulier et ne dirait rien.
+
+### Deux pourcentages, et ce n'est pas une redondance
+
+`part` est ce qu'on **lit** (« 34 % des croyants ») ; `longueur` est ce qu'on
+**voit**. Dessiner les barres à l'échelle de la part rendrait illisible toute
+répartition où rien ne dépasse 20 % — huit traits minuscules dont on ne distingue
+pas le plus long. Les mettre à l'échelle du **maximum** garde la comparaison
+visible, et le chiffre écrit dit la vérité de la part.
+
+Le tri suit la même logique : **par effectif décroissant, sauf l'âge**. Les
+tranches d'âge ont un ordre naturel — les lire de la plus jeune à la plus vieille
+est la seule façon d'y voir une pyramide ; les trier par effectif en ferait un
+classement, ce qu'une pyramide n'est pas.
+
+### Des barres horizontales, pas un camembert
+
+Un camembert est joli et se lit mal : l'œil compare des longueurs, pas des
+angles, et il faut une légende pour savoir quelle part est laquelle. Ici le
+libellé est **à côté** de sa barre — rien à rapprocher. Et en HTML, pas en SVG :
+une barre est un rectangle avec du texte à côté, `div` et `width` y suffisent,
+et le texte reste sélectionnable et se replie tout seul.
+
+### La jauge dit « 12 sur 20 », pas seulement « 60 % »
+
+Un pourcentage seul ne distingue pas trois entités sur cinq de six cents sur
+mille : le premier cas se règle dans l'après-midi, le second est un chantier.
+D'où deux colonnes ajoutées à `fn_tableau_de_bord` plutôt qu'un ratio
+pré-calculé.
+
+**Les cellules de prière sont hors du dénominateur** : elles n'ont pas de bureau,
+et les inclure ferait plonger la couverture de toute organisation qui en compte
+beaucoup — c'est-à-dire de celles qui vont le mieux.
+
+La jauge **se borne à cent**. Si deux bureaux se retrouvaient actifs sur une même
+entité, une jauge à 130 % ferait douter de tout l'écran plutôt que de signaler
+l'anomalie — qui a son propre endroit, l'index `bureaux_un_seul_actif`.
+
+### Un défaut corrigé en passant
+
+Les blocs composés étaient indexés **par rendu**. Quatre répartitions partagent
+le même rendu : la pyramide des âges serait apparue sous le titre « Par grade »,
+et aucun type ne s'en serait plaint. Ils sont désormais indexés **par clé**.
+
+563 tests unitaires, 27 fichiers. `pnpm verify` vert.
