@@ -594,7 +594,17 @@ export function preparerRepartition(
   dimension: Dimension,
   plafond: number = TRANCHES_AFFICHEES,
 ): { barres: BarreRepartition[]; total: number; reste: number } {
-  const retenues = tranches.filter((t) => t.dimension === dimension && t.effectif > 0);
+  /**
+   * LES TRANCHES VIDES DISPARAISSENT, SAUF POUR LES ENTITES.
+   *
+   * Un grade que personne ne detient est du BRUIT : il vient du referentiel,
+   * pas de l'effectif, et occupe une ligne pour ne rien dire. Une eglise sans
+   * croyant, elle, est precisement celle qu'on cherche en ouvrant ce bloc —
+   * l'effacer reviendrait a masquer le seul cas qui appelle une action.
+   */
+  const retenues = tranches.filter(
+    (t) => t.dimension === dimension && (dimension === 'ENTITE' || t.effectif > 0),
+  );
   const total = retenues.reduce((s, t) => s + t.effectif, 0);
 
   const ordonnees =

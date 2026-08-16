@@ -3434,3 +3434,28 @@ le même rendu : la pyramide des âges serait apparue sous le titre « Par grade
 et aucun type ne s'en serait plaint. Ils sont désormais indexés **par clé**.
 
 563 tests unitaires, 27 fichiers. `pnpm verify` vert.
+
+### Correction de `0042` — `nationalites.code`
+
+La migration a échoué à l'application : `column n.code does not exist`. La
+colonne s'appelle **`code_iso`** — une nationalité se désigne par son code à
+trois lettres (EF-REF-02), là où grades et fonctions portent un `code` libre.
+J'avais supposé l'uniformité des quatre référentiels au lieu de la vérifier.
+
+Un script croise désormais les colonnes qualifiées du fichier SQL avec les
+schémas de création : c'est plus rapide que de découvrir la faute
+migration par migration.
+
+Deux corrections faites dans la foulée :
+
+- **Un alias `c` en masquait un autre** dans la branche « entité fille » —
+  `cible c` au dehors, `croyants c` dans la sous-requête. PostgreSQL tranche en
+  faveur du plus proche, et le résultat était juste ; il l'était par chance.
+  La branche est réécrite en jointures, sans sous-requête corrélée.
+- **Une entité fille à zéro garde sa ligne.** J'avais filtré les tranches vides
+  uniformément : c'est juste pour un grade que personne ne détient — du bruit
+  venu du référentiel — et faux pour une église sans croyant, qui est
+  précisément celle qu'on cherche en ouvrant ce bloc. Sa barre reste vide, sans
+  le plancher de 2 % accordé aux tranches rares.
+
+564 tests unitaires. `pnpm verify` vert.

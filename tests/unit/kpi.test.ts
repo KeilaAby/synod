@@ -325,10 +325,29 @@ describe('EF-DSH-05 — les repartitions', () => {
   });
 
   it('ecarte les tranches vides', () => {
-    // « 61 ans et plus : 0 » occupe une ligne pour ne rien dire.
+    // « 61 ans et plus : 0 » occupe une ligne pour ne rien dire : la tranche
+    // vient du decoupage, pas de l'effectif.
     expect(preparerRepartition(tranches, 'AGE').barres.some((b) => b.cle === '5')).toBe(
       false,
     );
+  });
+
+  it('GARDE une entite a zero, contrairement aux autres dimensions', () => {
+    /**
+     * Un grade que personne ne detient est du bruit. Une eglise sans croyant
+     * est precisement celle qu'on cherche en ouvrant ce bloc : l'effacer
+     * masquerait le seul cas qui appelle une action.
+     */
+    const entites = [
+      t('ENTITE', 'e1', 'Antsahatsiresy', 120),
+      t('ENTITE', 'e2', 'Avaradrano', 0),
+    ];
+
+    const { barres } = preparerRepartition(entites, 'ENTITE');
+    expect(barres.map((b) => b.libelle)).toEqual(['Antsahatsiresy', 'Avaradrano']);
+    // Elle passe en dernier — c'est un classement — et sa barre est VIDE.
+    expect(barres[1]!.effectif).toBe(0);
+    expect(barres[1]!.longueur).toBe(0);
   });
 
   it('distingue LA PART de LA LONGUEUR', () => {

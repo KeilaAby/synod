@@ -70,11 +70,12 @@ as $$
 
   union all
 
-  -- Par NATIONALITE.
-  select 'NATIONALITE', n.code, n.libelle, count(gens.id)::integer
+  -- Par NATIONALITE. La colonne est `code_iso` et non `code` : une
+  -- nationalite se designe par son code a trois lettres (EF-REF-02).
+  select 'NATIONALITE', n.code_iso::text, n.libelle, count(gens.id)::integer
     from nationalites n
     join gens on gens.nationalite_id = n.id
-   group by n.code, n.libelle
+   group by n.code_iso, n.libelle
 
   union all
 
@@ -113,22 +114,28 @@ as $$
    * district a une cellule n'aurait aucun sens, et ne compter que les croyants
    * rattaches en propre a un district en donnerait zero — ils sont dans ses
    * eglises.
+   *
+   * UNE FILLE SANS PERSONNE SORT A ZERO, et c'est le seul cas ou une tranche
+   * vide merite sa ligne : un grade que nul ne detient est du bruit, une eglise
+   * sans croyant est precisement celle qu'on cherche. Les `left join` sont la
+   * pour cela.
    */
   select
     'ENTITE',
-    f.id::text,
-    f.nom,
-    (
-      select count(*)::integer
-      from croyants c
-      join entities e on e.id = c.eglise_id
-      where c.deleted_at is null
-        and c.statut = 'ACTIF'
-        and e.deleted_at is null
-        and e.path <@ (select path from entities where id = f.id)
-    )
-  from perimetre f, cible c
-  where f.parent_id = c.id;
+    fille.id::text,
+    fille.nom,
+    count(g.id)::integer
+  from entities fille
+  join cible ci on fille.parent_id = ci.id
+  left join entities sous
+    on sous.path <@ fille.path
+   and sous.deleted_at is null
+  left join croyants g
+    on g.eglise_id = sous.id
+   and g.deleted_at is null
+   and g.statut = 'ACTIF'
+  where fille.deleted_at is null
+  group by fille.id, fille.nom;
 $$;
 
 comment on function fn_repartitions is

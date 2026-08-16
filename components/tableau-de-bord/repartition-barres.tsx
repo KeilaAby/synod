@@ -59,12 +59,18 @@ export function RepartitionBarres({
             </div>
 
             <div className="bg-muted h-2 overflow-hidden rounded-full">
+              {/*
+                Un plancher de 2 % : une tranche à une personne sur trois mille
+                produirait une barre invisible, qu'on lirait comme une absence
+                plutôt que comme une rareté.
+
+                MAIS PAS POUR ZÉRO. Une entité sans personne doit rester une
+                barre VIDE — lui donner ce plancher lui prêterait un effectif
+                qu'elle n'a pas, et c'est justement celle qu'on cherche.
+              */}
               <div
                 className="bg-foreground/70 h-full rounded-full transition-[width]"
-                style={{ width: `${Math.max(2, b.longueur)}%` }}
-                /* Un minimum de 2 % : une tranche à une personne sur trois
-                   mille produirait une barre invisible, qu'on lirait comme
-                   une absence plutôt que comme une rareté. */
+                style={{ width: `${b.effectif === 0 ? 0 : Math.max(2, b.longueur)}%` }}
               />
             </div>
           </li>
