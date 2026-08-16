@@ -178,6 +178,89 @@ export async function chargerEnveloppesPerimetre(): Promise<Map<string, string>>
   return new Map((data ?? []).map((e) => [e.croyant_id, e.numero]));
 }
 
+export interface PorteurDEnveloppe {
+  readonly croyantId: string;
+  readonly nom: string;
+  readonly prenom: string;
+  /** Dernier versement connu sous ce numero : le plus recent fait foi. */
+  readonly derniereFois: string;
+}
+
+/**
+ * QUI A DEJA UTILISE CE NUMERO D'ENVELOPPE — EF-FIN-27.
+ *
+ * Le numero est RECOPIE sur chaque versement (0027) : l'historique existe donc
+ * deja, il suffit de le lire a l'envers. Un membre du bureau qui tient une
+ * enveloppe en main en lit le numero avant le nom — souvent il n'y a pas de
+ * nom du tout, seulement un numero connu de tous.
+ *
+ * C'est une SUGGESTION, jamais une attribution : deux personnes peuvent avoir
+ * porte le meme numero a des annees d'ecart, et c'est l'utilisateur qui
+ * reconnait l'ecriture sur l'enveloppe. La liste rend donc TOUS les porteurs
+ * connus, du plus recent au plus ancien.
+ */
+export async function chargerPorteursDEnveloppe(): Promise<
+  Map<string, PorteurDEnveloppe[]>
+> {
+  const sb = await createClient();
+
+  const { data, error } = await sb
+    .from('dime_versements')
+    .select(
+      'enveloppe_numero, croyant_id, created_at, ' +
+        'croyant:croyants!dime_versements_croyant_id_fkey (nom, prenom)',
+    )
+    .not('enveloppe_numero', 'is', null)
+    .not('croyant_id', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(20000)
+    .returns<
+      {
+        enveloppe_numero: string;
+        croyant_id: string;
+        created_at: string;
+        croyant: { nom: string; prenom: string } | null;
+      }[]
+    >();
+
+  // Une suggestion illisible n'empeche pas de saisir : elle disparait, c'est
+  // tout. Le nom se choisit alors dans le menu, comme avant.
+  if (error) return new Map();
+
+  const index = new Map<string, PorteurDEnveloppe[]>();
+
+  for (const v of data ?? []) {
+    if (!v.croyant) continue;
+
+    const cle = v.enveloppe_numero.trim().toUpperCase();
+    const porteurs = index.get(cle) ?? [];
+
+    // Un meme croyant a pu verser vingt fois sous ce numero : on ne le propose
+    // qu'une, avec sa date la plus recente — le tri l'a mis en premier.
+    if (!porteurs.some((p) => p.croyantId === v.croyant_id)) {
+      porteurs.push({
+        croyantId: v.croyant_id,
+        nom: v.croyant.nom,
+        prenom: v.croyant.prenom,
+        derniereFois: v.created_at,
+      });
+      index.set(cle, porteurs);
+    }
+  }
+
+  // Le tri de la requete servait a DEDOUBLONNER — le versement le plus recent
+  // en premier. L'affichage, lui, se lit par ordre ALPHABETIQUE : on y cherche
+  // un nom, pas une date.
+  for (const porteurs of index.values()) {
+    porteurs.sort(
+      (a, b) =>
+        a.nom.localeCompare(b.nom, 'fr') || a.prenom.localeCompare(b.prenom, 'fr'),
+    );
+  }
+
+  return index;
+}
+
 /**
  * Le mode de saisie DECIDE par chaque entite du perimetre.
  *

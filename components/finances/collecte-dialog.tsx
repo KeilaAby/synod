@@ -93,6 +93,7 @@ export function CollecteDialog({
   croyantsTronques = false,
   enveloppes = {},
   photos = {},
+  porteurs = {},
 }: {
   entites: OptionEntite[];
   categories: CategorieFinance[];
@@ -106,6 +107,8 @@ export function CollecteDialog({
   enveloppes?: Record<string, string>;
   /** Clé de stockage -> URL signée, signées en lot par la page (EF-CRO-09). */
   photos?: Record<string, string>;
+  /** N° d'enveloppe -> ceux qui l'ont déjà portée, du plus récent au plus ancien. */
+  porteurs?: Record<string, { croyantId: string; nom: string; prenom: string }[]>;
 }) {
   const router = useRouter();
   const [ouvert, setOuvert] = useState(false);
@@ -152,10 +155,32 @@ export function CollecteDialog({
       (versementsSurveilles ?? []) as {
         croyantId?: string | null;
         montant?: string;
+        enveloppe?: string | null;
         nature?: NatureVersement;
       }[],
     [versementsSurveilles],
   );
+
+  /**
+   * QUATRE CARACTERES AVANT DE SUGGERER.
+   *
+   * En deca, le numero est encore en cours de frappe : « 1 » repondrait
+   * « 1024 », « 1103 », « 1250 »… et la suggestion changerait a chaque touche
+   * au lieu d'aider. Quatre est le format courant des enveloppes.
+   */
+  const LONGUEUR_SUGGESTION = 4;
+
+  const suggestionsDe = (index: number) => {
+    const ligne = lignes[index];
+    if (!ligne || (ligne.nature ?? 'NOMINATIF') !== 'NOMINATIF') return [];
+    // Déjà choisi : la suggestion n'a plus rien à proposer.
+    if (ligne.croyantId) return [];
+
+    const numero = (ligne.enveloppe ?? '').trim().toUpperCase();
+    if (numero.length < LONGUEUR_SUGGESTION) return [];
+
+    return porteurs[numero] ?? [];
+  };
 
   /** La nature d'une ligne, avec son defaut : elle commande trois controles. */
   const natureDe = (index: number): NatureVersement =>
@@ -200,7 +225,13 @@ export function CollecteDialog({
   const eligibles = useMemo(
     () =>
       [...croyants]
-        .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'))
+        // Nom PUIS prenom : deux « RAKOTO » se rangent entre eux, et la liste
+        // se parcourt comme un registre. Un tri par date de creation ferait
+        // chercher un nom la ou rien ne le fait attendre.
+        .sort(
+          (a, b) =>
+            a.nom.localeCompare(b.nom, 'fr') || a.prenom.localeCompare(b.prenom, 'fr'),
+        )
         .map((c) => ({ ...c, detail: c.egliseNom })),
     [croyants],
   );
@@ -672,6 +703,43 @@ export function CollecteDialog({
                                     />
                                   )}
                                 />
+
+                                {/*
+                                  EF-FIN-27 — QUI A DÉJÀ PORTÉ CE NUMÉRO.
+
+                                  Un membre du bureau tient l'enveloppe en main
+                                  et en lit le NUMÉRO avant le nom — souvent il
+                                  n'y a pas de nom du tout. L'historique sait
+                                  qui l'utilisait ; il le propose.
+
+                                  Une SUGGESTION, jamais une attribution : deux
+                                  personnes peuvent avoir porté le même numéro à
+                                  des années d'écart, et c'est l'utilisateur qui
+                                  reconnaît l'écriture sur l'enveloppe.
+                                */}
+                                {suggestionsDe(index).length > 0 && (
+                                  <div className="mt-1 space-y-1">
+                                    <p className="text-muted-foreground text-xs">
+                                      Numéro déjà utilisé par :
+                                    </p>
+                                    {suggestionsDe(index).map((p) => (
+                                      <button
+                                        key={p.croyantId}
+                                        type="button"
+                                        onClick={() =>
+                                          setValue(
+                                            `versements.${index}.croyantId`,
+                                            p.croyantId,
+                                            { shouldValidate: true },
+                                          )
+                                        }
+                                        className="text-foreground hover:underline block text-left text-xs"
+                                      >
+                                        {p.nom.toLocaleUpperCase('fr')} {p.prenom}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
                               </TableCell>
 
                               <TableCell>

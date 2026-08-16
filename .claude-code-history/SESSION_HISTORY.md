@@ -2495,3 +2495,26 @@ c'est maintenant qu'il y a quelqu'un à qui le remettre.
 
 470 tests unitaires (+16). `pnpm verify` vert. **Reste : l'écran d'import et la
 zone de résolution dans `/croyants`.**
+
+**Le numéro d'enveloppe suggère son porteur — EF-FIN-27.** Un membre du bureau
+tient l'enveloppe en main et en lit le **numéro** avant le nom — souvent il n'y
+a pas de nom du tout, seulement un numéro connu de tous.
+
+L'historique le sait déjà : le numéro est **recopié** sur chaque versement
+depuis `0027`. Il suffisait de le lire à l'envers. Dès quatre caractères saisis,
+les porteurs connus s'affichent sous le champ ; un clic les retient.
+
+**Quatre caractères**, et non un : en deçà, le numéro est encore en cours de
+frappe — « 1 » répondrait « 1024 », « 1103 », « 1250 »… et la suggestion
+changerait à chaque touche au lieu d'aider.
+
+**Une suggestion, jamais une attribution.** Deux personnes peuvent avoir porté
+le même numéro à des années d'écart, et c'est l'utilisateur qui reconnaît
+l'écriture sur l'enveloppe. Tous les porteurs connus sont donc proposés, aucun
+n'est appliqué d'office.
+
+**Les listes de croyants se rangent par ordre alphabétique**, nom puis prénom —
+partout, y compris ces suggestions. Deux « RAKOTO » se rangent alors entre eux
+et la liste se parcourt comme un registre ; un ordre de création ferait chercher
+un nom là où rien ne le fait attendre. Le tri par date reste dans la **requête**,
+où il sert à dédoublonner : le versement le plus récent l'emporte.

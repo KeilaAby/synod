@@ -55,6 +55,7 @@ export function DimesClient({
   croyantsTronques,
   enveloppes,
   photos,
+  porteurs,
 }: {
   collectes: CollecteListe[];
   entites: OptionEntite[];
@@ -69,6 +70,8 @@ export function DimesClient({
   enveloppes: Record<string, string>;
   /** Cle de stockage -> URL signee, signees en lot par la page (EF-CRO-09). */
   photos: Record<string, string>;
+  /** N° d'enveloppe -> ceux qui l'ont déjà portée (EF-FIN-27). */
+  porteurs: Record<string, { croyantId: string; nom: string; prenom: string }[]>;
 }) {
   const [recherche, setRecherche] = useState('');
   const [aRemettre, setARemettre] = useState(false);
@@ -150,6 +153,7 @@ export function DimesClient({
             croyantsTronques={croyantsTronques}
             enveloppes={enveloppes}
             photos={photos}
+            porteurs={porteurs}
           />
         </div>
       )}
@@ -188,6 +192,7 @@ export function DimesClient({
             croyantsTronques={croyantsTronques}
             enveloppes={enveloppes}
             photos={photos}
+            porteurs={porteurs}
           />
         )}
       </div>

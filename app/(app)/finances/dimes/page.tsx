@@ -5,6 +5,7 @@ import {
   chargerCollectes,
   chargerDonateurs,
   chargerEnveloppesPerimetre,
+  chargerPorteursDEnveloppe,
 } from '@/lib/data/dimes';
 import { getArbrePerimetre } from '@/lib/data/entities';
 import { versOptions } from '@/lib/data/entity-options';
@@ -31,7 +32,8 @@ export const metadata: Metadata = { title: 'Dîmes' };
  * d'équivalent ici.
  */
 export default async function DimesPage() {
-  const [collectes, arbre, categories, parametres, donateurs, enveloppes] = await Promise.all([
+  const [collectes, arbre, categories, parametres, donateurs, enveloppes, porteurs] =
+    await Promise.all([
     chargerCollectes(),
     getArbrePerimetre(),
     listerCategoriesFinance(),
@@ -48,6 +50,14 @@ export default async function DimesPage() {
      */
     chargerDonateurs(),
     chargerEnveloppesPerimetre(),
+    /**
+     * Qui a deja utilise chaque numero d'enveloppe.
+     *
+     * Un membre du bureau lit le NUMERO avant le nom — souvent il n'y a pas de
+     * nom du tout. La suggestion lui evite de chercher dans deux cents fiches
+     * ce que l'historique sait deja.
+     */
+    chargerPorteursDEnveloppe(),
   ]);
 
   /**
@@ -93,6 +103,7 @@ export default async function DimesPage() {
         croyantsTronques={donateurs.tronque}
         enveloppes={Object.fromEntries(enveloppes)}
         photos={Object.fromEntries(photos)}
+        porteurs={Object.fromEntries(porteurs)}
       />
     </div>
   );
