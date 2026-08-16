@@ -118,16 +118,28 @@ inconnu donne un versement anonyme ET une ligne à rapprocher dans `/croyants`,
 où le travail est de l'identification, pas de la comptabilité. Restent le ticket
 de reçu imprimable et l'historique sur la fiche du croyant.
 
+La file de rapprochement offre **trois** chemins et pas un de plus : le numéro
+d'enveloppe propose (`SuggestionsEnveloppe`, partagé avec la collecte — un
+numéro lu dans un fichier pose la même question que celui tapé pendant un
+culte), la recherche trouve, la **création** ouvre une fiche quand la personne
+n'en a simplement pas encore. Cette création amorce le nom lu — le retaper
+serait une occasion de le taper autrement — et l'église **collectrice** quand
+c'en est une. Aucune entité « église inconnue » n'a été créée : elle entrerait
+dans la structure, recevrait un code, apparaîtrait dans chaque sélecteur et dans
+les soldes consolidés, et quelqu'un finirait par y transférer un vrai croyant.
+
 **EF-BUR-11 clos** : l'export Excel de la composition est abandonné le 12 août
 2026, le PDF de l'organigramme couvre le besoin.
 
-Base à jour jusqu'à la migration `0038`. Le stockage de fichiers ne se
+Migrations écrites jusqu'à `0038`, **appliquées jusqu'à `0037`** : tant que
+`0038` n'est pas passée, une collecte de dîmes n'alimente jamais la recette du
+Siège. Le stockage de fichiers ne se
 configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` et
 `postgres` s'y voit refuser `CREATE POLICY` : `pnpm db:bucket` s'en charge par
 l'API.
 
 Historique : [`SESSION_HISTORY.md`](.claude-code-history/SESSION_HISTORY.md) ·
-dernier point d'étape : [`.claude-code-history/2026-08-09_resumes-moi.md`](.claude-code-history/2026-08-09_resumes-moi.md)
+dernier point d'étape : [`.claude-code-history/2026-08-16_resumes-moi.md`](.claude-code-history/2026-08-16_resumes-moi.md)
 
 ## Publication — lire `.agents/rules/gitpush.md` AVANT tout push
 

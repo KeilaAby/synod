@@ -2756,3 +2756,54 @@ jamais.
 
 474 tests unitaires. `pnpm verify` vert. **Le lot dîmes est complet**, hors le
 ticket de reçu imprimable et l'historique sur la fiche du croyant.
+
+---
+
+## 16 août 2026 — Trois corrections sur la file de rapprochement
+
+### Un `max-width` l'emporte toujours sur une `width`
+
+Le pop-up d'import demandait `w-[min(96vw,56rem)]` et s'affichait à 24 rem.
+`DialogContent` porte `sm:max-w-sm` en base : la largeur demandée n'avait
+aucune chance. Il fallait `sm:max-w-none`, comme le pop-up de collecte l'avait
+déjà. Le pop-up de remise portait le même défaut, sans que personne l'ait
+signalé — 48 rem demandées, 24 rendues.
+
+Ce n'est pas une question de goût : les deux colonnes de la correspondance des
+colonnes se chevauchaient, et c'est précisément l'écran où l'on doit lire côte
+à côte ce qu'on attend et ce que le fichier apporte.
+
+### Le numéro d'enveloppe suggère aussi dans la file
+
+Une ligne d'import apporte souvent un **numéro** en même temps que le nom qu'on
+n'a pas reconnu — et le numéro est la plus sûre des deux pistes, une enveloppe
+se gardant d'une année sur l'autre. La file le lisait sans rien en faire.
+
+Le rendu vivait en ligne dans le pop-up de collecte. Il est extrait dans
+`components/finances/suggestions-enveloppe.tsx`, et le seuil de quatre
+caractères descend dans le domaine (`suggestionsPourEnveloppe`) : **le même
+seuil pour les deux origines du numéro**. Saisi à la main pendant un culte ou lu
+dans une colonne de fichier, un « 1 » est aussi ambigu ; ce qui rend une
+suggestion utile, c'est la longueur du numéro, pas la façon dont il est arrivé.
+Deux seuils écrits à deux endroits finissent toujours par diverger.
+
+### Aucune correspondance est aussi une réponse
+
+Le nom du fichier peut être celui de quelqu'un qui **n'a pas encore de fiche** —
+un visiteur, un nouveau. La file restait alors bloquée sur une ligne qu'aucune
+recherche ne résoudrait. « Créer la fiche » ouvre le pop-up habituel (règle 16 :
+un seul chemin de création), **amorcé du nom lu** — le retaper serait une
+occasion de le taper autrement, et l'écart serait recréé au moment même où on le
+comble. Le versement s'y rattache dans la foulée : demander ensuite de
+rechercher la fiche qu'on vient de créer ferait refaire un geste déjà fait.
+
+**Aucune entité « église inconnue » n'a été créée**, contrairement à la lettre
+de la demande. Elle entrerait dans `entities`, recevrait un code de la séquence,
+apparaîtrait dans chaque sélecteur, dans l'organigramme, dans les soldes
+consolidés — et quelqu'un finirait par y transférer un vrai croyant. À la place,
+l'église est **amorcée à celle qui a collecté** : qui met une enveloppe dans
+l'urne d'Antsahatsiresy en est le plus souvent membre. Quand la collecte vient
+d'un district ou d'une paroisse — un rassemblement —, l'église est réellement
+inconnue et se choisit : un geste, et une donnée juste.
+
+478 tests unitaires. `pnpm verify` vert.
