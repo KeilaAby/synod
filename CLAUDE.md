@@ -207,7 +207,18 @@ personnalisé. Ce qui n'est ni ordonné ni masqué est *nouveau*, et se montre �
 fin. On réordonne **dans** un groupe — « Effectifs » et « Finances » ne sont pas
 des étiquettes arbitraires. Le glisser-déposer est en HTML natif (règle 29),
 doublé de deux flèches : inaccessible au clavier, il ne serait un réglage que
-pour ceux qui ont une souris. Restent EF-DSH-05/06/08/10.
+pour ceux qui ont une souris.
+
+**EF-DSH-05/06 amorcés** : grille à **six** colonnes — c'est le défilement, pas
+la taille, qui empêche de comparer deux chiffres — largeur déclarée au registre
+en classes **littérales** (Tailwind lit le source, un `col-span-${n}` n'existe
+dans aucune feuille). Les **parts** se déclarent (`partDe`) et rendent `null`
+sur un total nul, jamais `0` : « 0 % » se lit comme une mesure là où il n'y a
+rien à mesurer. Deux **blocs composés** : les cinq dernières fiches — un
+effectif ne dit jamais *qui* a rejoint — et l'**évolution financière** en aire,
+catégorie sélectionnable, qui réutilise `chargerSyntheseAnnuelle` du lot 4
+plutôt que d'écrire une seconde somme que rien ne garantirait égale. Une aire et
+non des barres : « dans quel sens allons-nous ? » se répond par une pente.
 
 **EF-BUR-11 clos** : l'export Excel de la composition est abandonné le 12 août
 2026, le PDF de l'organigramme couvre le besoin.

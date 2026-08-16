@@ -3,8 +3,16 @@ import { AlertCircle } from 'lucide-react';
 
 import { PageHeader } from '@/components/shared/page-header';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { CourbeFinances } from '@/components/tableau-de-bord/courbe-finances';
+import { DerniersCroyants } from '@/components/tableau-de-bord/derniers-croyants';
+import { chargerSyntheseAnnuelle } from '@/lib/data/finances';
+import { signerPhotos } from '@/lib/data/photos';
 import { getParametres } from '@/lib/data/settings';
-import { chargerDisposition, chargerTableauDeBord } from '@/lib/data/tableau-de-bord';
+import {
+  chargerDerniersCroyants,
+  chargerDisposition,
+  chargerTableauDeBord,
+} from '@/lib/data/tableau-de-bord';
 import { ENTITY_LABELS, type EntityType } from '@/lib/domain/hierarchy';
 import { KPI_REGISTRY, kpisVisibles } from '@/lib/domain/kpi';
 import { detient } from '@/lib/domain/permissions';
@@ -45,13 +53,38 @@ export default async function TableauDeBordPage() {
   // arrivant, et la seule dont les chiffres bougent encore.
   const bornes = bornesPeriode('MOIS', new Date().toISOString().slice(0, 10));
 
-  const [resultat, disposition, parametres] = await Promise.all([
+  const visibles = kpisVisibles(KPI_REGISTRY, (p) => detient(session, p));
+
+  /**
+   * LES BLOCS COMPOSÉS NE SE CHARGENT QUE S'ILS SONT VISIBLES.
+   *
+   * EF-DSH-12 masque déjà leur rendu ; lire quand même leurs données coûterait
+   * deux allers-retours pour un contenu que personne ne verra (règle 28) — et
+   * les compter à zéro dans une RLS qui refuse est un travail parfaitement
+   * inutile.
+   */
+  const veut = (cle: string) => visibles.some((k) => k.cle === cle);
+  const annee = new Date().getFullYear();
+
+  const [resultat, disposition, parametres, derniers, synthese] = await Promise.all([
     chargerTableauDeBord(session.entityId, bornes.debut, bornes.fin),
     chargerDisposition(),
     getParametres(),
+    veut('derniers_croyants') ? chargerDerniersCroyants() : Promise.resolve([]),
+    /**
+     * L'ÉVOLUTION RÉUTILISE LA SYNTHÈSE DU LOT 4 : `chargerSyntheseAnnuelle`
+     * rend déjà l'année entière, mois par mois et catégorie par catégorie.
+     * Écrire une seconde fonction SQL pour la même somme aurait créé deux
+     * chiffres que rien ne garantit égaux.
+     */
+    veut('evolution_finances')
+      ? chargerSyntheseAnnuelle(session.entityId, annee)
+      : Promise.resolve(null),
   ]);
 
-  const visibles = kpisVisibles(KPI_REGISTRY, (p) => detient(session, p));
+  // EF-CRO-09 — une seule signature pour tout le lot ; aucune requête si
+  // personne n'a encore de photo.
+  const photos = await signerPhotos(derniers.map((c) => c.photoKey));
 
   return (
     <div className="space-y-8">
@@ -94,6 +127,21 @@ export default async function TableauDeBordPage() {
           mesures={resultat.mesures}
           disposition={disposition}
           devise={parametres.devise}
+          blocs={{
+            LISTE_CROYANTS: (
+              <DerniersCroyants
+                croyants={derniers}
+                photos={Object.fromEntries(photos)}
+              />
+            ),
+            COURBE_FINANCES: synthese ? (
+              <CourbeFinances
+                lignes={synthese.categories}
+                annee={annee}
+                devise={parametres.devise}
+              />
+            ) : null,
+          }}
         />
       )}
     </div>

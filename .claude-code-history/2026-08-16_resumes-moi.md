@@ -61,8 +61,9 @@ livré pour l'essentiel**.
 | **Clôture d'une période — EF-FIN-26** | ✅ |
 | **Tableau de bord — EF-DSH-01/02/04/11/12** | ✅ |
 | **Personnalisation du tableau de bord — EF-DSH-03/07/09** | ✅ |
+| **Blocs composés et parts — EF-DSH-05/06 (partiel)** | ✅ |
 
-549 tests unitaires, 27 fichiers. `pnpm verify` vert.
+555 tests unitaires, 27 fichiers. `pnpm verify` vert.
 
 ---
 
@@ -92,12 +93,18 @@ livrés le 16 août. EF-FIN-27 à 35 sont tous servis.
 
 ### Lot 5 — tableau de bord, la suite
 
-Indicateurs, masquage, squelette et **personnalisation** sont livrés. Restent :
+Indicateurs, masquage, squelette, **personnalisation**, parts en pourcentage,
+liste des dernières fiches et **courbe financière par catégorie** sont livrés.
+Restent :
 
-- **EF-DSH-06** — les rendus alternatifs : jauge, courbe, barres, camembert.
-  `CourbeAnnuelle` a montré qu'un SVG écrit à la main suffit.
-- **EF-DSH-05** — les indicateurs analytiques : répartitions par grade,
-  nationalité, tranche d'âge ; taux d'encellulement ; classements.
+- **EF-DSH-06, la suite** — jauge, barres, camembert. L'ossature est en place :
+  un rendu s'ajoute au registre (`rendu`, `taille`) et la page lui passe son
+  contenu ; la grille n'a pas à être rouverte.
+- **EF-DSH-05, la suite** — répartitions par grade, nationalité, tranche
+  d'âge ; couverture des bureaux ; classement des entités filles.
+- **EF-DSH-06 par indicateur** — le cahier des charges veut le périmètre et la
+  période réglables *widget par widget*. Aujourd'hui la période est commune
+  (mois courant) et le périmètre est celui de la session.
 - **EF-DSH-08** — modèles par rôle. `dashboard_templates` existe depuis `0005`
   et n'est pas encore utilisée.
 - **EF-DSH-10** — export PDF du tableau et CSV par widget. `exporterPdf` du

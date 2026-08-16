@@ -3290,3 +3290,77 @@ pas le droit de voir, et sa personnalisation ne peut donc pas le faire
 réapparaître.
 
 549 tests unitaires, 27 fichiers. `pnpm verify` vert.
+
+---
+
+## 16 août 2026 (suite) — Le tableau de bord s'enrichit
+
+Demande de l'utilisateur : cartes plus étroites et plus lisibles, parts en
+pourcentage, dernières fiches, évolution financière par catégorie — le tout
+restant personnalisable. **Aucune migration.**
+
+### Six colonnes, pas quatre
+
+Une carte plus étroite laisse tenir plus d'indicateurs sans faire défiler, et
+c'est le **défilement** — pas la taille — qui empêche de comparer deux chiffres.
+Les montants gardent deux colonnes : « 15 000 000 MGA » ne se replie pas sans
+devenir illisible.
+
+Les chiffres passent de `text-2xl` à `text-4xl` pour les effectifs, et restent
+en `text-2xl` pour les montants. C'est le chiffre qu'on vient lire : il domine
+la carte.
+
+La largeur est déclarée au registre (`taille`), et les classes sont **littérales**
+dans un dictionnaire : Tailwind lit le code source pour décider des classes
+qu'il produit, et un `col-span-${n}` assemblé à l'exécution n'existerait dans
+aucune feuille de style — le bloc s'afficherait à une colonne sans que rien ne
+signale l'erreur.
+
+### La part, déclarée et non codée
+
+`partDe: 'croyants'` sur femmes, hommes et encellulés. « 1 240 femmes » ne dit
+rien seul ; « 53 % de l'effectif » se lit. Le rapport se déclare au registre
+plutôt que de se coder dans la carte, sinon chaque nouvelle répartition
+demanderait de rouvrir le composant.
+
+`partDeLEffectif` rend **`null`** sur un total nul, jamais `0` : « 0 % » se lit
+comme une mesure alors qu'il n'y a rien à mesurer. Deux tests verrouillent
+aussi que la clé de rapport **existe** au registre et porte le **même format** —
+rapporter un montant à un effectif donnerait un pourcentage que rien, à l'écran,
+ne signalerait comme faux.
+
+### Deux blocs qui ne sont pas des chiffres — EF-DSH-06
+
+**Les cinq dernières fiches.** Un effectif dit combien nous sommes, jamais
+**qui** a rejoint — et c'est pourtant la seule information de l'écran qui appelle
+un geste : accueillir quelqu'un. Triées par date de **création de la fiche**, pas
+de baptême : une reprise de données enregistre en mars des baptêmes de l'année
+dernière, et c'est bien « ce qui vient d'entrer dans le registre » qu'on veut
+voir ici.
+
+**L'évolution des finances**, en aire avec dégradé, catégorie sélectionnable.
+Trois chiffres du mois ne disent pas s'il est bon : c'est la comparaison aux
+onze précédents qui le dit. Et la catégorie se choisit parce que « les recettes
+baissent » et « les dîmes baissent » n'appellent pas la même réaction.
+
+**Les données existaient déjà** : `chargerSyntheseAnnuelle` (lot 4) rend l'année
+entière, mois par mois et catégorie par catégorie. Écrire une seconde fonction
+SQL pour la même somme aurait créé deux chiffres que rien ne garantit égaux —
+et changer de catégorie ne coûte aucun aller-retour.
+
+**Une aire, et non des barres** — contrairement à la synthèse. La question n'est
+pas « combien en août ? » mais « dans quel sens allons-nous ? », et c'est une
+pente qui répond à cela. Les deux lectures coexistent parce qu'elles ne posent
+pas la même question.
+
+### Ce qui n'a pas changé
+
+Les deux blocs entrent dans le **même** mécanisme de personnalisation : ils
+s'ordonnent et se masquent comme les autres — un bloc qu'on ne peut pas retirer
+ferait de la personnalisation une demi-promesse. Et ils **ne se chargent que
+s'ils sont visibles** : lire leurs données pour un rendu que l'habilitation
+masque coûterait deux allers-retours pour rien.
+
+Le squelette a été réaligné une seconde fois sur la grille réelle (EF-DSH-11).
+
+555 tests unitaires, 27 fichiers. `pnpm verify` vert.

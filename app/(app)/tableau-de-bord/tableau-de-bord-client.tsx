@@ -11,7 +11,7 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useMemo, useState, useTransition } from 'react';
+import { type ReactNode, useMemo, useState, useTransition } from 'react';
 
 import { avertir } from '@/components/shared/messages';
 import { Button } from '@/components/ui/button';
@@ -23,11 +23,14 @@ import {
   type DispositionTableauDeBord,
   type GroupeKpi,
   LIBELLES_GROUPE_KPI,
+  type RenduKpi,
+  type TailleKpi,
   appliquerDisposition,
   basculerMasque,
   deplacerKpi,
   groupesVisibles,
   kpiEstAlerte,
+  partDeLEffectif,
 } from '@/lib/domain/kpi';
 import { formatMontant, formatNombre } from '@/lib/utils/format';
 
@@ -54,12 +57,22 @@ export function TableauDeBordClient({
   mesures,
   disposition: dispositionInitiale,
   devise,
+  blocs = {},
 }: {
   /** Déjà filtrés par habilitation — EF-DSH-12 tient côté serveur. */
   kpis: DefinitionKpi[];
   mesures: Record<string, number>;
   disposition: DispositionTableauDeBord;
   devise: string;
+  /**
+   * EF-DSH-06 — le contenu des blocs qui ne sont pas un chiffre, par rendu.
+   *
+   * ILS SONT CONSTRUITS PAR LA PAGE, pas ici. Chacun lit ses propres données —
+   * les dernières fiches, douze mois de finances — et cette grille n'a pas à
+   * savoir d'où elles viennent : elle place, ordonne et masque. Un bloc de plus
+   * ne la rouvre pas.
+   */
+  blocs?: Partial<Record<RenduKpi, ReactNode>>;
 }) {
   const [disposition, setDisposition] = useState(dispositionInitiale);
   const [personnalise, setPersonnalise] = useState(false);
@@ -167,7 +180,7 @@ export function TableauDeBordClient({
         <section key={groupe} className="space-y-3">
           <p className="eyebrow">{LIBELLES_GROUPE_KPI[groupe as GroupeKpi]}</p>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-6">
             {affiches
               .filter((k) => k.groupe === groupe)
               .map((kpi) => (
@@ -175,6 +188,8 @@ export function TableauDeBordClient({
                   key={kpi.cle}
                   definition={kpi}
                   valeur={mesures[kpi.cle] ?? 0}
+                  total={kpi.partDe ? (mesures[kpi.partDe] ?? 0) : null}
+                  contenu={blocs[kpi.rendu ?? 'VALEUR']}
                   devise={devise}
                   personnalise={personnalise}
                   masque={masques.has(kpi.cle)}
@@ -224,9 +239,26 @@ export function TableauDeBordClient({
   );
 }
 
+/**
+ * La largeur d'un bloc, en classes LITTÉRALES.
+ *
+ * Tailwind lit le code source pour décider des classes qu'il produit : une
+ * classe assemblée à l'exécution (`col-span-${n}`) n'existerait dans aucune
+ * feuille de style, et le bloc s'afficherait à une colonne sans que rien ne
+ * signale l'erreur.
+ */
+const LARGEURS: Record<TailleKpi, string> = {
+  1: 'col-span-1',
+  2: 'col-span-2',
+  3: 'col-span-2 md:col-span-2 xl:col-span-3',
+  6: 'col-span-2 md:col-span-4 xl:col-span-6',
+};
+
 function CarteKpi({
   definition,
   valeur,
+  total,
+  contenu: contenuAlternatif,
   devise,
   personnalise,
   masque,
@@ -240,6 +272,10 @@ function CarteKpi({
 }: {
   definition: DefinitionKpi;
   valeur: number;
+  /** L'effectif auquel ce chiffre se rapporte, ou `null` — EF-DSH-05. */
+  total: number | null;
+  /** Le rendu du bloc quand ce n'est pas un chiffre — EF-DSH-06. */
+  contenu?: ReactNode;
   devise: string;
   personnalise: boolean;
   masque: boolean;
@@ -252,40 +288,79 @@ function CarteKpi({
   onBasculer: () => void;
 }) {
   const alerte = kpiEstAlerte(definition, valeur);
+  const rendu = definition.rendu ?? 'VALEUR';
+  const largeur = LARGEURS[definition.taille ?? 1];
+  const part = definition.partDe ? partDeLEffectif(valeur, total ?? 0) : null;
 
   const contenu = (
-    <CardContent className="space-y-1 p-6">
-      <p className="text-muted-foreground flex items-center gap-1 text-xs font-medium">
+    <CardContent className="space-y-1.5 p-5">
+      <p className="text-muted-foreground flex items-center gap-1 text-sm font-medium">
         {definition.libelle}
         {definition.lien && !personnalise && (
           <ArrowUpRight
-            className="size-3 opacity-0 transition-opacity group-hover:opacity-100"
+            className="size-3.5 opacity-0 transition-opacity group-hover:opacity-100"
             aria-hidden
           />
         )}
       </p>
 
-      <p
-        className={`text-2xl font-semibold tabular-nums ${
-          alerte ? 'text-rose-700' : 'text-foreground'
-        }`}
-      >
-        {definition.format === 'MONTANT'
-          ? formatMontant(valeur, devise)
-          : formatNombre(valeur)}
-      </p>
+      {rendu === 'VALEUR' ? (
+        <>
+          {/*
+            LE CHIFFRE EST CE QU'ON VIENT LIRE : il domine la carte. Un montant
+            reste d'un cran plus petit — « 15 000 000 MGA » à la même taille
+            qu'un effectif se replierait en deux lignes.
+          */}
+          <p
+            className={`font-semibold tabular-nums ${
+              definition.format === 'MONTANT' ? 'text-2xl' : 'text-4xl'
+            } ${alerte ? 'text-rose-700' : 'text-foreground'}`}
+          >
+            {definition.format === 'MONTANT'
+              ? formatMontant(valeur, devise)
+              : formatNombre(valeur)}
+          </p>
 
-      {definition.aide && (
-        <p className="text-muted-foreground text-xs">{definition.aide}</p>
+          {/*
+            EF-DSH-05 — LA PART, quand le chiffre se rapporte à un total.
+            « 1 240 femmes » ne dit rien seul ; « 53 % de l'effectif » se lit.
+          */}
+          {part !== null && (
+            <p className="text-muted-foreground text-sm font-medium tabular-nums">
+              {part.toFixed(1).replace('.', ',')} % de l’effectif
+            </p>
+          )}
+
+          {definition.aide && (
+            <p className="text-muted-foreground text-xs">{definition.aide}</p>
+          )}
+        </>
+      ) : (
+        /*
+          UN BLOC SANS CONTENU NE SE TAIT PAS. Il est demandé par le registre,
+          donc attendu à l'écran : le voir vide dirait « il n'y a rien », quand
+          la cause peut être une lecture qui n'a pas abouti (règle 15).
+        */
+        (contenuAlternatif ?? (
+          <p className="text-muted-foreground text-sm">
+            Ce bloc n’a pas pu être chargé.
+          </p>
+        ))
       )}
     </CardContent>
   );
 
   if (!personnalise) {
-    if (!definition.lien) return <Card>{contenu}</Card>;
+    // Un bloc composé porte ses propres liens : l'envelopper d'un `<Link>`
+    // imbriquerait deux ancres, ce que le navigateur défait comme il peut.
+    if (!definition.lien || rendu !== 'VALEUR') {
+      return <Card className={largeur}>{contenu}</Card>;
+    }
 
     return (
-      <Card className="group hover:border-foreground/20 transition-colors">
+      <Card
+        className={`group hover:border-foreground/20 transition-colors ${largeur}`}
+      >
         {/* EF-DSH-09 — le chiffre mène à son détail. Voir « 12 transferts à
             décider » sans pouvoir y aller oblige à retrouver l'écran et à y
             reposer le filtre qu'on vient de lire. */}
@@ -306,7 +381,9 @@ function CarteKpi({
         e.preventDefault();
         onDeposer();
       }}
-      className={`relative cursor-grab transition-opacity ${enSaisie ? 'opacity-40' : ''} ${
+      className={`relative cursor-grab transition-opacity ${largeur} ${
+        enSaisie ? 'opacity-40' : ''
+      } ${
         // Un indicateur masqué reste LISIBLE en personnalisation, estompé :
         // s'il disparaissait, on ne pourrait plus le rétablir.
         masque ? 'opacity-50' : ''

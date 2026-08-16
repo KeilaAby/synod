@@ -80,17 +80,52 @@ export function DashboardSkeleton() {
     <div className="space-y-8">
       <PageHeaderSkeleton avecActions={false} />
 
-      {/* Quatre groupes : effectifs, structure, gouvernance, finances. */}
-      {[5, 5, 4, 4].map((cartes, section) => (
+      {/* La barre « Personnaliser », qui existe avant les donnees. */}
+      <div className="flex items-center justify-between gap-4">
+        <Skeleton className="h-4 w-48" />
+        <Skeleton className="h-10 w-36" />
+      </div>
+
+      {/* Effectifs — cinq cartes, puis le bloc des dernieres fiches. */}
+      <section className="space-y-3">
+        <Skeleton className="h-3 w-24" />
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-6">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <StatCardSkeleton key={i} />
+          ))}
+          <div className="col-span-2 xl:col-span-3">
+            <ChartSkeleton />
+          </div>
+        </div>
+      </section>
+
+      {/* Structure et gouvernance — que des chiffres. */}
+      {[5, 4].map((cartes, section) => (
         <section key={section} className="space-y-3">
-          <Skeleton className="h-3 w-24" /> {/* l'intitule du groupe */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Skeleton className="h-3 w-24" />
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-6">
             {Array.from({ length: cartes }).map((_, i) => (
               <StatCardSkeleton key={i} />
             ))}
           </div>
         </section>
       ))}
+
+      {/* Finances — trois montants larges, un compteur, puis la courbe. */}
+      <section className="space-y-3">
+        <Skeleton className="h-3 w-24" />
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-6">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="col-span-2">
+              <StatCardSkeleton />
+            </div>
+          ))}
+          <StatCardSkeleton />
+          <div className="col-span-2 md:col-span-4 xl:col-span-6">
+            <ChartSkeleton />
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

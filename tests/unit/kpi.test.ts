@@ -11,6 +11,7 @@ import {
   groupesVisibles,
   kpiEstAlerte,
   kpisVisibles,
+  partDeLEffectif,
 } from '@/lib/domain/kpi';
 import { ALL_PERMISSIONS, type Permission } from '@/lib/domain/permissions';
 
@@ -218,5 +219,67 @@ describe('EF-DSH-03, EF-DSH-07 — la disposition choisie', () => {
     expect(estDisposition({ ordre: 'a', masques: [] })).toBe(false);
     expect(estDisposition({ ordre: [1], masques: [] })).toBe(false);
     expect(estDisposition({ ordre: [] })).toBe(false);
+  });
+});
+
+describe('EF-DSH-05, EF-DSH-06 — la part et les rendus', () => {
+  it('rapporte un effectif a son total', () => {
+    // « 1 240 femmes » ne dit rien seul ; « 53 % de l'effectif » se lit.
+    expect(partDeLEffectif(53, 100)).toBeCloseTo(53, 5);
+    expect(partDeLEffectif(1, 3)).toBeCloseTo(33.333, 2);
+  });
+
+  it('rend NULL plutot que zero sur un total vide', () => {
+    /**
+     * « 0 % » se lit comme une mesure, alors qu'il n'y a rien a mesurer : la
+     * carte n'affiche alors simplement pas de part.
+     */
+    expect(partDeLEffectif(0, 0)).toBeNull();
+    expect(partDeLEffectif(5, 0)).toBeNull();
+    expect(partDeLEffectif(Number.NaN, 10)).toBeNull();
+  });
+
+  it('ne rapporte une part qu a une cle QUI EXISTE au registre', () => {
+    /**
+     * Une cle mal orthographiee ne leverait aucune erreur : la part serait
+     * calculee sur zero, donc tue — et personne ne saurait qu'elle manque.
+     */
+    const cles = new Set(KPI_REGISTRY.map((k) => k.cle));
+    for (const kpi of KPI_REGISTRY) {
+      if (kpi.partDe) expect(cles.has(kpi.partDe)).toBe(true);
+    }
+  });
+
+  it('n accorde le rapport qu a des indicateurs de MEME nature', () => {
+    // Rapporter un montant a un effectif donnerait un pourcentage qui ne veut
+    // rien dire — et que rien, a l'ecran, ne signalerait comme faux.
+    const par = new Map(KPI_REGISTRY.map((k) => [k.cle, k]));
+    for (const kpi of KPI_REGISTRY) {
+      if (!kpi.partDe) continue;
+      expect(par.get(kpi.partDe)?.format).toBe(kpi.format);
+    }
+  });
+
+  it('donne une largeur d au moins deux colonnes aux blocs composes', () => {
+    // Une liste de croyants ou une courbe dans un sixieme de grille serait
+    // illisible : ce qui n'est pas un chiffre a besoin de place.
+    for (const kpi of KPI_REGISTRY) {
+      if ((kpi.rendu ?? 'VALEUR') !== 'VALEUR') {
+        expect(kpi.taille ?? 1).toBeGreaterThanOrEqual(2);
+      }
+    }
+  });
+
+  it('garde les blocs composes DANS le mecanisme de personnalisation', () => {
+    /**
+     * Ils s'ordonnent et se masquent comme les autres : un bloc qu'on ne peut
+     * pas retirer ferait de la personnalisation une demi-promesse.
+     */
+    const composes = KPI_REGISTRY.filter((k) => (k.rendu ?? 'VALEUR') !== 'VALEUR');
+    expect(composes.length).toBeGreaterThan(0);
+
+    const masques = composes.map((k) => k.cle);
+    const restants = appliquerDisposition(KPI_REGISTRY, { ordre: [], masques });
+    expect(restants.some((k) => masques.includes(k.cle))).toBe(false);
   });
 });

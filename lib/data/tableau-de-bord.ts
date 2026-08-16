@@ -111,3 +111,73 @@ export async function chargerDisposition(): Promise<DispositionTableauDeBord> {
     ? { ordre: data.layout.ordre, masques: data.layout.masques }
     : DISPOSITION_VIDE;
 }
+
+export interface CroyantRecent {
+  id: string;
+  nom: string;
+  prenom: string;
+  matricule: string;
+  photoKey: string | null;
+  dateBapteme: string;
+  createdAt: string;
+  egliseNom: string | null;
+}
+
+/** Cinq lignes : au-dela, ce n'est plus « qui vient d'arriver », c'est la liste. */
+export const DERNIERS_CROYANTS = 5;
+
+/**
+ * Les dernieres fiches enregistrees — EF-DSH-05.
+ *
+ * UN EFFECTIF DIT COMBIEN NOUS SOMMES, jamais QUI a rejoint. C'est pourtant la
+ * premiere chose qu'un responsable regarde, et la seule qui appelle un geste :
+ * accueillir quelqu'un.
+ *
+ * TRIEES PAR DATE DE CREATION DE LA FICHE, pas par date de bapteme. Les deux
+ * different : une reprise de donnees enregistre en mars des baptemes de
+ * l'annee derniere, et c'est bien « ce qui vient d'entrer dans le registre »
+ * qu'on veut voir ici — la fenetre des nouveaux baptises, elle, a son propre
+ * indicateur (RG-30).
+ *
+ * La RLS borne la lecture au perimetre ; une lecture illisible rend une liste
+ * vide, et le bloc le dit plutot que de disparaitre.
+ */
+export async function chargerDerniersCroyants(): Promise<CroyantRecent[]> {
+  const sb = await createClient();
+
+  const { data, error } = await sb
+    .from('croyants')
+    .select(
+      'id, nom, prenom, matricule, photo_key, date_bapteme, created_at, ' +
+        'eglise:entities!croyants_eglise_id_fkey (nom)',
+    )
+    .is('deleted_at', null)
+    .eq('statut', 'ACTIF')
+    .order('created_at', { ascending: false })
+    .limit(DERNIERS_CROYANTS)
+    .returns<
+      {
+        id: string;
+        nom: string;
+        prenom: string;
+        matricule: string;
+        photo_key: string | null;
+        date_bapteme: string;
+        created_at: string;
+        eglise: { nom: string } | null;
+      }[]
+    >();
+
+  if (error) return [];
+
+  return (data ?? []).map((c) => ({
+    id: c.id,
+    nom: c.nom,
+    prenom: c.prenom,
+    matricule: c.matricule,
+    photoKey: c.photo_key,
+    dateBapteme: c.date_bapteme,
+    createdAt: c.created_at,
+    egliseNom: c.eglise?.nom ?? null,
+  }));
+}

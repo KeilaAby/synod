@@ -29,24 +29,69 @@ export const LIBELLES_GROUPE_KPI: Record<GroupeKpi, string> = {
   FINANCES: 'Finances',
 };
 
+/**
+ * COMMENT le bloc se rend — EF-DSH-06.
+ *
+ * Le registre ne decrit plus seulement des chiffres : un tableau de bord qui
+ * n'aligne que des nombres ne dit ni d'ou l'on vient, ni qui vient d'arriver.
+ * Chaque rendu a ses donnees et son composant ; la personnalisation, elle, ne
+ * les distingue pas — tout bloc s'ordonne et se masque de la meme facon.
+ */
+export const RENDUS_KPI = ['VALEUR', 'LISTE_CROYANTS', 'COURBE_FINANCES'] as const;
+export type RenduKpi = (typeof RENDUS_KPI)[number];
+
+/**
+ * La largeur du bloc, en colonnes de la grille (qui en compte SIX).
+ *
+ * SIX ET NON QUATRE : une carte plus etroite laisse tenir plus d'indicateurs
+ * sans faire defiler, et c'est le defilement — pas la taille — qui empeche de
+ * comparer deux chiffres. Les montants prennent deux colonnes parce qu'ils sont
+ * LONGS : « 15 000 000 MGA » ne se replie pas sans devenir illisible.
+ */
+export type TailleKpi = 1 | 2 | 3 | 6;
+
 export interface DefinitionKpi {
-  /** La colonne rendue par `fn_tableau_de_bord`. */
+  /** La colonne rendue par `fn_tableau_de_bord`, ou la cle du bloc. */
   readonly cle: string;
   readonly libelle: string;
   readonly groupe: GroupeKpi;
   readonly format: FormatKpi;
   /** EF-DSH-12 — sans elle, l'indicateur disparait au lieu d'afficher zero. */
   readonly permission: Permission;
+  /** EF-DSH-06 — `VALEUR` par defaut : la carte a un chiffre. */
+  readonly rendu?: RenduKpi;
+  /** Largeur en colonnes sur six. `1` par defaut. */
+  readonly taille?: TailleKpi;
   /** Ce que le chiffre compte exactement, quand le libelle ne suffit pas. */
   readonly aide?: string;
   /** EF-DSH-09 — l'ecran qui porte le detail, filtres appliques. */
   readonly lien?: string;
+  /**
+   * La cle du TOTAL auquel ce chiffre se rapporte — EF-DSH-05.
+   *
+   * « 1 240 femmes » ne dit rien seul : c'est « 53 % de l'effectif » qui se
+   * lit. Le rapport se declare ici plutot que de se coder dans la carte, sinon
+   * chaque nouvelle repartition demanderait de rouvrir le composant.
+   */
+  readonly partDe?: string;
   /**
    * Un chiffre qui MERITE d'etre signale quand il n'est pas nul : ce qui
    * attend une decision, ce qui est en deficit. Rien d'autre ne clignote.
    */
   readonly alerteSiPositif?: boolean;
   readonly alerteSiNegatif?: boolean;
+}
+
+/**
+ * La part d'un effectif dans son total — EF-DSH-05.
+ *
+ * Rend `null` quand le total est nul, et c'est ce qui compte : « 0 % » se lit
+ * comme une mesure, alors qu'il n'y a rien a mesurer. La carte n'affiche alors
+ * simplement pas de part.
+ */
+export function partDeLEffectif(valeur: number, total: number): number | null {
+  if (!Number.isFinite(valeur) || !Number.isFinite(total) || total <= 0) return null;
+  return (valeur / total) * 100;
 }
 
 export const KPI_REGISTRY: readonly DefinitionKpi[] = [
@@ -66,6 +111,8 @@ export const KPI_REGISTRY: readonly DefinitionKpi[] = [
     groupe: 'EFFECTIFS',
     format: 'NOMBRE',
     permission: 'croyant.read',
+    // EF-DSH-05 — « 1 240 femmes » ne dit rien seul ; « 53 % de l'effectif » si.
+    partDe: 'croyants',
     lien: '/croyants?sexe=F',
   },
   {
@@ -74,6 +121,7 @@ export const KPI_REGISTRY: readonly DefinitionKpi[] = [
     groupe: 'EFFECTIFS',
     format: 'NOMBRE',
     permission: 'croyant.read',
+    partDe: 'croyants',
     lien: '/croyants?sexe=M',
   },
   {
@@ -94,6 +142,8 @@ export const KPI_REGISTRY: readonly DefinitionKpi[] = [
     format: 'NOMBRE',
     permission: 'croyant.read',
     aide: 'Croyants rattachés à une cellule de prière.',
+    // Le taux d'encellulement (EF-DSH-05), qui est la vraie lecture.
+    partDe: 'croyants',
     lien: '/croyants?encellule=oui',
   },
 
@@ -184,6 +234,9 @@ export const KPI_REGISTRY: readonly DefinitionKpi[] = [
     groupe: 'FINANCES',
     format: 'MONTANT',
     permission: 'finance.read',
+    // Un montant est LONG : « 15 000 000 MGA » ne se replie pas sans devenir
+    // illisible. Il prend donc deux colonnes des six.
+    taille: 2,
     aide: 'Sur la période retenue, mouvements validés seulement.',
     lien: '/finances',
   },
@@ -193,6 +246,9 @@ export const KPI_REGISTRY: readonly DefinitionKpi[] = [
     groupe: 'FINANCES',
     format: 'MONTANT',
     permission: 'finance.read',
+    // Un montant est LONG : « 15 000 000 MGA » ne se replie pas sans devenir
+    // illisible. Il prend donc deux colonnes des six.
+    taille: 2,
     aide: 'Sur la période retenue, mouvements validés seulement.',
     lien: '/finances',
   },
@@ -202,6 +258,9 @@ export const KPI_REGISTRY: readonly DefinitionKpi[] = [
     groupe: 'FINANCES',
     format: 'MONTANT',
     permission: 'finance.read',
+    // Un montant est LONG : « 15 000 000 MGA » ne se replie pas sans devenir
+    // illisible. Il prend donc deux colonnes des six.
+    taille: 2,
     /**
      * IL N'EST PAS BORNE A LA PERIODE, contrairement aux deux precedents.
      * C'est de la tresorerie — « de combien disposons-nous ? » —, quand
@@ -220,6 +279,44 @@ export const KPI_REGISTRY: readonly DefinitionKpi[] = [
     permission: 'finance.validate',
     lien: '/finances/a-valider',
     alerteSiPositif: true,
+  },
+
+  // --- Les blocs qui ne sont pas des chiffres — EF-DSH-06 --------------------
+  /**
+   * QUI VIENT D'ARRIVER.
+   *
+   * Un effectif dit combien nous sommes, jamais qui a rejoint. C'est pourtant
+   * la premiere chose qu'un responsable regarde en ouvrant son ecran, et la
+   * seule qui appelle un geste : accueillir quelqu'un.
+   */
+  {
+    cle: 'derniers_croyants',
+    libelle: 'Derniers enregistrés',
+    groupe: 'EFFECTIFS',
+    format: 'NOMBRE',
+    permission: 'croyant.read',
+    rendu: 'LISTE_CROYANTS',
+    taille: 3,
+    aide: 'Les cinq fiches les plus récentes du périmètre.',
+    lien: '/croyants',
+  },
+  /**
+   * D'OU L'ON VIENT.
+   *
+   * Trois chiffres du mois ne disent pas s'il est bon : c'est la COMPARAISON
+   * aux onze precedents qui le dit. La categorie se choisit, parce que
+   * « les recettes baissent » et « les dimes baissent » n'appellent pas la
+   * meme reaction.
+   */
+  {
+    cle: 'evolution_finances',
+    libelle: 'Évolution des finances',
+    groupe: 'FINANCES',
+    format: 'MONTANT',
+    permission: 'finance.read',
+    rendu: 'COURBE_FINANCES',
+    taille: 6,
+    lien: '/finances/synthese',
   },
 ];
 
