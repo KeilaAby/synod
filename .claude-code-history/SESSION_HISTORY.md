@@ -3162,3 +3162,68 @@ lit comme un droit manquant, et l'on cherche sur soi une habilitation qui ne
 manque pas.
 
 530 tests unitaires, 26 fichiers. `pnpm verify` vert.
+
+---
+
+## 16 août 2026 (suite) — Lot 5, le tableau de bord
+
+`/tableau-de-bord` était une coquille : un en-tête et un état vide annonçant le
+lot 5. Il rend maintenant les indicateurs. Migration `0041`.
+
+**Première tranche du lot 5**, délibérément : EF-DSH-01, 02, 04, 11 et 12 —
+les *Must* qui ne dépendent d'aucun réglage. Le choix des indicateurs par
+l'utilisateur (EF-DSH-03), le glisser-déposer (EF-DSH-07) et les rendus
+alternatifs — jauge, courbe, camembert (EF-DSH-06) — viendront ensuite : ils
+supposent une table de préférences et un éditeur, pas un chiffre de plus.
+
+### Une fonction, un aller-retour, dix-huit mesures
+
+Les demander une par une coûterait dix-huit fois 0,5 à 4 secondes avant le
+premier chiffre — une minute pour une page dont tout l'intérêt est de s'ouvrir
+d'un coup (règle 28). Chaque compte est un sous-select indépendant ; le résultat
+tient en une ligne.
+
+`SECURITY INVOKER`, et c'est ce qui tient EF-DSH-02 : la RLS de `croyants`,
+`entities`, `bureau_membres` et `finance_entries` s'applique à l'appelant. Un
+gestionnaire de district n'obtient que son district, sans que l'écran refasse le
+moindre filtrage — ce qu'on ne refait pas, on ne peut pas le rater.
+
+### Effectifs et flux n'ont pas la même borne
+
+Un effectif est un **état** — « combien sommes-nous aujourd'hui ? » ; une
+recette est un **flux** — « combien avons-nous reçu ce mois-ci ? ». Leur donner
+la même borne temporelle rendrait l'un des deux faux.
+
+Le **solde**, lui, est un cumul depuis l'origine, à côté de recettes et dépenses
+qui portent sur le mois. C'est de la trésorerie, pas le résultat de la période :
+la carte le dit, sinon quelqu'un additionnerait les trois.
+
+### Le masquage n'est pas cosmétique — EF-DSH-12
+
+`fn_tableau_de_bord` étant `SECURITY INVOKER`, ce qu'on n'a pas le droit de lire
+n'est pas refusé : il est **compté à zéro** par la RLS. Afficher ce zéro ferait
+conclure à une base vide plutôt qu'à une habilitation manquante (règle 15).
+L'indicateur disparaît donc, et le groupe entier avec lui quand il ne reste
+rien — un titre « Finances » suivi de rien apprendrait qu'il existe des
+finances, ce que le masquage vise précisément à taire.
+
+### Le registre
+
+`lib/domain/kpi.ts`, déclaratif comme celui des référentiels : un indicateur
+s'ajoute en écrivant une ligne, sans toucher ni l'écran ni la requête. Neuf
+tests, dont un qui vérifie que chaque indicateur s'appuie sur une **permission
+qui existe** — mal orthographiée, elle ne lèverait aucune erreur : l'indicateur
+disparaîtrait simplement pour tout le monde.
+
+**Très peu de choses attirent l'œil** : si tout se signale, plus rien ne
+ressort. Deux cas seulement — ce qui attend une décision, et un solde négatif
+(EF-FIN-13). Un test borne cette liste.
+
+### Le squelette mentait
+
+`DashboardSkeleton` annonçait huit cartes puis deux graphiques ; l'écran rend
+des sections titrées, sans graphique. Un squelette qui ment sur ce qui arrive
+fait sauter la page au moment où les données se posent — l'inverse exact de ce
+qu'il est censé éviter (EF-DSH-11).
+
+540 tests unitaires, 27 fichiers. `pnpm verify` vert.

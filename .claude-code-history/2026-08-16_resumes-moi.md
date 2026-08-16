@@ -12,20 +12,16 @@
 
 ---
 
-## À FAIRE EN PREMIER — la migration `0040`
+## À FAIRE EN PREMIER — la migration `0041`
 
-`supabase/migrations/0040_cloture_periode.sql` **n'est pas appliquée**. Sans
-elle, l'écran de clôture n'a aucune table ni fonction à appeler, et le verrou
-d'EF-FIN-26 n'existe pas.
+`supabase/migrations/0041_tableau_de_bord.sql` **n'est pas appliquée**. Sans
+elle, `/tableau-de-bord` affiche des zéros et le bandeau « les indicateurs n'ont
+pas pu être calculés ».
 
 ```bash
 # à passer dans l'éditeur SQL Supabase
-supabase/migrations/0040_cloture_periode.sql
+supabase/migrations/0041_tableau_de_bord.sql
 ```
-
-Elle apporte aussi `finance.periode.reopen` à `fn_permissions_non_delegables()`,
-et **redéfinit `fn_finance_before_write`** — la version de `0023` reste intacte
-dans son fichier, celle-ci la remplace.
 
 ---
 
@@ -69,9 +65,10 @@ livré pour l'essentiel**.
 | **Synthèse périodique — EF-FIN-24** | ✅ |
 | **Filtres complets du registre — EF-FIN-22** | ✅ |
 | **Exports XLSX / CSV / PDF — EF-FIN-25** | ✅ |
-| **Clôture d'une période — EF-FIN-26** *(migration `0040` à appliquer)* | ✅ |
+| **Clôture d'une période — EF-FIN-26** | ✅ |
+| **Tableau de bord — EF-DSH-01/02/04/11/12** *(migration `0041`)* | ✅ |
 
-530 tests unitaires, 26 fichiers. `pnpm verify` vert.
+540 tests unitaires, 27 fichiers. `pnpm verify` vert.
 
 ---
 
@@ -98,6 +95,20 @@ au Siège, qui valide et émet le bordereau.
 
 Le ticket de reçu imprimable et l'historique du croyant (EF-FIN-35) ont été
 livrés le 16 août. EF-FIN-27 à 35 sont tous servis.
+
+### Lot 5 — tableau de bord, la suite
+
+La première tranche est livrée (indicateurs, masquage, squelette). Restent, et
+elles supposent toutes une table de préférences par utilisateur :
+
+- **EF-DSH-03 / EF-DSH-07** — choisir ses indicateurs, leur ordre et leur
+  taille ; réorganisation au glisser-déposer, persistée par compte. La table
+  `dashboard_layouts` existe depuis `0005` et n'est pas encore utilisée.
+- **EF-DSH-06** — les rendus alternatifs : jauge, courbe, barres, camembert.
+  `CourbeAnnuelle` a montré qu'un SVG écrit à la main suffit.
+- **EF-DSH-05** — les indicateurs analytiques : répartitions par grade,
+  nationalité, tranche d'âge ; taux d'encellulement ; classements.
+- **EF-DSH-08 / 10** — modèles par rôle, export PDF du tableau.
 
 ### Finances — **le lot 4 est complet**
 

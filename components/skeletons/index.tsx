@@ -67,19 +67,30 @@ export function ChartSkeleton({ className }: { className?: string }) {
   );
 }
 
+/**
+ * EF-DSH-11 — CALQUE SUR LA GRILLE FINALE, pas sur une grille plausible.
+ *
+ * Il annoncait huit cartes puis deux graphiques ; l'ecran rend des SECTIONS
+ * titrees de cartes, et aucun graphique. Un squelette qui ment sur ce qui
+ * arrive fait sauter la page au moment ou les donnees se posent — l'inverse
+ * exact de ce qu'il est cense eviter.
+ */
 export function DashboardSkeleton() {
   return (
     <div className="space-y-8">
-      <PageHeaderSkeleton />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <StatCardSkeleton key={i} />
-        ))}
-      </div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ChartSkeleton />
-        <ChartSkeleton />
-      </div>
+      <PageHeaderSkeleton avecActions={false} />
+
+      {/* Quatre groupes : effectifs, structure, gouvernance, finances. */}
+      {[5, 5, 4, 4].map((cartes, section) => (
+        <section key={section} className="space-y-3">
+          <Skeleton className="h-3 w-24" /> {/* l'intitule du groupe */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: cartes }).map((_, i) => (
+              <StatCardSkeleton key={i} />
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }

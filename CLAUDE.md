@@ -189,13 +189,24 @@ close` est délégable — c'est le bureau qui arrête ses comptes ;
 `finance.periode.reopen` ne l'est pas, sinon celui qui clôt s'accorderait de
 quoi rouvrir et la clôture ne serait qu'une convention entre soi.
 
+**Lot 5 — tableau de bord, première tranche** : EF-DSH-01/02/04/11/12.
+`fn_tableau_de_bord` (migration `0041`) rend **dix-huit mesures en un
+aller-retour**, `SECURITY INVOKER` — c'est la RLS qui tient EF-DSH-02, l'écran
+ne refait aucun filtrage. Un **effectif est un état**, une **recette est un
+flux** : ils n'ont pas la même borne temporelle, et le solde est un cumul depuis
+l'origine à côté d'un mois. Le registre `lib/domain/kpi.ts` est déclaratif, et
+**l'indicateur non habilité DISPARAÎT** — la RLS le compte à zéro, et ce zéro
+affiché se lirait « nous n'avons rien » là où la vérité est « je n'ai pas le
+droit de savoir » (règle 15). Restent EF-DSH-03/06/07 : ils supposent une table
+de préférences, pas un chiffre de plus.
+
 **EF-BUR-11 clos** : l'export Excel de la composition est abandonné le 12 août
 2026, le PDF de l'organigramme couvre le besoin.
 
-Migrations appliquées jusqu'à `0039`, **`0040` écrite mais pas appliquée** :
-sans elle, l'écran de clôture n'a ni table ni fonction, et le verrou d'EF-FIN-26
-n'existe pas. Une collecte de dîmes naît `SOUMIS` et c'est la **remise** qui la
-valide, donc qui alimente le Siège. Le stockage de fichiers ne se
+Migrations appliquées jusqu'à `0040`, **`0041` écrite mais pas appliquée** :
+sans elle, `/tableau-de-bord` n'affiche que des zéros. Une collecte de dîmes
+naît `SOUMIS` et c'est la **remise** qui la valide, donc qui alimente le Siège.
+Le stockage de fichiers ne se
 configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` et
 `postgres` s'y voit refuser `CREATE POLICY` : `pnpm db:bucket` s'en charge par
 l'API.
