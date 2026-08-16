@@ -13,7 +13,11 @@ import { type ActionResult, ko, ok } from '@/lib/domain/result';
 import { auditer, requirePermission, requireSession } from '@/lib/session';
 import { createClient } from '@/lib/supabase/server';
 import { sanitize } from '@/lib/utils/sanitize';
-import { reglerModeDimeSchema, saisirCollecteSchema } from '@/lib/validation/dime';
+import {
+  reglerModeDimeSchema,
+  remettreCollectesSchema,
+  saisirCollecteSchema,
+} from '@/lib/validation/dime';
 import { champsEnErreur } from '@/lib/validation/zod-errors';
 
 import { executerAction } from './executer';
@@ -309,5 +313,90 @@ export async function reglerModeDime(input: unknown): Promise<ActionResult<void>
 
     revalidatePath('/finances/dimes');
     return ok();
+  });
+}
+
+// -----------------------------------------------------------------------------
+// Remise au Siege — EF-FIN-30
+// -----------------------------------------------------------------------------
+
+export interface ResultatRemise {
+  readonly reference: string;
+  readonly collectes: number;
+}
+
+/**
+ * Remet un lot de collectes au Siege — EF-FIN-30.
+ *
+ * L'ecriture passe par `fn_remettre_collectes` : le bordereau et le
+ * rattachement des collectes sont INDISSOCIABLES (regle 20). L'un sans l'autre
+ * laisserait soit un bordereau vide — un papier qui ne prouve rien —, soit des
+ * collectes marquees remises sans document pour l'attester ; on croirait alors
+ * l'argent arrive.
+ *
+ * LE RETARD NE BLOQUE PAS. Les dimes d'un culte doivent parvenir dans la
+ * semaine, mais refuser une remise tardive empecherait de regulariser —
+ * exactement l'inverse du but.
+ */
+export async function remettreCollectes(
+  input: unknown,
+): Promise<ActionResult<ResultatRemise>> {
+  return executerAction('remettreCollectes', async () => {
+    const session = await requireSession();
+
+    const analyse = remettreCollectesSchema.safeParse(input);
+    if (!analyse.success) {
+      return ko('Demande invalide.', champsEnErreur(analyse.error));
+    }
+    const data = analyse.data;
+
+    const arbre = await getArbrePerimetre();
+    if (arbre.length === 0) {
+      return ko("La structure n'a pas pu etre chargee. Reessayez.");
+    }
+
+    const entite = arbre.find((e) => e.id === data.entiteId);
+    if (!entite) return ko('Cette entite est introuvable ou hors de votre perimetre.');
+
+    // Verifie ICI pour l'expliquer, dans la fonction SQL pour l'empecher.
+    await requirePermission(session, 'finance.dime.collect', entite.path);
+
+    const sb = await createClient();
+
+    const { data: resultat, error } = await sb.rpc('fn_remettre_collectes', {
+      p_entite: data.entiteId,
+      p_collectes: data.collecteIds,
+      p_porteur: data.porteurId,
+      p_date_remise: data.dateRemise.toISOString().slice(0, 10),
+      p_observation: data.observation ? sanitize(data.observation) : null,
+    });
+
+    if (error) return ko(messageErreurSql(error));
+
+    const ligne = (
+      resultat as { remise_id: string; reference: string; collectes: number }[]
+    )?.[0];
+
+    if (!ligne) return ko("Le bordereau n'a pas pu etre etabli.");
+
+    await auditer({
+      session,
+      action: 'CREATE',
+      table: 'dime_remises',
+      recordId: ligne.remise_id,
+      entityId: data.entiteId,
+      diff: {
+        apres: {
+          reference: ligne.reference,
+          collectes: ligne.collectes,
+          date: data.dateRemise.toISOString().slice(0, 10),
+        },
+      },
+    });
+
+    revalidatePath('/finances');
+    revalidatePath('/finances/dimes');
+
+    return ok({ reference: ligne.reference, collectes: ligne.collectes });
   });
 }

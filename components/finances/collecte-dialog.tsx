@@ -7,6 +7,7 @@ import { useMemo, useState } from 'react';
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
+import { AvatarCroyant } from '@/components/croyants/avatar-croyant';
 import { CroyantPicker } from '@/components/croyants/croyant-picker';
 import { Field, TextField } from '@/components/shared/field';
 import { avertir } from '@/components/shared/messages';
@@ -713,36 +714,51 @@ export function CollecteDialog({
                                       Numéro déjà utilisé par :
                                     </p>
                                     {/*
-                                      La MÊME liste déroulante que celle des
-                                      croyants — portrait compris — mais SANS
-                                      recherche : les porteurs connus d'un
-                                      numéro se comptent sur une main, et un
-                                      champ de recherche y prendrait le focus
-                                      avant les propositions elles-mêmes.
+                                      DES NOMS CLIQUABLES, pas un menu.
+
+                                      Une liste déroulante demandait un clic
+                                      pour l'ouvrir avant celui qui retient le
+                                      nom : deux gestes pour une suggestion
+                                      qu'on accepte ou qu'on ignore d'un coup
+                                      d'œil. Les porteurs sont peu nombreux —
+                                      ils tiennent à l'écran.
                                     */}
-                                    <CroyantPicker
-                                      avecRecherche={false}
-                                      options={suggestionsDe(index).map((p) => ({
-                                        id: p.croyantId,
-                                        nom: p.nom,
-                                        prenom: p.prenom,
-                                        matricule:
-                                          croyants.find((c) => c.id === p.croyantId)
-                                            ?.matricule ?? '',
-                                        photoKey: croyants.find(
-                                          (c) => c.id === p.croyantId,
-                                        )?.photoKey,
-                                      }))}
-                                      value={null}
-                                      onChange={(id) =>
-                                        setValue(`versements.${index}.croyantId`, id, {
-                                          shouldValidate: true,
-                                        })
-                                      }
-                                      photos={photos}
-                                      placeholder="Retenir une suggestion"
-                                      aria-label={`Suggestions, ligne ${index + 1}`}
-                                    />
+                                    {suggestionsDe(index).map((p) => {
+                                      const fiche = croyants.find(
+                                        (c) => c.id === p.croyantId,
+                                      );
+
+                                      return (
+                                        <button
+                                          key={p.croyantId}
+                                          type="button"
+                                          onClick={() =>
+                                            setValue(
+                                              `versements.${index}.croyantId`,
+                                              p.croyantId,
+                                              { shouldValidate: true },
+                                            )
+                                          }
+                                          className="hover:bg-muted flex w-full cursor-pointer items-center gap-2 rounded-md p-1 text-left text-xs"
+                                        >
+                                          {/* Un visage se reconnaît plus vite
+                                              qu'un nom, surtout entre
+                                              homonymes. */}
+                                          <AvatarCroyant
+                                            nom={p.nom}
+                                            prenom={p.prenom}
+                                            url={
+                                              fiche?.photoKey
+                                                ? photos[fiche.photoKey]
+                                                : null
+                                            }
+                                          />
+                                          <span className="truncate">
+                                            {p.nom.toLocaleUpperCase('fr')} {p.prenom}
+                                          </span>
+                                        </button>
+                                      );
+                                    })}
                                   </div>
                                 )}
                               </TableCell>

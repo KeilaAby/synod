@@ -2618,3 +2618,50 @@ nom »** ou **« En vrac »** — un tiret se lit comme une donnée manquante, d
 comme un oubli de saisie.
 
 474 tests unitaires. `pnpm verify` vert.
+
+---
+
+## 13 août 2026 (suite) — La remise au Siège, et deux corrections d'affichage
+
+**Oui, la remise existe maintenant** — c'est ce qui manquait derrière le badge
+« À remettre ». `0037` + `RemiseDialog`, atteignable depuis le bandeau qui
+rappelle ce qui reste à porter : c'est là que la question se pose.
+
+L'écran ne « transfère » rien — la dîme est portée **en mains propres**. Il
+consigne un déplacement réel : date, porteur (trésorier principal ou adjoint),
+observation, et la liste des collectes couvertes.
+
+`fn_remettre_collectes` fait les deux écritures **en une transaction**
+(règle 20) : le bordereau naît et les collectes s'y rattachent. L'une sans
+l'autre laisserait soit un bordereau vide — un papier qui ne prouve rien —, soit
+des collectes marquées remises sans document pour l'attester ; on croirait
+l'argent arrivé.
+
+Deux garde-fous que le SQL porte, et qui ne sont pas décoratifs :
+
+- **seules les collectes encore non remises** sont rattachées. Deux personnes
+  peuvent préparer le même bordereau en même temps, et rattacher une collecte
+  déjà remise la ferait compter **deux fois** — le Siège croirait avoir reçu le
+  double ;
+- **un bordereau resté vide échoue.** Un papier qui ne porte rien se
+  retrouverait dans la liste des remises sans qu'on sache quoi en faire.
+
+**Le retard ne bloque pas**, ni à l'écran ni en base : refuser une remise
+tardive empêcherait de régulariser, exactement l'inverse du but. Il se signale
+sur chaque ligne, et le bordereau **détaille chaque date de culte** — c'est ce
+qui rend le regroupement visible au lieu de le noyer dans un total.
+
+### Deux corrections d'affichage
+
+**La suggestion redevient une liste de noms cliquables**, portrait compris. La
+liste déroulante demandait un clic pour l'ouvrir avant celui qui retient le
+nom : deux gestes pour une suggestion qu'on accepte ou qu'on ignore d'un coup
+d'œil.
+
+**La ligne parente reste blanche.** `TableRow` porte
+`has-aria-expanded:bg-muted/50`, qui réagit à la **présence** de l'attribut et
+non à sa valeur : le bouton qui déplie en porte un, donc la ligne était grisée
+en permanence — et le détail paraissait plus clair que son parent, l'inverse de
+ce qu'on veut lire.
+
+474 tests unitaires. `pnpm verify` vert.

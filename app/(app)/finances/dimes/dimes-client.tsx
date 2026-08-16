@@ -7,6 +7,7 @@ import {
   CollecteDialog,
   type CroyantOption,
 } from '@/components/finances/collecte-dialog';
+import { RemiseDialog } from '@/components/finances/remise-dialog';
 import { EmptyState } from '@/components/shared/empty-state';
 import { FiltreIcone, GroupeFiltres } from '@/components/shared/filtre-icone';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -142,16 +143,42 @@ export function DimesClient({
             </p>
           </div>
 
-          <CollecteDialog
-            entites={entites}
-            devise={devise}
-            modes={modes}
-            croyants={croyants}
-            croyantsTronques={croyantsTronques}
-            enveloppes={enveloppes}
-            photos={photos}
-            porteurs={porteurs}
-          />
+          <div className="flex flex-wrap gap-2">
+            {/* EF-FIN-30 — la remise se decide LA, sous le rappel de ce qui
+                reste a porter : c'est la seule question que ce bandeau pose. */}
+            <RemiseDialog
+              collectes={collectes
+                .filter((c) => c.dime_remise_id === null && c.entite_collecte_id)
+                .map((c) => ({
+                  id: c.id,
+                  entiteId: c.entite_collecte_id!,
+                  entiteNom: c.collecteur?.nom ?? '—',
+                  dateOperation: c.date_operation,
+                  montant: Number(c.montant),
+                }))}
+              porteurs={croyants.map((c) => ({
+                id: c.id,
+                nom: c.nom,
+                prenom: c.prenom,
+                matricule: c.matricule,
+                photoKey: c.photoKey,
+                detail: c.egliseNom,
+              }))}
+              photos={photos}
+              devise={devise}
+            />
+
+            <CollecteDialog
+              entites={entites}
+              devise={devise}
+              modes={modes}
+              croyants={croyants}
+              croyantsTronques={croyantsTronques}
+              enveloppes={enveloppes}
+              photos={photos}
+              porteurs={porteurs}
+            />
+          </div>
         </div>
       )}
 
@@ -227,7 +254,16 @@ export function DimesClient({
 
                 return (
                   <Fragment key={c.id}>
-                    <TableRow>
+                    {/*
+                      LA LIGNE PARENTE RESTE BLANCHE.
+
+                      `TableRow` porte `has-aria-expanded:bg-muted/50`, qui
+                      réagit à la PRÉSENCE de l'attribut et non à sa valeur : le
+                      bouton qui déplie en porte un, donc la ligne était grisée
+                      en permanence — et le détail, lui, paraissait plus clair
+                      que son parent. L'inverse de ce qu'on veut lire.
+                    */}
+                    <TableRow className="has-aria-expanded:bg-transparent">
                       <TableCell>
                         {detail && (
                           <Button
@@ -274,7 +310,7 @@ export function DimesClient({
                           <button
                             type="button"
                             onClick={() => basculer(c.id)}
-                            className="hover:underline"
+                            className="cursor-pointer hover:underline"
                             aria-expanded={ouvert}
                           >
                             {formatNombre(c.versements.length)}
@@ -304,8 +340,10 @@ export function DimesClient({
                       entre les mains de croyants qui peuvent en demander la
                       trace (EF-FIN-31).
                     */}
+                    {/* Le DÉTAIL est teinté, lui : c'est ce qui le rattache
+                        visuellement à la ligne qui l'ouvre. */}
                     {ouvert && detail && (
-                      <TableRow className="bg-muted/30">
+                      <TableRow className="bg-muted/40 hover:bg-muted/40">
                         <TableCell />
                         <TableCell colSpan={6} className="py-4">
                           <ul className="divide-border divide-y">

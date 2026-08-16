@@ -147,3 +147,31 @@ export const reglerModeDimeSchema = z.object({
 });
 
 export type ReglerModeDimeInput = z.input<typeof reglerModeDimeSchema>;
+
+/**
+ * Remise d'un lot de collectes au Siege — EF-FIN-30.
+ *
+ * Le bordereau DETAILLE la date de chaque culte dont il porte la collecte : un
+ * regroupement de plusieurs dimanches est possible mais mal vu, et le detail
+ * rend le retard visible au lieu de le noyer dans un total. C'est la liste des
+ * collectes qui le produit — rien a saisir de plus.
+ */
+export const remettreCollectesSchema = z.object({
+  entiteId: z.uuid(),
+  collecteIds: z
+    .array(z.uuid())
+    .min(1, 'Selectionnez au moins une collecte a remettre.')
+    .max(200, 'Deux cents collectes au plus par bordereau.'),
+  /**
+   * LE PORTEUR EST FACULTATIF a l'enregistrement.
+   *
+   * C'est normalement le tresorier principal ou son adjoint, mais l'exiger
+   * ferait refuser une remise reellement faite parce que la fiche du porteur
+   * n'est pas encore saisie. On l'inscrit quand on le sait.
+   */
+  porteurId: optionnel(z.uuid()),
+  dateRemise: z.coerce.date({ message: 'Date invalide.' }),
+  observation: optionnel(z.string().trim().max(500)),
+});
+
+export type RemettreCollectesInput = z.input<typeof remettreCollectesSchema>;
