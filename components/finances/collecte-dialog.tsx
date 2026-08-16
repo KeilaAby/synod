@@ -45,6 +45,7 @@ import {
   type ModeDime,
   admetLeDetail,
   modeEffectif,
+  peutVerser,
   totalCollecte,
 } from '@/lib/domain/dime';
 import { formatMontant, formatNombre } from '@/lib/utils/format';
@@ -68,7 +69,15 @@ export interface CroyantOption {
   readonly nom: string;
   readonly prenom: string;
   readonly matricule: string;
-  readonly egliseId: string;
+  /**
+   * Le CHEMIN de son église, pas seulement son identifiant.
+   *
+   * Lors d'un rassemblement de district, tous les croyants du district peuvent
+   * verser — pas seulement ceux rattachés au district lui-même, qui sont
+   * généralement zéro. Comparer les identifiants n'aurait donc rien proposé
+   * (EF-FIN-30) ; c'est le sous-arbre qui décide, et il se lit dans le chemin.
+   */
+  readonly eglisePath: string;
 }
 
 export function CollecteDialog({
@@ -77,6 +86,7 @@ export function CollecteDialog({
   devise,
   modes,
   croyants = [],
+  croyantsTronques = false,
   enveloppes = {},
 }: {
   entites: OptionEntite[];
@@ -85,6 +95,8 @@ export function CollecteDialog({
   /** EF-FIN-28 — le mode DÉCIDÉ par chaque entité ; `null` = défaut. */
   modes: Record<string, ModeDime | null>;
   croyants?: CroyantOption[];
+  /** Le périmètre dépasse le plafond : la liste proposée est une tranche. */
+  croyantsTronques?: boolean;
   /** Numéro d'enveloppe connu de chaque croyant, pour ne pas le retaper. */
   enveloppes?: Record<string, string>;
 }) {
@@ -137,12 +149,22 @@ export function CollecteDialog({
 
   const detaille = mode === 'DETAILLE' && admetLeDetail(evenement ?? 'CULTE');
 
-  // EF-FIN-30 — seuls les croyants du sous-arbre de l'hôte peuvent verser. La
-  // liste est déjà bornée au périmètre ; on la restreint à l'entité choisie.
+  /**
+   * EF-FIN-30 — qui peut verser lors de CETTE collecte.
+   *
+   * Le critère est le SOUS-ARBRE de l'entité hôte : lors d'un rassemblement de
+   * district, tous les croyants du district peuvent verser, quelle que soit
+   * leur église. Comparer les identifiants n'aurait rien proposé — presque
+   * aucun croyant n'est rattaché à un district directement.
+   */
   const eligibles = useMemo(() => {
-    if (!entiteChoisie) return [];
-    return croyants.filter((c) => c.egliseId === entiteChoisie);
-  }, [croyants, entiteChoisie]);
+    const hote = entites.find((e) => e.id === entiteChoisie);
+    if (!hote) return [];
+
+    return croyants
+      .filter((c) => peutVerser(c.eglisePath, hote.path))
+      .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+  }, [croyants, entiteChoisie, entites]);
 
   const total = useMemo(
     () =>
@@ -405,10 +427,26 @@ export function CollecteDialog({
                     </div>
                   </div>
 
+                  {/*
+                    Une liste tronquée se DIT. Sans ce mot, un croyant absent
+                    du menu se lirait « il n'existe pas » — et quelqu'un
+                    créerait une fiche en double pour le faire apparaître.
+                  */}
+                  {croyantsTronques && entiteChoisie && (
+                    <p className="text-muted-foreground text-xs">
+                      Votre périmètre dépasse le plafond de chargement : la liste
+                      proposée n’en est qu’une partie.
+                    </p>
+                  )}
+
                   {!entiteChoisie ? (
                     <p className="text-muted-foreground border-border rounded-lg border p-6 text-center text-sm">
                       Choisissez d’abord l’entité collectrice : ce sont ses croyants qui
                       pourront verser.
+                    </p>
+                  ) : eligibles.length === 0 ? (
+                    <p className="text-muted-foreground border-border rounded-lg border p-6 text-center text-sm">
+                      Aucun croyant n’est rattaché à cette entité ni à ses descendants.
                     </p>
                   ) : (
                     <div className="border-border min-w-0 rounded-lg border">

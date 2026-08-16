@@ -115,6 +115,30 @@ export async function chargerEnveloppes(
 }
 
 /**
+ * TOUTES les enveloppes actives du perimetre, en une requete.
+ *
+ * La grille de saisie ne sait pas d'avance quelle entite sera choisie : les
+ * charger apres coup couterait un aller-retour a chaque changement d'entite,
+ * au milieu d'une saisie (regle 28). Une enveloppe par croyant et par eglise
+ * reste un volume modeste — c'est un numero, pas une fiche.
+ */
+export async function chargerEnveloppesPerimetre(): Promise<Map<string, string>> {
+  const sb = await createClient();
+
+  const { data, error } = await sb
+    .from('dime_enveloppes')
+    .select('croyant_id, numero')
+    .eq('is_active', true)
+    .limit(20000)
+    .returns<EnveloppeCroyant[]>();
+
+  // Une enveloppe illisible n'empeche pas de saisir : le numero se tape a la
+  // main, et il est facultatif.
+  if (error) return new Map();
+  return new Map((data ?? []).map((e) => [e.croyant_id, e.numero]));
+}
+
+/**
  * Le mode de saisie DECIDE par chaque entite du perimetre.
  *
  * Derive de l'arbre plutot que d'une requete par entite : le mode effectif

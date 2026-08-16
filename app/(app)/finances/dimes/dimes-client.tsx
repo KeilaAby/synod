@@ -1,9 +1,12 @@
 'use client';
 
 import { ChevronDown, ChevronRight, Coins, Search, Truck } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 
-import { CollecteDialog } from '@/components/finances/collecte-dialog';
+import {
+  CollecteDialog,
+  type CroyantOption,
+} from '@/components/finances/collecte-dialog';
 import { EmptyState } from '@/components/shared/empty-state';
 import { FiltreIcone, GroupeFiltres } from '@/components/shared/filtre-icone';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -48,6 +51,9 @@ export function DimesClient({
   categories,
   devise,
   modes,
+  croyants,
+  croyantsTronques,
+  enveloppes,
 }: {
   collectes: CollecteListe[];
   entites: OptionEntite[];
@@ -55,6 +61,11 @@ export function DimesClient({
   devise: string;
   /** EF-FIN-28 — le mode DÉCIDÉ par chaque entité ; `null` = défaut. */
   modes: Record<string, ModeDime | null>;
+  croyants: CroyantOption[];
+  /** Le périmètre dépasse le plafond : la liste proposée est une tranche. */
+  croyantsTronques: boolean;
+  /** Numéro d'enveloppe connu de chaque croyant, pour ne pas le retaper. */
+  enveloppes: Record<string, string>;
 }) {
   const [recherche, setRecherche] = useState('');
   const [aRemettre, setARemettre] = useState(false);
@@ -132,6 +143,9 @@ export function DimesClient({
             categories={categories}
             devise={devise}
             modes={modes}
+            croyants={croyants}
+            croyantsTronques={croyantsTronques}
+            enveloppes={enveloppes}
           />
         </div>
       )}
@@ -166,6 +180,9 @@ export function DimesClient({
             categories={categories}
             devise={devise}
             modes={modes}
+            croyants={croyants}
+            croyantsTronques={croyantsTronques}
+            enveloppes={enveloppes}
           />
         )}
       </div>
@@ -203,8 +220,8 @@ export function DimesClient({
                   c.dime_remise_id === null && estEnRetard(c.date_operation, aujourdhui);
 
                 return (
-                  <>
-                    <TableRow key={c.id}>
+                  <Fragment key={c.id}>
+                    <TableRow>
                       <TableCell>
                         {detail && (
                           <Button
@@ -268,7 +285,7 @@ export function DimesClient({
                       trace (EF-FIN-31).
                     */}
                     {ouvert && detail && (
-                      <TableRow key={`${c.id}-detail`} className="bg-muted/30">
+                      <TableRow className="bg-muted/30">
                         <TableCell />
                         <TableCell colSpan={6} className="py-4">
                           <ul className="divide-border divide-y">
@@ -301,7 +318,7 @@ export function DimesClient({
                         </TableCell>
                       </TableRow>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
             </TableBody>

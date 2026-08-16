@@ -2268,3 +2268,28 @@ schéma fait admettre `undefined` au type d'entrée.
 **Reste au lot 4** : le bordereau de remise (l'écran ; la table `dime_remises`
 existe), le ticket de reçu imprimable, l'écran de saisie déléguée dédié, et
 l'export PDF de la vue consolidée.
+
+**Deux défauts de l'écran des dîmes, corrigés.**
+
+**Le menu des croyants était vide** : la page ne passait jamais la liste au
+pop-up — j'avais laissé la prop avec un défaut `[]` et ne l'avais pas câblée.
+Les croyants et les enveloppes sont maintenant chargés **avec la page**, en
+parallèle du reste : les chercher à l'ouverture du pop-up mettrait un
+aller-retour au milieu d'une saisie, et un autre à chaque changement d'entité.
+
+Derrière ce premier défaut s'en cachait un **plus grave**, que l'écran vide
+masquait : le filtre comparait `egliseId === entiteChoisie`. Or lors d'un
+rassemblement de district, ce sont **tous les croyants du district** qui peuvent
+verser — et presque aucun n'est rattaché au district directement. Choisir une
+paroisse ou un district n'aurait donc **jamais** rien proposé, même une fois la
+liste transmise. C'est le sous-arbre qui décide (`peutVerser`), et il se lit
+dans le chemin `ltree` : la liste transporte donc `eglisePath`, pas `egliseId`.
+
+Deux états manquaient aussi : « aucun croyant rattaché à cette entité ni à ses
+descendants », et l'avertissement d'une liste **tronquée** par le plafond de
+chargement. Sans ce dernier, un croyant absent du menu se lirait « il n'existe
+pas » — et quelqu'un créerait une fiche en double pour le faire apparaître.
+
+**La clé du fragment.** `<>` ne peut pas en porter : React réclamait alors celle
+des `TableRow` enfants, qui ne sont pas ce que le `map` rend. `Fragment` nommé,
+clé sur lui.

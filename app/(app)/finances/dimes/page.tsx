@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 
 import { PageHeader } from '@/components/shared/page-header';
-import { chargerCollectes } from '@/lib/data/dimes';
+import { chargerCollectes, chargerEnveloppesPerimetre } from '@/lib/data/dimes';
+import { chargerCroyants } from '@/lib/data/croyants';
 import { getArbrePerimetre } from '@/lib/data/entities';
 import { versOptions } from '@/lib/data/entity-options';
 import { listerCategoriesFinance } from '@/lib/data/finances';
@@ -26,11 +27,22 @@ export const metadata: Metadata = { title: 'Dîmes' };
  * d'équivalent ici.
  */
 export default async function DimesPage() {
-  const [collectes, arbre, categories, parametres] = await Promise.all([
+  const [collectes, arbre, categories, parametres, lot, enveloppes] = await Promise.all([
     chargerCollectes(),
     getArbrePerimetre(),
     listerCategoriesFinance(),
     getParametres(),
+    /**
+     * Les croyants du périmètre, pour la grille de saisie.
+     *
+     * Chargés ICI et non à l'ouverture du pop-up : l'entité collectrice se
+     * choisit dedans, et aller les chercher à chaque changement d'entité
+     * mettrait un aller-retour au milieu d'une saisie (règle 28). Le plafond
+     * de `chargerCroyants` s'applique — au-delà, la liste est tronquée et
+     * l'écran le dit.
+     */
+    chargerCroyants(),
+    chargerEnveloppesPerimetre(),
   ]);
 
   const actives = arbre.filter((e) => e.is_active);
@@ -53,9 +65,20 @@ export default async function DimesPage() {
         // Seules les catégories de RECETTE : une dîme en est une (RG-13).
         categories={categories.filter((c) => c.sens === 'RECETTE')}
         devise={parametres.devise}
-        modes={Object.fromEntries(
-          actives.map((e) => [e.id, e.dime_mode ?? null]),
-        )}
+        modes={Object.fromEntries(actives.map((e) => [e.id, e.dime_mode ?? null]))}
+        croyants={lot.lignes
+          .filter((c) => c.eglise?.path)
+          .map((c) => ({
+            id: c.id,
+            nom: c.nom,
+            prenom: c.prenom,
+            matricule: c.matricule,
+            // Le CHEMIN, pas l'identifiant : un rassemblement de district
+            // accueille les croyants de tout son sous-arbre (EF-FIN-30).
+            eglisePath: c.eglise!.path,
+          }))}
+        croyantsTronques={lot.tronque}
+        enveloppes={Object.fromEntries(enveloppes)}
       />
     </div>
   );
