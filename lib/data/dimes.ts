@@ -26,6 +26,10 @@ const CHAMPS = `
   entite_collecte_id, dime_evenement, dime_remise_id, created_at,
   collecteur:entities!finance_entries_entite_collecte_id_fkey (id, nom, code, type),
   categorie:finance_categories!finance_entries_categorie_id_fkey (id, libelle),
+  remise:dime_remises!finance_entries_dime_remise_id_fkey (
+    id, reference, date_remise, observation,
+    porteur:croyants!dime_remises_porteur_id_fkey (id, nom, prenom)
+  ),
   versements:dime_versements!dime_versements_finance_entry_id_fkey (
     id, croyant_id, enveloppe_numero, montant, recu_numero, nature,
     croyant:croyants!dime_versements_croyant_id_fkey (id, nom, prenom, matricule)
@@ -57,6 +61,14 @@ export interface CollecteListe {
   created_at: string;
   collecteur: { id: string; nom: string; code: string; type: string } | null;
   categorie: { id: string; libelle: string } | null;
+  /** EF-FIN-30 — le bordereau qui l'a portee au Siege, s'il existe. */
+  remise: {
+    id: string;
+    reference: string;
+    date_remise: string;
+    observation: string | null;
+    porteur: { id: string; nom: string; prenom: string } | null;
+  } | null;
   versements: VersementListe[];
 }
 

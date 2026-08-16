@@ -2665,3 +2665,48 @@ en permanence — et le détail paraissait plus clair que son parent, l'inverse 
 ce qu'on veut lire.
 
 474 tests unitaires. `pnpm verify` vert.
+
+---
+
+## 13 août 2026 (suite) — Pourquoi le Siège n'était pas alimenté
+
+**`0038` — et c'était un défaut de conception, pas un réglage.**
+
+La collecte créait un mouvement dont le statut était laissé au **workflow du
+Siège**. Deux conséquences, opposées et toutes deux fausses :
+
+- workflow du Siège **actif** : la collecte restait en brouillon, et le solde ne
+  bougeait jamais — même après la remise. C'est ce qui a été constaté ;
+- workflow du Siège **inactif** : elle comptait **aussitôt**, avant même que
+  l'argent ait quitté l'église. Le Siège aurait vu une recette pour des billets
+  encore dans une urne à quarante kilomètres.
+
+Le second cas est le plus grave, parce qu'il ne se voit pas.
+
+EF-FIN-30 le disait pourtant : « elle n'alimente le solde du Siège qu'une fois
+**reçue** — la remise physique est ce que constate la validation ». Le code ne
+le faisait pas.
+
+Désormais : une collecte naît **`SOUMIS`** — c'est une annonce, « voici ce que
+nous avons recueilli » —, et **la remise la valide**. RG-18 fait alors
+exactement ce qu'il faut : tant que la remise n'a pas eu lieu, la dîme ne compte
+au solde de personne, et l'écart entre le collecté et le reçu devient
+l'indicateur qu'un trésorier veut voir.
+
+Les collectes **déjà validées** — celles d'avant cette migration — sont
+rattachées au bordereau **sans toucher à leur statut** : RG-17 refuse toute
+écriture sur un mouvement validé, et les inclure ferait échouer le bordereau
+entier. Sans ce second `update`, elles resteraient éternellement « à remettre »
+alors qu'elles ont été portées.
+
+**La référence du bordereau est affichée**, avec sa date, son porteur et son
+observation. « Remise » ne disait ni quand, ni par qui, ni sous quel numéro —
+c'est pourtant ce qu'on cherche en rapprochant un versement du papier que le
+Siège détient.
+
+**La suggestion prend le rendu de la liste des croyants** — portrait, nom,
+matricule, église — mais posée à plat, sans déclencheur. L'en-tête « Numéro déjà
+utilisé par : » remplace le champ de recherche : il dit d'où viennent ces noms,
+ce qu'un champ vide n'aurait jamais expliqué.
+
+474 tests unitaires. `pnpm verify` vert.

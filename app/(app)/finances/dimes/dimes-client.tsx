@@ -324,9 +324,30 @@ export function DimesClient({
                         {formatMontant(Number(c.montant), devise)}
                       </TableCell>
 
+                      {/*
+                        EF-FIN-30 — LA RÉFÉRENCE DU BORDEREAU, pas un simple
+                        badge. « Remise » ne dit ni quand, ni par qui, ni sous
+                        quel numéro : c'est pourtant ce qu'on cherche quand on
+                        rapproche un versement du papier que le Siège détient.
+                      */}
                       <TableCell>
-                        {c.dime_remise_id ? (
-                          <StatusBadge tone="success">Remise</StatusBadge>
+                        {c.remise ? (
+                          <span className="block space-y-0.5">
+                            <StatusBadge tone="success">Remise</StatusBadge>
+                            <span className="text-muted-foreground block font-mono text-xs">
+                              {c.remise.reference}
+                            </span>
+                            <span className="text-muted-foreground block text-xs">
+                              {formatDate(c.remise.date_remise)}
+                              {c.remise.porteur &&
+                                ` · ${c.remise.porteur.nom.toLocaleUpperCase('fr')} ${c.remise.porteur.prenom}`}
+                            </span>
+                            {c.remise.observation && (
+                              <span className="text-muted-foreground block text-xs italic">
+                                {c.remise.observation}
+                              </span>
+                            )}
+                          </span>
                         ) : retard ? (
                           <StatusBadge tone="danger">En retard</StatusBadge>
                         ) : (

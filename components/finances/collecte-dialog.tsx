@@ -709,8 +709,17 @@ export function CollecteDialog({
                                   reconnaît l'écriture sur l'enveloppe.
                                 */}
                                 {suggestionsDe(index).length > 0 && (
-                                  <div className="mt-1 space-y-1">
-                                    <p className="text-muted-foreground text-xs">
+                                  /*
+                                    LE MÊME RENDU QUE LA LISTE DES CROYANTS —
+                                    portrait, nom, matricule, église — mais
+                                    posé À PLAT, sans déclencheur ni recherche.
+
+                                    L'en-tête remplace le champ de recherche :
+                                    il dit d'où viennent ces noms, ce qu'un
+                                    champ vide n'aurait jamais expliqué.
+                                  */
+                                  <div className="border-border mt-1 rounded-md border">
+                                    <p className="text-muted-foreground border-border border-b px-2 py-1.5 text-xs">
                                       Numéro déjà utilisé par :
                                     </p>
                                     {/*
@@ -739,7 +748,7 @@ export function CollecteDialog({
                                               { shouldValidate: true },
                                             )
                                           }
-                                          className="hover:bg-muted flex w-full cursor-pointer items-center gap-2 rounded-md p-1 text-left text-xs"
+                                          className="hover:bg-muted flex w-full cursor-pointer items-center gap-2 p-2 text-left"
                                         >
                                           {/* Un visage se reconnaît plus vite
                                               qu'un nom, surtout entre
@@ -753,8 +762,23 @@ export function CollecteDialog({
                                                 : null
                                             }
                                           />
-                                          <span className="truncate">
-                                            {p.nom.toLocaleUpperCase('fr')} {p.prenom}
+                                          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                                            <span className="flex items-center gap-2">
+                                              <span className="truncate text-sm font-medium">
+                                                {p.nom.toLocaleUpperCase('fr')} {p.prenom}
+                                              </span>
+                                              {/* Le matricule sépare deux
+                                                  homonymes quand le visage
+                                                  manque. */}
+                                              <span className="text-muted-foreground font-mono text-xs">
+                                                {fiche?.matricule}
+                                              </span>
+                                            </span>
+                                            {fiche?.egliseNom && (
+                                              <span className="text-muted-foreground truncate text-xs">
+                                                {fiche.egliseNom}
+                                              </span>
+                                            )}
                                           </span>
                                         </button>
                                       );
