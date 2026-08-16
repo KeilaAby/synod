@@ -2544,7 +2544,8 @@ describe('RG-26 / RG-27 — rapports', () => {
 - [x] **File de validation** avec traitement par lot (EF-FIN-21). *(13 août 2026)*
 - [x] Écran de réglage du workflow, par entité, avec `finance.workflow.manage` **délégable**. *(13 août 2026)*
 - [ ] **Écran de saisie déléguée** dédié, réservé à `finance.delegate`.
-- [ ] **Dîmes** — voir §4.bis ci-dessous.
+- [x] **Dîmes** — schéma, droit dédié, saisie et relevé (§4.bis). *(13 août 2026)*
+- [ ] Bordereau de remise (écran) et ticket de reçu imprimable.
 - [ ] `mv_finance_kpis`, `mv_finance_par_categorie`, `SoldeCard`, synthèse (courbes, barres, comparatifs).
 - [x] Vue consolidée, entité par entité, classée, soldes négatifs signalés (EF-FIN-11, EF-FIN-13). *(13 août 2026)*
 - [ ] Export PDF de la vue consolidée.

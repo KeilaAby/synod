@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { ClipboardCheck, LayoutList } from 'lucide-react';
+import { ClipboardCheck, Coins, LayoutList } from 'lucide-react';
 
 import { WorkflowDialog } from '@/components/finances/workflow-dialog';
 import { PageHeader } from '@/components/shared/page-header';
@@ -125,6 +125,16 @@ export default async function FinancesPage() {
                 </Link>
               </Button>
             )}
+
+            {/* EF-FIN-27 — les dîmes ont leur écran. Ce n'est pas un solde
+                mais un relevé de collecte, et les deux ne doivent surtout pas
+                se ressembler (RG-33). */}
+            <Button asChild variant="outline" className="h-10">
+              <Link href="/finances/dimes">
+                <Coins className="mr-2 size-4" aria-hidden />
+                Dîmes
+              </Link>
+            </Button>
 
             {/* EF-FIN-11 — le solde de chaque entité, dès qu'il y en a
                 plusieurs à comparer. Sur une seule église, le triptyque

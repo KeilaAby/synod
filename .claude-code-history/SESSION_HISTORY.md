@@ -2217,3 +2217,54 @@ compare des chaînes « AAAA-MM-JJ » — même piège que `periodeDe`, une colo
 ### Qualité
 
 449 tests unitaires (+17). `pnpm verify` vert.
+
+---
+
+## 13 août 2026 (suite) — L'écran des dîmes
+
+`/finances/dimes`, accessible depuis `/finances`. Saisie d'une collecte,
+relevé de ce qui a été recueilli, détail dépliable par croyant.
+
+**CE N'EST PAS UN SOLDE, et l'écran le montre par ce qu'il ne contient pas.**
+Aucune carte de solde n'y figure — délibérément. Une dîme n'appartient pas à
+l'église qui la collecte : ce qu'on lit ici répond à « combien avons-nous
+recueilli, et remis ? », jamais à « de combien disposons-nous ? ». Même carte,
+même couleur, et un trésorier engagerait une dépense sur un argent qui ne lui
+appartient pas.
+
+Ce qui vient en premier est donc **ce qui reste à porter au Siège**, avec le
+nombre de collectes dépassant la semaine — la seule question qu'un trésorier se
+pose en ouvrant cet écran.
+
+**Le total ne se saisit pas, il monte pendant la frappe.** En mode détaillé, il
+est la somme des versements ; le laisser saisir à côté produirait deux vérités —
+un million annoncé pour neuf cent mille de détail — et personne ne saurait
+laquelle croire. La fonction SQL fait le même calcul, celui-ci sert à le voir.
+
+**Le mode commande l'écran** (EF-FIN-28) : la grille n'apparaît qu'en détaillé,
+et jamais pour un événement national. Le numéro d'enveloppe connu sert de
+**placeholder**, pas de valeur : il se voit sans s'imposer, et celui qui a changé
+d'enveloppe tape la sienne par-dessus.
+
+**Les reçus sont annoncés dans un pop-up qu'on ferme**, pas dans une
+notification qui s'efface : c'est ce qui relie l'écran au papier, le membre du
+bureau recopiant la référence sur le talon qu'il remet (EF-FIN-27).
+
+**Le détail se replie, il ne disparaît pas.** Une collecte saisie en détaillé
+garde ses versements après un passage en global : masquer ce détail effacerait
+des reçus que des croyants détiennent (EF-FIN-31).
+
+### Deux avertissements du compilateur, tous deux justes
+
+Le repli `?? []` écrit en ligne produisait un tableau **neuf à chaque rendu**,
+et le `useMemo` du total se serait recalculé toujours. Et
+`SaisirCollecteInput['versements']` ne s'indexe pas : le `.default([])` du
+schéma fait admettre `undefined` au type d'entrée.
+
+### Qualité
+
+450 tests unitaires. `pnpm verify` vert.
+
+**Reste au lot 4** : le bordereau de remise (l'écran ; la table `dime_remises`
+existe), le ticket de reçu imprimable, l'écran de saisie déléguée dédié, et
+l'export PDF de la vue consolidée.

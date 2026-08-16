@@ -24,7 +24,8 @@ import { DataError } from './errors';
 
 const CHAMPS = `
   id, type, code, nom, parent_id, niveau, path, description,
-  sans_acces_application, finance_validation_active, is_active, created_at, updated_at
+  sans_acces_application, finance_validation_active, dime_mode,
+  is_active, created_at, updated_at
 ` as const;
 
 export interface Entite {
@@ -39,6 +40,11 @@ export interface Entite {
    * `null` = defaut de l'organisation. Aucun heritage depuis le parent.
    */
   finance_validation_active?: boolean | null;
+  /**
+   * EF-FIN-28 — mode de saisie des dimes, propre a l'entite.
+   * `null` = defaut de l'organisation. Aucun heritage depuis le parent.
+   */
+  dime_mode?: 'DETAILLE' | 'GLOBAL' | null;
   path: string;
   description: string | null;
   sans_acces_application: boolean;

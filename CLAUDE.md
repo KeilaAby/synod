@@ -91,7 +91,7 @@ SQL. Migration `0025`, et un test lit désormais le fichier SQL pour comparer le
 deux listes — une règle écrite à deux endroits ne diverge jamais le jour où on
 l'écrit.
 
-**Dîmes — schéma livré, écrans à venir** : EF-FIN-27 à 31, RG-33, conception dans
+**Dîmes — saisie livrée** : EF-FIN-27 à 31, RG-33, conception dans
 [`plan.md`](notes/plan.md) §4.bis. Le point à ne pas manquer avant d'écrire une
 ligne : **une dîme n'est pas une recette de l'église qui la collecte**. Elle
 appartient au Siège, à qui elle est remise en mains propres. Le mouvement porte
@@ -102,14 +102,21 @@ l'église passe par `entite_collecte_id`, qui sert la traçabilité et n'entre d
 aucun solde.
 
 Migrations `0027` (schéma : enveloppes, versements, remises, deux séquences
-attribuées par la base) et `0028` (**reprise** des dîmes déjà saisies comme
+attribuées par la base), `0028` (**reprise** des dîmes déjà saisies comme
 recettes d'église — elle suspend `trg_finance_biu`, RG-17 l'interdisant, et se
-borne à `entite_collecte_id is null` pour rester rejouable).
+borne à `entite_collecte_id is null` pour rester rejouable) et `0029`
+(`fn_saisir_collecte_dime`, **SECURITY DEFINER** : elle vérifie
+`finance.dime.collect` sur l'**entité collectrice** avant d'écrire au nom du
+Siège, et rend l'écriture atomique).
+
+Écran `/finances/dimes` — un **relevé de collecte**, jamais un solde : aucune
+carte de solde n'y figure, délibérément. Restent le bordereau de remise et le
+ticket de reçu imprimable.
 
 **EF-BUR-11 clos** : l'export Excel de la composition est abandonné le 12 août
 2026, le PDF de l'organigramme couvre le besoin.
 
-Base à jour jusqu'à la migration `0028`. Le stockage de fichiers ne se
+Base à jour jusqu'à la migration `0029`. Le stockage de fichiers ne se
 configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` et
 `postgres` s'y voit refuser `CREATE POLICY` : `pnpm db:bucket` s'en charge par
 l'API.
