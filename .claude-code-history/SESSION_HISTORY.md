@@ -3495,3 +3495,50 @@ Le squelette reprend l'attribut **et** l'ombre : sans cela, l'écran s'ouvrirait
 sur le gris puis basculerait au blanc, et les cartes prendraient du volume au
 moment où les données se posent — le clignotement que le squelette est
 précisément censé éviter (EF-DSH-11).
+
+---
+
+## 16 août 2026 (suite) — EF-DSH-06, le périmètre et la période se règlent
+
+Le dernier *Must* du lot 5. **Aucune migration** : `fn_tableau_de_bord` prenait
+déjà `p_entity`, `p_debut` et `p_fin` — c'est l'écran qui les codait en dur.
+
+La période était **figée au mois courant** et le périmètre à celui de la
+session : on ne pouvait ni regarder mars, ni observer une église en
+particulier. Les deux se choisissent maintenant, et commandent toutes les
+lectures de l'écran — indicateurs, répartitions, courbe financière.
+
+### Par l'URL, pas par la disposition
+
+Le choix des indicateurs est une **préférence durable** ; le périmètre et la
+période sont une **question du moment**. Ranger « mars 2026 » dans
+`dashboard_layouts` ferait rouvrir l'écran sur un mois figé des semaines plus
+tard, sans qu'on comprenne pourquoi les chiffres ne bougent plus.
+
+L'URL, elle, se partage : « regarde mars à Avaradrano » tient dans un lien.
+
+### La règle 17 ne s'applique pas ici
+
+Périmètre et période changent ce que la base **agrège**, pas ce qu'on trie dans
+une liste déjà chargée. Le rechargement serveur est donc légitime — et l'écran
+s'estompe pendant l'attente plutôt que de disparaître : un squelette effacerait
+ce qu'on était en train de lire.
+
+### Un garde de type sur ce qui vient de l'URL
+
+`estGranularite` — et ce n'est pas de la précaution formelle. Un paramètre
+d'URL est du **texte quelconque** : le passer tel quel à `bornesPeriode`
+donnerait les bornes du mois, par le repli du dernier `return`, sous un libellé
+qui annoncerait « T3 2026 ». L'écran mentirait sur ce qu'il compte, sans erreur
+nulle part.
+
+Même raisonnement pour l'entité : elle n'est retenue que si elle appartient
+**vraiment** à l'arbre habilité. La RLS refuserait de toute façon une entité
+hors portée, mais elle rendrait des **zéros** — et des zéros se lisent « nous
+n'avons rien » (règle 15). Retomber sur l'entité de session dit la vérité.
+
+L'en-tête annonce la période affichée : un écran dont la période se règle doit
+dire celle qu'il montre, sinon on lit les chiffres d'un mois en croyant lire
+ceux d'un autre.
+
+566 tests unitaires, 27 fichiers. `pnpm verify` vert.

@@ -20,6 +20,18 @@ export const LIBELLES_GRANULARITE: Record<Granularite, string> = {
   ANNEE: 'Annuelle',
 };
 
+/**
+ * Une granularite lue d'une URL en est-elle vraiment une ?
+ *
+ * Un parametre d'URL est du TEXTE QUELCONQUE. Le passer tel quel a
+ * `bornesPeriode` donnerait les bornes du mois — le repli du `else` final —
+ * sous un libelle qui annoncerait autre chose : l'ecran mentirait sur ce qu'il
+ * compte, sans erreur nulle part.
+ */
+export function estGranularite(valeur: unknown): valeur is Granularite {
+  return typeof valeur === 'string' && (GRANULARITES as readonly string[]).includes(valeur);
+}
+
 const MOIS_FR = [
   'janvier',
   'février',

@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  GRANULARITES,
   bornesPeriode,
   decalerPeriode,
+  estGranularite,
   libelleMois,
   libellePeriode,
   partDeCategorie,
@@ -147,5 +149,25 @@ describe('EF-FIN-24 — les totaux', () => {
     expect(partDeCategorie(1_000_000, 1_500_000)).toBeCloseTo(66.67, 1);
     // Un sens sans aucun mouvement ne provoque pas de division par zero.
     expect(partDeCategorie(0, 0)).toBe(0);
+  });
+});
+
+describe('EF-DSH-06 — une granularite lue d une URL', () => {
+  it('reconnait les trois valeurs du domaine', () => {
+    for (const g of GRANULARITES) expect(estGranularite(g)).toBe(true);
+  });
+
+  it('refuse tout le reste', () => {
+    /**
+     * Un parametre d'URL est du TEXTE QUELCONQUE. Le passer tel quel a
+     * `bornesPeriode` donnerait les bornes du MOIS — le repli du dernier
+     * `return` — sous un libelle annoncant autre chose : l'ecran mentirait sur
+     * ce qu'il compte, sans erreur nulle part.
+     */
+    expect(estGranularite('SEMAINE')).toBe(false);
+    expect(estGranularite('mois')).toBe(false);
+    expect(estGranularite(undefined)).toBe(false);
+    expect(estGranularite(null)).toBe(false);
+    expect(estGranularite(3)).toBe(false);
   });
 });

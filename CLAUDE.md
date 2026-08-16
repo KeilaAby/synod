@@ -234,6 +234,18 @@ pourcentage seul ne distingue pas trois entités sur cinq de six cents sur mille
 Les cellules sont hors du dénominateur — elles n'ont pas de bureau, et les
 compter ferait plonger la couverture de celles qui vont le mieux.
 
+**EF-DSH-06 livré pour l'écran** : périmètre et période se règlent et commandent
+toutes les lectures. **Sans migration** — `fn_tableau_de_bord` prenait déjà ses
+bornes, c'est l'écran qui les codait en dur. Le réglage voyage par l'**URL** et
+non par la disposition : le choix des indicateurs est une préférence durable,
+« mars 2026 » est une question du moment — et un lien se partage. La règle 17 ne
+s'applique pas ici : ces deux réglages changent ce que la base **agrège**, pas
+ce qu'on trie dans une liste chargée. Ce qui vient de l'URL est **gardé** —
+`estGranularite`, et l'entité vérifiée contre l'arbre : une valeur non reconnue
+donnerait les bornes du mois sous un libellé annonçant un trimestre, et une
+entité hors portée donnerait des zéros qu'on lirait « nous n'avons rien »
+(règle 15).
+
 **EF-BUR-11 clos** : l'export Excel de la composition est abandonné le 12 août
 2026, le PDF de l'organigramme couvre le besoin.
 

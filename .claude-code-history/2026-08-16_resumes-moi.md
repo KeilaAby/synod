@@ -73,8 +73,9 @@ livré pour l'essentiel**.
 | **Personnalisation du tableau de bord — EF-DSH-03/07/09** | ✅ |
 | **Blocs composés et parts — EF-DSH-05/06 (partiel)** | ✅ |
 | **Répartitions, classement et jauge — EF-DSH-05** *(migration `0042`)* | ✅ |
+| **Périmètre et période réglables — EF-DSH-06** | ✅ |
 
-563 tests unitaires, 27 fichiers. `pnpm verify` vert.
+566 tests unitaires, 27 fichiers. `pnpm verify` vert.
 
 ---
 
@@ -109,9 +110,10 @@ dernières fiches, **courbe financière par catégorie**, **quatre répartitions
 (âge, grade, nationalité, entités filles) et **jauge de couverture** sont
 livrés. Restent :
 
-- **EF-DSH-06 par indicateur** — le cahier des charges veut le périmètre et la
-  période réglables *widget par widget*. Aujourd'hui la période est commune
-  (mois courant) et le périmètre est celui de la session.
+- **EF-DSH-06, réglage par indicateur** — le périmètre et la période se règlent
+  désormais pour **tout l'écran** (barre en tête, portée par l'URL). Le cahier
+  des charges les veut aussi *widget par widget* : reste à poser une surcharge
+  dans la disposition, pour les seuls indicateurs qui dépendent d'une période.
 - **EF-DSH-08** — modèles par rôle. `dashboard_templates` existe depuis `0005`
   et n'est pas encore utilisée.
 - **EF-DSH-10** — export PDF du tableau et CSV par widget. `exporterPdf` du

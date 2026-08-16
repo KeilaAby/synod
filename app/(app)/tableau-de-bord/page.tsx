@@ -9,6 +9,8 @@ import { Jauge } from '@/components/tableau-de-bord/jauge';
 import { RepartitionBarres } from '@/components/tableau-de-bord/repartition-barres';
 import { chargerSyntheseAnnuelle } from '@/lib/data/finances';
 import { signerPhotos } from '@/lib/data/photos';
+import { getArbrePerimetre } from '@/lib/data/entities';
+import { versOptions } from '@/lib/data/entity-options';
 import { getParametres } from '@/lib/data/settings';
 import {
   chargerDerniersCroyants,
@@ -25,7 +27,7 @@ import {
   preparerRepartition,
 } from '@/lib/domain/kpi';
 import { detient } from '@/lib/domain/permissions';
-import { bornesPeriode, libellePeriode } from '@/lib/domain/synthese';
+import { bornesPeriode, estGranularite, libellePeriode } from '@/lib/domain/synthese';
 import { requireSession } from '@/lib/session';
 
 import { TableauDeBordClient } from './tableau-de-bord-client';
@@ -49,18 +51,51 @@ export const metadata: Metadata = { title: 'Tableau de bord' };
  * d'un indicateur qu'il n'a pas le droit de voir, et sa personnalisation ne
  * peut pas le faire réapparaître.
  *
- * Ce que le lot 5 apportera ensuite : les rendus alternatifs — jauge, courbe,
- * camembert (EF-DSH-06) — et les indicateurs analytiques (EF-DSH-05).
+ * LE PÉRIMÈTRE ET LA PÉRIODE SE RÈGLENT (EF-DSH-06), et voyagent par l'URL. Ce
+ * n'est pas une préférence durable comme le choix des indicateurs : « comment
+ * allait mars ? » est une question du moment, et la ranger dans
+ * `dashboard_layouts` ferait rouvrir l'écran sur un mois figé des semaines plus
+ * tard. L'URL, elle, se partage — ce qu'une préférence ne fait pas.
  */
-export default async function TableauDeBordPage() {
+export default async function TableauDeBordPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
   const session = await requireSession();
+  const params = await searchParams;
 
-  const typeEntite = session.entiteType as EntityType;
-  const libelleType = ENTITY_LABELS[typeEntite]?.singulier ?? session.entiteType;
+  const arbre = await getArbrePerimetre();
 
-  // La période par défaut est le MOIS COURANT : c'est celle qu'on regarde en
-  // arrivant, et la seule dont les chiffres bougent encore.
-  const bornes = bornesPeriode('MOIS', new Date().toISOString().slice(0, 10));
+  /**
+   * L'ENTITÉ OBSERVÉE — celle de l'URL si elle appartient VRAIMENT au
+   * périmètre, sinon celle de la session.
+   *
+   * La vérification n'est pas de la défiance : la RLS refuserait de toute
+   * façon une entité hors portée, mais elle rendrait des zéros — et des zéros
+   * se lisent « nous n'avons rien » (règle 15). Retomber sur la session dit la
+   * vérité : l'écran montre bien quelque chose, et on voit lequel.
+   */
+  const observee =
+    arbre.find((e) => e.id === params.entite) ??
+    arbre.find((e) => e.id === session.entityId) ??
+    null;
+
+  const entiteId = observee?.id ?? session.entityId;
+  const entiteNom = observee?.nom ?? session.entiteNom;
+  const typeEntite = (observee?.type ?? session.entiteType) as EntityType;
+  const libelleType = ENTITY_LABELS[typeEntite]?.singulier ?? typeEntite;
+
+  /**
+   * La période. Par défaut le MOIS COURANT : c'est celle qu'on regarde en
+   * arrivant, et la seule dont les chiffres bougent encore.
+   */
+  const granularite = estGranularite(params.granularite) ? params.granularite : 'MOIS';
+  const ancre = /^\d{4}-\d{2}-\d{2}$/.test(params.ancre ?? '')
+    ? params.ancre!
+    : new Date().toISOString().slice(0, 10);
+
+  const bornes = bornesPeriode(granularite, ancre);
 
   const visibles = kpisVisibles(KPI_REGISTRY, (p) => detient(session, p));
 
@@ -81,7 +116,7 @@ export default async function TableauDeBordPage() {
 
   const [resultat, disposition, parametres, derniers, synthese, repartitions] =
     await Promise.all([
-    chargerTableauDeBord(session.entityId, bornes.debut, bornes.fin),
+    chargerTableauDeBord(entiteId, bornes.debut, bornes.fin),
     chargerDisposition(),
     getParametres(),
     veut('derniers_croyants') ? chargerDerniersCroyants() : Promise.resolve([]),
@@ -92,7 +127,7 @@ export default async function TableauDeBordPage() {
      * chiffres que rien ne garantit égaux.
      */
     veut('evolution_finances')
-      ? chargerSyntheseAnnuelle(session.entityId, annee)
+      ? chargerSyntheseAnnuelle(entiteId, annee)
       : Promise.resolve(null),
     /**
      * QUATRE RÉPARTITIONS, UNE SEULE LECTURE. Elles répondent à la même
@@ -101,7 +136,7 @@ export default async function TableauDeBordPage() {
      * seule soit visible pour que la lecture vaille la peine.
      */
     veutUneRepartition
-      ? chargerRepartitions(session.entityId)
+      ? chargerRepartitions(entiteId)
       : Promise.resolve([] as TrancheRepartition[]),
   ]);
 
@@ -118,9 +153,12 @@ export default async function TableauDeBordPage() {
     */
     <div data-fond="blanc" className="space-y-8">
       <PageHeader
-        eyebrow={`Périmètre — ${libelleType} ${session.entiteNom}`}
+        eyebrow={`Périmètre — ${libelleType} ${entiteNom}`}
         title="Tableau de bord"
-        description={`${session.entiteNom} et l'ensemble de ses entités rattachées. Les montants portent sur ${libellePeriode('MOIS', bornes.debut).toLocaleLowerCase('fr')}.`}
+        /* CE QUE LES CHIFFRES COMPTENT, dit sans détour : un écran dont la
+           période se règle doit annoncer celle qu'il montre, sinon on lit les
+           chiffres d'un mois en croyant lire ceux d'un autre. */
+        description={`${entiteNom} et l'ensemble de ses entités rattachées. Les montants portent sur ${libellePeriode(granularite, ancre).toLocaleLowerCase('fr')}.`}
       />
 
       {/*
@@ -155,6 +193,14 @@ export default async function TableauDeBordPage() {
           kpis={visibles}
           mesures={resultat.mesures}
           disposition={disposition}
+          // EF-DSH-06 — le réglage voyage par l'URL, pas par la disposition.
+          entites={versOptions(
+            arbre.filter((e) => e.is_active),
+            arbre,
+          )}
+          entiteId={entiteId}
+          granularite={granularite}
+          ancre={ancre}
           devise={parametres.devise}
           blocs={{
             derniers_croyants: (

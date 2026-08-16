@@ -2,6 +2,9 @@
 
 import {
   ArrowUpRight,
+  CalendarDays,
+  CalendarFold,
+  CalendarRange,
   ChevronLeft,
   ChevronRight,
   Eye,
@@ -11,9 +14,12 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { type ReactNode, useMemo, useState, useTransition } from 'react';
 
+import { FiltreIcone, GroupeFiltres } from '@/components/shared/filtre-icone';
 import { avertir } from '@/components/shared/messages';
+import { EntityPicker, type OptionEntite } from '@/components/structure/entity-picker';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { enregistrerDisposition } from '@/lib/actions/tableau-de-bord';
@@ -31,6 +37,11 @@ import {
   kpiEstAlerte,
   partDeLEffectif,
 } from '@/lib/domain/kpi';
+import {
+  type Granularite,
+  decalerPeriode,
+  libellePeriode,
+} from '@/lib/domain/synthese';
 import { formatMontant, formatNombre } from '@/lib/utils/format';
 
 /**
@@ -56,6 +67,10 @@ export function TableauDeBordClient({
   mesures,
   disposition: dispositionInitiale,
   devise,
+  entites,
+  entiteId,
+  granularite,
+  ancre,
   blocs = {},
 }: {
   /** Déjà filtrés par habilitation — EF-DSH-12 tient côté serveur. */
@@ -63,6 +78,11 @@ export function TableauDeBordClient({
   mesures: Record<string, number>;
   disposition: DispositionTableauDeBord;
   devise: string;
+  /** EF-DSH-06 — le périmètre observé se choisit dans l'arbre habilité. */
+  entites: OptionEntite[];
+  entiteId: string;
+  granularite: Granularite;
+  ancre: string;
   /**
    * EF-DSH-06 — le contenu des blocs qui ne sont pas un chiffre, PAR CLÉ.
    *
@@ -77,10 +97,34 @@ export function TableauDeBordClient({
    */
   blocs?: Record<string, ReactNode>;
 }) {
+  const router = useRouter();
   const [disposition, setDisposition] = useState(dispositionInitiale);
   const [personnalise, setPersonnalise] = useState(false);
   const [enregistrement, demarrer] = useTransition();
+  const [rechargement, demarrerRechargement] = useTransition();
   const [saisi, setSaisi] = useState<string | null>(null);
+
+  /**
+   * EF-DSH-06 — LE RÉGLAGE REPART AU SERVEUR, et il n'y a pas de raccourci.
+   *
+   * Périmètre et période changent ce que la base AGRÈGE, pas ce qu'on trie dans
+   * une liste déjà chargée : la règle 17 ne s'applique pas ici. L'URL les porte,
+   * ce qui rend l'écran partageable — « regarde mars à Avaradrano » tient dans
+   * un lien.
+   */
+  const regler = (modif: {
+    entite?: string;
+    granularite?: Granularite;
+    ancre?: string;
+  }) =>
+    demarrerRechargement(() => {
+      const q = new URLSearchParams({
+        entite: modif.entite ?? entiteId,
+        granularite: modif.granularite ?? granularite,
+        ancre: modif.ancre ?? ancre,
+      });
+      router.push(`/tableau-de-bord?${q.toString()}`);
+    });
 
   /**
    * En consultation, on ne voit que ce qu'on a gardé. En personnalisation, on
@@ -146,7 +190,77 @@ export function TableauDeBordClient({
   }
 
   return (
-    <div className="space-y-8">
+    <div
+      // L'attente se voit sans que l'écran disparaisse : estomper dit que ce
+      // qui est affiché n'est plus à jour, là où un squelette effacerait ce
+      // qu'on était en train de lire.
+      className={`space-y-8 ${rechargement ? 'pointer-events-none opacity-60' : ''}`}
+    >
+      {/* --- EF-DSH-06 : ce sur quoi porte le tableau ------------------- */}
+      {!personnalise && (
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="min-w-64">
+            <EntityPicker
+              options={entites}
+              value={entiteId}
+              onChange={(id) => id && regler({ entite: id })}
+              placeholder="Choisir une entité"
+              emptyMessage="Aucune entité dans votre périmètre."
+            />
+          </div>
+
+          {/* Règle 18 — trois granularités, ensemble CLOS : pictogrammes. */}
+          <GroupeFiltres libelle="Période">
+            <FiltreIcone
+              icone={CalendarDays}
+              libelle="Mensuelle"
+              actif={granularite === 'MOIS'}
+              onClick={() => regler({ granularite: 'MOIS' })}
+            />
+            <FiltreIcone
+              icone={CalendarRange}
+              libelle="Trimestrielle"
+              actif={granularite === 'TRIMESTRE'}
+              onClick={() => regler({ granularite: 'TRIMESTRE' })}
+            />
+            <FiltreIcone
+              icone={CalendarFold}
+              libelle="Annuelle"
+              actif={granularite === 'ANNEE'}
+              onClick={() => regler({ granularite: 'ANNEE' })}
+            />
+          </GroupeFiltres>
+
+          {/* Reculer d'un cran est le geste le plus fréquent : on compare au
+              précédent avant toute autre chose. */}
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              aria-label="Période précédente"
+              onClick={() => regler({ ancre: decalerPeriode(granularite, ancre, -1) })}
+            >
+              <ChevronLeft className="size-4" aria-hidden />
+            </Button>
+
+            <span className="min-w-32 text-center text-sm font-medium">
+              {libellePeriode(granularite, ancre)}
+            </span>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              aria-label="Période suivante"
+              onClick={() => regler({ ancre: decalerPeriode(granularite, ancre, 1) })}
+            >
+              <ChevronRight className="size-4" aria-hidden />
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-muted-foreground text-sm">
           {personnalise
