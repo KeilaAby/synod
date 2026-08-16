@@ -2444,3 +2444,54 @@ rapprocher, et l'y inscrire remplirait la file de lignes qu'aucun travail ne
 peut clore.
 
 454 tests unitaires. `pnpm verify` vert.
+
+---
+
+## 13 août 2026 (suite) — L'import des versements : le domaine et la base
+
+### Ce qui distingue cet import de celui des croyants
+
+À l'import de croyants (EF-CRO-11), une ligne fautive est **rejetée** : rien
+n'est perdu, la fiche n'existait pas. Ici, une ligne représente de l'**argent
+déjà reçu**. L'enveloppe est dans l'urne ; elle ne disparaîtra pas parce que le
+fichier est imparfait.
+
+**Aucune ligne portant un montant n'est donc rejetée.** Quatre sorts, et un seul
+est un rejet :
+
+| Le fichier dit | Ce qu'on en fait |
+|---|---|
+| un nom **reconnu** | versement nominatif, un reçu est émis |
+| un nom **inconnu** | versement anonyme **+** ligne à rapprocher |
+| aucun nom, une enveloppe | enveloppe anonyme |
+| aucun nom, rien | en vrac |
+| **aucun montant lisible** | écartée — il n'y a rien à compter |
+
+Une ligne entièrement vide est ignorée **en silence** : un tableur en produit
+des dizaines après la dernière donnée, et les signaler noierait les vraies
+anomalies.
+
+### Le rapprochement porte sur le nom ET le prénom
+
+Deux frères portent le même nom : attribuer la dîme de l'un à l'autre serait
+pire que de ne rien attribuer. Une clé **ambiguë** — deux fiches pour « Rakoto
+Jean » — est écartée plutôt que résolue au hasard : la ligne part en
+rapprochement manuel, où quelqu'un tranchera en connaissance de cause.
+
+### `0032` — la même transaction écrit le rapprochement
+
+Le rapprochement porte l'identifiant du **versement**, qui n'existe qu'une fois
+celui-ci écrit. Le faire depuis l'application demanderait de relire les
+versements pour les apparier — par leur rang, ou par montant et enveloppe —
+deux appariements fragiles pour un lien que la base pose sans hésiter.
+
+Surtout, les deux sont **indissociables** (règle 20). Un versement anonyme dont
+le rapprochement manquerait serait indistinguable d'une vraie enveloppe sans
+nom : le nom lu dans le fichier serait perdu, et personne ne saurait qu'il a
+existé. État *faux et indétectable* — donc une transaction.
+
+`fn_resoudre_rapprochement` ferme la boucle, et **émet le reçu à ce moment** :
+c'est maintenant qu'il y a quelqu'un à qui le remettre.
+
+470 tests unitaires (+16). `pnpm verify` vert. **Reste : l'écran d'import et la
+zone de résolution dans `/croyants`.**
