@@ -35,10 +35,19 @@ export function BoutonExport({
   tableau,
   nombre,
   libelle = 'Exporter',
+  formats = ['XLSX', 'CSV', 'PDF'],
 }: {
   tableau: () => TableauExportable;
   nombre: number;
   libelle?: string;
+  /**
+   * Les formats offerts — les trois par défaut.
+   *
+   * Un écran qui s'imprime lui-même (le tableau de bord) retire le PDF d'ici :
+   * deux boutons produisant deux PDF différents du même écran feraient hésiter
+   * avant chaque clic, et l'un des deux serait toujours le mauvais.
+   */
+  formats?: readonly ('XLSX' | 'CSV' | 'PDF')[];
 }) {
   return (
     <DropdownMenu>
@@ -57,35 +66,41 @@ export function BoutonExport({
         <DropdownMenuSeparator />
 
         {/* L'ordre suit l'usage : retravailler, reprendre ailleurs, transmettre. */}
-        <DropdownMenuItem onSelect={() => exporterXlsx(tableau())}>
-          <FileSpreadsheet className="mr-2 size-4" aria-hidden />
-          <span className="flex flex-col">
-            Classeur Excel
-            <span className="text-muted-foreground text-xs">
-              Les montants restent des nombres.
+        {formats.includes('XLSX') && (
+          <DropdownMenuItem onSelect={() => exporterXlsx(tableau())}>
+            <FileSpreadsheet className="mr-2 size-4" aria-hidden />
+            <span className="flex flex-col">
+              Classeur Excel
+              <span className="text-muted-foreground text-xs">
+                Les montants restent des nombres.
+              </span>
             </span>
-          </span>
-        </DropdownMenuItem>
+          </DropdownMenuItem>
+        )}
 
-        <DropdownMenuItem onSelect={() => exporterCsv(tableau())}>
-          <FileText className="mr-2 size-4" aria-hidden />
-          <span className="flex flex-col">
-            CSV
-            <span className="text-muted-foreground text-xs">
-              Pour un autre logiciel.
+        {formats.includes('CSV') && (
+          <DropdownMenuItem onSelect={() => exporterCsv(tableau())}>
+            <FileText className="mr-2 size-4" aria-hidden />
+            <span className="flex flex-col">
+              CSV
+              <span className="text-muted-foreground text-xs">
+                Pour un autre logiciel.
+              </span>
             </span>
-          </span>
-        </DropdownMenuItem>
+          </DropdownMenuItem>
+        )}
 
-        <DropdownMenuItem onSelect={() => exporterPdf(tableau())}>
-          <Printer className="mr-2 size-4" aria-hidden />
-          <span className="flex flex-col">
-            PDF
-            <span className="text-muted-foreground text-xs">
-              Une pièce datée, qu&apos;on ne retouche pas.
+        {formats.includes('PDF') && (
+          <DropdownMenuItem onSelect={() => exporterPdf(tableau())}>
+            <Printer className="mr-2 size-4" aria-hidden />
+            <span className="flex flex-col">
+              PDF
+              <span className="text-muted-foreground text-xs">
+                Une pièce datée, qu&apos;on ne retouche pas.
+              </span>
             </span>
-          </span>
-        </DropdownMenuItem>
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

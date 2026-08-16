@@ -60,7 +60,21 @@ export function AppSidebar({ compteurs }: { compteurs: CompteursAttente }) {
   return (
     <aside
       className={cn(
-        'hidden shrink-0 flex-col border-r border-border bg-sidebar transition-[width] duration-200 md:flex',
+        // `no-print` — la navigation n'a aucun sens sur du papier (EF-DSH-10).
+        'no-print hidden shrink-0 flex-col border-r border-border bg-sidebar transition-[width] duration-200 md:flex',
+        /*
+          ELLE RESTE EN PLACE AU DÉFILEMENT.
+
+          `sticky top-0` et une hauteur d'écran : la navigation suivait la page
+          et disparaissait dès qu'on descendait dans un tableau de bord ou une
+          longue liste — il fallait remonter tout en haut pour changer d'écran.
+
+          `h-screen` et non `h-full` : en `sticky`, l'élément se cale sur la
+          hauteur qu'il OCCUPE, et `h-full` la ferait dépendre du contenu de la
+          page — la barre s'étirerait sur toute la longueur au lieu de tenir
+          dans la fenêtre.
+        */
+        'sticky top-0 h-screen',
         reduite ? 'w-16' : 'w-64',
       )}
     >

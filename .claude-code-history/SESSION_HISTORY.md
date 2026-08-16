@@ -3542,3 +3542,98 @@ dire celle qu'il montre, sinon on lit les chiffres d'un mois en croyant lire
 ceux d'un autre.
 
 566 tests unitaires, 27 fichiers. `pnpm verify` vert.
+
+---
+
+## 16 août 2026 (suite) — EF-DSH-10 et la mise en forme du tableau de bord
+
+### Imprimer, c'est imprimer l'écran
+
+Refabriquer un document à partir des mêmes données aurait donné un **second
+rendu à maintenir**, qui aurait divergé du premier (règle 16). La feuille de
+style d'impression retire la navigation et les contrôles ; ce qui reste est
+exactement ce qu'on lisait. Les cartes ne se coupent pas entre deux pages — les
+deux moitiés seraient illisibles, pas seulement moins jolies — et l'ombre qui
+les sépare à l'écran cède la place à la bordure, parce qu'une ombre imprimée
+devient un gris sale.
+
+Conséquence : **pas de PDF dans le menu « Exporter »**. Deux boutons produisant
+deux PDF différents du même écran feraient hésiter avant chaque clic, et l'un
+des deux serait toujours le mauvais. `BoutonExport` accepte donc la liste des
+formats qu'il offre.
+
+### Le CSV est là où la donnée est tabulaire
+
+Les indicateurs chiffrés partent en un fichier ; **chaque répartition exporte sa
+propre table**, depuis sa carte. Un CSV d'un seul nombre n'est pas un export, et
+forcer six répartitions dans un même fichier donnerait des colonnes dont le sens
+changerait selon la ligne. La valeur part en **nombre**, l'unité dans une
+colonne à part.
+
+### Les icônes ne traversent pas la frontière
+
+Une icône est une **fonction React** : la mettre dans `KPI_REGISTRY` — qui
+voyage du serveur au client — ferait échouer la page entière (règle 24). La
+table `ICONES_KPI` vit donc côté client et se lit par la **clé** de
+l'indicateur : exactement le contournement que la règle 24 recommande.
+
+Elle est rendue par `createElement` et non par une variable majuscule : lier le
+résultat d'une recherche à `const Icone` fait voir au compilateur React un
+composant **créé pendant le rendu**, ce qu'il refuse — à juste titre, il ne peut
+plus garantir la stabilité de l'arbre.
+
+La teinte suit le **groupe**, pas l'indicateur : vingt teintes distinctes
+feraient un arc-en-ciel où plus rien ne se rattache à rien.
+
+### Deux voies quand un seul bloc large accompagne des compteurs
+
+Un bloc large posé **sous** une rangée de compteurs laisse la moitié droite vide,
+et l'œil descend pour rien. À côté, il occupe la place qui reste. Dès que les
+blocs larges sont plusieurs, ils se pavent très bien entre eux : deux voies les
+empileraient dans une colonne étroite et tripleraient la longueur de la page.
+
+**Dans une voie, `taille` décide du nombre de COLONNES, pas de l'étendue d'une
+carte.** C'est le défaut qui rendait la section Finances illisible : `taille: 2`
+est exprimée en colonnes de la grille à six, et l'appliquer telle quelle dans
+une voie qui n'en compte que trois donnait une carte de montant sur deux
+colonnes — une par rangée, et une colonne perdue à côté. Ce que `taille: 2` veut
+dire, c'est « ce chiffre est long » : dans une voie, cela devient deux colonnes
+au lieu de trois.
+
+### Trois retouches demandées
+
+- **Une seule barre d'outils** : réglages à gauche, actions à droite, même ligne.
+  Deux rangées superposées faisaient deux niveaux de commande là où il n'y a
+  qu'une barre, et l'œil devait redescendre pour trouver « Imprimer » après avoir
+  choisi sa période.
+- **La barre latérale reste en place au défilement** — `sticky top-0 h-screen`.
+  `h-screen` et non `h-full` : en `sticky`, l'élément se cale sur la hauteur
+  qu'il occupe, et `h-full` la ferait dépendre du contenu de la page.
+- **Deux pixels de moins en haut des cartes** (`pt-4.5`). Écart assumé à la
+  grille de 8 px : la pastille d'icône porte son propre air visuel. La valeur
+  reste sur l'échelle Tailwind, pas en valeur arbitraire — vérifié dans le CSS
+  produit.
+
+566 tests unitaires, 27 fichiers. `pnpm verify` vert.
+
+### Les rangées se remplissent — flex plutôt que grille
+
+Une grille à six colonnes laisse un **trou** dès que le nombre de cartes ne la
+divise pas : cinq compteurs y occupaient cinq colonnes sur six, et la rangée
+s'arrêtait avant le bord. Le lecteur y voit une carte manquante, pas un reste de
+division.
+
+Avec `flex-wrap` et `grow`, chaque carte part d'une largeur **confortable** —
+celle en dessous de laquelle elle cesse d'être lisible — puis s'étire pour
+absorber ce qui reste. La rangée est pleine quel que soit le compte, et l'ordre
+choisi est préservé, ce qu'une grille dense n'aurait pas fait.
+
+**Les compteurs ont leur propre rangée.** Ils portent tous la même chose — un
+nombre et son libellé — et doivent donc avoir la même largeur : c'est ce qui permet
+de les parcourir d'un coup d'œil au lieu de les lire un par un. Laisser un bloc
+large finir leur rangée les aurait rétrécis de façon inégale, sans que rien ne le
+justifie. L'ordre choisi joue donc À L'INTÉRIEUR de chaque famille.
+
+Les deux voies gardent leur grille : là, le nombre de colonnes est **décidé**
+(trois pour des compteurs, deux quand ils portent des montants), et c'est
+précisément ce qu'on veut y tenir.

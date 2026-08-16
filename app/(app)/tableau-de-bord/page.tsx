@@ -199,6 +199,7 @@ export default async function TableauDeBordPage({
             arbre,
           )}
           entiteId={entiteId}
+          entiteNom={entiteNom}
           granularite={granularite}
           ancre={ancre}
           devise={parametres.devise}
@@ -223,15 +224,15 @@ export default async function TableauDeBordPage({
               testé : l'ordre, les parts et le plafond n'ont pas à être refaits
               dans le composant.
             */
-            repartition_age: <RepartitionBarres {...preparerRepartition(repartitions, 'AGE')} />,
+            repartition_age: <RepartitionBarres {...preparerRepartition(repartitions, 'AGE')} titre="Repartition par age" />,
             repartition_grade: (
-              <RepartitionBarres {...preparerRepartition(repartitions, 'GRADE')} />
+              <RepartitionBarres {...preparerRepartition(repartitions, 'GRADE')} titre="Repartition par grade" />
             ),
             repartition_nationalite: (
-              <RepartitionBarres {...preparerRepartition(repartitions, 'NATIONALITE')} />
+              <RepartitionBarres {...preparerRepartition(repartitions, 'NATIONALITE')} titre="Repartition par nationalite" />
             ),
             repartition_entite: (
-              <RepartitionBarres {...preparerRepartition(repartitions, 'ENTITE')} />
+              <RepartitionBarres {...preparerRepartition(repartitions, 'ENTITE')} titre="Effectif par entite fille" />
             ),
 
             couverture_bureaux: (

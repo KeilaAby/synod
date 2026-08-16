@@ -237,4 +237,27 @@
   .page-break {
     break-after: page;
   }
+
+  /* ---------------------------------------------------------------------------
+     EF-DSH-10 — imprimer le tableau de bord, c'est imprimer L'ECRAN.
+
+     Refabriquer un document a partir des memes donnees aurait donne un second
+     rendu a maintenir, qui aurait diverge du premier (regle 16). Ce qu'on
+     retire, ce n'est donc pas le contenu : c'est ce qui n'a aucun sens sur du
+     papier — la navigation, et les controles qui n'attendent qu'un clic.
+     --------------------------------------------------------------------------- */
+
+  /* Une carte coupee entre deux pages perd son chiffre ou son libelle : les
+     deux moities sont alors illisibles, pas seulement moins jolies. */
+  [data-slot='card'] {
+    break-inside: avoid;
+    /* L'ombre qui separe les cartes a l'ecran devient un gris sale a
+       l'impression : c'est la bordure qui prend le relais. */
+    box-shadow: none !important;
+    border-color: #cbd5e1 !important;
+  }
+
+  section {
+    break-inside: avoid;
+  }
 }

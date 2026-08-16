@@ -1,5 +1,8 @@
 'use client';
 
+import { Download } from 'lucide-react';
+
+import { exporterCsv } from '@/components/finances/exporter';
 import type { BarreRepartition } from '@/lib/domain/kpi';
 import { formatNombre } from '@/lib/utils/format';
 
@@ -25,11 +28,14 @@ export function RepartitionBarres({
   barres,
   total,
   reste,
+  titre,
 }: {
   barres: BarreRepartition[];
   total: number;
   /** Ce que le plafond a écarté — on le dit plutôt que de le taire. */
   reste: number;
+  /** EF-DSH-10 — nomme le fichier exporté. Sans lui, pas d'export. */
+  titre?: string;
 }) {
   if (barres.length === 0) {
     return (
@@ -77,17 +83,52 @@ export function RepartitionBarres({
         ))}
       </ul>
 
-      <p className="text-muted-foreground border-border border-t pt-2 text-xs">
-        {formatNombre(total)} au total
-        {reste > 0 && (
-          <>
-            {' '}
-            — {formatNombre(reste)} autre{reste > 1 ? 's' : ''} tranche
-            {reste > 1 ? 's' : ''} non affichée{reste > 1 ? 's' : ''}
-          </>
+      <div className="border-border flex items-center justify-between gap-3 border-t pt-2">
+        <p className="text-muted-foreground text-xs">
+          {formatNombre(total)} au total
+          {reste > 0 && (
+            <>
+              {' '}
+              — {formatNombre(reste)} autre{reste > 1 ? 's' : ''} tranche
+              {reste > 1 ? 's' : ''} non affichée{reste > 1 ? 's' : ''}
+            </>
+          )}
+          .
+        </p>
+
+        {/*
+          EF-DSH-10 — LE CSV EST ICI, et pas dans l'export global.
+
+          C'est ce bloc qui porte une donnée TABULAIRE ; un indicateur à un
+          chiffre n'a pas de CSV qui vaille la peine, et forcer les six
+          répartitions dans un même fichier donnerait des colonnes dont le sens
+          changerait selon la ligne.
+
+          Le CSV rend CE QUI EST AFFICHÉ, plafond compris : un fichier qui
+          contiendrait des tranches absentes de l'écran ne se rapprocherait
+          plus de ce qu'on vient de lire.
+        */}
+        {titre && (
+          <button
+            type="button"
+            className="text-muted-foreground hover:text-foreground no-print flex cursor-pointer items-center gap-1 text-xs transition-colors"
+            onClick={() =>
+              exporterCsv({
+                titre,
+                entetes: ['Libellé', 'Effectif', 'Part (%)'],
+                lignes: barres.map((b) => [
+                  b.libelle,
+                  b.effectif,
+                  Number(b.part.toFixed(1)),
+                ]),
+              })
+            }
+          >
+            <Download className="size-3.5" aria-hidden />
+            CSV
+          </button>
         )}
-        .
-      </p>
+      </div>
     </div>
   );
 }

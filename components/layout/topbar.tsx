@@ -41,7 +41,8 @@ export function Topbar({ compteurs }: { compteurs: CompteursAttente }) {
   const libelleType = ENTITY_LABELS[typeEntite]?.singulier ?? session.entiteType;
 
   return (
-    <header className="flex h-16 shrink-0 items-center gap-4 border-b border-border bg-card px-4 md:px-8">
+    // `no-print` — la navigation n'a aucun sens sur du papier (EF-DSH-10).
+    <header className="no-print flex h-16 shrink-0 items-center gap-4 border-b border-border bg-card px-4 md:px-8">
       {/* --- Tiroir de navigation, mobile uniquement --- */}
       <Sheet open={tiroirOuvert} onOpenChange={setTiroirOuvert}>
         <SheetTrigger asChild>
