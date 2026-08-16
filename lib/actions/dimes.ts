@@ -35,17 +35,48 @@ import { executerAction } from './executer';
  * « RG-13 » a qui lit les journaux ; ici on le dit a qui a clique.
  */
 
-function messageErreurSql(erreur: { code?: string; message?: string }): string {
+/**
+ * UN MESSAGE GENERIQUE QUI NE DIT RIEN EST UN DEFAUT, pas une precaution.
+ *
+ * « L'operation n'a pas pu aboutir » a coute une session entiere de
+ * tatonnements : la base disait exactement ce qui n'allait pas, et personne ne
+ * pouvait le lire. Les cas connus gardent leur formulation destinee a
+ * l'utilisateur ; tout le reste porte desormais le DETAIL de la base, et part
+ * dans les journaux du serveur avec sa reference.
+ *
+ * Ces messages viennent de nos propres fonctions ou de contraintes que nous
+ * avons ecrites : ils ne divulguent rien qu'un utilisateur habilite ne puisse
+ * savoir.
+ */
+function messageErreurSql(erreur: {
+  code?: string;
+  message?: string;
+  details?: string;
+  hint?: string;
+}): string {
   if (erreur.code === '42501') {
     return "Vous n'avez pas le droit de collecter les dimes de cette entite.";
   }
   if (erreur.code === '23503') {
     return 'Un croyant, une categorie ou une entite indiquee est introuvable.';
   }
+  if (erreur.code === '23514') {
+    return (
+      'Une ligne ne respecte pas les regles de saisie : un versement nominatif ' +
+      "exige un croyant, et un versement en vrac n'a ni nom ni enveloppe."
+    );
+  }
   if (erreur.message?.includes('RG-') || erreur.message?.includes('Siege')) {
     return erreur.message.split('\n')[0] ?? 'Operation refusee.';
   }
-  return "L'operation n'a pas pu aboutir.";
+
+  const reference = Math.random().toString(36).slice(2, 8).toUpperCase();
+  console.error(`[dimes] echec SQL — reference ${reference}`, erreur);
+
+  return (
+    `L'operation n'a pas pu aboutir (reference ${reference}). ` +
+    `Detail : ${erreur.message ?? 'inconnu'}${erreur.details ? ` — ${erreur.details}` : ''}`
+  );
 }
 
 export interface ResultatCollecte {

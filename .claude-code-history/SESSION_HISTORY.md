@@ -2548,3 +2548,21 @@ distinction d'informaticien, pas de trésorier :
 Ce qui reste vrai : le **vrac** n'a ni nom ni numéro — c'est sa définition même.
 
 474 tests unitaires. `pnpm verify` vert.
+
+**« L'opération n'a pas pu aboutir » ne dira plus rien de tel.** Un message
+générique qui ne dit rien est un **défaut**, pas une précaution : la base
+énonçait exactement ce qui n'allait pas, et personne ne pouvait le lire.
+
+Les cas connus gardent leur formulation destinée à l'utilisateur — droit
+manquant, référence introuvable, contrainte de nature. Tout le reste porte
+désormais le **détail** de la base et part dans les journaux du serveur avec sa
+référence, comme le fait `executerAction`. Ces messages viennent de nos propres
+fonctions ou de contraintes que nous avons écrites : ils ne divulguent rien
+qu'un utilisateur habilité ne puisse savoir.
+
+`0034` ajoute un `notify pgrst, 'reload schema'`. PostgREST garde en mémoire la
+signature de chaque fonction exposée ; quand une migration en **remplace** une —
+ce que `0032` a fait — le cache peut rester en retard. L'appel échoue alors sur
+« Could not find the function … in the schema cache » alors que la fonction
+existe et qu'un `select` direct la trouve. Le symptôme est déroutant : la base
+est juste, le code est juste, et l'écran dit non.
