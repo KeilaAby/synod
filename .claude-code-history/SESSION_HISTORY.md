@@ -2408,3 +2408,39 @@ pour lire les versements d'un croyant depuis sa fiche.
 
 454 tests unitaires. `pnpm verify` vert. **Reste à construire : l'import
 Excel/CSV lui-même (EF-FIN-34) et la zone de résolution dans `/croyants`.**
+
+---
+
+## 13 août 2026 (suite) — Voir tous les donateurs, sans tout ouvrir
+
+**`0031` — `fn_croyants_pour_dime`.** Le menu de saisie ne proposait que les
+croyants du périmètre : un visiteur venu d'un autre district restait
+introuvable, et il fallait le saisir en anonyme — perdant justement la trace que
+le reçu doit porter.
+
+**Ce que je n'ai PAS fait**, et c'est le point : élargir la politique `select`
+de `croyants`. Elle aurait ouvert avec elle la liste des croyants, les exports,
+les statistiques, les transferts et les rapports — adresse, téléphone, date de
+naissance, situation maritale de toute l'organisation, à qui détient
+`croyant.read` quelque part. Un droit qui ouvre plus que ce qu'on veut accorder
+n'est pas le bon droit ; c'est la leçon de `finance.workflow.manage`.
+
+Une fonction dédiée borne donc **deux** choses à la fois : les **colonnes** — de
+quoi identifier un donateur et rien de plus : nom, prénom, matricule, église,
+portrait — et l'**audience**, réservée aux détenteurs de `finance.dime.collect`.
+
+Elle écarte aussi les croyants non `ACTIF` : un transféré ou un décédé ne verse
+plus, et le proposer ferait rattacher une dîme à une fiche close.
+
+**Un plafond de 5 000, annoncé à l'écran** (règle 17). Sans lui, une
+organisation de deux cent mille croyants aurait tout chargé dans un menu. Le
+message dit aussi quoi faire : un donateur absent se saisit en enveloppe sans
+nom.
+
+**Ce qui va dans la file de résolution, et ce qui n'y va pas** — précisé dans
+EF-FIN-34. Une ligne **portant un nom** sans correspondance y entre ; une ligne
+**sans nom** est simplement comptée comme enveloppe anonyme. Il n'y a rien à
+rapprocher, et l'y inscrire remplirait la file de lignes qu'aucun travail ne
+peut clore.
+
+454 tests unitaires. `pnpm verify` vert.

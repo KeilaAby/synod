@@ -536,8 +536,9 @@ export function CollecteDialog({
                   */}
                   {croyantsTronques && entiteChoisie && (
                     <p className="text-muted-foreground text-xs">
-                      Votre périmètre dépasse le plafond de chargement : la liste
-                      proposée n’en est qu’une partie.
+                      L’organisation dépasse le plafond de chargement : la liste
+                      proposée n’en est qu’une partie. Un donateur absent se saisit en
+                      enveloppe sans nom.
                     </p>
                   )}
 

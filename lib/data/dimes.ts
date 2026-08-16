@@ -114,6 +114,46 @@ export async function chargerEnveloppes(
   return new Map((data ?? []).map((e) => [e.croyant_id, e.numero]));
 }
 
+export interface DonateurPossible {
+  id: string;
+  nom: string;
+  prenom: string;
+  matricule: string;
+  photo_key: string | null;
+  eglise_nom: string | null;
+}
+
+/**
+ * Les donateurs possibles d'une collecte — EF-FIN-32.
+ *
+ * TOUTE L'ORGANISATION, et non le seul perimetre : un croyant de passage
+ * assiste au culte d'une autre eglise et y remet son enveloppe.
+ *
+ * On passe par `fn_croyants_pour_dime` plutot que par la table, et ce n'est pas
+ * un detour : la fonction borne les COLONNES a l'identite — nom, prenom,
+ * matricule, eglise, portrait — et l'AUDIENCE aux detenteurs de
+ * `finance.dime.collect`. Lire `croyants` directement aurait demande
+ * d'elargir sa RLS, ce qui aurait ouvert avec elle l'adresse, le telephone et
+ * la date de naissance de toute l'organisation.
+ */
+/** Le plafond de `fn_croyants_pour_dime`. Doit rester aligne sur le SQL. */
+export const PLAFOND_DONATEURS = 5000;
+
+export const chargerDonateurs = cache(
+  async (): Promise<{ donateurs: DonateurPossible[]; tronque: boolean }> => {
+    const sb = await createClient();
+
+    const { data, error } = await sb.rpc('fn_croyants_pour_dime');
+
+    // Un refus de droit rend une liste vide plutot qu'une erreur : la saisie
+    // anonyme reste possible, et l'ecran le dit.
+    if (error) return { donateurs: [], tronque: false };
+
+    const donateurs = (data as DonateurPossible[] | null) ?? [];
+    return { donateurs, tronque: donateurs.length >= PLAFOND_DONATEURS };
+  },
+);
+
 /**
  * TOUTES les enveloppes actives du perimetre, en une requete.
  *

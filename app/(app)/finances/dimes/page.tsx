@@ -1,8 +1,11 @@
 import type { Metadata } from 'next';
 
 import { PageHeader } from '@/components/shared/page-header';
-import { chargerCollectes, chargerEnveloppesPerimetre } from '@/lib/data/dimes';
-import { chargerCroyants } from '@/lib/data/croyants';
+import {
+  chargerCollectes,
+  chargerDonateurs,
+  chargerEnveloppesPerimetre,
+} from '@/lib/data/dimes';
 import { getArbrePerimetre } from '@/lib/data/entities';
 import { versOptions } from '@/lib/data/entity-options';
 import { listerCategoriesFinance } from '@/lib/data/finances';
@@ -28,21 +31,22 @@ export const metadata: Metadata = { title: 'Dîmes' };
  * d'équivalent ici.
  */
 export default async function DimesPage() {
-  const [collectes, arbre, categories, parametres, lot, enveloppes] = await Promise.all([
+  const [collectes, arbre, categories, parametres, donateurs, enveloppes] = await Promise.all([
     chargerCollectes(),
     getArbrePerimetre(),
     listerCategoriesFinance(),
     getParametres(),
     /**
-     * Les croyants du périmètre, pour la grille de saisie.
+     * Les donateurs possibles — TOUTE l'organisation (EF-FIN-32).
      *
-     * Chargés ICI et non à l'ouverture du pop-up : l'entité collectrice se
-     * choisit dedans, et aller les chercher à chaque changement d'entité
-     * mettrait un aller-retour au milieu d'une saisie (règle 28). Le plafond
-     * de `chargerCroyants` s'applique — au-delà, la liste est tronquée et
-     * l'écran le dit.
+     * Un croyant de passage assiste au culte d'une autre église et y remet son
+     * enveloppe : borner la liste au périmètre l'aurait rendu introuvable.
+     *
+     * Chargés ICI et non à l'ouverture du pop-up : aller les chercher à chaque
+     * changement d'entité mettrait un aller-retour au milieu d'une saisie
+     * (règle 28).
      */
-    chargerCroyants(),
+    chargerDonateurs(),
     chargerEnveloppesPerimetre(),
   ]);
 
@@ -53,7 +57,7 @@ export default async function DimesPage() {
    * selecteur de croyant les affiche. Les URL signees ne sont jamais persistees
    * (regle 11) et se fabriquent a l'affichage.
    */
-  const photos = await signerPhotos(lot.lignes.map((c) => c.photo_key));
+  const photos = await signerPhotos(donateurs.donateurs.map((c) => c.photo_key));
 
   const actives = arbre.filter((e) => e.is_active);
 
@@ -76,18 +80,17 @@ export default async function DimesPage() {
         categories={categories.filter((c) => c.sens === 'RECETTE')}
         devise={parametres.devise}
         modes={Object.fromEntries(actives.map((e) => [e.id, e.dime_mode ?? null]))}
-        croyants={lot.lignes
-          .map((c) => ({
-            id: c.id,
-            nom: c.nom,
-            prenom: c.prenom,
-            matricule: c.matricule,
-            // EF-FIN-32 — la liste est globale : le nom de l'église dit
-            // qu'on saisit un visiteur, ce qui est licite mais se voit.
-            egliseNom: c.eglise?.nom ?? null,
-            photoKey: c.photo_key,
-          }))}
-        croyantsTronques={lot.tronque}
+        croyants={donateurs.donateurs.map((c) => ({
+          id: c.id,
+          nom: c.nom,
+          prenom: c.prenom,
+          matricule: c.matricule,
+          // EF-FIN-32 — la liste est globale : le nom de l'église dit qu'on
+          // saisit un visiteur, ce qui est licite mais se voit.
+          egliseNom: c.eglise_nom,
+          photoKey: c.photo_key,
+        }))}
+        croyantsTronques={donateurs.tronque}
         enveloppes={Object.fromEntries(enveloppes)}
         photos={Object.fromEntries(photos)}
       />
