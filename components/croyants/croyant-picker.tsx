@@ -157,17 +157,9 @@ export function CroyantPicker({
                     onChange(croyant.id === value ? null : croyant.id);
                     setOuvert(false);
                   }}
-                  /*
-                    AUCUN FOND AU SURVOL. `CommandItem` en pose un par défaut ;
-                    sur une ligne qui porte déjà un portrait, un nom, un
-                    matricule et un détail, il ajoute un quatrième plan visuel
-                    et alourdit la lecture.
-
-                    L'état reste signalé — c'est nécessaire au clavier, où rien
-                    ne suit le curseur : le texte passe en couleur pleine au
-                    lieu de s'appuyer sur un aplat.
-                  */
-                  className="gap-2 data-[selected=true]:bg-transparent data-[selected=true]:text-foreground"
+                  /* Le fond de `CommandItem` est CONSERVÉ : dans une liste
+                     déroulante, il est ce qui suit le curseur au clavier. */
+                  className="gap-2"
                 >
                   <Check
                     className={cn(

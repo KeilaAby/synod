@@ -501,7 +501,22 @@ export function CollecteDialog({
                           )}
 
                           {fields.map((champ, index) => (
-                            <TableRow key={champ.id}>
+                            /*
+                              AUCUN FOND AU SURVOL sur une ligne de SAISIE.
+                              Le fond de `TableRow` sert à suivre une ligne
+                              qu'on LIT ; ici chaque cellule est un contrôle
+                              qui porte déjà son propre état — un aplat en plus
+                              se déclenche au moindre passage de souris et fait
+                              clignoter la grille pendant qu'on la remplit.
+
+                              `has-aria-expanded` est neutralisé pour la même
+                              raison : ouvrir le sélecteur de croyant colorait
+                              la ligne entière.
+                            */
+                            <TableRow
+                              key={champ.id}
+                              className="hover:bg-transparent has-aria-expanded:bg-transparent"
+                            >
                               <TableCell className="text-muted-foreground text-xs tabular-nums">
                                 {index + 1}
                               </TableCell>

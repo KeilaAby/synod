@@ -2309,10 +2309,13 @@ une fois : la recherche **ignore accents et casse** (`normaliserRecherche`) —
 et aurait tronqué le nom ; et la **barre de défilement est rendue visible**,
 faute de quoi deux cents croyants paraissent s'arrêter au sixième.
 
-**Aucun fond au survol**, demandé et justifié : la ligne porte déjà un portrait,
-un nom, un matricule et un détail — un aplat y ajoute un quatrième plan visuel.
-L'état reste signalé par la couleur du texte, ce qui reste nécessaire au
-clavier, où rien ne suit le curseur.
+**Aucun fond au survol — mais sur la LIGNE DE SAISIE, pas dans le menu.** J'avais
+mal lu la demande et l'avais d'abord retiré du menu déroulant, où il est
+pourtant ce qui suit le curseur au clavier. C'est la ligne du tableau des
+versements qui devait le perdre : chaque cellule y est un contrôle portant déjà
+son propre état, et un aplat de plus se déclenche au moindre passage de souris,
+faisant clignoter la grille pendant qu'on la remplit. `has-aria-expanded` est
+neutralisé pour la même raison — ouvrir le sélecteur colorait la ligne entière.
 
 Les portraits sont signés **en lot** par la page, comme partout ailleurs.
 
