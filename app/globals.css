@@ -215,6 +215,61 @@
     @apply text-rose-600 tabular-nums;
     font-variant-numeric: tabular-nums;
   }
+
+  /* ---------------------------------------------------------------------------
+     EF-RAP-05 — la largeur reglable du panneau d'apercu.
+
+     ELLE NE PASSE PAS PAR UN UTILITAIRE TAILWIND A VALEUR ARBITRAIRE.
+
+     Poser la largeur par un utilitaire de largeur dont la valeur arbitraire
+     pointe une variable CSS semblait naturel. Tailwind 4 y mange les tirets
+     doubles du nom de variable et produit une fonction `var` sans argument
+     valide, que PostCSS refuse — la feuille ENTIERE cesse alors d'etre
+     compilee, et l'application ne demarre plus.
+
+     ET NE RECOPIEZ PAS CETTE CLASSE, MEME EN COMMENTAIRE. Tailwind extrait ses
+     candidats de TOUT le texte des fichiers qu'il balaie, commentaires
+     compris : deux commentaires qui expliquaient le defaut l'ont recree a
+     l'identique, et l'erreur a survecu a sa propre correction. Constate le
+     18 aout 2026.
+
+     Un style inline n'aurait pas convenu non plus : il s'appliquerait AUSSI
+     sous le point de rupture, ou les trois panneaux s'empilent, et bornerait la
+     feuille a 560 px sur un ecran qui en offre toute la largeur. La regle a
+     besoin d'un point de rupture, donc d'une feuille de style.
+
+     La variable, elle, reste posee en inline sur le conteneur : c'est une
+     valeur, pas une regle.
+     --------------------------------------------------------------------------- */
+  @media (min-width: 64rem) {
+    .panneau-apercu {
+      width: var(--largeur-apercu, 35rem);
+    }
+  }
+
+  /* ---------------------------------------------------------------------------
+     Defilement DISCRET — on cache la barre, jamais le defilement.
+
+     Un ecran a plusieurs panneaux — l'editeur de rapport — affiche autant de
+     barres verticales qu'il a de colonnes : trois rainures grises qui decoupent
+     l'ecran sans rien apprendre, et qui prennent au passage une quinzaine de
+     pixels chacune sur des panneaux deja etroits.
+
+     `overflow` RESTE `auto` la ou cette classe est posee : molette, pave
+     tactile, touches Page precedente/suivante et defilement au clavier
+     fonctionnent exactement pareil. Seul le rail disparait. Poser
+     `overflow: hidden` aurait, lui, rendu le contenu inatteignable — c'est la
+     faute que cette classe existe pour eviter.
+     --------------------------------------------------------------------------- */
+  .defilement-discret {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* anciens Edge */
+  }
+
+  .defilement-discret::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
 }
 
 /* -----------------------------------------------------------------------------
@@ -259,5 +314,81 @@
 
   section {
     break-inside: avoid;
+  }
+
+  /* ---------------------------------------------------------------------------
+     EF-RAP-05 / EF-RAP-16 — imprimer l'APERCU, c'est n'imprimer QUE lui.
+
+     ON MASQUE TOUT, SAUF LE CHEMIN QUI Y MENE.
+
+     Les deux versions precedentes ont echoue pour la meme raison : elles
+     ENUMERAIENT ce qui ne s'imprime pas — d'abord `main`, puis les elements
+     marques `no-print`. Une liste est toujours incomplete d'un element qu'on
+     ajoutera plus tard : la barre du haut, un fil d'Ariane, un bandeau. Et
+     l'oubli ne se voit qu'a l'impression, quand le PDF sort avec l'editeur
+     dessus.
+
+     La regle ci-dessous ne nomme rien. Elle dit : « dans tout element qui
+     CONTIENT l'apercu, masquer les enfants qui ne le contiennent pas et qui ne
+     sont pas lui ». Appliquee depuis `body`, elle degage recursivement tout ce
+     qui n'est pas sur le chemin — sans jamais avoir a savoir ce qu'il y avait.
+
+     Elle ne s'arme que lorsqu'un apercu est monte : ailleurs, l'impression est
+     celle de l'ecran (EF-DSH-10), inchangee.
+     --------------------------------------------------------------------------- */
+  body:has([data-apercu]) :has([data-apercu]) > *:not(:has([data-apercu])):not([data-apercu]) {
+    display: none !important;
+  }
+
+  /* Les ancetres, eux, se DEPLIENT : colonnes, cartes, hauteurs d'ecran et
+     defilements bornaient l'apercu a l'ecran et le couperaient sur le papier. */
+  body:has([data-apercu]) :has([data-apercu]) {
+    display: block !important;
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    gap: 0 !important;
+  }
+
+  /* L'apercu occupe la troisieme colonne de l'editeur, REDUIT par un
+     `transform: scale` et enferme dans un conteneur a hauteur fixe. Sur du
+     papier, ni l'un ni l'autre n'a de sens : la feuille doit repartir a
+     l'echelle 1, et le conteneur cesser de la couper. */
+  [data-apercu],
+  [data-apercu] * {
+    position: static !important;
+    height: auto !important;
+    max-height: none !important;
+    width: auto !important;
+    max-width: none !important;
+    overflow: visible !important;
+    transform: none !important;
+  }
+
+  [data-apercu] {
+    border: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+
+  /* Une feuille A4 ne se coupe jamais en son milieu : c'est elle, la page.
+     Et sa marge de 16 mm vient de `@page` : la garder ici la DOUBLERAIT, ce
+     qui reduirait la zone utile de moitie sur les quatre bords. */
+  [data-apercu] article {
+    break-inside: avoid;
+    padding: 0 !important;
+    min-height: 0 !important;
+    width: auto !important;
+    margin: 0 !important;
+    box-shadow: none !important;
   }
 }

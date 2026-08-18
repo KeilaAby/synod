@@ -58,8 +58,23 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               chaque point de rupture — et un écran court aurait laissé une
               bande grise en bas, qu'on lirait comme un défaut d'affichage.
             */}
-            <main className="flex-1 px-4 py-6 md:px-8 has-[[data-fond=blanc]]:bg-card">
-              <div className="mx-auto w-full max-w-[1600px]">{children}</div>
+            {/*
+              LA PLEINE LARGEUR SE DEMANDE, elle aussi, PAR UN ATTRIBUT.
+
+              Un écran à trois panneaux — l'éditeur de rapport — perd deux fois
+              la gouttière du gabarit et le reste du plafond de 1600 px : la
+              palette et le panneau de réglages ont une largeur fixe, et tout ce
+              qu'on leur retire est pris sur la composition, au milieu, qui est
+              la seule chose qu'on regarde.
+
+              Même mécanisme que `data-fond` : la page pose l'attribut, le
+              gabarit y répond. Des marges négatives depuis la page seraient à
+              recompenser à chaque point de rupture.
+            */}
+            <main className="flex-1 px-4 py-6 md:px-8 has-[[data-fond=blanc]]:bg-card has-[[data-large]]:px-2 md:has-[[data-large]]:px-4">
+              <div className="mx-auto w-full max-w-[1600px] has-[[data-large]]:max-w-none">
+                {children}
+              </div>
             </main>
           </div>
         </div>

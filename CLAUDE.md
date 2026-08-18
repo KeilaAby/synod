@@ -15,7 +15,7 @@ Application web de gestion d'église. **Lire avant toute tâche** :
 Toute modification doit citer l'exigence ou la règle qu'elle sert. Si une
 demande contredit `cdg.md`, signalez-le avant d'implémenter.
 
-## État — 9 août 2026
+## État — 18 août 2026
 
 **Lots 0, 1 et 2 livrés** : socle, authentification, habilitations avec portée,
 structure à 6 niveaux (organigramme éditable **et** vue liste), référentiels,
@@ -267,6 +267,36 @@ inapplicable reste visible, éteint et expliqué : le retirer ferait croire qu'i
 n'existe pas. Reste « imposer un modèle par niveau », qui demande
 `dashboard_templates` et un écran d'administration.
 
+**Lot 6 — GÉNÉRATEUR DE RAPPORTS COMPLET** (EF-RAP-01 à 18), cinq écrans :
+`/rapports` (bibliothèque), `/rapports/modeles/[id]/editer` (composition),
+`/rapports/generer/[modeleId]`, `/rapports/generes/[id]` (rapport figé) et
+`/rapports/generes` (historique). **Une entité ne compose que pour elle-même** :
+l'entité propriétaire est celle de rattachement de l'auteur, lue dans la
+session — elle ne voyage pas dans le formulaire, donc elle ne se choisit pas,
+donc elle n'a pas à se refuser. Le Siège fait exception, et une seule : il pose
+des modèles **officiels** qui n'appartiennent à aucune entité. Migration `0045`
+(`rapport_composition_libre`) : fermée, la composition est **réservée au
+Siège** — mais **le Siège n'est jamais pris dans son propre verrou**, sinon il
+ne pourrait plus poser la trame à laquelle les autres doivent se conformer.
+Deux corollaires : **dupliquer, c'est composer** (l'autoriser rendrait le verrou
+décoratif) et, composition fermée, **une entité n'emploie pas le modèle d'une
+autre** — sans quoi une paroisse reprendrait la trame que son district partage
+à ses descendants. Ce réglage est **monté par aucun écran** : sa place est dans
+Administration (lot 7) ; `CompositionDialog` est écrit et prêt.
+**La source appartient au BLOC, pas à son type** (EF-RAP-03) : c'est elle qui
+décide de l'habilitation exigée, donc de l'omission RG-26 — lire celle du type
+omettrait le bon bloc pour le mauvais motif. **Un seul rendu pour l'aperçu et
+pour le papier** (`RenduRapport`, règle 16) : `contenu` absent → données
+d'exemple **déterministes** avec leur mention, `contenu` figé → les vraies
+valeurs. La marge du papier est **réglable**, et le rendu émet son propre
+`<style>` — `@page` n'accepte ni classe ni variable, et figée elle rendait
+l'aperçu menteur. `template_snapshot` porte la structure **APRÈS** omission : le
+re-résoudre à la lecture ferait varier le document d'un lecteur à l'autre. **Un
+rapport est un document** — qui peut l'ouvrir se décide par `report.read` et par
+la publication, pas en rejouant l'omission bloc par bloc. **Aucun PDF n'est
+stocké** (`pdf_key` reste `null`) : exporter, c'est imprimer la feuille, et le
+contenu étant figé la réimpression est reproductible par construction.
+
 **Lot 6 — fondations posées** (migration `0043`, `lib/domain/rapport.ts`) :
 `report_templates` décrit **comment composer**, `report_instances` conserve **ce
 qui a été produit** — d'où la copie de la structure dans chaque rapport, pour
@@ -284,7 +314,7 @@ rangées pleines.
 **EF-BUR-11 clos** : l'export Excel de la composition est abandonné le 12 août
 2026, le PDF de l'organigramme couvre le besoin.
 
-Base à jour jusqu'à la migration `0044` — fuseau `Indian/Antananarivo` (UTC+3).
+Base à jour jusqu'à la migration `0045` — fuseau `Indian/Antananarivo` (UTC+3).
 **Toute migration qui crée ou remplace
 une fonction doit finir par `notify pgrst, 'reload schema'`** : sans lui, l'API
 répond « fonction inconnue » sur du SQL pourtant en place — constaté deux fois,
@@ -296,7 +326,7 @@ configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` 
 l'API.
 
 Historique : [`SESSION_HISTORY.md`](.claude-code-history/SESSION_HISTORY.md) ·
-dernier point d'étape : [`.claude-code-history/2026-08-16_resumes-moi.md`](.claude-code-history/2026-08-16_resumes-moi.md)
+dernier point d'étape : [`.claude-code-history/2026-08-18_resumes-moi.md`](.claude-code-history/2026-08-18_resumes-moi.md)
 
 ## Publication — lire `.agents/rules/gitpush.md` AVANT tout push
 
@@ -428,7 +458,24 @@ Ce qu'il reste à faire est décrit dans le dernier point d'étape
     disparaîtrait avant d'être lu : `avertir()` de
     `components/shared/messages`, un pop-up que l'utilisateur ferme. Seul
     `toast.success` subsiste, et ESLint refuse les autres.
-31. **Ce qui s'imprime n'a pas de recours.** À l'écran, un libellé abrégé se
+31. **Un module `'use client'` importé côté SERVEUR ne livre pas ses valeurs.**
+    Il livre des **références**. Une page — Server Component — qui importait une
+    table de constantes depuis son composant client n'en recevait pas le
+    tableau : `ONGLETS.includes` n'était pas une fonction, et l'écran tombait
+    avant son premier rendu. C'est la frontière de la règle 24, dans l'autre
+    sens : ce qui doit être lu des **deux** côtés se déclare là où aucun des
+    deux ne l'emporte — dans le domaine.
+32. **Tailwind lit le SOURCE, commentaires compris.** Deux conséquences, payées
+    le même jour. Une valeur arbitraire pointant une variable CSS
+    (`w-[var(--x)]`) voit ses tirets doubles mangés et produit un `var(...)` que
+    PostCSS refuse : **toute la feuille** cesse d'être compilée, et
+    l'application ne démarre plus. Et **citer cette classe dans un commentaire
+    la recrée** — deux commentaires qui expliquaient le défaut l'ont ressuscité
+    à l'identique, si bien que l'erreur a survécu à sa propre correction. Une
+    largeur qui dépend d'une variable se déclare dans `globals.css`, sous son
+    point de rupture ; un style inline ne conviendrait pas, il s'appliquerait
+    aussi en dessous.
+33. **Ce qui s'imprime n'a pas de recours.** À l'écran, un libellé abrégé se
     survole, s'ouvre, se cherche ; sur une feuille, il est perdu. Un document
     destiné au papier ne tronque donc rien : il **replie** entre les mots et
     **réduit** la police, quitte à agrandir le cadre. Et il rend la

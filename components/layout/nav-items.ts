@@ -2,6 +2,7 @@ import {
   ArrowLeftRight,
   Briefcase,
   Droplets,
+  FileText,
   LayoutDashboard,
   Network,
   SlidersHorizontal,
@@ -37,10 +38,10 @@ export interface NavItem {
 }
 
 /**
- * Rapports (lot 6) et Administration (lot 7) n'ont pas encore de page. Leur
- * entree a ete retiree le 11 aout 2026 : un menu qui mene a une 404 est pire
- * qu'un menu incomplet — il fait douter du reste. Chaque lot remet la sienne
- * en meme temps que son ecran, comme Finances le 12 aout.
+ * Administration (lot 7) n'a pas encore de page. Son entree a ete retiree le
+ * 11 aout 2026 : un menu qui mene a une 404 est pire qu'un menu incomplet — il
+ * fait douter du reste. Chaque lot remet la sienne en meme temps que son ecran
+ * — Finances le 12 aout, Rapports le 18.
  */
 export const NAV_ITEMS: readonly NavItem[] = [
   {
@@ -97,12 +98,44 @@ export const NAV_ITEMS: readonly NavItem[] = [
     compteurCle: 'mouvements',
   },
   {
+    /**
+     * EF-RAP-07 a 11 — la bibliotheque de modeles.
+     *
+     * `report.read` et non `report.create` : consulter les modeles mis a
+     * disposition est le cas le plus courant, composer est le geste rare. Une
+     * entree conditionnee au droit d'ecrire cacherait la bibliotheque a ceux
+     * qui n'en lisent que le contenu.
+     */
+    href: '/rapports',
+    label: 'Rapports',
+    icon: FileText,
+    permission: 'report.read',
+  },
+  {
     href: '/referentiels',
     label: 'Referentiels',
     icon: SlidersHorizontal,
     permission: 'referentiel.manage',
   },
 ];
+
+/**
+ * Les ecrans qui reclament toute la largeur — UI-21.
+ *
+ * La bibliotheque de modeles range ses cartes en trois colonnes, et l'editeur
+ * pose trois panneaux dont deux ont une largeur FIXE : tout ce qu'on prend
+ * ailleurs est retire a la composition, au milieu, qui est la seule chose qu'on
+ * regarde. La navigation s'y replie donc d'elle-meme.
+ *
+ * ELLE RESTE DEPLOYABLE : le repli est un DEFAUT, pas un verrou. Et il ne
+ * touche pas a la preference memorisee — on la retrouve intacte en sortant,
+ * sans avoir eu a la reposer.
+ */
+export const CHEMINS_LARGES: readonly string[] = ['/rapports'];
+
+export function estEcranLarge(chemin: string): boolean {
+  return CHEMINS_LARGES.some((p) => chemin === p || chemin.startsWith(`${p}/`));
+}
 
 /** Libelles du fil d'Ariane, derives de la table de navigation. */
 export const LIBELLES_SEGMENTS: Record<string, string> = {

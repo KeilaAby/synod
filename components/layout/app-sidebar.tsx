@@ -3,7 +3,7 @@
 import { PanelLeftClose, PanelLeftOpen, UserCog } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useSyncExternalStore } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 
 import { Logo } from '@/components/shared/logo';
 import { useSession } from '@/components/shared/session-provider';
@@ -12,7 +12,12 @@ import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
-import { type CompteursAttente, NAV_ITEMS, type NavItem } from './nav-items';
+import {
+  type CompteursAttente,
+  NAV_ITEMS,
+  type NavItem,
+  estEcranLarge,
+} from './nav-items';
 
 const CLE_STOCKAGE = 'synod:sidebar-reduite';
 
@@ -51,10 +56,27 @@ function ecrireReduite(valeur: boolean) {
  * contenant la meme liste (`SidebarNav`).
  */
 export function AppSidebar({ compteurs }: { compteurs: CompteursAttente }) {
-  const reduite = useSyncExternalStore(abonner, lireReduite, () => false);
+  const memorisee = useSyncExternalStore(abonner, lireReduite, () => false);
+  const chemin = usePathname();
+
+  /**
+   * Les ecrans larges replient la navigation D'OFFICE — mais rien n'y est
+   * verrouille : `deployeeIci` la rouvre pour la visite.
+   *
+   * Ce choix-la ne part PAS dans `localStorage`. Un repli impose par un ecran
+   * n'est pas une preference : l'ecrire ferait retrouver la barre repliee
+   * partout ailleurs, sans que personne ne l'ait demande.
+   */
+  const [deployeeIci, setDeployeeIci] = useState(false);
+  const large = estEcranLarge(chemin);
+  const reduite = large ? !deployeeIci : memorisee;
 
   function basculer() {
-    ecrireReduite(!reduite);
+    if (large) {
+      setDeployeeIci((v) => !v);
+      return;
+    }
+    ecrireReduite(!memorisee);
   }
 
   return (

@@ -13,7 +13,7 @@ déjà fait**, et **les pièges qui ont réellement coûté du temps**.
 
 ## 1. L'ordre de lecture
 
-1. `CLAUDE.md` — l'état du projet, les **31 règles non négociables**, les
+1. `CLAUDE.md` — l'état du projet, les **33 règles non négociables**, les
    conventions. C'est le document qui fait autorité.
 2. `.claude-code-history/*_resumes-moi.md` — le **dernier** en date : point
    d'étape, ce qui reste, ce qui attend une décision de l'utilisateur.
@@ -34,9 +34,30 @@ correction dont on ignore le motif.
 ## 2. Installer sur une machine neuve
 
 ```bash
-pnpm install          # installe aussi le hook pre-commit de detection de secrets
-cp .env.example .env.local
-pnpm dev              # http://localhost:3000
+pnpm install               # installe aussi le hook pre-commit de detection de secrets
+cp .env.example .env.local # ⚠ ABSENT DU DEPOT — voir ci-dessous
+pnpm exec next typegen     # ⚠ AVANT le premier `pnpm verify` — voir ci-dessous
+pnpm dev                   # http://localhost:3000
+```
+
+**`.env.example` n'est pas dans le depot**, et le `cp` ci-dessus echoue donc sur
+un clone frais : `.gitignore` ignore `.env*` sans exception. La liste complete
+des variables se lit dans `lib/env.ts` ; les trois qui comptent sont detaillees
+plus bas.
+
+**`pnpm typecheck` echoue sur un clone frais**, sur `LayoutProps` introuvable.
+Ce n'est pas une regression : Next 16 **genere** `PageProps`, `LayoutProps` et
+`RouteContext` dans `.next/types/`, et `.next` n'existe pas avant le premier
+build. `pnpm exec next typegen` les produit. L'ordre de `verify` rend le blocage
+inevitable — il s'arrete au typecheck **avant** d'atteindre le build qui les
+aurait crees.
+
+**Sur Windows, si `pnpm` manque** : `corepack enable` echoue en `EPERM`, il
+ecrit ses shims dans `C:\Program Files\nodejs`. Les poser ailleurs, puis ajouter
+le dossier au `PATH` **utilisateur** :
+
+```bash
+corepack enable --install-directory "$LOCALAPPDATA/corepack-shims"
 ```
 
 **`.env.local` n'est pas dans le dépôt, et ne doit jamais y entrer** (ENF-SEC-09,
@@ -62,7 +83,8 @@ s'appliquent pas toutes seules** : c'est l'utilisateur qui les passe dans
 l'éditeur SQL Supabase, et il le confirme. Ne jamais supposer qu'une migration
 écrite est appliquée.
 
-Le dernier point d'étape dit laquelle est la dernière appliquée. Pour une base
+La derniere appliquee est la **`0045`** ; le dernier point d'etape le confirme.
+Pour une base
 **neuve**, `supabase/install.sql` les regroupe toutes — il est **généré**
 (`pnpm db:bundle`), donc jamais édité à la main.
 
@@ -137,6 +159,18 @@ SQL du projet sont `SECURITY INVOKER` : ce qu'on n'a pas le droit de lire est
 base vide plutôt qu'à une habilitation manquante — d'où le masquage explicite
 des indicateurs non habilités.
 
+**Un module `'use client'` importé côté SERVEUR ne livre pas ses valeurs**, mais
+des références. Une page qui importait une table de constantes depuis son
+composant client n'en recevait pas le tableau : `ONGLETS.includes` n'était pas
+une fonction, et l'écran tombait avant son premier rendu. Ce qui doit être lu
+des deux côtés se déclare dans le **domaine**.
+
+**Tailwind lit le source, commentaires compris.** Une valeur arbitraire pointant
+une variable CSS voit ses tirets doubles mangés et produit un `var(...)` que
+PostCSS refuse : toute la feuille cesse d'être compilée. Pire — **citer cette
+classe dans un commentaire la recrée**, si bien que l'erreur survit à sa propre
+correction. Une largeur qui dépend d'une variable se déclare dans `globals.css`.
+
 **Une lecture écrite pour un écran ne convient pas forcément au suivant.** Une
 fonction qui *lève* est juste là où elle **est** l'écran ; réutilisée comme un
 bloc parmi vingt, elle fait tomber toute la page. Le contrat d'erreur appartient
@@ -158,5 +192,5 @@ bloc parmi vingt, elle fait tomber toute la page. Le contrat d'erreur appartient
 - **Ce qui coûte, c'est le nombre d'allers-retours**, pas leur durée : un seul
   se mesure ici entre 0,5 et 4 secondes.
 
-La liste complète — 31 règles — est dans `CLAUDE.md`. Elle n'est pas
+La liste complète — 33 règles — est dans `CLAUDE.md`. Elle n'est pas
 décorative : chaque entrée y est arrivée après un défaut constaté.

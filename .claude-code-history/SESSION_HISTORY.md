@@ -3869,3 +3869,139 @@ ligne, ce que la machine neuve doit faire elle-même, et où l'on reprend — le
 Le point qui évite une erreur coûteuse : **la base est partagée**, les migrations
 `0001` à `0044` y sont déjà appliquées. Il ne faut pas les rejouer depuis la
 nouvelle machine.
+
+---
+
+## 18 août 2026 — Lot 6 : le générateur de rapports, de bout en bout
+
+Le lot 6 est **complet** — EF-RAP-01 à 18. Une seule migration, `0045`, et elle
+ne pose qu'une colonne : tout le reste était déjà en base depuis `0043`.
+
+### Machine neuve
+
+`pnpm` n'était pas installé. `corepack enable` échoue en `EPERM` — il écrit ses
+shims dans `C:\Program Files\nodejs`. Ils vivent désormais dans
+`%LOCALAPPDATA%\corepack-shims`, ajouté au `PATH` **utilisateur**.
+
+Deux constats à retenir :
+
+- **`.env.example` n'est pas dans le dépôt.** `.gitignore` ignore `.env*` sans
+  exception, donc le `cp .env.example .env.local` de `reprise.md` échoue sur
+  tout clone frais.
+- **`pnpm typecheck` échoue sur un clone frais**, sur `LayoutProps` : Next 16
+  *génère* `PageProps` / `LayoutProps` / `RouteContext` dans `.next/types/`, et
+  `.next` n'existe pas avant le premier build. `next typegen` le résout — mais
+  `verify` s'arrête au typecheck **avant** d'atteindre le build qui l'aurait
+  produit. L'ordre du script rend le blocage inévitable.
+
+### Écran 1 — la bibliothèque (EF-RAP-07 à 11)
+
+`/rapports` : quatre onglets qui **s'excluent** (`ongletDuModele` tranche la
+préséance dans le domaine), recherche instantanée avec l'URL synchronisée par
+`history.replaceState` (règle 17, tenue entièrement — contrairement à
+`/finances`, dont c'est la dette connue).
+
+Un trou trouvé en lisant `0043` : la politique d'écriture autorise dès qu'on
+gère les modèles de l'entité propriétaire — **une paroisse pouvait donc cocher
+« GLOBAL » et s'annoncer à toute l'organisation**. Le refus est posé dans
+l'action, qui réévalue `report.template.manage` **avec la portée du Siège**.
+
+**Une entité ne compose que pour elle-même** : l'entité propriétaire ne voyage
+plus dans le formulaire, le serveur la lit dans la session. Ce qu'on ne demande
+pas n'a pas à se refuser.
+
+### Le verrou de composition (migration `0045`)
+
+`organisation_settings.rapport_composition_libre`, gardé par `settings.manage`.
+Fermé, les entités se conforment aux modèles du Siège ; **le Siège n'est jamais
+pris dans son propre verrou**, sinon il ne pourrait plus poser la trame à
+laquelle les autres doivent se conformer.
+
+Deux corollaires posés à la demande de l'utilisateur :
+
+- **Dupliquer, c'est composer** — l'autoriser rendrait le verrou décoratif.
+- **Composition fermée, une entité n'emploie pas le modèle d'une autre**
+  (`modeleExploitable`). Sans cela, une paroisse reprendrait la trame que son
+  district partage à ses descendants, et le verrou n'imposerait plus rien.
+
+Le réglage **n'est monté par aucun écran** : sa place est dans Administration
+(lot 7). `CompositionDialog` et `reglerCompositionModeles` sont écrits et prêts.
+D'ici là, la colonne se règle en SQL.
+
+### Écran 2 — l'éditeur (EF-RAP-01, EF-RAP-04)
+
+Trois panneaux. **Toute la mécanique est dans le domaine** — `deplacerBloc`,
+`ajouterBloc`, `reglerLargeur`, `reglerBloc` sont pures et testées sans
+navigateur.
+
+Le piège attrapé par un test : déplacer un bloc *vers l'avant* dans sa propre
+section le posait un cran trop loin — le rang visé se lit avant le retrait, il
+faut le corriger après.
+
+Le défaut signalé par l'utilisateur, et il était réel : **on déposait toujours
+avant le bloc survolé**, donc descendre d'un cran revenait à ne pas bouger. Le
+côté se lit maintenant dans la position du pointeur, et l'axe suit la mise en
+page — vertical pour un bloc pleine largeur, horizontal pour deux blocs côte à
+côte.
+
+**EF-RAP-03 corrigé au passage** : le registre donnait une source *par type*, si
+bien qu'un rapport financier n'aurait jamais pu présenter un tableau. La source
+du type est devenue un **défaut**, que le bloc peut changer — et
+`resoudreStructure` lit `sourceDuBloc`, parce que c'est la source qui décide de
+l'habilitation exigée, donc de l'omission RG-26.
+
+### Écran 3 — l'aperçu A4 (EF-RAP-05)
+
+**Un seul rendu pour l'aperçu et pour le papier** (règle 16, précédent
+EF-DSH-10). Les millimètres sont vrais : 210 × 297 mm, texte 10 pt.
+
+Il a d'abord été posé dans un pop-up — l'utilisateur a demandé qu'il vive dans
+la page, et il avait raison : « prévisualiser **pendant** la composition » ne se
+fait pas en ouvrant puis refermant une fenêtre entre chaque geste. Il occupe la
+troisième colonne, **redimensionnable à la poignée**, 560 px par défaut (à
+384 px une feuille A4 tient à 48 %, et le 10 pt descend sous six pixels).
+
+Les réglages ont suivi le chemin inverse : d'un onglet partagé avec l'aperçu
+vers un **pop-up**, parce que régler masquait la feuille — or c'est exactement
+la boucle qu'on vient vérifier.
+
+**Données d'exemple** dans l'aperçu, à la demande de l'utilisateur et contre mon
+choix initial : un cadre nommant sa source ne dit rien de ce qu'il fera. Elles
+sont **déterministes** — dérivées de l'identifiant du bloc — et le pied de page
+porte la mention, un chiffre plausible qu'on prendrait pour vrai étant pire
+qu'un cadre vide.
+
+**Six formes de graphique**, toutes en SVG écrit à la main (règle 29). La marge
+du papier est **réglable** : figée à 16 mm dans la feuille de style, elle rendait
+l'aperçu menteur — on composait sur une zone utile, on imprimait sur une autre.
+`@page` n'acceptant ni classe ni variable, le rendu émet son propre `<style>`.
+
+### Écran 4 — la génération (EF-RAP-12 à 18)
+
+Quatre temps, et l'ordre compte : périmètre et période choisis → **RG-26 retire
+les blocs non habilités avant toute lecture** → résolution sous la session du
+générateur → gel.
+
+**Une lecture par source, jamais une par bloc**, toutes en `Promise.all`.
+
+`template_snapshot` porte la structure **après** omission : le re-résoudre à la
+lecture ferait varier le document d'un lecteur à l'autre. La conséquence est
+assumée et documentée — un rapport est un **document** : qui peut l'ouvrir se
+décide par `report.read` et par la publication, pas en rejouant l'omission.
+
+**Aucun PDF n'est stocké** — `pdf_key` reste `null`. Exporter, c'est imprimer la
+feuille : le contenu étant figé, la réimpression est reproductible par
+construction. Un fichier aurait été un second exemplaire à garder synchrone.
+
+### Trois pièges payés cette session
+
+- **Un module `'use client'` importé côté serveur ne livre pas ses valeurs**,
+  mais des références : `ONGLETS.includes` n'était pas une fonction, et l'écran
+  tombait avant son premier rendu. Même frontière que la règle 24, dans l'autre
+  sens.
+- **Tailwind 4 mange les tirets doubles** dans une valeur arbitraire pointant
+  une variable CSS, et produit un `var(...)` que PostCSS refuse — la feuille
+  entière cesse d'être compilée.
+- **Tailwind extrait ses candidats de tout le texte des fichiers, commentaires
+  compris.** Deux commentaires qui expliquaient le défaut précédent l'ont
+  recréé à l'identique : l'erreur a survécu à sa propre correction.

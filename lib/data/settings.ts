@@ -23,6 +23,8 @@ export interface Parametres {
   separation_saisie_validation: boolean;
   /** ARB-4 / EF-TRF-05 — auto-approbation des transferts internes. */
   transfert_auto_approbation_interne: boolean;
+  /** EF-RAP-07 — les entites composent-elles leurs propres modeles ? */
+  rapport_composition_libre: boolean;
 }
 
 /**
@@ -41,6 +43,15 @@ const REPLI: Parametres = {
   finance_validation_active: false,
   separation_saisie_validation: true,
   transfert_auto_approbation_interne: false,
+  /**
+   * `false` la ou la base met `true` — meme prudence que les lignes au-dessus.
+   *
+   * Ce que l'ECRAN en dit doit rester vrai malgre tout : il annonce « la
+   * composition n'est pas ouverte a votre entite », un etat, et non « le Siege
+   * l'a fermee », un diagnostic qu'une panne de lecture rendrait faux
+   * (regle 15).
+   */
+  rapport_composition_libre: false,
 };
 
 export const getParametres = cache(async (): Promise<Parametres> => {
@@ -51,7 +62,7 @@ export const getParametres = cache(async (): Promise<Parametres> => {
     .select(
       'nom_organisation, devise, fuseau_horaire, fenetre_nouveaux_baptises_jours, ' +
         'finance_validation_active, separation_saisie_validation, ' +
-        'transfert_auto_approbation_interne',
+        'transfert_auto_approbation_interne, rapport_composition_libre',
     )
     .eq('id', 1)
     .maybeSingle<Parametres>();

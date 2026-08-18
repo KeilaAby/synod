@@ -2835,7 +2835,7 @@ montant, date, référence, justificatif : INCHANGÉS
 - [ ] Comptes, invitations, activation, réinitialisation de mot de passe.
 - [ ] `user_permissions` **avec portée**, `PermissionMatrix`, `ScopeSelector`.
 - [ ] **Délégation** : `peutDeleguer`, trigger `fn_check_delegation`, audit des refus.
-- [ ] Profils d'habilitation globaux et locaux.
+- [ ] Profils d'habilitation globaux et locaux (Seul les mebres de bureaux peuvent avoir un compte sur la plateforme).
 - [ ] Journal d'audit : triggers d'écriture, écran de consultation.
 - [ ] Corbeille multi-types, paramètres généraux.
 - [ ] **Centralisation des options configurables** — EF-ADM-13. Écran unique
