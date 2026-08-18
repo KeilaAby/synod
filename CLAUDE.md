@@ -6,6 +6,9 @@ Application web de gestion d'église. **Lire avant toute tâche** :
 
 - [`cdg.md`](notes/cdg.md) — exigences `EF-*`, règles de gestion `RG-01` à `RG-33`
 - [`plan.md`](notes/plan.md) — modèle de données, RLS, design system, écrans, lots
+- [`.agents/rules/reprise.md`](.agents/rules/reprise.md) — **à lire en premier
+  sur une machine ou une session neuve** : ordre de lecture, installation,
+  état de la base, et les pièges qui ont réellement coûté du temps
 - [`.agents/rules/`](.agents/rules/) — règles **impératives** : `designrules.md`
   (stack et design) et `gitpush.md` (procédure de publication)
 

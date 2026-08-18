@@ -1,6 +1,10 @@
 # Résumé — 16 août 2026
 
 > Point d'étape destiné à la reprise de session.
+> **Nouvelle machine ou nouvelle session ? Lire d'abord**
+> [`.agents/rules/reprise.md`](../.agents/rules/reprise.md) — installation,
+> état de la base, et les pièges déjà payés.
+>
 > Historique : [`SESSION_HISTORY.md`](SESSION_HISTORY.md) ·
 > Découpage en lots : [`notes/plan.md`](../notes/plan.md) ·
 > Point précédent : [`2026-08-09_resumes-moi.md`](2026-08-09_resumes-moi.md)
@@ -189,10 +193,48 @@ nulle part — il ferait un second chemin pour la même création (règle 16).
 
 ```bash
 pnpm install      # installe aussi le hook pre-commit de détection de secrets
+cp .env.example .env.local   # machine neuve : les valeurs sont dans Supabase
 pnpm dev          # http://localhost:3000
 pnpm dev:propre   # même chose, cache Turbopack vidé au préalable
-pnpm verify       # lint + types + 589 tests + build
+pnpm verify       # secrets + lint + types + 589 tests + build
 pnpm db:bucket    # le stockage ne se configure PAS en SQL
 ```
 
-Lire avant toute tâche : `CLAUDE.md`, puis `notes/cdg.md` et `notes/plan.md`.
+Lire avant toute tâche : [`.agents/rules/reprise.md`](../.agents/rules/reprise.md),
+puis `CLAUDE.md`, `notes/cdg.md` et `notes/plan.md`.
+
+---
+
+## Reprise sur une AUTRE machine — 16 août 2026, fin de session
+
+L'utilisateur poursuit ailleurs à partir d'ici. Ce qui suit est l'état exact au
+moment du passage de relais.
+
+### Ce qui est en ligne
+
+Tout est poussé sur `main` (`KeilaAby/synod`). L'arbre de travail est propre :
+il n'y a **rien en local qui ne soit pas sur GitHub**. Un `git pull` suffit.
+
+### Ce que la machine neuve doit faire elle-même
+
+1. **`.env.local`** — il n'est **pas** dans le dépôt et ne doit jamais y entrer
+   (ENF-SEC-09). Copier `.env.example` et relire les valeurs dans le tableau de
+   bord Supabase, *Project Settings → API*. Sans
+   `SUPABASE_SERVICE_ROLE_KEY`, les photos ne s'affichent pas et le
+   téléversement est refusé — ce n'est pas une panne, c'est une clé absente.
+2. **Rien à faire côté base** : elle est partagée, les migrations `0001` à
+   `0044` y sont déjà appliquées. Ne pas les rejouer.
+3. `pnpm install`, puis `pnpm verify` pour confirmer que la machine est saine
+   avant de toucher quoi que ce soit.
+
+### Où l'on reprend
+
+Le **lot 6 — générateur de rapports**, à l'écran n° 1 : la **bibliothèque de
+modèles** (`/rapports`). Le socle est en base et dans le domaine ; aucun écran
+n'existe. L'ordre conseillé est détaillé plus haut, section « Lot 6 ».
+
+### Ce qui reste ouvert et n'appartient qu'à l'utilisateur
+
+- **Faire tourner `SUPABASE_SERVICE_ROLE_KEY`** (« Rotation d'un secret » dans
+  `README.md`).
+- **Borner ou non la visibilité des croyants** dans la saisie des dîmes.

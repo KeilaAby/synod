@@ -3824,3 +3824,48 @@ venait de corriger.
 plutôt qu'édité, et porte les 44 migrations.
 
 Aucune ligne de code applicatif ne mentionnait plus `XOF`.
+
+---
+
+## 16 août 2026 — Passage de relais vers une autre machine
+
+L'utilisateur poursuit ailleurs. Trois documents ont été mis en état pour que la
+session suivante n'ait rien à deviner.
+
+### Une règle d'accueil — `.agents/rules/reprise.md`
+
+Elle s'adresse à **tout agent qui ouvre ce dépôt sans avoir vécu les sessions
+précédentes**. Elle ne répète pas les règles du projet : elle dit **où les
+trouver**, **ce qui est déjà fait**, et **les pièges qui ont réellement coûté du
+temps**.
+
+Le choix de fond : ne pas y recopier les 31 règles de `CLAUDE.md`. Une règle
+écrite à deux endroits diverge — on l'a déjà constaté sur `bureau.delete`, non
+délégable en TypeScript et délégable en SQL. `reprise.md` **renvoie** ; elle ne
+duplique pas.
+
+Ce qu'elle contient et qu'aucun autre document ne portait :
+
+- l'**ordre de lecture**, et pourquoi `SESSION_HISTORY.md` se consulte par sujet
+  plutôt qu'en entier ;
+- l'**installation sur machine neuve**, `.env.local` compris — il n'est pas dans
+  le dépôt, et l'absence de `SUPABASE_SERVICE_ROLE_KEY` se manifeste par des
+  photos qui ne s'affichent pas, ce qu'on prend pour une panne ;
+- le fait qu'une migration **écrite** n'est pas une migration **appliquée** :
+  c'est l'utilisateur qui les passe, et il le confirme ;
+- les **sept pièges payés une fois** — cache de schéma PostgREST, `create or
+  replace` impossible sur un `returns table`, `code_iso` contre `code`, la
+  frontière serveur → client, le composant créé pendant le rendu, le zéro de la
+  RLS qui se lit comme une absence, et le contrat d'erreur d'une lecture
+  réutilisée.
+
+### Le point d'étape porte le relais
+
+`2026-08-16_resumes-moi.md` s'ouvre désormais sur un renvoi vers `reprise.md`, et
+se termine par une section **« Reprise sur une AUTRE machine »** : ce qui est en
+ligne, ce que la machine neuve doit faire elle-même, et où l'on reprend — le lot
+6, écran n° 1, la bibliothèque de modèles.
+
+Le point qui évite une erreur coûteuse : **la base est partagée**, les migrations
+`0001` à `0044` y sont déjà appliquées. Il ne faut pas les rejouer depuis la
+nouvelle machine.
