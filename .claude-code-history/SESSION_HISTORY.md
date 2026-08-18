@@ -3788,3 +3788,39 @@ avait été mangé par l'affichage. `decrire` rend désormais une **chaîne**, e
 elle est concaténée au message : une chaîne se lit partout de la même façon.
 Elle relève aussi les propriétés **non énumérables** — `Error.message` en est
 une, et `Object.keys` la manque.
+
+---
+
+## 16 août 2026 (suite) — Le fuseau passe à `Indian/Antananarivo`
+
+`Africa/Porto-Novo` (UTC+1) était le défaut hérité du gabarit initial.
+L'organisation est à Madagascar : `Indian/Antananarivo` (UTC+3). Deux heures
+d'écart ne se voient pas sur un horodatage lu de loin, mais elles décalent d'un
+**jour** tout ce qui est saisi après 21 h — une collecte du dimanche soir tombait
+au lundi.
+
+**Deux écritures, et la seconde est la vraie.** Changer le *défaut* de la colonne
+ne touche que les lignes à venir, et cette table n'en compte qu'une, posée au
+tout premier déploiement : sans la mise à jour, le nouveau défaut n'aurait jamais
+servi à rien. C'est le piège habituel d'un `alter column set default` sur une
+table de paramètres.
+
+**La mise à jour est bornée à l'ancienne valeur** (`where fuseau_horaire =
+'Africa/Porto-Novo'`). Si quelqu'un a déjà choisi un fuseau depuis l'écran des
+paramètres, ce n'est pas à une migration de le défaire : elle corrige un défaut,
+elle n'impose pas un réglage. C'est aussi ce qui la rend rejouable.
+
+Le repli de `lib/data/settings.ts` suit — il valait encore l'ancien fuseau.
+
+### Deux dérives de documentation corrigées au passage
+
+`notes/plan.md` décrivait encore `fuseau_horaire default 'Africa/Porto-Novo'`
+**et** `devise default 'XOF'`, alors que `0024` a fixé MGA le 12 août. Un
+document de conception qui ment sur une valeur par défaut n'est pas inoffensif :
+c'est là qu'on va lire ce qu'il faut écrire, et l'on y réintroduit ce qu'on
+venait de corriger.
+
+`supabase/install.sql` est **généré** (`pnpm db:bundle`) : il a été régénéré
+plutôt qu'édité, et porte les 44 migrations.
+
+Aucune ligne de code applicatif ne mentionnait plus `XOF`.

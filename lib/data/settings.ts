@@ -36,7 +36,7 @@ export interface Parametres {
 const REPLI: Parametres = {
   nom_organisation: 'SYNOD',
   devise: 'MGA',
-  fuseau_horaire: 'Africa/Porto-Novo',
+  fuseau_horaire: 'Indian/Antananarivo',
   fenetre_nouveaux_baptises_jours: 15,
   finance_validation_active: false,
   separation_saisie_validation: true,

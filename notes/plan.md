@@ -795,8 +795,8 @@ create table organisation_settings (
   id smallint primary key default 1 check (id = 1),
   nom_organisation text not null default 'SYNOD',
   logo_key text,
-  devise char(3) not null default 'XOF',                    -- ARB-7 : devise unique
-  fuseau_horaire text not null default 'Africa/Porto-Novo',
+  devise char(3) not null default 'MGA',                    -- ARB-7 : devise unique (MGA depuis 0024)
+  fuseau_horaire text not null default 'Indian/Antananarivo',
   format_matricule text not null default '{CODE}-{ANNEE}-{SEQ}',
   fenetre_nouveaux_baptises_jours smallint not null default 15,   -- ARB-5
   finance_validation_active boolean not null default false,       -- ARB-3

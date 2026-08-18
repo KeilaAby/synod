@@ -12,9 +12,11 @@
 
 ---
 
-## Aucune migration n'attend
+## À FAIRE EN PREMIER — la migration `0044`
 
-Les migrations `0023` à `0043` sont appliquées.
+Les migrations `0023` à `0043` sont appliquées. **`0044` attend** : elle fait
+passer le fuseau par défaut à `Indian/Antananarivo` (UTC+3) — l'ancien,
+`Africa/Porto-Novo`, décalait d'un JOUR tout ce qui est saisi après 21 h.
 
 **Le bloc « Évolution des finances » tombait, et il ne tombe plus depuis `0043`.**
 La cause n'a pas été prouvée, mais elle est très probablement le **cache de
@@ -177,8 +179,6 @@ nulle part — il ferait un second chemin pour la même création (règle 16).
 ### À décider par vous
 - **Faire tourner `SUPABASE_SERVICE_ROLE_KEY`** — voir « Rotation d'un secret »
   dans `README.md`.
-- Le **fuseau par défaut** : `Africa/Porto-Novo` est encore en place,
-  `Indian/Antananarivo` serait juste.
 - **Borner ou non la visibilité des croyants** dans la liste de saisie des
   dîmes. Elle est aujourd'hui volontairement large (EF-FIN-32) : un croyant
   verse là où il assiste au culte, pas là où il est inscrit.
