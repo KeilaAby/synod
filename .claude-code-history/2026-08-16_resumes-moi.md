@@ -12,11 +12,11 @@
 
 ---
 
-## À FAIRE EN PREMIER — la migration `0044`
+## Aucune migration n'attend
 
-Les migrations `0023` à `0043` sont appliquées. **`0044` attend** : elle fait
-passer le fuseau par défaut à `Indian/Antananarivo` (UTC+3) — l'ancien,
-`Africa/Porto-Novo`, décalait d'un JOUR tout ce qui est saisi après 21 h.
+Les migrations `0023` à `0044` sont appliquées. Le fuseau de l'organisation est
+`Indian/Antananarivo` (UTC+3) depuis `0044` — l'ancien, `Africa/Porto-Novo`,
+décalait d'un JOUR tout ce qui était saisi après 21 h.
 
 **Le bloc « Évolution des finances » tombait, et il ne tombe plus depuis `0043`.**
 La cause n'a pas été prouvée, mais elle est très probablement le **cache de

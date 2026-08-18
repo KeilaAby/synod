@@ -281,8 +281,8 @@ rangées pleines.
 **EF-BUR-11 clos** : l'export Excel de la composition est abandonné le 12 août
 2026, le PDF de l'organigramme couvre le besoin.
 
-Migrations appliquées jusqu'à `0043`, **`0044` écrite mais pas appliquée** :
-elle fait passer le fuseau par défaut à `Indian/Antananarivo` (UTC+3). **Toute migration qui crée ou remplace
+Base à jour jusqu'à la migration `0044` — fuseau `Indian/Antananarivo` (UTC+3).
+**Toute migration qui crée ou remplace
 une fonction doit finir par `notify pgrst, 'reload schema'`** : sans lui, l'API
 répond « fonction inconnue » sur du SQL pourtant en place — constaté deux fois,
 sur les dîmes (`0034`) et sur la synthèse. Une collecte de dîmes naît `SOUMIS`
