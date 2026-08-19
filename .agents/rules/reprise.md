@@ -83,7 +83,7 @@ s'appliquent pas toutes seules** : c'est l'utilisateur qui les passe dans
 l'éditeur SQL Supabase, et il le confirme. Ne jamais supposer qu'une migration
 écrite est appliquée.
 
-La derniere appliquee est la **`0045`** ; le dernier point d'etape le confirme.
+La derniere appliquee est la **`0048`** ; le dernier point d'etape le confirme.
 Pour une base
 **neuve**, `supabase/install.sql` les regroupe toutes — il est **généré**
 (`pnpm db:bundle`), donc jamais édité à la main.

@@ -25,6 +25,8 @@ export interface Parametres {
   transfert_auto_approbation_interne: boolean;
   /** EF-RAP-07 — les entites composent-elles leurs propres modeles ? */
   rapport_composition_libre: boolean;
+  /** EF-AUT-02 — la reinitialisation passe-t-elle par un courriel ? */
+  reinitialisation_par_email: boolean;
 }
 
 /**
@@ -52,6 +54,14 @@ const REPLI: Parametres = {
    * (regle 15).
    */
   rapport_composition_libre: false,
+  /**
+   * `false` en repli, comme les autres : une panne de lecture ne doit jamais
+   * ELARGIR un droit. Fermer le circuit par courriel renvoie vers un humain,
+   * ce qui est prudent ; l'ouvrir a tort enverrait des liens de
+   * reinitialisation sur des adresses que l'organisation a peut-etre
+   * volontairement cesse d'employer.
+   */
+  reinitialisation_par_email: false,
 };
 
 export const getParametres = cache(async (): Promise<Parametres> => {
@@ -62,7 +72,8 @@ export const getParametres = cache(async (): Promise<Parametres> => {
     .select(
       'nom_organisation, devise, fuseau_horaire, fenetre_nouveaux_baptises_jours, ' +
         'finance_validation_active, separation_saisie_validation, ' +
-        'transfert_auto_approbation_interne, rapport_composition_libre',
+        'transfert_auto_approbation_interne, rapport_composition_libre, ' +
+        'reinitialisation_par_email',
     )
     .eq('id', 1)
     .maybeSingle<Parametres>();

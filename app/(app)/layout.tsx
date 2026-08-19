@@ -25,6 +25,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const session = await getSession();
   if (!session) redirect('/connexion');
 
+  /**
+   * EF-ADM-01, EF-ADM-08 — UN MOT DE PASSE PROVISOIRE SE CHANGE AVANT TOUT LE
+   * RESTE.
+   *
+   * La garde est posee ICI, dans le gabarit, et non dans le proxy : elle a
+   * besoin du PROFIL — le proxy ne voit qu'une identite, et lire la base a
+   * chaque requete d'image ou de script pour cela serait absurde.
+   *
+   * L'ecran de changement vit dans le groupe `(auth)`, donc hors de ce
+   * gabarit : la redirection ne peut pas boucler. C'est aussi ce qui le prive
+   * de la navigation — on n'ouvre pas les finances avec un mot de passe que
+   * quelqu'un d'autre connait.
+   */
+  if (session.doitChangerMotDePasse) redirect('/changer-mot-de-passe');
+
   // UI-21 — compteurs d'elements en attente.
   //
   // EF-TRF-07 — le compteur ne denombre que les demandes que l'utilisateur peut

@@ -1,6 +1,6 @@
 'use client';
 
-import { PanelLeftClose, PanelLeftOpen, UserCog } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useSyncExternalStore } from 'react';
@@ -10,6 +10,7 @@ import { useSession } from '@/components/shared/session-provider';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import type { Permission } from '@/lib/domain/permissions';
 import { cn } from '@/lib/utils';
 
 import {
@@ -130,10 +131,22 @@ export function AppSidebar({ compteurs }: { compteurs: CompteursAttente }) {
       <Separator />
 
       <div className="p-2">
-        <LienNav
-          item={{ href: '/mon-compte', label: 'Mon compte', icon: UserCog }}
-          reduite={reduite}
-        />
+        {/*
+          L'ADMINISTRATION A PRIS LA PLACE DE « MON COMPTE », ET RIEN N'EST PERDU :
+          la barre du haut porte déjà « Mon compte » et « Se déconnecter » dans
+          son menu utilisateur. L'entrée d'ici faisait donc doublon, pendant que
+          l'administration n'était atteignable par aucun chemin.
+
+          Elle ne s'affiche qu'à qui détient AU MOINS un des droits
+          d'administration — le hub, lui, ne montre ensuite que les sections
+          correspondantes.
+        */}
+        <PorteeAdministration>
+          <LienNav
+            item={{ href: '/administration', label: 'Administration', icon: Settings }}
+            reduite={reduite}
+          />
+        </PorteeAdministration>
 
         {reduite && (
           <Button
@@ -149,6 +162,25 @@ export function AppSidebar({ compteurs }: { compteurs: CompteursAttente }) {
       </div>
     </aside>
   );
+}
+
+/**
+ * L'administration se delegue DROIT PAR DROIT — il n'existe pas de « droit
+ * d'administrer ». L'entree s'affiche donc des qu'on detient l'un d'eux, et le
+ * hub se charge de ne montrer que les sections correspondantes.
+ */
+const DROITS_ADMINISTRATION: readonly Permission[] = [
+  'settings.manage',
+  'user.manage',
+  'permission.delegate',
+  'audit.read',
+  'trash.restore',
+  'referentiel.manage',
+];
+
+function PorteeAdministration({ children }: { children: React.ReactNode }) {
+  const { detient } = useSession();
+  return <>{DROITS_ADMINISTRATION.some(detient) ? children : null}</>;
 }
 
 /** Liste des entrees — partagee entre la sidebar et le tiroir mobile. */

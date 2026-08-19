@@ -4005,3 +4005,123 @@ construction. Un fichier aurait été un second exemplaire à garder synchrone.
 - **Tailwind extrait ses candidats de tout le texte des fichiers, commentaires
   compris.** Deux commentaires qui expliquaient le défaut précédent l'ont
   recréé à l'identique : l'erreur a survécu à sa propre correction.
+
+## 19 août 2026 — Lot 7 : les habilitations et l'administration
+
+**Le lot 7 est livré.** Comptes, habilitations fines, profils de privilèges,
+journal d'audit lisible, corbeille, paramètres généraux, courriels — et quatre
+migrations : `0045` (composition libre des rapports), `0046` (réinitialisation
+et mot de passe provisoire), `0047` (responsable informatique et courriels),
+`0048` (grades habilités à célébrer).
+
+### On se connecte avec son matricule, pas seulement avec un courriel
+
+La demande était brève et la conséquence ne l'est pas : **beaucoup de membres de
+bureau n'ont pas d'adresse électronique**. Le fournisseur d'identité, lui, en
+exige une. On en **fabrique** donc une, `<matricule>@synod.invalid` — le domaine
+`.invalid` est réservé par l'IETF et ne peut appartenir à personne, si bien
+qu'aucun courriel ne partira jamais vers une boîte qui existe.
+
+À la connexion, ce qui ne ressemble pas à une adresse est traité comme un
+matricule : on cherche le compte, on récupère son adresse — vraie ou fabriquée —
+et on authentifie avec elle. L'utilisateur, lui, tape juste son matricule.
+
+### Aucune invitation par courriel
+
+C'était le circuit prévu ; l'utilisateur l'a désactivé, et pour une raison
+d'usage : **on ne peut pas inviter par courriel des gens qui n'en ont pas**.
+L'administrateur ouvre le compte, la machine tire un mot de passe provisoire, et
+il le remet en main propre. Le mot de passe est **lisible à voix haute** — pas de
+`0` ni de `O`, pas de `1` ni de `l`, trois groupes de cinq — parce qu'il va être
+dicté, pas copié.
+
+Il est provisoire au sens strict : tant qu'il n'a pas été changé, **toute page
+renvoie vers le changement de mot de passe**. Le contrôle est dans la disposition
+partagée, pas dans chaque écran : un garde-fou qu'on doit penser à poser finit
+par manquer quelque part.
+
+### Deux circuits de réinitialisation, réglables
+
+- **Activé** : l'utilisateur demande, un courriel part.
+- **Désactivé** : l'utilisateur contacte son administrateur, qui régénère un mot
+  de passe provisoire.
+
+Dans les deux cas la sortie est la même — un mot de passe provisoire à changer.
+Ce qui change est **par où passe la demande**, et cela dépend de l'organisation,
+pas du logiciel : d'où un réglage plutôt qu'un choix figé.
+
+### Seuls les membres de bureau ont un compte — et la règle se mordait la queue
+
+La règle est saine : on donne un compte à qui exerce une fonction. Elle a un
+angle mort **le premier jour** — personne n'a encore de mandat, donc personne ne
+peut avoir de compte, donc personne ne peut créer les bureaux.
+
+D'où le **responsable informatique** : un croyant, un seul par entité, désigné
+par le Siège, qui peut recevoir un compte sans siéger dans aucun bureau. Ce n'est
+pas une exception discrète — c'est une désignation nommée, tracée, et unique par
+entité (un index partiel en base, pas une vérification applicative qui se
+contourne).
+
+### Des habilitations, pas un rôle
+
+Le formulaire proposait un rôle ; il propose maintenant **chaque droit, avec son
+interrupteur**, groupé par domaine. Au-dessus, des **profils de privilèges** :
+des raccourcis qui posent une série d'interrupteurs d'un clic, et qu'on retouche
+ensuite. Le profil n'est pas un carcan, c'est un point de départ.
+
+Deux garde-fous qui ne se voient pas : on ne peut accorder que ce qu'on détient
+soi-même et que ce qui est **délégable** ; et la modification **ne touche que les
+droits que l'auteur aurait pu accorder** — sinon un administrateur de district,
+en corrigeant un compte, effacerait sans le savoir les droits que le Siège y
+avait mis.
+
+### Un compte qui a laissé des traces ne se supprime pas
+
+La suppression est refusée quand le journal d'audit porte des lignes signées par
+ce compte, et elle le dit avec le nombre. La désactivation reste possible, et
+c'est le bon geste : effacer l'auteur d'une opération, c'est effacer l'opération
+de la seule chose qui la raconte.
+
+### Le journal d'audit se lit
+
+Il affichait des noms de tables, des actions en majuscules et des objets de
+différences — exact, illisible. Il affiche maintenant **le domaine en français**,
+**l'action au passé**, et **une phrase** quand la forme de la différence est
+reconnue : « Activation : oui → non », « Droit requis : finance.validate ».
+Quand elle ne l'est pas, **il se tait** : une description approximative dans un
+journal d'audit serait pire que pas de description, on la citerait. Le détail
+technique reste consultable, replié.
+
+### Les courriels : un serveur, des modèles, et un mot de passe qui reste dehors
+
+Le serveur d'envoi se règle à l'écran ; **le mot de passe SMTP, lui, n'entre pas
+en base** — il vit dans les variables d'environnement. Une base se sauvegarde,
+se copie, s'exporte : un secret qui y entre en ressort partout.
+
+Le client SMTP est **écrit à la main** (`node:net`, `node:tls`) — règle 29. Un
+bouton d'essai envoie un message réel et rapporte ce que le serveur a répondu :
+tester une configuration en la regardant ne teste rien.
+
+Les modèles de message ont un **éditeur visuel** dont la barre d'outils
+n'expose que ce que le nettoyage côté serveur laisse passer — gras, italique,
+titres, listes, liens. Proposer un bouton dont le résultat serait retiré à
+l'enregistrement serait un mensonge d'interface.
+
+### Les grades habilités à célébrer sortent du code
+
+`['PASTEUR', 'DIACRE', 'EVANGELISTE']` était écrit dans le code. Conséquence
+qui se comprend tard : **un grade créé après coup ne pouvait jamais célébrer**,
+et rien ne le disait — la liste était simplement plus courte. Le grade porte
+désormais la réponse (`peut_celebrer`, migration `0048`), la reprise rétablit
+nommément les trois codes d'origine, et tout élargissement devient une case à
+cocher dans le référentiel.
+
+### Ce que le lot 7 ne fait pas
+
+- **Pas de portée par droit** : chaque habilitation accordée prend la portée de
+  l'entité de rattachement du compte. Restreindre un seul droit à une
+  sous-branche demande encore une écriture en base.
+- **Profils locaux non livrés** : la colonne existe, aucun écran ne la renseigne.
+- **L'audit est écrit par l'application**, pas par des triggers : un trigger ne
+  connaît ni l'auteur applicatif, ni le motif d'un refus.
+- **RG-19, RG-22, RG-23 et ENF-SEC-11** n'ont pas de test portant leur code.

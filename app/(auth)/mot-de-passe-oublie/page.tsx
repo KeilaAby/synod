@@ -1,111 +1,73 @@
-'use client';
-
-import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowLeft, Loader2, MailCheck } from 'lucide-react';
+import type { Metadata } from 'next';
+import { ArrowLeft, UserCog } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
 
-import { TextField } from '@/components/shared/field';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { demanderReinitialisation } from '@/lib/actions/auth';
-import {
-  type DemandeReinitialisationInput,
-  demandeReinitialisationSchema,
-} from '@/lib/validation/auth';
+import { getParametres } from '@/lib/data/settings';
+
+import { DemandeForm } from './demande-form';
+
+export const metadata: Metadata = { title: 'Mot de passe oublie' };
 
 /**
- * EF-AUT-02 — demande de reinitialisation.
+ * EF-AUT-02, EF-ADM-13 — deux circuits, et c'est le Siege qui choisit.
  *
- * L'ecran de confirmation est volontairement identique que l'adresse existe ou
- * non : reveler qu'un compte existe reviendrait a offrir un enumerateur de
- * comptes a quiconque dispose du formulaire.
+ * ACTIF — l'utilisateur demande lui-meme, un lien lui parvient par courriel.
+ * INACTIF — il contacte le Siege ou l'administrateur de son entite, qui lui
+ * remet un mot de passe provisoire.
+ *
+ * POURQUOI CE SECOND CIRCUIT EXISTE. Les comptes se creent sans invitation par
+ * courriel : beaucoup d'adresses sont de convenance — saisies une fois, jamais
+ * relevees. Un formulaire qui repond « un lien vous a ete envoye » sur une
+ * boite que personne n'ouvre laisse l'utilisateur dehors ET convaincu que
+ * l'application a fait ce qu'il fallait. Fermer le circuit est plus honnete que
+ * de le laisser ouvert.
+ *
+ * LE REGLAGE SE LIT ICI, A CHAQUE RENDU (regle 21). Fige au chargement du
+ * module, il ne prendrait effet qu'au redemarrage suivant.
  */
-export default function MotDePasseOubliePage() {
-  const [envoye, setEnvoye] = useState(false);
+export default async function MotDePasseOubliePage() {
+  const { reinitialisation_par_email } = await getParametres();
 
-  const {
-    register,
-    handleSubmit,
-    getValues,
-    formState: { errors, isSubmitting },
-  } = useForm<DemandeReinitialisationInput>({
-    resolver: zodResolver(demandeReinitialisationSchema),
-    defaultValues: { email: '' },
-  });
-
-  async function envoyer(valeurs: DemandeReinitialisationInput) {
-    await demanderReinitialisation(valeurs);
-    setEnvoye(true);
-  }
-
-  if (envoye) {
-    return (
-      <Card>
-        <CardContent className="space-y-6 p-6 text-center sm:p-8">
-          <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
-            <MailCheck className="size-6" strokeWidth={1.5} aria-hidden />
-          </div>
-
-          <div className="space-y-2">
-            <h1 className="text-xl font-bold tracking-tight text-foreground">
-              Verifiez votre messagerie
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Si un compte est associe a <strong>{getValues('email')}</strong>, un lien de
-              reinitialisation vient d&apos;etre envoye. Il est valable 60 minutes et ne peut
-              servir qu&apos;une fois.
-            </p>
-          </div>
-
-          <Button asChild variant="outline" className="h-10 w-full">
-            <Link href="/connexion">
-              <ArrowLeft className="mr-2 size-4" aria-hidden />
-              Retour a la connexion
-            </Link>
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
+  if (reinitialisation_par_email) return <DemandeForm />;
 
   return (
     <Card>
-      <CardContent className="space-y-8 p-6 sm:p-8">
-        <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Mot de passe oublie
+      <CardContent className="space-y-6 p-6">
+        <div className="flex size-12 items-center justify-center rounded-xl bg-slate-50 text-slate-400">
+          <UserCog className="size-6" strokeWidth={1.5} aria-hidden />
+        </div>
+
+        <div className="space-y-2">
+          <h1 className="text-xl font-semibold text-foreground">
+            La réinitialisation passe par un administrateur
           </h1>
           <p className="text-sm text-muted-foreground">
-            Indiquez votre adresse : nous vous enverrons un lien de reinitialisation.
+            Contactez le Siège ou l’administrateur de votre entité : il vous
+            remettra un mot de passe provisoire, que vous changerez à la
+            première connexion.
           </p>
         </div>
 
-        <form onSubmit={handleSubmit(envoyer)} className="space-y-6" noValidate>
-          <TextField
-            label="Adresse e-mail"
-            type="email"
-            autoComplete="email"
-            autoFocus
-            required
-            placeholder="prenom.nom@exemple.org"
-            error={errors.email?.message}
-            {...register('email')}
-          />
+        {/*
+          AUCUN NOM, AUCUNE ADRESSE. Qui contacter dépend de l'entité de
+          l'utilisateur — que cet écran ne connaît pas, puisqu'il n'est pas
+          connecté. Afficher un contact générique enverrait la moitié des
+          demandes au mauvais endroit ; nommer les administrateurs publierait
+          un annuaire à qui n'a pas de compte.
+        */}
+        <p className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+          Si vous ne savez pas à qui vous adresser, votre responsable de bureau
+          le sait : c’est lui qui a ouvert votre compte.
+        </p>
 
-          <Button type="submit" className="h-10 w-full" disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />}
-            Envoyer le lien
-          </Button>
-
-          <Button asChild variant="ghost" className="h-10 w-full">
-            <Link href="/connexion">
-              <ArrowLeft className="mr-2 size-4" aria-hidden />
-              Retour a la connexion
-            </Link>
-          </Button>
-        </form>
+        <Button asChild variant="outline" className="h-10 w-full">
+          <Link href="/connexion">
+            <ArrowLeft className="mr-2 size-4" aria-hidden />
+            Retour à la connexion
+          </Link>
+        </Button>
       </CardContent>
     </Card>
   );

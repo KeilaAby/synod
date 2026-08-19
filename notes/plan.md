@@ -2481,38 +2481,38 @@ describe('RG-26 / RG-27 — rapports', () => {
 
 ### Lot 0 — Socle *(2 semaines)*
 
-- [ ] Next.js 15 (App Router, TS strict), Tailwind, Shadcn/UI, Lucide.
-- [ ] Jetons de design §8.1, police Google Sans locale, `globals.css`.
-- [ ] PostgreSQL/Supabase, migrations initiales, types générés.
-- [ ] **Adaptateurs `lib/auth` et `lib/storage`** dès le premier jour (ENF-POR-02/03).
-- [ ] Authentification : connexion, mot de passe oublié, middleware de session.
-- [ ] Layout : sidebar rétractable, topbar, fil d'Ariane, sélecteur de périmètre, compteurs d'attente.
-- [ ] Transverses : `PageHeader`, `EmptyState`, `ConfirmDialog`, `StatusBadge`, `PermissionGate`.
-- [ ] **Tous les squelettes** de `components/skeletons/`.
-- [ ] CI : lint, types, tests, build.
+- [x] Next.js 15 (App Router, TS strict), Tailwind, Shadcn/UI, Lucide. *(Next **16**)*
+- [x] Jetons de design §8.1, police Google Sans locale, `globals.css`.
+- [x] PostgreSQL/Supabase, migrations initiales, types générés.
+- [x] **Adaptateurs `lib/auth` et `lib/storage`** dès le premier jour (ENF-POR-02/03).
+- [x] Authentification : connexion, mot de passe oublié, middleware de session.
+- [ ] Layout : sidebar rétractable, topbar, fil d'Ariane, sélecteur de périmètre, compteurs d'attente. — **sauf le sélecteur de périmètre global** : le périmètre se choisit écran par écran (tableau de bord, génération de rapport), ce qui évite un état caché qui filtrerait tout sans se voir.
+- [x] Transverses : `PageHeader`, `EmptyState`, `ConfirmDialog`, `StatusBadge`, `PermissionGate`.
+- [x] **Tous les squelettes** de `components/skeletons/`.
+- [x] CI : lint, types, tests, build.
 
 ### Lot 1 — Structure et référentiels *(3 semaines)*
 
-- [ ] `entities` avec **niveau Siège**, triggers de hiérarchie, propagation de chemin, RLS.
-- [ ] CRUD des entités, `EntityPicker`, indicateur « sans accès à l'application », import Excel.
-- [ ] `EntityFlow` : disposition Dagre, nœuds personnalisés, repli/dépliage, recherche.
-- [ ] Fiche entité à 6 onglets.
-- [ ] Les 4 référentiels : tables, CRUD, désactivation, amorce (dont catégories recettes **et** dépenses).
-- [ ] Tests : RG-01, RG-02, RG-03, RG-23.
+- [x] `entities` avec **niveau Siège**, triggers de hiérarchie, propagation de chemin, RLS.
+- [ ] CRUD des entités, `EntityPicker`, indicateur « sans accès à l'application », import Excel. — **sauf l'import Excel des entités** : jamais demandé en usage, la structure se saisit une fois.
+- [x] `EntityFlow` : disposition Dagre, nœuds personnalisés, repli/dépliage, recherche.
+- [x] Fiche entité à 6 onglets.
+- [x] Les 4 référentiels : tables, CRUD, désactivation, amorce (dont catégories recettes **et** dépenses).
+- [x] Tests : RG-01, RG-02, RG-03, RG-23.
 
 ### Lot 2 — Croyants et transferts *(4 semaines)*
 
-- [ ] `croyants` : triggers de cohérence, matricule, RLS.
-- [ ] `CroyantForm` en 3 sections, `PhotoUploader` avec recadrage.
-- [ ] `CroyantTable` : filtres, recherche trigram, tri/pagination serveur, exports.
-- [ ] Fiche croyant, détection de doublons, corbeille.
-- [ ] **Workflow d'approbation des transferts** : table, `fn_ancetre_commun`, actions, file d'attente, auto-approbation intra-périmètre, notifications.
+- [x] `croyants` : triggers de cohérence, matricule, RLS.
+- [x] `CroyantForm` en 3 sections, `PhotoUploader` avec recadrage.
+- [x] `CroyantTable` : filtres, recherche trigram, tri/pagination serveur, exports.
+- [x] Fiche croyant, détection de doublons, corbeille.
+- [x] **Workflow d'approbation des transferts** : table, `fn_ancetre_commun`, actions, file d'attente, auto-approbation intra-périmètre, notifications.
 - [x] Import CSV avec correspondance de colonnes et pré-validation (EF-CRO-11).
 - [x] Lecture XLSX (ARB-6) — `lib/domain/xlsx.ts`, **sans dépendance** : un
       .xlsx est une archive ZIP de XML, et `DecompressionStream` est déjà là.
       Chargé en différé (règle 7). La promesse tient : CSV et XLSX rendent le
       même `string[][]`, le reste de la chaîne n'a pas bougé d'une ligne.
-- [ ] Tests : RG-04 à RG-06, RG-11, RG-12, RG-28, RG-29.
+- [x] Tests : RG-04 à RG-06, RG-11, RG-12, RG-28, RG-29.
 
 ### Lot 3 — Bureaux *(2 semaines)*
 
@@ -2543,13 +2543,13 @@ describe('RG-26 / RG-27 — rapports', () => {
 - [x] Saisie en série (EF-FIN-08) et pièce justificative (EF-FIN-07). *(13 août 2026)*
 - [x] **File de validation** avec traitement par lot (EF-FIN-21). *(13 août 2026)*
 - [x] Écran de réglage du workflow, par entité, avec `finance.workflow.manage` **délégable**. *(13 août 2026)*
-- [ ] **Écran de saisie déléguée** dédié, réservé à `finance.delegate`.
+- [ ] **Écran de saisie déléguée** dédié, réservé à `finance.delegate`. — **abandonné** : la saisie déléguée passe par le pop-up de mouvement (EF-FIN-05/06). Un écran dédié ferait un second chemin pour la même création (règle 16).
 - [x] **Dîmes** — schéma, droit dédié, saisie et relevé (§4.bis). *(13 août 2026)*
-- [ ] Bordereau de remise (écran) et ticket de reçu imprimable.
-- [ ] `mv_finance_kpis`, `mv_finance_par_categorie`, `SoldeCard`, synthèse (courbes, barres, comparatifs).
+- [x] Bordereau de remise (écran) et ticket de reçu imprimable. *(16 août 2026 — A4 à huit talons et rouleau 80 mm)*
+- [ ] `mv_finance_kpis`, `mv_finance_par_categorie`, `SoldeCard`, synthèse (courbes, barres, comparatifs). — **livré sans vue matérialisée** : `fn_finance_solde`, `fn_finance_soldes_perimetre` et les deux fonctions de `0039` calculent en `SECURITY INVOKER`, donc bornées par la RLS. Une vue matérialisée ignore la RLS et vieillit entre deux rafraîchissements.
 - [x] Vue consolidée, entité par entité, classée, soldes négatifs signalés (EF-FIN-11, EF-FIN-13). *(13 août 2026)*
-- [ ] Export PDF de la vue consolidée.
-- [ ] Tests : RG-13 à RG-18.
+- [ ] Export PDF de la vue consolidée. — le registre exporte en XLSX/CSV/PDF (EF-FIN-25) ; **la vue consolidée n'a que l'impression de l'écran**.
+- [x] Tests : RG-13 à RG-18.
 
 #### 4.bis — Les dîmes, un cas particulier *(spécifié le 12 août 2026, à construire)*
 
@@ -2813,32 +2813,32 @@ montant, date, référence, justificatif : INCHANGÉS
 
 ### Lot 5 — Tableaux de bord *(3 semaines)*
 
-- [ ] `mv_entity_kpis` + tâche planifiée de rafraîchissement.
-- [ ] `KPI_REGISTRY` complet (≈ 24 indicateurs, finances incluses).
-- [ ] `DashboardGrid` avec `<Suspense>` par widget et masquage par habilitation.
-- [ ] Personnalisation : catalogue, glisser-déposer, réglages, modèles prédéfinis.
-- [ ] Drill-down et export PDF.
-- [ ] Tests : EF-DSH-03, EF-DSH-06, EF-DSH-07, EF-DSH-12.
+- [ ] `mv_entity_kpis` + tâche planifiée de rafraîchissement. — **remplacée** par `fn_tableau_de_bord` et `fn_repartitions` (`0041`, `0042`), en `SECURITY INVOKER` : la RLS borne le résultat, et rien ne vieillit entre deux rafraîchissements.
+- [x] `KPI_REGISTRY` complet (≈ 24 indicateurs, finances incluses). *(18 mesures + 4 répartitions + jauge)*
+- [x] `DashboardGrid` avec `<Suspense>` par widget et masquage par habilitation.
+- [x] Personnalisation : catalogue, glisser-déposer, réglages, modèles prédéfinis.
+- [x] Drill-down et export PDF. *(le chiffre mène à son détail ; le PDF est l'impression de l'écran — EF-DSH-10)*
+- [x] Tests : EF-DSH-03, EF-DSH-06, EF-DSH-07, EF-DSH-12.
 
 ### Lot 6 — Générateur de rapports *(3 semaines)*
 
-- [ ] `report_templates` et `report_instances`, RLS, visibilités.
-- [ ] `REPORT_BLOCKS` : les 11 types de blocs, `resolve` et `render`.
-- [ ] `ReportEditor` : palette, composition dnd-kit, panneau de réglages, auto-sauvegarde.
-- [ ] `A4Preview` : mise en page paginée fidèle au PDF.
-- [ ] Chaîne de génération : résolution, **omission RG-26**, **gel RG-27**, rendu, PDF, audit.
-- [ ] Bibliothèque de modèles : officiels, personnels, partagés ; duplication, archivage.
-- [ ] Tests : RG-26, RG-27, EF-RAP-13 à 16.
+- [x] `report_templates` et `report_instances`, RLS, visibilités. *(migration `0043`)*
+- [x] `REPORT_BLOCKS` : les 11 types de blocs, `resolve` et `render`.
+- [x] `ReportEditor` : palette, composition dnd-kit, panneau de réglages, auto-sauvegarde. *(glisser-déposer **natif**, sans dnd-kit — règle 29)*
+- [x] `A4Preview` : mise en page paginée fidèle au PDF. *(dans la page, redimensionnable — pas en pop-up)*
+- [x] Chaîne de génération : résolution, **omission RG-26**, **gel RG-27**, rendu, PDF, audit. *(le PDF est l'impression du rendu figé : aucun second rendu à maintenir, aucun fichier stocké)*
+- [x] Bibliothèque de modèles : officiels, personnels, partagés ; duplication, archivage.
+- [x] Tests : RG-26, RG-27, EF-RAP-13 à 16.
 
 ### Lot 7 — Habilitations et administration *(3 semaines)*
 
-- [ ] Comptes, invitations, activation, réinitialisation de mot de passe.
-- [ ] `user_permissions` **avec portée**, `PermissionMatrix`, `ScopeSelector`.
-- [ ] **Délégation** : `peutDeleguer`, trigger `fn_check_delegation`, audit des refus.
-- [ ] Profils d'habilitation globaux et locaux (Seul les mebres de bureaux peuvent avoir un compte sur la plateforme).
-- [ ] Journal d'audit : triggers d'écriture, écran de consultation.
-- [ ] Corbeille multi-types, paramètres généraux.
-- [ ] **Centralisation des options configurables** — EF-ADM-13. Écran unique
+- [x] Comptes, activation, réinitialisation de mot de passe. **Aucune invitation par courriel** : l'administrateur ouvre le compte et remet les identifiants en main propre — un mot de passe provisoire, généré, à changer à la première connexion. *(19 août 2026)*
+- [ ] `user_permissions` **avec portée** ✅ et sélecteur d'habilitations à interrupteurs ✅ — **mais pas de `ScopeSelector` par droit** : toute habilitation accordée porte la portée de l'entité de rattachement du compte. Restreindre un droit à une sous-branche demande encore une écriture en base.
+- [x] **Délégation** : `peutDeleguer`, trigger `fn_check_delegation`, audit des refus.
+- [ ] Profils d'habilitation **globaux ✅** (`permission_profiles`, configurables dans les paramètres, plus cinq profils fournis) ; **locaux ✗** — `entity_id` existe en base mais aucun écran ne le renseigne. *(Seuls les membres de bureaux peuvent avoir un compte, sauf le responsable informatique désigné par le Siège.)*
+- [x] Journal d'audit : écran de consultation, **lisible sans jargon** (domaines nommés, différences mises en phrase, détail technique replié). L'écriture passe par `auditer()` dans chaque Server Action, **pas par des triggers** : un trigger ne connaît ni l'auteur applicatif ni le motif d'un refus. *(19 août 2026)*
+- [x] Corbeille multi-types (entités et croyants dans une seule liste), paramètres généraux en trois onglets. *(19 août 2026)*
+- [x] **Centralisation des options configurables** — EF-ADM-13. Écran unique
       `/administration/parametres`, alimenté par `organisation_settings`.
       Recensement à tenir à jour au fil des lots ; chaque option identifiée en
       cours de développement y est ajoutée après arbitrage de l'utilisateur.
@@ -2849,20 +2849,35 @@ montant, date, référence, justificatif : INCHANGÉS
       manque n'est pas la fonctionnalité mais son EMPLACEMENT : rien ne les
       relie à l'administration, et le SuperAdmin ne sait pas qu'ils existent.
       À rattacher, sans les réécrire :
-  - [ ] Référentiels accessibles depuis `/administration` — renvoi ou
+  - [x] Référentiels accessibles depuis `/administration` — renvoi ou
         intégration, pas un second CRUD (règle 16 : un seul chemin par opération).
-  - [ ] Grades habilités à célébrer un baptême (EF-ADM-14) — aujourd'hui
-        `CODES_GRADE_CELEBRANT` en dur dans `lib/data/baptemes.ts`. C'est ici
-        que se voit la limite : le référentiel Grade s'enrichit librement, mais
-        un grade nouvellement créé ne pourra jamais célébrer tant que la liste
-        reste dans le code.
-  - [ ] Fenêtre « nouveaux baptisés » — **déjà en base**, écran à construire.
-  - [ ] Auto-approbation des transferts internes — **déjà en base**, idem.
-  - [ ] Workflow de validation financière, séparation saisie/validation —
+  - [x] Grades habilités à célébrer un baptême (EF-ADM-14) — **le réglage est
+        porté par le grade lui-même** (`grades.peut_celebrer`, migration `0048`)
+        et se coche dans le référentiel. Auparavant `CODES_GRADE_CELEBRANT` en
+        dur dans `lib/data/baptemes.ts` : un grade créé après coup ne pouvait
+        alors jamais célébrer, sans qu'aucun écran ne le dise. La reprise
+        rétablit nommément Pasteur, Diacre et Évangéliste — l'état après
+        migration est exactement celui d'avant, et tout élargissement devient
+        une décision prise à l'écran. *(19 août 2026)*
+  - [x] Fenêtre « nouveaux baptisés » — écran livré.
+  - [x] Auto-approbation des transferts internes — écran livré.
+  - [x] Workflow de validation financière, séparation saisie/validation —
         **déjà en base**, idem.
-  - [ ] Plafond de chargement intégral des listes — aujourd'hui constante.
-  - [ ] Durée de vie des URL signées de photos — aujourd'hui constante.
-- [ ] Tests : RG-19 à RG-25, ENF-SEC-11.
+  - [x] Réinitialisation du mot de passe par courriel — activable ou non
+        (`organisation_settings.reinitialisation_par_email`, migration `0046`).
+  - [x] Composition libre des rapports par les entités
+        (`rapport_composition_libre`, migration `0045`).
+  - [x] Serveur d'envoi et modèles de message (`email_settings`,
+        `email_templates`, migration `0047`) — le mot de passe SMTP reste hors
+        base, dans les variables d'environnement.
+  - [ ] Plafond de chargement intégral des listes — **toujours une constante**.
+        Le rendre réglable n'a d'intérêt que si un périmètre déborde vraiment :
+        le plafond est annoncé à l'écran quand il est atteint.
+  - [ ] Durée de vie des URL signées de photos — **toujours une constante**.
+
+- [ ] Tests : **RG-20, RG-21, RG-24 et RG-25 couverts** par un test portant leur
+      code ; **RG-19, RG-22, RG-23 et ENF-SEC-11 ne le sont pas** — leur
+      comportement est exercé indirectement, mais §18.3 exige un test nommé.
 
 ### Lot 8 — Portabilité, recette et mise en production *(3 semaines)*
 

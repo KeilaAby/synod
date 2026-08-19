@@ -53,6 +53,15 @@ export interface SessionComplete extends SessionUtilisateur {
   readonly entiteNom: string;
   readonly entiteCode: string;
   readonly entiteType: string;
+  /**
+   * EF-ADM-01, EF-ADM-08 — UN MOT DE PASSE PROVISOIRE EST PROVISOIRE.
+   *
+   * Qu'il arrive par courriel ou de la main de l'administrateur, un mot de
+   * passe que quelqu'un d'autre connait n'en est pas un : il a ete dicte,
+   * ecrit, peut-etre relu par un tiers. Tant qu'il n'est pas remplace, le
+   * compte est partage sans que personne ne l'ait voulu.
+   */
+  readonly doitChangerMotDePasse: boolean;
 }
 
 /**
@@ -82,7 +91,7 @@ export const getSession = cache(async (): Promise<SessionComplete | null> => {
   const { data: profil, error } = await sb
     .from('profiles')
     .select(
-      'id, role, entity_id, nom_complet, email, ' +
+      'id, role, entity_id, nom_complet, email, doit_changer_mot_de_passe, ' +
         'entity:entities!profiles_entity_id_fkey(path, nom, code, type), ' +
         'octrois:user_permissions!user_permissions_user_id_fkey(' +
         'permission, scope:entities!user_permissions_scope_entity_id_fkey(path))',
@@ -90,7 +99,12 @@ export const getSession = cache(async (): Promise<SessionComplete | null> => {
     .eq('auth_user_id', identite.authUserId)
     .eq('is_active', true)
     .maybeSingle<
-      LigneProfil & { nom_complet: string; email: string; octrois: LigneOctroi[] }
+      LigneProfil & {
+        nom_complet: string;
+        email: string;
+        doit_changer_mot_de_passe: boolean;
+        octrois: LigneOctroi[];
+      }
     >();
 
   if (error) {
@@ -120,6 +134,10 @@ export const getSession = cache(async (): Promise<SessionComplete | null> => {
     scopePath: profil.entity.path,
     email: profil.email,
     nomComplet: profil.nom_complet,
+    // `=== true` et non `!== false` : ici, l'absence de colonne — une base
+    // ou `0046` n'est pas passee — ne doit PAS enfermer tout le monde dans
+    // l'ecran de changement de mot de passe.
+    doitChangerMotDePasse: profil.doit_changer_mot_de_passe === true,
     entiteNom: profil.entity.nom,
     entiteCode: profil.entity.code,
     entiteType: profil.entity.type,

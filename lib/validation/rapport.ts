@@ -151,17 +151,19 @@ export const archiverModeleSchema = z.object({
 export type ArchiverModeleInput = z.input<typeof archiverModeleSchema>;
 
 /**
- * EF-RAP-07, EF-ADM-11 — ouvrir ou fermer la composition pour l'organisation.
+ * EF-RAP-07 — LE REGLAGE DE COMPOSITION A DEMENAGE, il n'a pas disparu.
  *
- * UN BOOLEEN EXPLICITE, jamais une bascule implicite : sans lui, l'action
- * devrait deviner l'etat courant, et deux clics rapides partis de la meme
- * lecture le renverseraient deux fois pour finir la ou on ne voulait pas.
+ * Il vivait ici, avec son schema, son action et son pop-up sur `/rapports`.
+ * EF-ADM-13 veut que les options configurables se reglent au MEME endroit :
+ * il est desormais l'un des champs de `parametresSchema`, sur
+ * `/administration/parametres`. Deux chemins pour poser la meme colonne
+ * auraient diverge (regle 16), et c'est celui qu'on ouvre le moins souvent qui
+ * aurait pris du retard.
+ *
+ * La lecture, elle, n'a pas bouge : `compositionAutorisee` et
+ * `modeleExploitable` restent dans le domaine des rapports, ou la regle
+ * s'applique.
  */
-export const reglerCompositionSchema = z.object({
-  compositionLibre: z.boolean(),
-});
-
-export type ReglerCompositionInput = z.input<typeof reglerCompositionSchema>;
 
 // -----------------------------------------------------------------------------
 // EF-RAP-01, EF-RAP-04 — la composition elle-meme

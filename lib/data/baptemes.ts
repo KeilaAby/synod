@@ -85,10 +85,15 @@ export async function chargerBaptemes(): Promise<BaptemeListe[]> {
 /**
  * EF-BAP-03 — celebrants eligibles : Pasteurs et Diacres.
  *
- * Le filtre porte sur le CODE du grade, pas sur son libelle : un libelle se
- * renomme depuis les referentiels, un code non (EF-REF-01).
+ * LE FILTRE VIENT DU REFERENTIEL, PLUS DU CODE — EF-ADM-14.
+ *
+ * La liste etait ecrite ici, en dur : `['PASTEUR', 'DIACRE', 'EVANGELISTE']`.
+ * Un grade cree apres coup ne pouvait donc JAMAIS celebrer, quoi qu'on fasse a
+ * l'ecran — rien ne refusait, rien ne s'affichait, la liste etait simplement
+ * plus courte, et on cherchait longtemps pourquoi. La colonne
+ * `grades.peut_celebrer` (migration 0048) porte desormais la reponse, et elle
+ * se regle depuis les referentiels.
  */
-export const CODES_GRADE_CELEBRANT = ['PASTEUR', 'DIACRE', 'EVANGELISTE'] as const;
 
 export interface OptionCelebrant {
   id: string;
@@ -105,10 +110,10 @@ export async function listerCelebrants(): Promise<OptionCelebrant[]> {
 
   const { data, error } = await sb
     .from('croyants')
-    .select('id, nom, prenom, eglise_id, photo_key, grade:grades!croyants_grade_id_fkey!inner (code, libelle)')
+    .select('id, nom, prenom, eglise_id, photo_key, grade:grades!croyants_grade_id_fkey!inner (code, libelle, peut_celebrer)')
     .is('deleted_at', null)
     .eq('statut', 'ACTIF')
-    .in('grade.code', [...CODES_GRADE_CELEBRANT])
+    .eq('grade.peut_celebrer', true)
     .order('nom')
     .returns<
       {

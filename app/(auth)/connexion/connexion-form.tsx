@@ -24,7 +24,7 @@ export function ConnexionForm() {
     formState: { errors, isSubmitting },
   } = useForm<ConnexionInput>({
     resolver: zodResolver(connexionSchema),
-    defaultValues: { email: '', motDePasse: '', suite },
+    defaultValues: { identifiant: '', motDePasse: '', suite },
   });
 
   async function envoyer(valeurs: ConnexionInput) {
@@ -45,15 +45,27 @@ export function ConnexionForm() {
         </Alert>
       )}
 
+      {/*
+        EF-AUT-01 — ON SE CONNECTE PAR COURRIEL **OU** PAR MATRICULE.
+
+        `type="text"` et non `type="email"` : le navigateur refuserait un
+        matricule avant même l'envoi, avec son propre message — celui sur lequel
+        nous n'avons aucune prise, et qui parlerait d'une arobase manquante
+        alors que rien n'en demande.
+
+        `autoComplete="username"` couvre les deux : c'est ce qu'un gestionnaire
+        de mots de passe attend d'un identifiant qui n'est pas nécessairement
+        une adresse.
+      */}
       <TextField
-        label="Adresse e-mail"
-        type="email"
-        autoComplete="email"
+        label="Adresse e-mail ou matricule"
+        type="text"
+        autoComplete="username"
         autoFocus
         required
-        placeholder="prenom.nom@exemple.org"
-        error={errors.email?.message}
-        {...register('email')}
+        placeholder="prenom.nom@exemple.org — ou CRO-00412"
+        error={errors.identifiant?.message}
+        {...register('identifiant')}
       />
 
       <div className="space-y-2">

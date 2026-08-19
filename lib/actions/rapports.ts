@@ -29,7 +29,6 @@ import {
   genererRapportSchema,
   modifierModeleSchema,
   publierRapportSchema,
-  reglerCompositionSchema,
 } from '@/lib/validation/rapport';
 import { champsEnErreur } from '@/lib/validation/zod-errors';
 
@@ -638,63 +637,6 @@ export async function publierRapport(
 
     revalidatePath('/rapports/generes');
     return ok({ publie: publier });
-  });
-}
-
-// -----------------------------------------------------------------------------
-
-/**
- * EF-RAP-07, EF-ADM-11 — ouvrir ou fermer la composition, pour toute
- * l'organisation.
- *
- * `settings.manage` SANS PORTEE, et c'est voulu : le reglage ne vise aucune
- * entite en particulier, il vaut pour toutes a la fois. Lui donner une portee
- * laisserait croire qu'on peut fermer la composition d'un district sans
- * toucher a celle d'un autre — ce que cette colonne ne sait pas faire, et ce
- * que `report.template.manage` fait deja, compte par compte.
- *
- * FERMER NE DETRUIT RIEN. Les modeles deja composes restent lisibles,
- * renommables et archivables par leur entite : ce qui s'arrete, c'est d'en
- * creer de nouveaux. Retirer a une entite le peu de menage qu'elle peut encore
- * faire chez elle la laisserait avec une bibliotheque figee qu'elle n'a plus le
- * droit de ranger.
- */
-export async function reglerCompositionModeles(
-  input: unknown,
-): Promise<ActionResult<{ compositionLibre: boolean }>> {
-  return executerAction('reglerCompositionModeles', async () => {
-    const session = await requireSession();
-    await requirePermission(session, 'settings.manage');
-
-    const analyse = reglerCompositionSchema.safeParse(input);
-    if (!analyse.success) return ko('Requete invalide.');
-    const { compositionLibre } = analyse.data;
-
-    const parametres = await getParametres();
-
-    const sb = await createClient();
-    const { error } = await sb
-      .from('organisation_settings')
-      .update({ rapport_composition_libre: compositionLibre })
-      .eq('id', 1);
-
-    if (error) return ko("Le reglage n'a pas pu etre enregistre.");
-
-    await auditer({
-      session,
-      action: 'UPDATE',
-      table: 'organisation_settings',
-      diff: {
-        champ: 'rapport_composition_libre',
-        avant: parametres.rapport_composition_libre,
-        apres: compositionLibre,
-      },
-    });
-
-    // Le reglage commande un bouton sur CHAQUE bibliotheque : c'est toute la
-    // section qui doit repartir, pas seulement l'ecran d'ou vient le clic.
-    revalidatePath('/rapports');
-    return ok({ compositionLibre });
   });
 }
 

@@ -464,7 +464,13 @@ function CarteModele({
                 <MoreVertical className="size-4" aria-hidden />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            {/*
+               : le composant force sinon la largeur du DECLENCHEUR —
+              ici un bouton icone de 32 px —, et le menu se comprime a son
+              plancher. Un libelle comme « Reinitialiser le mot de passe » y
+              passait a la ligne pour rien.
+            */}
+            <DropdownMenuContent align="end" className="w-auto">
               {/* EF-RAP-01 — composer est le geste principal, il vient donc en
                   tête. Il reste OUVERT même en lecture seule : l'éditeur montre
                   alors la composition sans la laisser modifier, et voir ce que

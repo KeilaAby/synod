@@ -1,0 +1,356 @@
+'use client';
+
+import { AlertCircle, Columns2, Loader2, Rows3 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useState, useSyncExternalStore } from 'react';
+import { toast } from 'sonner';
+
+import { Field, TextField } from '@/components/shared/field';
+import { FiltreIcone, GroupeFiltres } from '@/components/shared/filtre-icone';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { reglerParametres } from '@/lib/actions/parametres';
+import type { Parametres } from '@/lib/data/settings';
+import { appelerAction } from '@/lib/utils/appeler-action';
+import { cn } from '@/lib/utils';
+import { FUSEAUX, type ParametresInput } from '@/lib/validation/parametres';
+
+/**
+ * EF-ADM-13 — l'écran unique des options configurables.
+ *
+ * CE QUI ÉTAIT ÉPARPILLÉ EST ICI. Le réglage de composition des rapports vivait
+ * dans un pop-up de `/rapports` ; la devise, le fuseau et la fenêtre des
+ * nouveaux baptisés n'avaient aucun écran du tout — ils se posaient en SQL. Un
+ * paramètre qu'on ne sait pas où changer est un paramètre qui ne change jamais,
+ * et le défaut devient la règle sans que personne ne l'ait décidé.
+ *
+ * LES OPTIONS SONT GROUPÉES PAR CE QU'ELLES COMMANDENT, pas par leur type. Un
+ * écran qui alignerait d'abord les cases à cocher puis les champs texte
+ * obligerait à parcourir tout pour trouver « le workflow financier ».
+ *
+ * UN SEUL ENREGISTREMENT pour tout l'écran : ces réglages se relisent ensemble,
+ * ils se posent ensemble. Un bouton par ligne aurait multiplié les
+ * allers-retours et laissé la moitié de l'écran en attente de l'autre.
+ */
+/**
+ * L'affichage en une ou deux colonnes se RETIENT.
+ *
+ * C'est une préférence de confort, pas un réglage de l'organisation : elle n'a
+ * rien à faire en base. `localStorage` est un système externe à React — on s'y
+ * abonne plutôt que d'en recopier l'état par un effet, qui déclencherait une
+ * cascade de rendus.
+ */
+const CLE_COLONNES = 'synod:parametres-colonnes';
+
+let colonnesEnMemoire: 1 | 2 | null = null;
+const abonnesColonnes = new Set<() => void>();
+
+function abonnerColonnes(callback: () => void) {
+  abonnesColonnes.add(callback);
+  window.addEventListener('storage', callback);
+  return () => {
+    abonnesColonnes.delete(callback);
+    window.removeEventListener('storage', callback);
+  };
+}
+
+function lireColonnes(): 1 | 2 {
+  colonnesEnMemoire ??= window.localStorage.getItem(CLE_COLONNES) === '2' ? 2 : 1;
+  return colonnesEnMemoire;
+}
+
+function ecrireColonnes(valeur: 1 | 2) {
+  colonnesEnMemoire = valeur;
+  window.localStorage.setItem(CLE_COLONNES, String(valeur));
+  for (const notifier of abonnesColonnes) notifier();
+}
+
+export function ParametresClient({ parametres }: { parametres: Parametres }) {
+  const router = useRouter();
+
+  /** Le serveur rend toujours une colonne : aucune divergence à l'hydratation. */
+  const colonnes = useSyncExternalStore(abonnerColonnes, lireColonnes, () => 1 as const);
+
+  const [valeurs, setValeurs] = useState<ParametresInput>({
+    nomOrganisation: parametres.nom_organisation,
+    devise: parametres.devise,
+    fuseauHoraire: parametres.fuseau_horaire as ParametresInput['fuseauHoraire'],
+    fenetreNouveauxBaptisesJours: parametres.fenetre_nouveaux_baptises_jours,
+    financeValidationActive: parametres.finance_validation_active,
+    separationSaisieValidation: parametres.separation_saisie_validation,
+    transfertAutoApprobationInterne: parametres.transfert_auto_approbation_interne,
+    rapportCompositionLibre: parametres.rapport_composition_libre,
+    reinitialisationParEmail: parametres.reinitialisation_par_email,
+  });
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [enCours, setEnCours] = useState(false);
+
+  function poser(modif: Partial<ParametresInput>) {
+    setValeurs((actuelles) => ({ ...actuelles, ...modif }));
+  }
+
+  async function enregistrer() {
+    setEnCours(true);
+    setErreur(null);
+
+    const resultat = await appelerAction(() => reglerParametres(valeurs));
+    setEnCours(false);
+
+    if (!resultat.ok) {
+      setErreur(resultat.error);
+      return;
+    }
+    toast.success('Paramètres enregistrés.');
+    router.refresh();
+  }
+
+  return (
+    <div className={'space-y-6'}>
+      {erreur && (
+        <Alert variant="destructive" role="alert">
+          <AlertCircle className="size-4" aria-hidden />
+          <AlertDescription>{erreur}</AlertDescription>
+        </Alert>
+      )}
+
+      {/*
+        UNE OU DEUX COLONNES — deux façons de lire le même écran.
+
+        Sur une colonne, on descend et on lit tout : c'est ce qu'on veut la
+        première fois, ou quand on cherche un réglage sans savoir où il est.
+        Sur deux, tout tient sous les yeux d'un coup : c'est ce qu'on veut quand
+        on sait ce qu'on vient changer et qu'on veut vérifier le reste au
+        passage.
+
+        Le contrôle est un groupe de pictogrammes : l'ensemble est CLOS et
+        connu — une ou deux (règle 18).
+      */}
+      <div className="flex justify-end">
+        <GroupeFiltres libelle="Disposition des réglages">
+          <FiltreIcone
+            icone={Rows3}
+            libelle="Une colonne"
+            actif={colonnes === 1}
+            onClick={() => ecrireColonnes(1)}
+          />
+          <FiltreIcone
+            icone={Columns2}
+            libelle="Deux colonnes"
+            actif={colonnes === 2}
+            onClick={() => ecrireColonnes(2)}
+          />
+        </GroupeFiltres>
+      </div>
+
+      <div
+        className={cn(
+          'gap-6',
+          // Classes LITTÉRALES : Tailwind lit le source, une classe construite
+          // n'existerait dans aucune feuille.
+          colonnes === 2 ? 'grid lg:grid-cols-2 lg:items-start' : 'flex flex-col',
+        )}
+      >
+        <Groupe
+          titre="Identité"
+          description="Ce qui nomme l’organisation dans l’application et sur les documents imprimés."
+        >
+          <TextField
+            label="Nom de l’organisation"
+            required
+            value={valeurs.nomOrganisation}
+            onChange={(e) => poser({ nomOrganisation: e.target.value })}
+          />
+
+          <div className="grid gap-6 sm:grid-cols-2">
+            <TextField
+              label="Devise"
+              required
+              hint="Code sur trois lettres. ARB-7 : une seule devise pour toute l’organisation."
+              className="uppercase"
+              maxLength={3}
+              value={valeurs.devise}
+              onChange={(e) => poser({ devise: e.target.value.toUpperCase() })}
+            />
+
+            <Field
+              label="Fuseau horaire"
+              hint="Sert à l’affichage des horodatages. Les dates métier n’en dépendent pas."
+            >
+              {(aria) => (
+                <Select
+                  value={valeurs.fuseauHoraire}
+                  onValueChange={(v) =>
+                    poser({ fuseauHoraire: v as ParametresInput['fuseauHoraire'] })
+                  }
+                >
+                  <SelectTrigger {...aria} className="h-10 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FUSEAUX.map((f) => (
+                      <SelectItem key={f} value={f}>
+                        {f}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </Field>
+          </div>
+        </Groupe>
+
+        <Groupe
+          titre="Finances"
+          description="Le défaut de l’organisation. Chaque entité peut s’en écarter depuis l’écran des finances — aucun héritage depuis le parent."
+        >
+          <Bascule
+            coche={valeurs.financeValidationActive}
+            onBascule={(v) => poser({ financeValidationActive: v })}
+            titre="Workflow de validation"
+            texte="Un mouvement passe par Brouillon → Soumis → Validé. Désactivé, il est acquis dès la saisie."
+          />
+          <Bascule
+            coche={valeurs.separationSaisieValidation}
+            onBascule={(v) => poser({ separationSaisieValidation: v })}
+            titre="Séparation saisie / validation"
+            texte="Celui qui saisit ne valide pas son propre mouvement. Le droit finance.validate_own lève cette règle, compte par compte."
+          />
+        </Groupe>
+
+        <Groupe
+          titre="Croyants et transferts"
+          description="Ce qui commande les listes et le circuit d’approbation."
+        >
+          <TextField
+            label="Fenêtre « nouveaux baptisés »"
+            required
+            type="number"
+            min={1}
+            max={365}
+            className="tabular-nums"
+            hint="En jours. Au-delà, un baptisé cesse d’apparaître comme nouveau (RG-30)."
+            value={String(valeurs.fenetreNouveauxBaptisesJours)}
+            onChange={(e) => poser({ fenetreNouveauxBaptisesJours: e.target.value })}
+          />
+
+          <Bascule
+            coche={valeurs.transfertAutoApprobationInterne}
+            onBascule={(v) => poser({ transfertAutoApprobationInterne: v })}
+            titre="Auto-approbation des transferts internes"
+            texte="Un transfert entre deux églises d’une même paroisse est approuvé sans décision. Les autres passent toujours par le circuit."
+          />
+        </Groupe>
+
+        <Groupe
+          titre="Mots de passe"
+          description="Par quel chemin un utilisateur qui a oublié le sien en obtient un nouveau."
+        >
+          <Bascule
+            coche={valeurs.reinitialisationParEmail}
+            onBascule={(v) => poser({ reinitialisationParEmail: v })}
+            titre="Réinitialisation par courriel"
+            texte="L’utilisateur demande lui-même, un lien lui parvient. Désactivée, il contacte le Siège ou l’administrateur de son entité, qui lui remet un mot de passe provisoire."
+          />
+
+          {/* Dire la conséquence là où elle se décide : beaucoup d'adresses sont
+            de convenance — saisies une fois, jamais relevées. Un circuit qui
+            aboutit dans une boîte que personne n'ouvre ne réinitialise rien. */}
+          {!valeurs.reinitialisationParEmail && (
+            <p className="border-border bg-muted/40 text-muted-foreground rounded-md border p-3 text-xs">
+              L’écran « mot de passe oublié » cessera de proposer l’envoi et renverra vers
+              un administrateur. Dans les deux cas, un mot de passe provisoire doit être{' '}
+              <strong>changé à la première connexion</strong>.
+            </p>
+          )}
+        </Groupe>
+
+        <Groupe
+          titre="Rapports"
+          description="Qui, dans l’organisation, dessine les modèles de rapport."
+        >
+          <Bascule
+            coche={valeurs.rapportCompositionLibre}
+            onBascule={(v) => poser({ rapportCompositionLibre: v })}
+            titre="Composition ouverte aux entités"
+            texte="Chaque entité emploie les modèles du Siège ET dessine les siens. Fermée, elle se conforme à ceux du Siège — qui, lui, compose dans les deux cas."
+          />
+        </Groupe>
+      </div>
+
+      {/* Le bouton reste HORS de la grille : un seul enregistrement pour tout
+          l'écran, il ne doit pas se retrouver au bas d'une colonne comme s'il
+          n'engageait qu'elle. */}
+      <div className="flex justify-end">
+        <Button className="h-10" onClick={enregistrer} disabled={enCours}>
+          {enCours && <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />}
+          Enregistrer les paramètres
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function Groupe({
+  titre,
+  description,
+  children,
+}: {
+  titre: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card>
+      <CardContent className="space-y-6 p-6">
+        <div>
+          <h2 className="text-foreground text-sm font-semibold">{titre}</h2>
+          <p className="text-muted-foreground mt-1 text-xs">{description}</p>
+        </div>
+        {children}
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * Une bascule qui DIT CE QU'ELLE PRODUIT.
+ *
+ * « Workflow de validation ☑ » n'apprend rien à qui ne connaît pas déjà le
+ * réglage — et celui qui vient le changer est précisément celui qui ne le
+ * connaît pas. La phrase sous le libellé décrit l'état obtenu, pas la
+ * fonctionnalité.
+ */
+function Bascule({
+  coche,
+  onBascule,
+  titre,
+  texte,
+}: {
+  coche: boolean;
+  onBascule: (valeur: boolean) => void;
+  titre: string;
+  texte: string;
+}) {
+  return (
+    <label className="border-border flex cursor-pointer items-start gap-3 rounded-md border p-4">
+      <Checkbox
+        checked={coche}
+        onCheckedChange={(v) => onBascule(v === true)}
+        className="mt-0.5"
+      />
+      <span className="space-y-1">
+        <span className="text-foreground block text-sm font-medium">{titre}</span>
+        <span className="text-muted-foreground block text-xs">{texte}</span>
+      </span>
+    </label>
+  );
+}

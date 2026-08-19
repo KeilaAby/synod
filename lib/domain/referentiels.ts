@@ -147,11 +147,28 @@ export const REFERENTIELS: Record<SlugReferentiel, DefinitionReferentiel> = {
         type: 'nombre',
         hint: 'Les valeurs les plus faibles apparaissent en premier.',
       },
+      {
+        /**
+         * EF-ADM-14 — CE REGLAGE ETAIT UNE LISTE ECRITE DANS LE CODE.
+         *
+         * Un grade cree apres coup ne pouvait jamais celebrer, quoi qu'on fasse
+         * a l'ecran : rien ne refusait, rien ne s'affichait, la liste des
+         * celebrants etait simplement plus courte. Il se regle desormais ici,
+         * la ou le grade lui-meme se definit.
+         */
+        cle: 'peut_celebrer',
+        label: 'Peut celebrer un bapteme',
+        type: 'booleen',
+        hint: 'Les croyants portant ce grade seront proposes comme celebrants.',
+      },
     ],
     schema: z.object({
       code: codeReferentiel,
       libelle,
       ordre: z.coerce.number().int().min(0).max(9999).default(100),
+      // Rien n'ouvre la celebration par defaut : elle se donne, elle ne
+      // s'herite pas d'un oubli de saisie.
+      peut_celebrer: z.boolean().default(false),
     }),
     usages: [{ table: 'croyants', colonne: 'grade_id', quoi: 'croyant' }],
   },

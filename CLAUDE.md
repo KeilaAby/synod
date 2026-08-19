@@ -15,7 +15,10 @@ Application web de gestion d'église. **Lire avant toute tâche** :
 Toute modification doit citer l'exigence ou la règle qu'elle sert. Si une
 demande contredit `cdg.md`, signalez-le avant d'implémenter.
 
-## État — 18 août 2026
+## État — 19 août 2026
+
+**Lots 0 à 7 livrés.** Il reste le **lot 8** — portabilité, recette et mise en
+production — et quelques finitions listées au dernier point d'étape.
 
 **Lots 0, 1 et 2 livrés** : socle, authentification, habilitations avec portée,
 structure à 6 niveaux (organigramme éditable **et** vue liste), référentiels,
@@ -311,10 +314,76 @@ recettes. L'habilitation est portée par la **source**, pas par le type de bloc.
 Trois largeurs seulement (pleine, demie, tiers) : elles se combinent toujours en
 rangées pleines.
 
+**Lot 7 — HABILITATIONS ET ADMINISTRATION LIVRÉ** (migrations `0046`, `0047`,
+`0048`). Sept écrans : accueil `/administration` — qui **remplace « Mon compte »**
+dans la barre latérale —, comptes, paramètres généraux en trois onglets, journal
+d'audit, corbeille, mot de passe oublié, changement imposé.
+
+**On se connecte au matricule.** Beaucoup de membres de bureau n'ont pas
+d'adresse électronique et le fournisseur d'identité en exige une : on en
+**fabrique** une, `<matricule>@synod.invalid` — domaine réservé par l'IETF, donc
+aucun message ne peut y aboutir. Ce qui ne ressemble pas à une adresse est
+cherché comme matricule, et son adresse — vraie ou fabriquée — sert à
+authentifier.
+
+**Aucune invitation par courriel** : l'administrateur ouvre le compte et remet
+les identifiants en main propre. Le mot de passe généré est **dictable** — ni
+`0`/`O`, ni `1`/`l`, trois groupes de cinq — parce qu'il sera lu à voix haute, pas
+copié. Il est **provisoire** au sens strict : tant qu'il n'est pas changé, la
+disposition partagée renvoie vers `/changer-mot-de-passe`, quelle que soit la
+page demandée — un garde-fou qu'on doit penser à poser écran par écran finit par
+manquer quelque part. **Deux circuits de réinitialisation** se règlent
+(`reinitialisation_par_email`, `0046`) : par courriel, ou par l'administrateur.
+La sortie est la même dans les deux cas ; ce qui change est par où passe la
+demande, et cela dépend de l'organisation.
+
+**Seuls les membres de bureau ont un compte** — la liste des candidats ne
+propose que les **mandats en cours**. La règle se mordait la queue le premier
+jour : sans bureau, pas de compte ; sans compte, pas de bureau. D'où le
+**responsable informatique** (`0047`), **un seul par entité** — garanti par un
+index partiel, pas par une vérification applicative qui se contourne — désigné
+par le Siège, qui reçoit un compte sans siéger nulle part.
+
+**Des habilitations, pas un rôle** : chaque droit avec son interrupteur, groupé
+par domaine, surmonté de **profils de privilèges** qui posent une série
+d'interrupteurs d'un clic et se retouchent ensuite. On n'accorde que ce qu'on
+détient soi-même et que ce qui est **délégable**, et la modification **ne
+réécrit que les droits que l'auteur aurait pu accorder** : sinon un
+administrateur de district, en corrigeant une ligne, effacerait sans le savoir
+ce que le Siège avait posé. Un compte qui a **signé des lignes d'audit ne se
+supprime pas** — le refus dit combien ; la désactivation reste ouverte.
+
+Le **journal d'audit se lit** (`lib/domain/audit.ts`) : domaine en français,
+action au passé, et une **phrase** quand la forme de la différence est reconnue.
+Quand elle ne l'est pas, **il se tait** — une description approximative dans un
+journal d'audit serait pire que pas de description, on la citerait. Le détail
+technique reste consultable, replié.
+
+**Courriels** (`0047`) : serveur d'envoi et modèles de message réglables, client
+SMTP **écrit à la main** (`node:net`, `node:tls` — règle 29), bouton d'essai qui
+envoie un vrai message et rapporte la réponse du serveur. Le **mot de passe SMTP
+n'entre pas en base** : il vit dans `SMTP_PASSWORD`, parce qu'une base se
+sauvegarde, se copie et s'exporte. L'éditeur visuel des modèles n'expose que ce
+que le nettoyage serveur laisse passer — proposer un bouton dont le résultat
+serait retiré à l'enregistrement serait un mensonge d'interface.
+
+**EF-ADM-14** : les grades habilités à célébrer sortent du code
+(`grades.peut_celebrer`, `0048`). `['PASTEUR', 'DIACRE', 'EVANGELISTE']` y était
+écrit en dur, et la conséquence se comprenait tard — un grade créé après coup ne
+pouvait **jamais** célébrer, sans que rien ne le dise : la liste était seulement
+plus courte. La reprise rétablit nommément les trois codes, bornée à
+`peut_celebrer = false` pour ne jamais défaire un choix fait à l'écran.
+
+Ce que le lot 7 **ne fait pas** : pas de portée par droit (toute habilitation
+prend la portée de l'entité de rattachement), pas de profils **locaux**
+(la colonne existe, aucun écran ne la renseigne), et l'audit est écrit par
+**`auditer()`** dans chaque Server Action, pas par des triggers — un trigger ne
+connaît ni l'auteur applicatif, ni le motif d'un refus.
+
 **EF-BUR-11 clos** : l'export Excel de la composition est abandonné le 12 août
 2026, le PDF de l'organigramme couvre le besoin.
 
-Base à jour jusqu'à la migration `0045` — fuseau `Indian/Antananarivo` (UTC+3).
+Base à jour jusqu'à la migration `0048` — fuseau `Indian/Antananarivo` (UTC+3).
 **Toute migration qui crée ou remplace
 une fonction doit finir par `notify pgrst, 'reload schema'`** : sans lui, l'API
 répond « fonction inconnue » sur du SQL pourtant en place — constaté deux fois,
@@ -326,7 +395,7 @@ configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` 
 l'API.
 
 Historique : [`SESSION_HISTORY.md`](.claude-code-history/SESSION_HISTORY.md) ·
-dernier point d'étape : [`.claude-code-history/2026-08-18_resumes-moi.md`](.claude-code-history/2026-08-18_resumes-moi.md)
+dernier point d'étape : [`.claude-code-history/2026-08-19_resumes-moi.md`](.claude-code-history/2026-08-19_resumes-moi.md)
 
 ## Publication — lire `.agents/rules/gitpush.md` AVANT tout push
 
