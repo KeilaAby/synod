@@ -4194,3 +4194,62 @@ Ces cinq variables sont donc **inertes**. Les laisser sans le dire ferait
 chercher, le jour d'une panne d'envoi, un réglage qui n'a jamais été lu.
 `SMTP_INSECURE_TLS` en particulier n'est pas implémenté : si un antivirus fait de
 l'inspection TLS en local, l'envoi échouera sur le certificat.
+
+---
+
+## 19 août 2026 — Deux défauts corrigés avant le lot 8
+
+### La remise des dîmes était impossible sur toute collecte antérieure à `0038`
+
+Symptôme : « RG-17 : un mouvement valide est immuable » au moment de remettre
+512 000 MGA du district Avaradrano.
+
+`fn_remettre_collectes` rattache les collectes au bordereau en **deux passes** :
+celles qui restent à valider, puis celles **déjà validées** — ces dernières sans
+toucher au statut, précisément pour ne pas heurter RG-17. Le raisonnement de
+`0038` était juste ; la mise en œuvre non. Le garde-fou de
+`fn_finance_before_write` ne regarde pas **ce qui a changé** :
+
+```sql
+if old.statut = 'VALIDE' then
+  if not (new.statut = 'ANNULE' and ...) then raise ...
+```
+
+Il se déclenche sur **tout** `update` d'une ligne validée, y compris celui qui ne
+pose qu'un `dime_remise_id`. Séparer les deux passes ne changeait donc rien : la
+seconde était vouée à échouer, et avec elle le bordereau entier.
+
+**Ce que RG-17 protège vraiment**, ce sont les *données* du mouvement — montant,
+catégorie, entité, date, sens, statut. Le bordereau de remise n'en fait pas
+partie : c'est la trace d'un geste **postérieur**, la remise en mains propres au
+Siège. L'enregistrer ne réécrit pas l'histoire, il la complète.
+
+Migration `0049` : le seul changement toléré sur une ligne validée est le passage
+de `dime_remise_id` de `null` à une valeur, **et rien d'autre dans la même
+écriture**. Le *remplacement* d'un bordereau reste refusé — il ferait figurer la
+même collecte sur deux bordereaux.
+
+### Le PDF d'un rapport commençait page 2
+
+La règle d'impression masque tout ce qui n'est pas l'aperçu. Son commentaire
+annonçait « appliquée depuis `body` » ; **le sélecteur commençait un cran plus
+bas** — `body:has(…) :has(…) > *` ne couvre que les enfants des *descendants* de
+`body`, jamais ceux de `body` lui-même.
+
+Or c'est précisément là que vivent les portails : notifications, pop-up,
+superpositions. Rendus en position fixe et jamais masqués, ils occupaient la
+première feuille.
+
+Une seconde règle a été ajoutée pour les enfants directs de `body`, parce que le
+combinateur `>` ne remonte pas. L'écart entre le commentaire et le sélecteur
+avait survécu à deux réécritures de ce bloc : le commentaire décrivait
+l'intention, pas ce que le code faisait.
+
+### Note d'environnement
+
+`pnpm verify` a échoué sur `A configuration object specifies rule
+"jsx-a11y/alt-text", but could not find plugin "jsx-a11y"` alors que le lint
+passait dix minutes plus tôt. L'installation pnpm était **incomplète**, pas la
+configuration : `pnpm install --force` l'a rétablie. À noter pour la prochaine
+fois — chercher `node_modules/<paquet>` est un mauvais test avec pnpm, les
+dépendances transitives vivent dans `node_modules/.pnpm/`.

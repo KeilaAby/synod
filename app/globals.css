@@ -336,6 +336,22 @@
      Elle ne s'arme que lorsqu'un apercu est monte : ailleurs, l'impression est
      celle de l'ecran (EF-DSH-10), inchangee.
      --------------------------------------------------------------------------- */
+
+  /*
+     LES ENFANTS DIRECTS DE <body> COMPTENT AUSSI.
+
+     Le commentaire ci-dessus dit « appliquee depuis body » ; le selecteur, lui,
+     commencait un cran plus bas — il ne couvrait que les enfants des
+     DESCENDANTS de body. Or les portails vivent la : notifications, pop-up,
+     superpositions. Rendus en position fixe et jamais masques, ils occupaient
+     la premiere feuille, et le rapport commencait page 2.
+
+     Deux regles, parce que le combinateur « > » ne remonte pas : celle-ci
+     degage les enfants de body, la suivante ceux de chaque ancetre du chemin.
+  */
+  body:has([data-apercu]) > *:not(:has([data-apercu])):not([data-apercu]) {
+    display: none !important;
+  }
   body:has([data-apercu]) :has([data-apercu]) > *:not(:has([data-apercu])):not([data-apercu]) {
     display: none !important;
   }
