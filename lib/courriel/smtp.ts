@@ -154,7 +154,7 @@ export async function envoyerMessage(
       await dialogue.attendre(['250']);
     }
 
-    const motDePasse = process.env.SMTP_PASSWORD;
+    const motDePasse = process.env.SMTP_PASS;
     if (parametres.utilisateur && motDePasse) {
       dialogue.ecrire('AUTH LOGIN');
       await dialogue.attendre(['334']);
@@ -167,7 +167,7 @@ export async function envoyerMessage(
         ok: false,
         message:
           'Un nom d’utilisateur est configuré, mais aucun mot de passe n’est posé sur le ' +
-          'serveur (variable SMTP_PASSWORD). L’authentification ne peut pas aboutir.',
+          'serveur (variable SMTP_PASS). L’authentification ne peut pas aboutir.',
       };
     }
 

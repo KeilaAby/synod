@@ -49,7 +49,7 @@ const configurationSchema = z.object({
  * EF-ADM-13 — enregistrer la configuration d'envoi.
  *
  * LE MOT DE PASSE NE PASSE PAS PAR ICI, et n'a aucun champ. Il vit dans la
- * variable d'environnement `SMTP_PASSWORD` : un secret range en base finit dans
+ * variable d'environnement `SMTP_PASS` : un secret range en base finit dans
  * une sauvegarde, un export ou un journal de requetes. C'est la seule partie de
  * cette configuration qui ne se regle pas a l'ecran, et c'est voulu.
  */
@@ -184,7 +184,7 @@ export async function testerCourriel(
       : ko(
           `L’envoi a echoue : ${resultat.message}. Verifiez le serveur, le port, le mode ` +
             'de chiffrement, et que le mot de passe est bien pose sur le serveur ' +
-            '(variable SMTP_PASSWORD).',
+            '(variable SMTP_PASS).',
         );
   });
 }

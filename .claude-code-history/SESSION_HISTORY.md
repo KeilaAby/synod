@@ -4147,3 +4147,50 @@ Sept variables y figurent, avec ce qui se passe quand chacune manque. Notamment
 `SMTP_PASSWORD` : c'est le **seul réglage de courriel qui ne soit pas à
 l'écran**, et l'oublier donne une configuration qui s'enregistre sans qu'aucun
 message ne parte.
+
+---
+
+## 19 août 2026 — `SMTP_PASSWORD` devient `SMTP_PASS`, et un secret à révoquer
+
+### Le renommage
+
+L'environnement de l'utilisateur nomme la variable `SMTP_PASS` ; le code
+attendait `SMTP_PASSWORD`. Le code s'aligne — partout où le nom était écrit : la
+lecture dans `lib/courriel/smtp.ts`, les deux messages d'échec, le texte de
+l'écran de réglages, `CLAUDE.md` et `.agents/rules/reprise.md`.
+
+**Un seul nom, pas deux.** Accepter les deux aurait été le défaut que ce projet a
+déjà payé avec `bureau.delete` — non délégable en TypeScript, délégable en SQL,
+l'écran disant non pendant que la base disait oui. Un repli sur l'ancien nom
+aurait survécu des mois sans que personne sache lequel des deux fait foi.
+
+### Un secret réel dans un fichier versionné
+
+`.env.example` a porté quelques minutes un **vrai** mot de passe d'application
+Google et une adresse réelle. Le fichier est **versionné** — c'est une exception
+nommée dans `.gitignore`, précisément pour servir de modèle. Rien n'a été
+commité : le secret n'a jamais quitté l'arbre de travail, et `pnpm check:secrets`
+est vert.
+
+**Cela ne suffit pas, et le projet le dit déjà : un secret exposé ne se retire
+pas, il se RÉVOQUE.** Il a transité par une fenêtre d'éditeur, par le contexte de
+l'agent et par le transcript de la session. Retirer la ligne ne défait aucune de
+ces copies. Le mot de passe d'application est à supprimer côté Google et à
+régénérer.
+
+Le bloc de `.env.example` porte désormais l'avertissement en clair : ce fichier
+est versionné, il ne contient que des **noms** de variables, et un secret posé
+là part avec le dépôt.
+
+### Ce que l'incident a rendu visible
+
+`.env.local` porte `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_FROM` et
+`SMTP_INSECURE_TLS`. **L'application n'en lit aucun.** Serveur, port, utilisateur
+et expéditeur se saisissent à l'écran et vivent dans `email_settings` — un
+paramètre configurable se lit à chaque rendu, il ne se code pas dans un fichier
+(règle 21). Seul le mot de passe reste hors base.
+
+Ces cinq variables sont donc **inertes**. Les laisser sans le dire ferait
+chercher, le jour d'une panne d'envoi, un réglage qui n'a jamais été lu.
+`SMTP_INSECURE_TLS` en particulier n'est pas implémenté : si un antivirus fait de
+l'inspection TLS en local, l'envoi échouera sur le certificat.

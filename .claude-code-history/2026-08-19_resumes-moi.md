@@ -87,7 +87,7 @@ ligne, les droits que le Siège avait posés.
 combien. La désactivation reste ouverte.
 
 **Le mot de passe SMTP n'est pas en base**, il est dans les variables
-d'environnement (`SMTP_PASSWORD`). Une base se sauvegarde, se copie, s'exporte.
+d'environnement (`SMTP_PASS`). Une base se sauvegarde, se copie, s'exporte.
 
 **Le journal d'audit se tait quand il ne sait pas dire.** Une description
 approximative dans un journal d'audit serait pire que pas de description : on la
@@ -163,9 +163,15 @@ désormais aussi. Il ne manque que le branchement.
 
 ### À décider par vous
 
-- **Poser `SMTP_PASSWORD`** dans les variables d'environnement : sans lui, le
+- **Poser `SMTP_PASS`** dans les variables d'environnement : sans lui, le
   serveur d'envoi est configuré mais aucun message ne part. Le bouton d'essai le
   dira sans détour.
+  *(Elle s'appelait `SMTP_PASSWORD` jusqu'au 19 août 2026 : le code suit
+  désormais le nom employé dans l'environnement.)*
+- **RÉVOQUER le mot de passe d'application Google** qui a transité par
+  `.env.example` le 19 août. Rien n'a été commité — mais un secret exposé ne se
+  retire pas, il se révoque (« Rotation d'un secret », `README.md`). La
+  nouvelle valeur ne va que dans `.env.local`.
 - **Faire tourner `SUPABASE_SERVICE_ROLE_KEY`** — voir « Rotation d'un secret »
   dans `README.md`.
 - **Borner ou non la visibilité des croyants** dans la saisie des dîmes.

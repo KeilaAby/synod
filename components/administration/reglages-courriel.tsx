@@ -197,7 +197,7 @@ export function ReglagesCourriel({
           */}
           <p className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
             <strong>Le mot de passe ne se saisit pas ici.</strong> Il se pose dans la
-            configuration du serveur, sous le nom <code>SMTP_PASSWORD</code> : un secret
+            configuration du serveur, sous le nom <code>SMTP_PASS</code> : un secret
             enregistré en base se retrouverait dans les sauvegardes et les exports.
           </p>
 

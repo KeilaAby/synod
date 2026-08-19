@@ -71,7 +71,7 @@ corepack enable --install-directory "$LOCALAPPDATA/corepack-shims"
   stockage. Sans elle, les photos ne s'affichent pas et le téléversement est
   refusé avec un message explicite : ce n'est pas une panne, c'est une clé
   manquante ;
-- `SMTP_PASSWORD` — **le seul réglage de courriel qui ne soit pas à l'écran**.
+- `SMTP_PASS` — **le seul réglage de courriel qui ne soit pas à l'écran**.
   L'hôte, le port, l'expéditeur et l'identifiant se règlent dans
   *Administration → Paramètres → Courriels* ; le mot de passe reste ici, parce
   qu'une base se sauvegarde, se copie et s'exporte. Vide, les réglages

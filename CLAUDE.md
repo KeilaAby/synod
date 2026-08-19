@@ -362,7 +362,7 @@ technique reste consultable, replié.
 **Courriels** (`0047`) : serveur d'envoi et modèles de message réglables, client
 SMTP **écrit à la main** (`node:net`, `node:tls` — règle 29), bouton d'essai qui
 envoie un vrai message et rapporte la réponse du serveur. Le **mot de passe SMTP
-n'entre pas en base** : il vit dans `SMTP_PASSWORD`, parce qu'une base se
+n'entre pas en base** : il vit dans `SMTP_PASS`, parce qu'une base se
 sauvegarde, se copie et s'exporte. L'éditeur visuel des modèles n'expose que ce
 que le nettoyage serveur laisse passer — proposer un bouton dont le résultat
 serait retiré à l'enregistrement serait un mensonge d'interface.
