@@ -33,6 +33,11 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# Exception : le MODELE, qui ne porte que des noms de variables et aucune
+# valeur. Sans lui, le « cp .env.example .env.local » de reprise.md echoue sur
+# tout clone frais, et lib/env.ts renvoie vers un fichier qui n'existe pas.
+!.env.example
+
 # vercel
 .vercel
 

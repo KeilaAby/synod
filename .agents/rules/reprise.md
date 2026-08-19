@@ -35,15 +35,15 @@ correction dont on ignore le motif.
 
 ```bash
 pnpm install               # installe aussi le hook pre-commit de detection de secrets
-cp .env.example .env.local # ⚠ ABSENT DU DEPOT — voir ci-dessous
+cp .env.example .env.local # puis renseigner les valeurs — voir ci-dessous
 pnpm exec next typegen     # ⚠ AVANT le premier `pnpm verify` — voir ci-dessous
 pnpm dev                   # http://localhost:3000
 ```
 
-**`.env.example` n'est pas dans le depot**, et le `cp` ci-dessus echoue donc sur
-un clone frais : `.gitignore` ignore `.env*` sans exception. La liste complete
-des variables se lit dans `lib/env.ts` ; les trois qui comptent sont detaillees
-plus bas.
+**`.env.example` est versionne** — c'est la seule exception au `.env*` du
+`.gitignore`, et il ne porte que des noms de variables, jamais de valeurs. Il
+avait manque jusqu'au 19 aout 2026 : le `cp` ci-dessus echouait alors sur tout
+clone frais, et `lib/env.ts` renvoyait vers un fichier qui n'existait pas.
 
 **`pnpm typecheck` echoue sur un clone frais**, sur `LayoutProps` introuvable.
 Ce n'est pas une regression : Next 16 **genere** `PageProps`, `LayoutProps` et
@@ -62,14 +62,20 @@ corepack enable --install-directory "$LOCALAPPDATA/corepack-shims"
 
 **`.env.local` n'est pas dans le dépôt, et ne doit jamais y entrer** (ENF-SEC-09,
 `.gitignore`). Les valeurs se relisent dans le tableau de bord Supabase :
-*Project Settings → API*. Trois comptent :
+*Project Settings → API*. Quatre comptent :
 
 - `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_ANON_KEY` — sans elles,
   rien ne démarre ;
-- `SUPABASE_SERVICE_ROLE_KEY` — **contourne la RLS**. Elle sert aux invitations
-  de compte et à **tout** accès au stockage. Sans elle, les photos ne
-  s'affichent pas et le téléversement est refusé avec un message explicite : ce
-  n'est pas une panne, c'est une clé manquante.
+- `SUPABASE_SERVICE_ROLE_KEY` — **contourne la RLS**. Elle sert à l'ouverture
+  des comptes, à la réinitialisation des mots de passe et à **tout** accès au
+  stockage. Sans elle, les photos ne s'affichent pas et le téléversement est
+  refusé avec un message explicite : ce n'est pas une panne, c'est une clé
+  manquante ;
+- `SMTP_PASSWORD` — **le seul réglage de courriel qui ne soit pas à l'écran**.
+  L'hôte, le port, l'expéditeur et l'identifiant se règlent dans
+  *Administration → Paramètres → Courriels* ; le mot de passe reste ici, parce
+  qu'une base se sauvegarde, se copie et s'exporte. Vide, les réglages
+  s'enregistrent mais aucun message ne part — le bouton d'essai le dit.
 
 **Un secret exposé ne se retire pas, il se révoque** — voir « Rotation d'un
 secret » dans `README.md`.

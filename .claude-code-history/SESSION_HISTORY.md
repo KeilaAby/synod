@@ -4125,3 +4125,25 @@ cocher dans le référentiel.
 - **L'audit est écrit par l'application**, pas par des triggers : un trigger ne
   connaît ni l'auteur applicatif, ni le motif d'un refus.
 - **RG-19, RG-22, RG-23 et ENF-SEC-11** n'ont pas de test portant leur code.
+
+## 19 août 2026 (suite) — Le modèle de configuration entre au dépôt
+
+`.gitignore` ignorait `.env*` **sans exception**, si bien que `.env.example`
+n'était pas versionné. Trois conséquences, toutes silencieuses :
+
+- le `cp .env.example .env.local` de `reprise.md` échouait sur **tout clone
+  frais** — la première commande de l'installation ;
+- `lib/env.ts`, quand une variable manque, dit « Voir `.env.example` pour le
+  modèle » : il renvoyait vers un fichier absent ;
+- rien ne recensait les variables. Il fallait les chercher dans le code, et
+  `SMTP_PASSWORD` — arrivé avec le lot 7 — n'apparaissait nulle part.
+
+Le modèle est donc versionné, avec une **exception nommée** dans `.gitignore` et
+son motif écrit à côté. Il ne porte **que des noms de variables**, jamais de
+valeurs : un secret écrit dans un fichier d'exemple part dans l'historique du
+dépôt, où il ne se retire pas — il se révoque.
+
+Sept variables y figurent, avec ce qui se passe quand chacune manque. Notamment
+`SMTP_PASSWORD` : c'est le **seul réglage de courriel qui ne soit pas à
+l'écran**, et l'oublier donne une configuration qui s'enregistre sans qu'aucun
+message ne parte.

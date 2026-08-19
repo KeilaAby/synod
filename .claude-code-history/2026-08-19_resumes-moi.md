@@ -153,9 +153,9 @@ désormais aussi. Il ne manque que le branchement.
 - **Règle 17 à moitié tenue sur `/finances`** : filtres en mémoire, mais pas de
   synchronisation de l'URL par `history.replaceState`. `/rapports` et
   `/administration/audit` le font, et servent de modèle.
-- **`.env.example` n'est pas dans le dépôt** — `.gitignore` ignore `.env*` sans
-  exception. Le `cp .env.example .env.local` de `reprise.md` échoue donc sur
-  tout clone frais.
+- ~~`.env.example` absent du dépôt~~ — **corrigé le 19 août 2026** : le modèle
+  est versionné, avec une exception nommée dans `.gitignore`. Il ne porte que
+  des noms de variables, jamais de valeurs.
 - **`pnpm typecheck` échoue sur un clone frais**, sur `LayoutProps` : Next 16
   génère ces types dans `.next/types/`, et `verify` s'arrête au typecheck avant
   d'atteindre le build qui les aurait produits. `pnpm exec next typegen` le
@@ -179,7 +179,7 @@ désormais aussi. Il ne manque que le branchement.
 
 ```bash
 pnpm install      # installe aussi le hook pre-commit de détection de secrets
-cp .env.example .env.local   # ⚠ absent du dépôt : les valeurs sont dans Supabase
+cp .env.example .env.local   # puis renseigner : les valeurs sont dans Supabase
 pnpm exec next typegen       # sur un clone frais, AVANT le premier typecheck
 pnpm verify       # secrets + lint + types + 698 tests + build
 pnpm dev:propre   # cache Turbopack vidé — après toute série de modifications
