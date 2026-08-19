@@ -9,6 +9,7 @@ import {
   chargerProfilsHabilitation,
 } from '@/lib/data/courriel';
 import { getParametres } from '@/lib/data/settings';
+import { getSession } from '@/lib/session';
 
 import { OngletsParametres } from './onglets-parametres';
 import { ParametresClient } from './parametres-client';
@@ -38,12 +39,23 @@ export default async function ParametresPage() {
    * ne rendent rien sans `settings.manage` — leur RLS s'en charge, et le repli
    * tient lieu de reponse.
    */
-  const [parametres, configuration, modeles, profils] = await Promise.all([
+  const [session, parametres, configuration, modeles, profils] = await Promise.all([
+    getSession(),
     getParametres(),
     chargerConfigurationCourriel(),
     chargerModelesCourriel(),
     chargerProfilsHabilitation(),
   ]);
+
+  /**
+   * EF-ADM-04 — un profil de privileges est COMMUN a toute l'organisation : il
+   * apparait dans le formulaire de compte de chaque entite. Le composer se
+   * decide donc au Siege, comme la trame des rapports (0045).
+   *
+   * L'ecran refuse AVANT le geste, et l'action refuse aussi : un garde-fou
+   * d'interface se contourne par un appel direct.
+   */
+  const peutComposerProfils = session?.entiteType === 'SIEGE';
 
   return (
     <div className="space-y-8">
@@ -55,7 +67,7 @@ export default async function ParametresPage() {
 
       <OngletsParametres
         general={<ParametresClient parametres={parametres} />}
-        profils={<ReglagesProfils profils={profils} />}
+        profils={<ReglagesProfils profils={profils} peutComposer={peutComposerProfils} />}
         courriel={<ReglagesCourriel configuration={configuration} modeles={modeles} />}
       />
     </div>

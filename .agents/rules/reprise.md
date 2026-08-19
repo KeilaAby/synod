@@ -15,13 +15,17 @@ déjà fait**, et **les pièges qui ont réellement coûté du temps**.
 
 1. `CLAUDE.md` — l'état du projet, les **33 règles non négociables**, les
    conventions. C'est le document qui fait autorité.
-2. `.claude-code-history/*_resumes-moi.md` — le **dernier** en date : point
-   d'étape, ce qui reste, ce qui attend une décision de l'utilisateur.
-3. `notes/cdg.md` — les exigences `EF-*` et les règles de gestion `RG-01` à
+2. **`notes/todos.md` — ce qu'il reste à faire.** La liste des demandes en
+   attente, les migrations non appliquées, et ce qui attend une réponse de
+   l'utilisateur. C'est le point de départ du travail ; le *pourquoi* de chaque
+   ligne est dans les deux documents suivants.
+3. `.claude-code-history/*_resumes-moi.md` — le **dernier** en date : point
+   d'étape, ce qui vient d'être livré, ce qui attend une décision.
+4. `notes/cdg.md` — les exigences `EF-*` et les règles de gestion `RG-01` à
    `RG-33`. **Toute modification doit citer l'exigence ou la règle qu'elle
    sert.**
-4. `notes/plan.md` — modèle de données, RLS, design system, découpage en lots.
-5. `.agents/rules/designrules.md` (stack et design) et `.agents/rules/gitpush.md`
+5. `notes/plan.md` — modèle de données, RLS, design system, découpage en lots.
+6. `.agents/rules/designrules.md` (stack et design) et `.agents/rules/gitpush.md`
    (publication).
 
 `.claude-code-history/SESSION_HISTORY.md` raconte le **pourquoi** des décisions.
@@ -89,10 +93,13 @@ s'appliquent pas toutes seules** : c'est l'utilisateur qui les passe dans
 l'éditeur SQL Supabase, et il le confirme. Ne jamais supposer qu'une migration
 écrite est appliquée.
 
-La derniere appliquee est la **`0048`** ; le dernier point d'etape le confirme.
-Pour une base
-**neuve**, `supabase/install.sql` les regroupe toutes — il est **généré**
-(`pnpm db:bundle`), donc jamais édité à la main.
+La dernière appliquée est la **`0053`** (19 août 2026) ; **`0054` et `0055`
+attendent**. `notes/todos.md` et le dernier point d'étape le confirment tous
+deux — et c'est cette liste-là qui fait foi, pas le numéro le plus élevé du
+dossier.
+
+Pour une base **neuve**, `supabase/install.sql` les regroupe toutes — il est
+**généré** (`pnpm db:bundle`), donc jamais édité à la main.
 
 Le stockage de fichiers **ne se configure pas en SQL** : `storage.*` appartient
 à `supabase_storage_admin` et `postgres` s'y voit refuser `CREATE POLICY`.

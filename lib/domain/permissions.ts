@@ -348,6 +348,24 @@ export const PERMISSIONS = {
     group: 'Administration',
     description: 'Remettre en service un element supprime logiquement.',
   },
+  /**
+   * EF-ADM-10 — L'EFFACEMENT REEL, ET IL EST SANS RETOUR.
+   *
+   * `trash.restore` defait une suppression ; celui-ci la rend definitive. Ce ne
+   * sont pas deux degres du meme droit mais deux actes opposes, et le second
+   * n'a aucun rattrapage : le detenir doit se decider a part.
+   *
+   * Portee PROPRE : purger n'est pas un acte qui descend. Un district qui
+   * effacerait definitivement les fiches de ses eglises le ferait sans que
+   * personne, chez elles, ne puisse s'en apercevoir avant qu'il soit trop tard.
+   */
+  'trash.purge': {
+    label: 'Effacer definitivement',
+    group: 'Administration',
+    description:
+      'Retirer pour de bon un element de la corbeille. Sans retour possible.',
+    portee: 'PROPRE',
+  },
 } as const satisfies Record<string, PermissionMeta>;
 
 export type Permission = keyof typeof PERMISSIONS;
@@ -402,6 +420,15 @@ export const NON_DELEGABLES: readonly Permission[] = [
    * entre soi : elle n'arreterait rien, elle ajouterait une etape.
    */
   'finance.periode.reopen',
+  /**
+   * EF-ADM-10 — l'effacement definitif ne se delegue pas.
+   *
+   * C'est la seule operation de l'application qui ne se rattrape pas : ni la
+   * corbeille, ni le journal, ni une restauration ne ramenent ce qu'elle a
+   * retire. Un droit sans retour se decide au Siege, une fois, et ne se
+   * repand pas de proche en proche.
+   */
+  'trash.purge',
 ];
 
 export function estDelegable(permission: Permission): boolean {

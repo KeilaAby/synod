@@ -309,9 +309,22 @@ describe('RG-24 — delegation : on ne delegue que ce que l on detient', () => {
       'finance.periode.reopen',
       'referentiel.manage',
       'settings.manage',
+      /**
+       * EF-ADM-10 — l'effacement definitif, entre dans la liste le 19 aout 2026.
+       *
+       * C'est la seule operation de l'application qui ne se rattrape par rien :
+       * ni la corbeille, ni le journal, ni une restauration ne ramenent ce
+       * qu'elle a retire. Un droit sans retour se decide au Siege, une fois, et
+       * ne se repand pas de proche en proche.
+       */
+      'trash.purge',
     ].sort());
     expect(estDelegable('croyant.create')).toBe(true);
     expect(estDelegable('settings.manage')).toBe(false);
+    // Restaurer se delegue, purger non : ce ne sont pas deux degres du meme
+    // droit mais deux actes opposes, et un seul est sans retour.
+    expect(estDelegable('trash.restore')).toBe(true);
+    expect(estDelegable('trash.purge')).toBe(false);
     // `bureau.manage` reste delegable : gerer le present n'est pas reecrire
     // le passe.
     expect(estDelegable('bureau.manage')).toBe(true);

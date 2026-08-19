@@ -43,7 +43,24 @@ import { appelerAction } from '@/lib/utils/appeler-action';
  * éteint. C'est aussi pourquoi supprimer un profil ne retire aucun droit à
  * personne — les comptes portent les leurs, un par un.
  */
-export function ReglagesProfils({ profils }: { profils: ProfilEnregistre[] }) {
+export function ReglagesProfils({
+  profils,
+  /**
+   * EF-ADM-04 — la composition est RÉSERVÉE AU SIÈGE.
+   *
+   * Un profil est commun à toute l'organisation : il apparaît dans le
+   * formulaire de compte de chaque entité. Le laisser composer ailleurs le
+   * poserait sous les yeux de tous sans que personne l'ait demandé.
+   *
+   * Les autres entités voient quand même la liste — la masquer ferait croire
+   * qu'il n'y a pas de profils, et le formulaire de compte les propose
+   * pourtant. Ce qui disparaît, ce sont les gestes.
+   */
+  peutComposer,
+}: {
+  profils: ProfilEnregistre[];
+  peutComposer: boolean;
+}) {
   const [enEdition, setEnEdition] = useState<ProfilEnregistre | 'nouveau' | null>(null);
   const [aSupprimer, setASupprimer] = useState<ProfilEnregistre | null>(null);
   const router = useRouter();
@@ -109,13 +126,17 @@ export function ReglagesProfils({ profils }: { profils: ProfilEnregistre[] }) {
                 Profils de l’organisation
               </h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                Vos propres découpages, proposés à côté des précédents.
+                {peutComposer
+                  ? 'Vos propres découpages, proposés à côté des précédents.'
+                  : 'Communs à toute l’organisation, ils se composent au Siège. Vous pouvez les employer à l’ouverture d’un compte.'}
               </p>
             </div>
-            <Button className="h-10" onClick={() => setEnEdition('nouveau')}>
-              <Plus className="mr-2 size-4" aria-hidden />
-              Nouveau profil
-            </Button>
+            {peutComposer && (
+              <Button className="h-10" onClick={() => setEnEdition('nouveau')}>
+                <Plus className="mr-2 size-4" aria-hidden />
+                Nouveau profil
+              </Button>
+            )}
           </div>
 
           {profils.length === 0 ? (
@@ -144,26 +165,30 @@ export function ReglagesProfils({ profils }: { profils: ProfilEnregistre[] }) {
                       </p>
                     </div>
 
-                    <div className="flex shrink-0 items-center">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8"
-                        aria-label={`Modifier ${profil.nom}`}
-                        onClick={() => setEnEdition(profil)}
-                      >
-                        <ShieldCheck className="size-4" aria-hidden />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 hover:text-destructive"
-                        aria-label={`Supprimer ${profil.nom}`}
-                        onClick={() => setASupprimer(profil)}
-                      >
-                        <Trash2 className="size-4" aria-hidden />
-                      </Button>
-                    </div>
+                    {/* Retirer un profil le retire à TOUT LE MONDE : le geste
+                        suit la même règle que la création (EF-ADM-04). */}
+                    {peutComposer && (
+                      <div className="flex shrink-0 items-center">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8"
+                          aria-label={`Modifier ${profil.nom}`}
+                          onClick={() => setEnEdition(profil)}
+                        >
+                          <ShieldCheck className="size-4" aria-hidden />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8 hover:text-destructive"
+                          aria-label={`Supprimer ${profil.nom}`}
+                          onClick={() => setASupprimer(profil)}
+                        >
+                          <Trash2 className="size-4" aria-hidden />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </li>
               ))}

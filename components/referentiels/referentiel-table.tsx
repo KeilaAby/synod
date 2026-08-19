@@ -222,7 +222,18 @@ export function ReferentielTable({
                         colonne.alignementDroite && 'text-right',
                       )}
                     >
-                      {afficher(ligne[colonne.cle])}
+                      {colonne.booleen ? (
+                        /*
+                          Un drapeau se lit comme un ÉTAT. Le ton distingue sans
+                          qu'on lise, le mot lève l'ambiguïté qu'un pictogramme
+                          seul laisserait.
+                        */
+                        <StatusBadge tone={ligne[colonne.cle] ? 'success' : 'neutral'}>
+                          {ligne[colonne.cle] ? 'Oui' : 'Non'}
+                        </StatusBadge>
+                      ) : (
+                        afficher(ligne[colonne.cle])
+                      )}
                     </TableCell>
                   ))}
 

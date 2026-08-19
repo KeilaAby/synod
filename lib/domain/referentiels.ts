@@ -43,6 +43,15 @@ export interface ColonneReferentiel {
   readonly label: string;
   readonly mono?: boolean;
   readonly alignementDroite?: boolean;
+  /**
+   * Rendue comme un ETAT et non comme le mot « Oui » ou « Non ».
+   *
+   * Un drapeau vrai pour trois lignes sur vingt donne dix-sept « Non » a lire :
+   * l'oeil doit trier du texte pour trouver l'exception. Une pastille se repere
+   * sans etre lue. On garde le mot dedans — un pictogramme seul demanderait une
+   * legende.
+   */
+  readonly booleen?: boolean;
 }
 
 /**
@@ -129,6 +138,15 @@ export const REFERENTIELS: Record<SlugReferentiel, DefinitionReferentiel> = {
       { cle: 'libelle', label: 'Libelle' },
       { cle: 'code', label: 'Code', mono: true },
       { cle: 'ordre', label: 'Ordre', mono: true, alignementDroite: true },
+      /**
+       * EF-ADM-14 — LE REGLAGE SE VOIT AUTANT QU'IL SE REGLE.
+       *
+       * Il se posait au formulaire depuis 0048, mais la liste n'en disait rien :
+       * savoir quels grades celebrent demandait d'ouvrir chaque fiche. Or c'est
+       * une question de COMPARAISON — « qui peut celebrer ? » —, et une question
+       * de comparaison veut une reponse en tableau.
+       */
+      { cle: 'peut_celebrer', label: 'Celebrant', booleen: true },
     ],
     champs: [
       { cle: 'libelle', label: 'Libelle', type: 'texte', requis: true },

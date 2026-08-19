@@ -426,8 +426,36 @@ fois, teste le **préfixe** `NEXT_` — large est le choix sûr, se relever de t
 est bénin — et ne l'importe pas de `next/dist/…`, un chemin interne qui se
 déplace d'une version à l'autre.
 
-Base à jour jusqu'à la migration `0051` (`0052` **en attente**) — fuseau
-`Indian/Antananarivo` (UTC+3).
+**La fiche d'entité tient sa promesse** (`0053`, `fn_chiffres_perimetre`).
+Effectifs, bureau courant et solde figurent enfin dans le pop-up de
+l'organigramme **et** dans la fiche pleine page — un seul rendu partagé
+(règle 16). Tout le périmètre est chargé **avec l'arbre**, en une passe : le
+pop-up s'ouvre sans requête, et c'est ce qui le rend instantané (règle 28). Les
+soldes viennent de `fn_finance_soldes_perimetre` et non d'une seconde somme.
+Un bloc non habilité **disparaît** au lieu de s'afficher à zéro (règle 15), et
+le droit s'évalue avec sa portée — `peut`, jamais `detient`.
+
+**L'effacement définitif existe, et c'est un acte à part** (`trash.purge`,
+`0054` et `0055`). Restaurer défait une suppression, purger la rend
+définitive : deux actes opposés, pas deux degrés du même droit. **Non
+délégable** — c'est la seule opération qui ne se rattrape par rien — et à
+portée **PROPRE**, sinon un district effacerait chez ses églises sans que
+personne s'en aperçoive à temps. La conséquence est dite sans détour : le
+journal garde « Croyant supprimé », plus le nom. **La base a le dernier mot** :
+les clés étrangères en `on delete restrict` refusent ce qui est cité ailleurs,
+et l'action se contente de traduire le refus **en nommant la ligne**. Un refus
+partiel n'arrête pas le lot. Les deux fonctions SQL sont dans **deux**
+migrations : le test d'alignement extrait le *premier* `select array[...]` du
+fichier, et les réunir lui aurait fait comparer la mauvaise liste.
+
+**Les profils de privilèges sont réservés au Siège.** Un profil est *commun* à
+toute l'organisation — il apparaît dans le formulaire de compte de chaque
+entité. `settings.manage` étant non délégable, le Siège était déjà seul à le
+détenir en pratique ; mais « en pratique » n'est pas une garantie, et la
+suppression suit la même règle que la création.
+
+Base à jour jusqu'à la migration `0053` (`0054` et `0055` **en attente**) —
+fuseau `Indian/Antananarivo` (UTC+3).
 **Toute migration qui crée ou remplace
 une fonction doit finir par `notify pgrst, 'reload schema'`** : sans lui, l'API
 répond « fonction inconnue » sur du SQL pourtant en place — constaté deux fois,
@@ -456,8 +484,11 @@ dernier point d'étape : [`.claude-code-history/2026-08-19_resumes-moi.md`](.cla
 Un secret exposé ne se retire pas, il se **révoque** : voir « Rotation d'un
 secret » dans `README.md`.
 
-Ce qu'il reste à faire est décrit dans le dernier point d'étape
-`..._resumes-moi.md`, et le découpage en lots dans [`notes/plan.md`](notes/plan.md).
+**Ce qu'il reste à faire est listé dans [`notes/todos.md`](notes/todos.md)** —
+les demandes en attente, les migrations non appliquées et ce qui attend une
+réponse de l'utilisateur. Le contexte de chacune est dans le dernier point
+d'étape `..._resumes-moi.md`, et le découpage en lots dans
+[`notes/plan.md`](notes/plan.md).
 
 ## Règles non négociables
 

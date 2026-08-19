@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 
 import { PageHeader } from '@/components/shared/page-header';
 import { chargerCorbeille } from '@/lib/data/corbeille';
+import { peut } from '@/lib/domain/permissions';
+import { getSession } from '@/lib/session';
 import { formatNombre } from '@/lib/utils/format';
 
 import { CorbeilleClient } from './corbeille-client';
@@ -16,7 +18,19 @@ export const metadata: Metadata = { title: 'Corbeille' };
  * ordinaire : voir ce qu'on a supprime n'est pas un droit a part.
  */
 export default async function CorbeillePage() {
-  const elements = await chargerCorbeille();
+  const [elements, session] = await Promise.all([chargerCorbeille(), getSession()]);
+
+  /**
+   * EF-ADM-10 — `trash.purge` est a portee PROPRE (RG-25, migration 0055) : le
+   * detenir sur un district ne l'ouvre pas sur ses eglises. Ici on ne peut
+   * l'evaluer que sur l'entite de rattachement, faute de connaitre le chemin de
+   * chaque ligne avant de l'afficher — l'action, elle, le verifie ligne par
+   * ligne. L'ecran decide donc si les gestes APPARAISSENT ; le serveur decide
+   * s'ils aboutissent.
+   */
+  const peutPurger = session
+    ? peut(session, 'trash.purge', session.scopePath)
+    : false;
 
   return (
     <div className="space-y-8">
@@ -30,7 +44,7 @@ export default async function CorbeillePage() {
         }
       />
 
-      <CorbeilleClient elements={elements} />
+      <CorbeilleClient elements={elements} peutPurger={peutPurger} />
     </div>
   );
 }

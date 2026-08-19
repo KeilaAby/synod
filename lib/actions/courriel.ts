@@ -272,11 +272,31 @@ const profilSchema = z.object({
  * `peutDeleguer` droit par droit. On peut donc definir ici un profil plus large
  * que ce qu'un administrateur de district pourra en tirer : chez lui, les
  * droits hors de sa portee resteront simplement eteints.
+ *
+ * RESERVE AU SIEGE, et pas seulement a `settings.manage`.
+ *
+ * Un profil est GLOBAL : il n'appartient a aucune entite, et il apparait dans
+ * le formulaire de compte de TOUTES. Un district qui en creerait un le poserait
+ * donc sous les yeux du Siege et de ses entites soeurs, sans qu'aucune l'ait
+ * demande — c'est un vocabulaire commun, et un vocabulaire commun se decide au
+ * meme endroit pour tout le monde.
+ *
+ * `settings.manage` est non delegable, donc en pratique le Siege est seul a le
+ * detenir. Mais « en pratique » n'est pas une garantie : la regle qu'on veut
+ * tenir s'ecrit, sinon elle depend d'une autre qui pourrait changer.
  */
 export async function enregistrerProfil(input: unknown): Promise<ActionResult<void>> {
   return executerAction('enregistrerProfil', async () => {
     const session = await requireSession();
     await requirePermission(session, 'settings.manage');
+
+    if (session.entiteType !== 'SIEGE') {
+      return ko(
+        'Les profils de privilèges sont communs à toute l’organisation : ils se ' +
+          'définissent au Siège. Vos habilitations restent modifiables compte ' +
+          'par compte.',
+      );
+    }
 
     const analyse = profilSchema.safeParse(input);
     if (!analyse.success) {
@@ -326,11 +346,22 @@ export async function enregistrerProfil(input: unknown): Promise<ActionResult<vo
  * detient pas : les comptes qui en ont beneficie gardent les leurs, inscrits
  * un par un dans leurs habilitations. C'est precisement ce qui distingue un
  * raccourci d'un role — et ce qui rend cette suppression sans danger.
+ *
+ * RESERVEE AU SIEGE, pour la meme raison que la creation : un profil est
+ * commun a toute l'organisation. Le retirer le retirerait a tout le monde —
+ * n'autoriser que sa creation laisserait la porte ouverte du mauvais cote.
  */
 export async function supprimerProfil(input: unknown): Promise<ActionResult<void>> {
   return executerAction('supprimerProfil', async () => {
     const session = await requireSession();
     await requirePermission(session, 'settings.manage');
+
+    if (session.entiteType !== 'SIEGE') {
+      return ko(
+        'Les profils de privilèges sont communs à toute l’organisation : seul ' +
+          'le Siège peut en retirer un.',
+      );
+    }
 
     const analyse = z.object({ id: z.uuid() }).safeParse(input);
     if (!analyse.success) return ko('Requete invalide.');

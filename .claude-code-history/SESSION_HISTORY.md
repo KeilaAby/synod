@@ -4477,3 +4477,85 @@ soutenable — « 2 400 000 » se lit tout autrement selon qu'il représente un
 tiers ou le double de ce qui est entré. Sans recette, `part` vaut `null` et la
 barre disparaît : « 0 % » se lirait comme une mesure là où il n'y a rien à
 rapporter (même règle qu'EF-DSH-05).
+
+### La fiche d'entité tenait une promesse depuis le lot 1
+
+« Les effectifs de croyants, la composition du bureau et le solde disponible
+apparaîtront ici avec les lots 2, 3 et 4. » Ces lots étaient livrés depuis
+longtemps ; la phrase, elle, était restée aux deux endroits qui la portaient.
+
+**Un seul rendu pour les deux écrans** (règle 16). Le pop-up de l'organigramme
+et la fiche pleine page montrent les mêmes chiffres : deux rendus auraient
+divergé à la première retouche, et le lecteur n'aurait pas su lequel croire.
+
+**Tout le périmètre en une passe** (`fn_chiffres_perimetre`, migration `0053`).
+Le pop-up s'ouvre sur n'importe quel nœud **sans requête** — c'est ce qui le
+rend instantané. Interroger à l'ouverture y ajouterait un aller-retour de 0,5 à
+4 s et un squelette, pour trois nombres (règle 28).
+
+**Les soldes ne sont pas dans la nouvelle fonction**, et c'est voulu :
+`fn_finance_soldes_perimetre` les calcule déjà. En écrire une seconde somme
+donnerait deux résultats que rien ne garantirait égaux.
+
+**Un bloc non habilité disparaît** (règle 15) — il ne s'affiche pas à zéro. La
+RLS compte à zéro ce qu'on n'a pas le droit de lire, et ce zéro se lirait
+« cette église n'a personne » là où la vérité est « je n'ai pas le droit de
+savoir ». Le droit s'évalue **avec sa portée** (règle 3), donc par `peut` et
+non par `detient`.
+
+**Un cycle d'import évité, pas toléré.** `chargerChiffresStructure` a son propre
+module : `finances.ts` importait déjà `entities.ts`, et l'import inverse
+fabriquait un cycle. TypeScript l'acceptait — mais un module qui échoue au
+chargement casse en amont de tout garde-fou, et aucun `try/catch` n'attrape rien
+(règle 29).
+
+### L'effacement définitif : un droit à part, et non délégable
+
+La corbeille annonçait « pas de suppression définitive ». C'était un choix
+défendable — la suppression logique garde justes les références de l'historique.
+La purge accepte de rompre cela, et **la conséquence se dit sans détour** : le
+journal conserve la ligne « Croyant supprimé », mais plus le nom du croyant.
+
+D'où trois décisions liées :
+
+1. **`trash.purge` est un droit distinct de `trash.restore`.** Restaurer défait
+   une suppression, purger la rend définitive : ce ne sont pas deux degrés du
+   même droit mais deux actes opposés.
+2. **Non délégable** (`0054`). C'est la seule opération de l'application qui ne
+   se rattrape par rien. Un droit sans retour se décide au Siège, une fois.
+3. **Portée `PROPRE`** (`0055`). Un district qui purgerait les fiches de ses
+   églises le ferait sans que personne, chez elles, ne s'en aperçoive avant
+   qu'il soit trop tard.
+
+**La base a le dernier mot.** Les clés étrangères sont en `on delete restrict`
+à peu près partout : un croyant qui a siégé dans un bureau, une entité qui porte
+des mouvements. Elle refuse de les effacer, et elle a raison — ces lignes sont
+citées ailleurs. L'action ne force rien : elle traduit le refus en français et
+**nomme** la ligne concernée.
+
+**Un refus partiel n'arrête pas le lot** (même doctrine qu'EF-FIN-21). Le lot
+part d'abord en bloc — deux allers-retours au lieu de N ; il ne se rejoue ligne
+par ligne que s'il échoue, et seulement pour identifier ce qui bloque, ce qu'un
+échec global ne dirait pas.
+
+**Une décision de découpage qui n'est pas cosmétique** : les deux fonctions SQL
+sont dans **deux** migrations. Le test d'alignement extrait le *premier*
+`select array[...]` du fichier ; les réunir lui aurait fait comparer la mauvaise
+liste, et la vérification aurait cessé de vérifier sans le dire.
+
+### Deux réglages qui ne se voyaient pas
+
+**Le grade célébrant** (`peut_celebrer`, `0048`) se posait au formulaire mais
+n'apparaissait dans aucune colonne : savoir quels grades célèbrent demandait
+d'ouvrir chaque fiche. C'est une question de comparaison, elle veut une réponse
+en tableau. Rendu comme un **état** et non comme le mot « Non » répété vingt
+fois — l'œil doit pouvoir repérer l'exception sans lire.
+
+**Les profils de privilèges sont réservés au Siège.** Un profil est *commun* à
+toute l'organisation : il apparaît dans le formulaire de compte de chaque
+entité. Le composer ailleurs le poserait sous les yeux de tous sans que personne
+l'ait demandé. `settings.manage` étant non délégable, le Siège était déjà seul
+à le détenir en pratique — mais « en pratique » n'est pas une garantie : la
+règle qu'on veut tenir s'écrit, sinon elle dépend d'une autre qui pourrait
+changer. La suppression suit la même règle : n'autoriser que la création
+laisserait la porte ouverte du mauvais côté.

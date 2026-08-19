@@ -17,7 +17,7 @@
 
 ## L'état de la base
 
-Migrations `0001` à **`0050`** appliquées. Les cinq dernières :
+Migrations `0001` à **`0053`** appliquées. Les huit dernières :
 
 | N° | Ce qu'elle apporte |
 |---|---|
@@ -27,11 +27,13 @@ Migrations `0001` à **`0050`** appliquées. Les cinq dernières :
 | `0049` | RG-17 laisse passer le **rattachement à un bordereau** d'une collecte de dîme déjà validée. Sans elle, aucune collecte antérieure à `0038` ne pouvait plus être remise au Siège. |
 | `0050` | `fn_permissions_portee_propre()` — onze droits dont la portée est l'entité **seule**, et `has_perm` réécrite en conséquence. |
 | `0051` | `finance.delegate` devient délégable — ce qui le bornait n'était pas l'interdiction de le déléguer, mais ses deux conditions cumulatives. |
+| `0052` | Une saisie **déléguée** ne passe par aucun workflow : l'entité visée n'a personne pour valider, et depuis `0050` son ascendant ne le peut plus non plus. |
+| `0053` | `fn_chiffres_perimetre` — effectifs et bureau courant de chaque entité, en une passe. |
 
-> ⏳ **`0052` attend d'être appliquée** : une saisie **déléguée** ne passe par
-> aucun workflow de validation. Sans elle, une écriture déléguée reste `SOUMIS`
-> sans que personne ne puisse la valider — ni l'entité, qui ne se connecte pas,
-> ni l'ascendant, dont `finance.validate` ne descend plus depuis `0050`.
+> ⏳ **`0054` et `0055` attendent d'être appliquées** : elles font entrer le
+> nouveau droit `trash.purge` dans les deux listes que la base tient — les non
+> délégables et les portées propres. Sans elles, la base et l'écran ne diraient
+> pas la même chose, et deux tests le signalent déjà en lisant le SQL.
 
 ---
 
@@ -49,7 +51,7 @@ Migrations `0001` à **`0050`** appliquées. Les cinq dernières :
 | Rapports — bibliothèque, éditeur, aperçu A4, génération | ✅ |
 | **Administration — comptes, habilitations, audit, corbeille, paramètres, courriels** | ✅ |
 
-**714 tests unitaires, 33 fichiers.** `pnpm verify` vert.
+**715 tests unitaires, 33 fichiers.** `pnpm verify` vert.
 
 ### Depuis le dernier point d'étape
 
@@ -69,6 +71,17 @@ Migrations `0001` à **`0050`** appliquées. Les cinq dernières :
   endroit, `lib/utils/erreurs-next.ts`.
 - **Les cartes de `/finances`** prennent l'habit de la maquette : filet coloré
   en tête, pastille d'icône, et une jauge là où elle mesure quelque chose.
+- **La fiche d'entité tient sa promesse** : effectifs, bureau et solde, dans le
+  pop-up comme en pleine page, chargés avec l'arbre — donc sans attente. Un
+  bloc non habilité disparaît au lieu de s'afficher à zéro.
+- **L'effacement définitif existe** dans la corbeille, avec sélection multiple
+  et « tout sélectionner ». Droit à part (`trash.purge`), non délégable, portée
+  propre ; ce qui est encore cité ailleurs est refusé **et nommé**.
+- **Deux réglages qui ne se voyaient pas** : le grade célébrant a sa colonne, et
+  les profils de privilèges sont réservés au Siège.
+
+> 📋 **Le reste de vos demandes est dans [`notes/todos.md`](../notes/todos.md)**,
+> écrit pour la reprise sur une autre machine.
 
 ### ⚠ Le PDF d'un rapport reste bâclé
 
@@ -195,8 +208,12 @@ désormais aussi. Il ne manque que le branchement.
 
 ### À décider par vous
 
-- **Appliquer la migration `0052`** — sans elle, une écriture déléguée peut
-  rester bloquée en `SOUMIS` sans personne pour la valider.
+- **Appliquer les migrations `0054` et `0055`** — sans elles, `trash.purge`
+  serait délégable en base et descendrait dans le sous-arbre : purger sur un
+  district effacerait pour de bon chez ses églises.
+- **Accorder `trash.purge` à qui doit l'avoir.** Le droit est né désactivé
+  partout : tant que personne ne le détient, l'effacement définitif n'apparaît
+  dans aucune corbeille. C'est le bon défaut pour une opération sans retour.
 - **Poser `SMTP_PASS`** dans les variables d'environnement : sans lui, le
   serveur d'envoi est configuré mais aucun message ne part. Le bouton d'essai le
   dira sans détour.
