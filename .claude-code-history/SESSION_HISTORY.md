@@ -4278,3 +4278,66 @@ fournit déjà, et interdiction de couper une feuille en son milieu.
 C'est le patron qui sert déjà l'organigramme et les reçus de dîme, et qui n'a
 jamais failli. Les règles de masquage restent en place : un `Ctrl+P` sur l'écran
 doit continuer de donner quelque chose de correct.
+
+---
+
+## 19 août 2026 — Le PDF sans style, et la portée des droits
+
+### Le PDF sortait sans aucune mise en forme
+
+Le rendu joint par l'utilisateur montrait un logo en pleine page, du texte
+empilé en serif, aucune couleur, aucune grille : **un document sans CSS**.
+
+`window.open('')` ouvre un document `about:blank`. Les feuilles de style de
+l'application sont référencées en chemin **absolu depuis la racine**
+(`/_next/static/css/…`) : recopiées telles quelles dans la nouvelle fenêtre,
+elles se résolvent contre `about:blank` et ne chargent jamais.
+
+`<base href="${location.origin}/">` le règle — **posé avant les `<link>`**,
+parce que le navigateur résout au fil de la lecture et qu'une base placée après
+arriverait trop tard.
+
+L'organigramme et les reçus n'ont jamais eu ce problème : ils écrivent leur
+propre `<style>` en ligne et ne référencent rien.
+
+### « NaN % » sur la jauge d'un rapport
+
+`Math.round((atteint / total) * 100)` avec un total nul. `couverture()` existe
+depuis EF-DSH-05, elle est testée, elle rend `null` quand il n'y a rien à
+couvrir — le rapport avait réécrit la division à la main.
+
+Le fond : « 0 % » se lit comme une **mesure** alors qu'il n'y a rien à mesurer,
+et « NaN % » ne se lit pas du tout — il dit au lecteur que le document est
+cassé, ce qui est pire que de se taire. La légende omet donc le pourcentage
+quand il n'y a pas de dénominateur.
+
+### RG-25 précisé — la portée est une propriété du DROIT
+
+**Le cas qui a tranché** : un administrateur de district à qui l'on accorde
+`finance.validate` validait, de ce fait, les mouvements de ses paroisses et de
+ses églises. `has_perm` teste une inclusion de chemin, donc toute la descendance.
+
+Or le lot 4 a posé l'inverse en doctrine : *« chaque entité a son bureau et
+chaque bureau gère ses finances ; la hiérarchie ne fait que les consulter »*. Le
+contrôle de droit ne l'avait jamais suivie.
+
+Chaque droit déclare désormais sa portée — `PROPRE` (l'entité seule) ou
+`DESCENDANTE` (elle et son sous-arbre). **Ce n'est pas à l'administrateur de
+décider si « valider une finance » descend** : cela dépend de la nature de
+l'acte.
+
+Onze droits sont `PROPRE` : les six de la chaîne financière d'écriture, les deux
+de clôture de période, les deux de gestion de bureau, et les deux qui touchent
+aux comptes et aux habilitations. Tout le reste descend, **par défaut** — ce qui
+conserve le comportement des droits qui n'ont pas été examinés : un droit ajouté
+demain descend comme avant, et le déclarer `PROPRE` reste une décision explicite.
+
+`fn_permissions_portee_propre()` (migration `0050`) porte la même liste en base,
+et un test lit le fichier SQL pour comparer les deux. Sans lui, l'écart serait
+**invisible** : l'écran refuserait pendant que la base accorderait, ou l'inverse.
+
+**Un test existant est tombé, et c'était juste.** Il affirmait qu'une portée
+`finance.create` sur une paroisse couvrait ses églises — exactement la
+sémantique qu'on change. Il a été réécrit sur `croyant.create`, qui est resté
+`DESCENDANTE`, et doublé d'un test disant la nouvelle règle. Le supprimer aurait
+effacé la trace de ce qui a changé.

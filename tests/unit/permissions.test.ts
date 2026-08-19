@@ -12,6 +12,7 @@ import {
   peutDeleguer,
   permissionsDeleguables,
   permissionsDuGroupe,
+  porteeDe,
   porteeEffective,
 } from '@/lib/domain/permissions';
 
@@ -100,14 +101,36 @@ describe('RG-20 / RG-25 — droit detenu, portee couvrante, entite dans le perim
   });
 
   it('RG-25 : une portee restreinte ne couvre que sa branche', () => {
+    /**
+     * `croyant.create` est un droit a portee DESCENDANTE : accorde sur une
+     * paroisse, il vaut pour ses eglises. Ce test portait sur
+     * `finance.create` jusqu'au 19 aout 2026 — ce droit est devenu PROPRE, et
+     * l'exemple ne disait plus ce qu'il voulait dire.
+     */
+    const s = session({
+      permissions: [{ permission: 'croyant.create', scopePath: P.paroisse1 }],
+    });
+
+    expect(peut(s, 'croyant.create', P.paroisse1)).toBe(true);
+    expect(peut(s, 'croyant.create', P.eglise1)).toBe(true); // descendant de la portee
+    expect(peut(s, 'croyant.create', P.paroisse2)).toBe(false); // autre branche
+    expect(peut(s, 'croyant.create', P.districtA)).toBe(false); // au-dessus de la portee
+  });
+
+  it('RG-25 : un droit PROPRE ne couvre QUE l entite designee', () => {
+    /**
+     * La contrepartie du test precedent, et le coeur du changement : accorde
+     * sur une paroisse, `finance.create` ne descend pas a ses eglises. Chaque
+     * bureau gere ses propres finances (doctrine du lot 4).
+     */
     const s = session({
       permissions: [{ permission: 'finance.create', scopePath: P.paroisse1 }],
     });
 
     expect(peut(s, 'finance.create', P.paroisse1)).toBe(true);
-    expect(peut(s, 'finance.create', P.eglise1)).toBe(true); // descendant de la portee
-    expect(peut(s, 'finance.create', P.paroisse2)).toBe(false); // autre branche
-    expect(peut(s, 'finance.create', P.districtA)).toBe(false); // au-dessus de la portee
+    expect(peut(s, 'finance.create', P.eglise1)).toBe(false); // ne descend PLUS
+    expect(peut(s, 'finance.create', P.paroisse2)).toBe(false);
+    expect(peut(s, 'finance.create', P.districtA)).toBe(false);
   });
 
   it('distingue la DETENTION d un droit de son exercice sur une entite', () => {
@@ -352,5 +375,118 @@ describe('Liste des droits proposables dans la matrice d habilitations', () => {
   it('propose tout au SuperAdmin', () => {
     const sa = session({ role: 'SUPERADMIN', scopePath: P.siege });
     expect(permissionsDeleguables(sa)).toHaveLength(ALL_PERMISSIONS.length);
+  });
+});
+
+describe('RG-25 — la portee est une propriete du DROIT', () => {
+  /** Un district, une paroisse dessous, une eglise sous la paroisse. */
+  const district = 'siege.reg.dis';
+  const paroisse = 'siege.reg.dis.par';
+
+  const rakoto: SessionUtilisateur = {
+    profileId: 'rakoto',
+    role: 'ENTITE_ADMIN',
+    entityId: 'dis',
+    scopePath: district,
+    permissions: [
+      // Accordes « sur tout son perimetre » : la portee de l'octroi est nulle.
+      { permission: 'finance.validate', scopePath: null },
+      { permission: 'finance.read', scopePath: null },
+      { permission: 'entity.create', scopePath: null },
+      { permission: 'croyant.create', scopePath: null },
+      { permission: 'user.manage', scopePath: null },
+    ],
+  };
+
+  it('declare DESCENDANTE tout droit qui ne dit rien', () => {
+    /**
+     * Le defaut conserve le comportement des droits qui n'ont pas ete
+     * examines : un droit ajoute demain descend, comme avant. Le declarer
+     * PROPRE est une decision explicite, prise une fois.
+     */
+    expect(porteeDe('croyant.create')).toBe('DESCENDANTE');
+    expect(porteeDe('finance.read')).toBe('DESCENDANTE');
+    expect(porteeDe('finance.validate')).toBe('PROPRE');
+  });
+
+  it('LE CAS RAKOTO : il valide chez lui, pas chez ses paroisses', () => {
+    /**
+     * Le lot 4 a pose en doctrine que chaque bureau gere SES finances et que la
+     * hierarchie ne fait que les consulter. Le controle de droit ne l'avait
+     * jamais suivie : une inclusion de chemin donnait tout le sous-arbre.
+     */
+    expect(peut(rakoto, 'finance.validate', district)).toBe(true);
+    expect(peut(rakoto, 'finance.validate', paroisse)).toBe(false);
+  });
+
+  it('mais il CONSULTE les finances de toute sa descendance', () => {
+    // « La hierarchie ne fait que les consulter » — la lecture, elle, descend.
+    expect(peut(rakoto, 'finance.read', paroisse)).toBe(true);
+  });
+
+  it('et il structure sa descendance : entites et croyants', () => {
+    /**
+     * Un district structure ses paroisses. Si son administrateur ne le pouvait
+     * pas, personne ne le ferait — c'est exactement ce que la portee PROPRE ne
+     * doit PAS empecher.
+     */
+    expect(peut(rakoto, 'entity.create', paroisse)).toBe(true);
+    expect(peut(rakoto, 'croyant.create', paroisse)).toBe(true);
+  });
+
+  it('n atteint pas les comptes ni les habilitations de ses descendants', () => {
+    // Ouvrir des comptes et distribuer des droits dans une paroisse ne se
+    // pilote pas depuis le district.
+    expect(peut(rakoto, 'user.manage', district)).toBe(true);
+    expect(peut(rakoto, 'user.manage', paroisse)).toBe(false);
+  });
+
+  it('respecte une portee EXPLICITE plus etroite que le perimetre', () => {
+    const cible: SessionUtilisateur = {
+      ...rakoto,
+      permissions: [{ permission: 'finance.validate', scopePath: paroisse }],
+    };
+
+    // Accorde sur la paroisse : il y valide, et plus dans son propre district.
+    expect(peut(cible, 'finance.validate', paroisse)).toBe(true);
+    expect(peut(cible, 'finance.validate', district)).toBe(false);
+  });
+
+  it('ne borne rien pour le SuperAdmin', () => {
+    const siege: SessionUtilisateur = {
+      profileId: 's',
+      role: 'SUPERADMIN',
+      entityId: 'siege',
+      scopePath: 'siege',
+      permissions: [],
+    };
+    expect(peut(siege, 'finance.validate', paroisse)).toBe(true);
+  });
+
+  it('tient la MEME liste que la base — RG-25', async () => {
+    /**
+     * Meme raison que pour les droits non delegables : une regle ecrite a deux
+     * endroits ne diverge jamais le jour ou on l'ecrit, elle diverge six mois
+     * plus tard. Ici l'ecart serait invisible — l'ecran refuserait pendant que
+     * la base accorderait, ou l'inverse.
+     */
+    const { readFile, readdir } = await import('node:fs/promises');
+    const dossier = new URL('../../supabase/migrations/', import.meta.url);
+    const fichiers = (await readdir(dossier)).filter((f) => f.endsWith('.sql')).sort();
+
+    let derniere: string | null = null;
+    for (const fichier of fichiers) {
+      const contenu = await readFile(new URL(fichier, dossier), 'utf8');
+      if (contenu.includes('function fn_permissions_portee_propre')) derniere = contenu;
+    }
+
+    expect(derniere, 'aucune migration ne definit fn_permissions_portee_propre').not.toBeNull();
+
+    const sql = derniere!;
+    const tableau = sql.slice(sql.indexOf('select array['), sql.indexOf(']::text[]'));
+    const cotes = [...tableau.matchAll(/'([a-z_]+(?:\.[a-z_]+)+)'/g)].map((m) => m[1]!);
+
+    const domaine = ALL_PERMISSIONS.filter((p) => porteeDe(p) === 'PROPRE');
+    expect(cotes.sort()).toEqual([...domaine].sort());
   });
 });

@@ -14,6 +14,7 @@ import {
   typeGraphique,
 } from '@/lib/domain/rapport';
 import { type ContenuExemple, contenuExemple } from '@/lib/domain/rapport-exemple';
+import { couverture } from '@/lib/domain/kpi';
 import { cn } from '@/lib/utils';
 
 /**
@@ -383,7 +384,18 @@ function ContenuSimule({
       return <Graphique contenu={contenu} forme={forme} />;
 
     case 'JAUGE': {
-      const part = Math.round((contenu.atteint / contenu.total) * 100);
+      /**
+       * `couverture` PLUTOT QU'UNE DIVISION ECRITE ICI.
+       *
+       * Elle existe depuis EF-DSH-05, elle est testee, et elle rend `null`
+       * quand il n'y a rien a couvrir. La division posee a la main donnait
+       * « NaN % » sur un total nul — constate sur un rapport diffuse.
+       *
+       * Le fond de la regle : « 0 % » se lit comme une MESURE alors qu'il n'y
+       * a rien a mesurer, et « NaN % » ne se lit pas du tout — il dit au
+       * lecteur que le document est casse, ce qui est pire que de se taire.
+       */
+      const part = couverture(contenu.atteint, contenu.total);
       return (
         <div>
           {/* « 12 sur 20 » et pas seulement « 60 % » : un pourcentage seul ne
@@ -394,11 +406,17 @@ function ContenuSimule({
           <div className="mt-2 h-2 w-full rounded-full bg-slate-200">
             <div
               className="h-2 rounded-full bg-slate-700"
-              style={{ width: `${part}%` }}
+              style={{ width: `${part ?? 0}%` }}
             />
           </div>
           <p className="mt-1 text-[8pt] text-slate-600">
-            {contenu.legende} — <span className="tabular-nums">{part} %</span>
+            {contenu.legende}
+            {part !== null && (
+              <>
+                {' — '}
+                <span className="tabular-nums">{part.toFixed(0)} %</span>
+              </>
+            )}
           </p>
         </div>
       );

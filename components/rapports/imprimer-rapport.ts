@@ -69,6 +69,20 @@ export function imprimerRapport(titre: string): void {
    */
   fenetre.document.write(
     '<!doctype html><html lang="fr"><head><meta charset="utf-8">' +
+      /*
+        LA BASE DES URL, ET C'EST ELLE QUI MANQUAIT.
+
+        `window.open('')` ouvre un document `about:blank`. Les feuilles de
+        style de l'application sont référencées en chemin ABSOLU DEPUIS LA
+        RACINE (`/_next/static/css/…`) : recopiées telles quelles, elles se
+        résolvent contre `about:blank` et ne chargent jamais. Le document
+        sortait donc sans la moindre mise en forme — un logo en pleine page,
+        du texte empilé, et rien qui ressemble au rapport affiché.
+
+        `<base>` doit précéder les `<link>` : le navigateur résout au fil de
+        la lecture, et une base posée après arriverait trop tard.
+      */
+      `<base href="${location.origin}/">` +
       `<title>${echappe}</title>` +
       styles +
       '<style>html,body{margin:0;padding:0;background:#fff}</style>' +

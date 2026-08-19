@@ -31,10 +31,35 @@ export const PERMISSION_GROUPS = [
 
 export type PermissionGroup = (typeof PERMISSION_GROUPS)[number];
 
+/**
+ * JUSQU'OU PORTE UN DROIT ACCORDE — RG-25 (precise le 19 aout 2026).
+ *
+ * `DESCENDANTE` : le droit vaut pour l'entite designee ET tout son sous-arbre.
+ * `PROPRE`      : il vaut pour cette entite SEULE.
+ *
+ * LA PORTEE EST UNE PROPRIETE DU DROIT, PAS DE L'HABILITATION. Ce n'est pas
+ * a l'administrateur de decider si « valider une finance » descend : cela
+ * depend de la NATURE de l'acte.
+ *
+ * Le cas qui a tranche : un administrateur de district a qui on accorde
+ * `finance.validate` validait, de ce fait, les mouvements de ses paroisses et
+ * de ses eglises. Or chaque bureau gere ses propres finances et la hierarchie
+ * ne fait que les CONSULTER — c'est la doctrine posee au lot 4, que le
+ * controle de droit n'avait jamais suivie.
+ *
+ * A l'inverse, creer une eglise ou enregistrer un croyant sont des actes qui
+ * portent naturellement sur la descendance : un district structure ses
+ * paroisses, sinon personne ne le ferait.
+ */
+export const PORTEES = ['PROPRE', 'DESCENDANTE'] as const;
+export type PorteeDroit = (typeof PORTEES)[number];
+
 interface PermissionMeta {
   readonly label: string;
   readonly group: PermissionGroup;
   readonly description: string;
+  /** `DESCENDANTE` par defaut : seuls les droits `PROPRE` sont declares. */
+  readonly portee?: PorteeDroit;
 }
 
 export const PERMISSIONS = {
@@ -104,6 +129,7 @@ export const PERMISSIONS = {
     description: 'Voir la composition et les mandats des bureaux du perimetre.',
   },
   'bureau.manage': {
+    portee: 'PROPRE',
     label: 'Gerer les bureaux',
     group: 'Bureaux',
     description: 'Ouvrir un mandat, designer, remplacer ou retirer un membre.',
@@ -117,6 +143,7 @@ export const PERMISSIONS = {
    * reecrit le passe ne s'accorde pas avec celle qui gere le present.
    */
   'bureau.delete': {
+    portee: 'PROPRE',
     label: 'Supprimer un bureau',
     group: 'Bureaux',
     description:
@@ -130,21 +157,25 @@ export const PERMISSIONS = {
     description: 'Voir les mouvements, les syntheses et le solde disponible.',
   },
   'finance.create': {
+    portee: 'PROPRE',
     label: 'Saisir un mouvement',
     group: 'Finances',
     description: 'Enregistrer une recette ou une depense sur le perimetre.',
   },
   'finance.update': {
+    portee: 'PROPRE',
     label: 'Modifier un brouillon',
     group: 'Finances',
     description: 'Corriger un mouvement tant qu il n est ni soumis ni valide.',
   },
   'finance.submit': {
+    portee: 'PROPRE',
     label: 'Soumettre pour validation',
     group: 'Finances',
     description: 'Presenter un brouillon au circuit de validation.',
   },
   'finance.validate': {
+    portee: 'PROPRE',
     label: 'Valider ou rejeter un mouvement',
     group: 'Finances',
     description: 'Decider des mouvements soumis. La validation les rend immuables.',
@@ -208,6 +239,7 @@ export const PERMISSIONS = {
    * dans le journal d'audit.
    */
   'finance.validate_own': {
+    portee: 'PROPRE',
     label: 'Valider ses propres mouvements',
     group: 'Finances',
     description:
@@ -223,6 +255,7 @@ export const PERMISSIONS = {
    * hors portee sont alors ignorees, jamais closes en silence.
    */
   'finance.periode.close': {
+    portee: 'PROPRE',
     label: 'Cloturer une periode',
     group: 'Finances',
     description:
@@ -238,6 +271,7 @@ export const PERMISSIONS = {
    * rien, elle ajouterait une etape.
    */
   'finance.periode.reopen': {
+    portee: 'PROPRE',
     label: 'Rouvrir une periode cloturee',
     group: 'Finances',
     description:
@@ -286,11 +320,13 @@ export const PERMISSIONS = {
     description: 'Grades, nationalites, fonctions et categories. Reserve au Siege.',
   },
   'user.manage': {
+    portee: 'PROPRE',
     label: 'Gerer les comptes',
     group: 'Administration',
     description: 'Inviter, activer et desactiver les comptes du perimetre.',
   },
   'permission.delegate': {
+    portee: 'PROPRE',
     label: 'Deleguer des habilitations',
     group: 'Administration',
     description:
@@ -483,6 +519,47 @@ export function detient(session: SessionUtilisateur, permission: Permission): bo
 }
 
 /**
+ * La portee d'un droit — `DESCENDANTE` sauf declaration contraire.
+ *
+ * Le defaut n'est pas neutre : il conserve le comportement de tous les droits
+ * qui n'ont pas ete examines. Un droit ajoute demain descend donc, comme
+ * avant — et le declarer `PROPRE` est une decision explicite, prise une fois,
+ * lisible au registre.
+ */
+export function porteeDe(permission: Permission): PorteeDroit {
+  /**
+   * L'ELARGISSEMENT EST NECESSAIRE, et ce n'est pas un contournement.
+   *
+   * `PERMISSIONS` est fige par `as const` : chaque entree a son propre type
+   * litteral, et celles qui ne declarent pas `portee` n'ont tout simplement
+   * pas la propriete. Le lire a travers `PermissionMeta` rend le champ
+   * facultatif, ce qui est exactement ce qu il est.
+   */
+  const meta: PermissionMeta = PERMISSIONS[permission];
+  return meta.portee ?? 'DESCENDANTE';
+}
+
+/**
+ * La portee d'un octroi couvre-t-elle l'entite visee ? — RG-25.
+ *
+ * `porteeOctroi` est le chemin de l'entite sur laquelle le droit a ete
+ * accorde. Pour un droit `DESCENDANTE`, l'entite visee doit etre sous ce
+ * chemin ; pour un droit `PROPRE`, elle doit ETRE ce chemin.
+ *
+ * C'est ici, et nulle part ailleurs, que se joue le cas du district : son
+ * administrateur detient `finance.validate` avec pour portee son district, et
+ * ce droit etant `PROPRE`, il ne couvre pas l'eglise qui est dessous.
+ */
+export function porteeCouvre(
+  permission: Permission,
+  porteeOctroi: string,
+  cheminEntite: string,
+): boolean {
+  return porteeDe(permission) === 'PROPRE'
+    ? cheminEntite === porteeOctroi
+    : estDescendant(cheminEntite, porteeOctroi);
+}
+/**
  * Controle de reference — contrepartie exacte de la fonction SQL `can()`.
  *
  * Trois conditions cumulatives :
@@ -504,7 +581,7 @@ export function peut(
   return session.permissions.some(
     (o) =>
       o.permission === permission &&
-      (o.scopePath === null || estDescendant(cheminEntite, o.scopePath)),
+      porteeCouvre(permission, o.scopePath ?? session.scopePath, cheminEntite),
   );
 }
 
