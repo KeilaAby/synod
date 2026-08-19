@@ -31,6 +31,7 @@ import { formatNombre } from '@/lib/utils/format';
 
 import type { OptionsCroyant } from '@/components/croyants/croyant-dialog';
 import type { ApercuBureaux } from '@/lib/data/bureaux';
+import type { ChiffresStructure } from '@/lib/data/structure-chiffres';
 
 import type { EntiteFlux } from './entite';
 import { NoeudEntite } from './entity-node';
@@ -109,10 +110,12 @@ function Organigramme({
   entites,
   apercuBureaux,
   optionsCroyant,
+  chiffresStructure,
 }: {
   entites: EntiteFlux[];
   apercuBureaux: ApercuBureaux;
   optionsCroyant: OptionsCroyant;
+  chiffresStructure: ChiffresStructure;
 }) {
   const router = useRouter();
   const { fitView, setCenter, getNode, getIntersectingNodes } = useReactFlow();
@@ -138,7 +141,7 @@ function Organigramme({
     ajouterCroyant,
     peutAjouterCroyant,
     dialogues,
-  } = useEntityDialogs(entites, apercuBureaux, optionsCroyant);
+  } = useEntityDialogs(entites, apercuBureaux, optionsCroyant, chiffresStructure);
 
   // --- Actions du menu de noeud ---------------------------------------------
 
@@ -570,10 +573,12 @@ export default function EntityFlow({
   entites,
   apercuBureaux,
   optionsCroyant,
+  chiffresStructure,
 }: {
   entites: EntiteFlux[];
   apercuBureaux: ApercuBureaux;
   optionsCroyant: OptionsCroyant;
+  chiffresStructure: ChiffresStructure;
 }) {
   return (
     <ReactFlowProvider>
@@ -581,6 +586,7 @@ export default function EntityFlow({
         entites={entites}
         apercuBureaux={apercuBureaux}
         optionsCroyant={optionsCroyant}
+        chiffresStructure={chiffresStructure}
       />
     </ReactFlowProvider>
   );

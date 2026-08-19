@@ -14,6 +14,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
+import type { ChiffresEntite } from '@/lib/data/entities';
+import type { Solde } from '@/lib/domain/finance';
 import {
   ENTITY_LABELS,
   ENTITY_TYPES,
@@ -23,6 +25,7 @@ import {
 } from '@/lib/domain/hierarchy';
 import { formatDateLongue, formatNombre } from '@/lib/utils/format';
 
+import { ChiffresEntiteBloc, type DroitsChiffres } from './chiffres-entite';
 import { TypeBadge } from './type-badge';
 
 /**
@@ -58,6 +61,10 @@ export function EntityDetailDialog({
   onOuvertChange,
   onModifier,
   onCreerEnfant,
+  chiffres,
+  solde,
+  devise,
+  droits,
 }: {
   entite: EntiteDetail | null;
   /** Arbre complet : sert a reconstituer le chemin d'ancetres, sans requete. */
@@ -67,6 +74,11 @@ export function EntityDetailDialog({
   onOuvertChange: (ouvert: boolean) => void;
   onModifier: (id: string) => void;
   onCreerEnfant: (id: string) => void;
+  /** EF-STR-06 — pris du perimetre deja charge : aucune requete a l'ouverture. */
+  chiffres: ChiffresEntite | null;
+  solde: Solde | null;
+  devise: string;
+  droits: DroitsChiffres;
 }) {
   if (!entite) return null;
 
@@ -173,10 +185,25 @@ export function EntityDetailDialog({
             </>
           )}
 
-          <p className="border-t border-border pt-4 text-xs text-muted-foreground">
-            Les effectifs de croyants, la composition du bureau et le solde disponible
-            apparaitront ici avec les lots 2, 3 et 4.
-          </p>
+          {/*
+            EF-STR-06 — les chiffres promis « avec les lots 2, 3 et 4 ». Ces
+            lots sont livrés ; la promesse ne l'était pas.
+
+            Ils viennent du périmètre DÉJÀ chargé avec l'arbre : l'ouverture
+            reste instantanée, sans requête ni squelette (règle 28).
+          */}
+          <div className="border-border space-y-4 border-t pt-4">
+            <p className="eyebrow">Ce que porte cette entité</p>
+            <ChiffresEntiteBloc
+              entiteId={entite.id}
+              nom={entite.nom}
+              chiffres={chiffres}
+              solde={solde}
+              devise={devise}
+              droits={droits}
+              colonnes={2}
+            />
+          </div>
         </div>
 
         <DialogFooter className="gap-2 sm:justify-between">

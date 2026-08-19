@@ -13,6 +13,7 @@ import { TypeBadge } from '@/components/structure/type-badge';
 import type { OptionsCroyant } from '@/components/croyants/croyant-dialog';
 import { useEntityDialogs } from '@/components/structure/use-entity-dialogs';
 import type { ApercuBureaux } from '@/lib/data/bureaux';
+import type { ChiffresStructure } from '@/lib/data/structure-chiffres';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -59,6 +60,7 @@ export function ListeStructureClient({
   entites,
   apercuBureaux,
   optionsCroyant,
+  chiffresStructure,
   filtresInitiaux,
 }: {
   entites: LigneStructure[];
@@ -66,6 +68,7 @@ export function ListeStructureClient({
   apercuBureaux: ApercuBureaux;
   /** EF-CRO-01 — referentiels du formulaire, pour « Ajouter un croyant ». */
   optionsCroyant: OptionsCroyant;
+  chiffresStructure: ChiffresStructure;
   filtresInitiaux: {
     recherche: string;
     type: EntityType | 'tous';
@@ -90,7 +93,7 @@ export function ListeStructureClient({
     ajouterCroyant,
     peutAjouterCroyant,
     dialogues,
-  } = useEntityDialogs(entites, apercuBureaux, optionsCroyant);
+  } = useEntityDialogs(entites, apercuBureaux, optionsCroyant, chiffresStructure);
 
   // Deconnecte la frappe du filtrage : la saisie reste fluide meme si le
   // rendu de la table prend quelques millisecondes.

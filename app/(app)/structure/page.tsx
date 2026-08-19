@@ -11,6 +11,7 @@ import { apercuBureauxParEntite } from '@/lib/data/bureaux';
 import { getOptionsCroyant } from '@/lib/data/croyant-options';
 import { getArbrePerimetre } from '@/lib/data/entities';
 import { parentsPossibles } from '@/lib/data/entity-options';
+import { chargerChiffresStructure } from '@/lib/data/structure-chiffres';
 import { ENTITY_LABELS, type EntityType } from '@/lib/domain/hierarchy';
 import { requireSession } from '@/lib/session';
 import { formatNombre } from '@/lib/utils/format';
@@ -28,10 +29,13 @@ export default async function StructurePage() {
 
   // En parallele : l'apercu des bureaux ne fait qu'alimenter une entree de
   // menu, il n'a aucune raison de retarder l'organigramme.
-  const [arbre, apercuBureaux, optionsCroyant] = await Promise.all([
+  const [arbre, apercuBureaux, optionsCroyant, chiffresStructure] = await Promise.all([
     getArbrePerimetre(),
     apercuBureauxParEntite(),
     getOptionsCroyant(),
+    // EF-STR-06 — charge AVEC l'arbre : la fiche s'ouvre alors sans requete,
+    // donc sans squelette et sans attente (regle 28).
+    chargerChiffresStructure(),
   ]);
 
   const parents = parentsPossibles(arbre);
@@ -87,6 +91,7 @@ export default async function StructurePage() {
         <EntityFlowLoader
           apercuBureaux={apercuBureaux}
           optionsCroyant={optionsCroyant}
+          chiffresStructure={chiffresStructure}
           entites={arbre.map((e) => ({
             id: e.id,
             nom: e.nom,

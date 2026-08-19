@@ -6,13 +6,20 @@ import { notFound } from 'next/navigation';
 import { EmptyState } from '@/components/shared/empty-state';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
+import { ChiffresEntiteBloc } from '@/components/structure/chiffres-entite';
 import { EntityActions } from '@/components/structure/entity-actions';
 import { NouvelleEntiteBouton } from '@/components/structure/nouvelle-entite-bouton';
 import { TypeBadge } from '@/components/structure/type-badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { getArbrePerimetre, getEntite } from '@/lib/data/entities';
+import {
+  chargerChiffresPerimetre,
+  getArbrePerimetre,
+  getEntite,
+} from '@/lib/data/entities';
 import { versOptions } from '@/lib/data/entity-options';
+import { chargerSoldesPerimetre } from '@/lib/data/finances';
+import { getParametres } from '@/lib/data/settings';
 import {
   ENTITY_LABELS,
   ENTITY_TYPES,
@@ -20,6 +27,8 @@ import {
   typeEnfantDe,
   typeParentDe,
 } from '@/lib/domain/hierarchy';
+import { peut } from '@/lib/domain/permissions';
+import { getSession } from '@/lib/session';
 import { formatDateLongue, formatNombre } from '@/lib/utils/format';
 
 type Params = { params: Promise<{ entityId: string }> };
@@ -33,9 +42,11 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 /**
  * EF-STR-06 — fiche d'une entite.
  *
- * Les onglets Croyants, Bureau et Finances arrivent avec leurs lots respectifs
- * (2, 3 et 4). Ils ne sont pas affiches vides : un onglet mort est pire qu'un
- * onglet absent.
+ * Les effectifs, le bureau courant et le solde figurent dans l'onglet
+ * Statistiques, chacun renvoyant vers son ecran. Un bloc dont l'habilitation
+ * manque DISPARAIT : la RLS le compterait a zero, et ce zero se lirait « il n'y
+ * a personne » la ou la verite est « je n'ai pas le droit de savoir »
+ * (regle 15).
  */
 export default async function FicheEntitePage({ params }: Params) {
   const { entityId } = await params;
@@ -44,7 +55,36 @@ export default async function FicheEntitePage({ params }: Params) {
   if (!fiche) notFound();
 
   const { entite, ancetres, enfants } = fiche;
-  const arbre = await getArbrePerimetre();
+
+  /**
+   * EF-STR-06 — tout part EN PARALLÈLE (règle 28). Quatre lectures enchaînées,
+   * c'est quatre fois 0,5 à 4 s avant le premier pixel ; simultanées, c'est le
+   * coût de la plus lente.
+   *
+   * Les soldes viennent de `chargerSoldesPerimetre` et non d'une somme écrite
+   * ici : deux calculs du même nombre finissent par différer (règle 16).
+   */
+  const session = await getSession();
+  const [arbre, chiffres, soldes, parametres] = await Promise.all([
+    getArbrePerimetre(),
+    chargerChiffresPerimetre(),
+    chargerSoldesPerimetre(),
+    getParametres(),
+  ]);
+
+  /**
+   * RÈGLE 15 — un bloc non habilité DISPARAÎT, il ne s'affiche pas à zéro.
+   *
+   * La RLS compte à zéro ce qu'on n'a pas le droit de lire, et ce zéro se
+   * lirait « cette église n'a personne » quand la vérité est « je n'ai pas le
+   * droit de savoir ». Le droit s'évalue AVEC SA PORTÉE (règle 3) : détenir
+   * `croyant.read` ne dit rien tant qu'on ne sait pas sur quelle entité.
+   */
+  const droitsChiffres = {
+    croyants: session ? peut(session, 'croyant.read', entite.path) : false,
+    bureau: session ? peut(session, 'bureau.read', entite.path) : false,
+    finances: session ? peut(session, 'finance.read', entite.path) : false,
+  };
 
   const typeEnfant = typeEnfantDe(entite.type);
   const typeParent = typeParentDe(entite.type);
@@ -263,10 +303,28 @@ export default async function FicheEntitePage({ params }: Params) {
                 </div>
               )}
 
-              <p className="border-t border-border pt-4 text-xs text-muted-foreground">
-                Les effectifs de croyants, la composition du bureau et le solde disponible
-                apparaitront ici avec les lots 2, 3 et 4.
-              </p>
+              {/*
+                EF-STR-06 — les chiffres promis « avec les lots 2, 3 et 4 ».
+                Ces lots sont livrés ; la promesse ne l'était pas.
+              */}
+              <div className="border-border space-y-4 border-t pt-6">
+                <div className="space-y-1">
+                  <p className="eyebrow">Ce que porte cette entité</p>
+                  <p className="text-muted-foreground text-sm">
+                    Effectifs et solde comptent « {entite.nom} » et tout son
+                    périmètre.
+                  </p>
+                </div>
+
+                <ChiffresEntiteBloc
+                  entiteId={entite.id}
+                  nom={entite.nom}
+                  chiffres={chiffres.get(entite.id) ?? null}
+                  solde={soldes.get(entite.id) ?? null}
+                  devise={parametres.devise}
+                  droits={droitsChiffres}
+                />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

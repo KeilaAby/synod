@@ -9,6 +9,7 @@ import { apercuBureauxParEntite } from '@/lib/data/bureaux';
 import { getOptionsCroyant } from '@/lib/data/croyant-options';
 import { cheminLisible, getArbrePerimetre, indexerParChemin } from '@/lib/data/entities';
 import { parentsPossibles } from '@/lib/data/entity-options';
+import { chargerChiffresStructure } from '@/lib/data/structure-chiffres';
 import { ENTITY_TYPES, type EntityType } from '@/lib/domain/hierarchy';
 import { formatNombre } from '@/lib/utils/format';
 
@@ -31,10 +32,13 @@ export default async function ListeStructurePage({
 }) {
   const params = await searchParams;
 
-  const [arbre, apercuBureaux, optionsCroyant] = await Promise.all([
+  const [arbre, apercuBureaux, optionsCroyant, chiffresStructure] = await Promise.all([
     getArbrePerimetre(),
     apercuBureauxParEntite(),
     getOptionsCroyant(),
+    // EF-STR-06 — chargé AVEC l'arbre : la fiche s'ouvre alors sans requête,
+    // donc sans squelette et sans attente (règle 28).
+    chargerChiffresStructure(),
   ]);
   const index = indexerParChemin(arbre);
 
@@ -89,6 +93,7 @@ export default async function ListeStructurePage({
         entites={lignes}
         apercuBureaux={apercuBureaux}
         optionsCroyant={optionsCroyant}
+        chiffresStructure={chiffresStructure}
         filtresInitiaux={{
           recherche: params.q ?? '',
           type:

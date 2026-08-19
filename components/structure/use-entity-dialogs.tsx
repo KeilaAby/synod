@@ -20,6 +20,7 @@ import {
 } from '@/lib/actions/bureaux';
 import { supprimerEntite } from '@/lib/actions/entities';
 import type { ApercuBureaux } from '@/lib/data/bureaux';
+import type { ChiffresStructure } from '@/lib/data/structure-chiffres';
 import { formatNombre } from '@/lib/utils/format';
 
 import type { EntiteFlux } from './entite';
@@ -50,6 +51,12 @@ export function useEntityDialogs(
    * entree qui ouvre un formulaire sans grades ni nationalites.
    */
   optionsCroyant?: OptionsCroyant,
+  /**
+   * EF-STR-06 — effectifs, bureau et solde de CHAQUE entite, charges avec
+   * l'arbre. Absents, la fiche montre ce qu'elle a toujours montre : le
+   * pop-up ne doit jamais attendre une requete pour s'ouvrir (regle 28).
+   */
+  chiffresStructure?: ChiffresStructure,
 ) {
   const router = useRouter();
   const { peut } = useSession();
@@ -240,6 +247,21 @@ export function useEntityDialogs(
         onOuvertChange={(v) => !v && setAConsulter(null)}
         onModifier={modifier}
         onCreerEnfant={creerEnfant}
+        chiffres={
+          aConsulter ? (chiffresStructure?.chiffres[aConsulter.id] ?? null) : null
+        }
+        solde={aConsulter ? (chiffresStructure?.soldes[aConsulter.id] ?? null) : null}
+        devise={chiffresStructure?.devise ?? ''}
+        /*
+          RÈGLE 15 — un bloc non habilité DISPARAÎT, il ne s'affiche pas à zéro.
+          Le droit s'évalue AVEC SA PORTÉE (règle 3) : détenir `croyant.read` ne
+          dit rien tant qu'on ne sait pas sur quelle entité.
+        */
+        droits={{
+          croyants: aConsulter ? peut('croyant.read', aConsulter.path) : false,
+          bureau: aConsulter ? peut('bureau.read', aConsulter.path) : false,
+          finances: aConsulter ? peut('finance.read', aConsulter.path) : false,
+        }}
       />
 
       {/* --- Modification ---

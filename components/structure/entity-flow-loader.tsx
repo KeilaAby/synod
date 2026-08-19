@@ -6,6 +6,7 @@ import { FlowSkeleton } from '@/components/skeletons';
 
 import type { OptionsCroyant } from '@/components/croyants/croyant-dialog';
 import type { ApercuBureaux } from '@/lib/data/bureaux';
+import type { ChiffresStructure } from '@/lib/data/structure-chiffres';
 
 import type { EntiteFlux } from './entite';
 
@@ -28,16 +29,19 @@ export function EntityFlowLoader({
   entites,
   apercuBureaux,
   optionsCroyant,
+  chiffresStructure,
 }: {
   entites: EntiteFlux[];
   apercuBureaux: ApercuBureaux;
   optionsCroyant: OptionsCroyant;
+  chiffresStructure: ChiffresStructure;
 }) {
   return (
     <EntityFlow
       entites={entites}
       apercuBureaux={apercuBureaux}
       optionsCroyant={optionsCroyant}
+      chiffresStructure={chiffresStructure}
     />
   );
 }

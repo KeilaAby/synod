@@ -237,3 +237,72 @@ export function cheminLisible(entite: Entite, index: Map<string, Entite>): strin
 
   return noms.join(' › ');
 }
+
+/**
+ * EF-STR-06 — les chiffres de CHAQUE entite du perimetre, en une passe.
+ *
+ * Effectifs de croyants et bureau courant. Les SOLDES n'y sont pas : ils
+ * viennent de `chargerSoldesPerimetre`, qui les calcule deja — en ecrire une
+ * seconde somme donnerait deux resultats que rien ne garantirait egaux
+ * (regle 16). Les deux lectures partent en parallele.
+ *
+ * TOUT LE PERIMETRE, et pas l'entite demandee : le pop-up de l'organigramme
+ * s'ouvre sur n'importe quel noeud sans requete, et c'est ce qui le rend
+ * instantane. Interroger a l'ouverture y ajouterait un aller-retour et un
+ * squelette pour trois nombres (regle 28).
+ *
+ * La RLS borne le resultat — la fonction est `SECURITY INVOKER`.
+ */
+export interface ChiffresEntite {
+  readonly croyantsPropres: number;
+  readonly croyantsConsolides: number;
+  readonly bureau: {
+    readonly id: string;
+    readonly libelle: string;
+    readonly dateFin: string | null;
+    readonly membres: number;
+  } | null;
+}
+
+export async function chargerChiffresPerimetre(): Promise<Map<string, ChiffresEntite>> {
+  const sb = await createClient();
+
+  const { data, error } = await sb.rpc('fn_chiffres_perimetre');
+
+  if (error) {
+    throw new DataError('Les chiffres du perimetre sont momentanement illisibles.', error);
+  }
+
+  const lignes = data as
+    | {
+        entity_id: string;
+        croyants_propres: number;
+        croyants_consolides: number;
+        bureau_id: string | null;
+        bureau_libelle: string | null;
+        bureau_date_fin: string | null;
+        bureau_membres: number;
+      }[]
+    | null;
+
+  return new Map(
+    (lignes ?? []).map((l) => [
+      l.entity_id,
+      {
+        // `bigint` traverse PostgREST en CHAINE : sans `Number()`, deux
+        // effectifs s'additionneraient en les concatenant.
+        croyantsPropres: Number(l.croyants_propres),
+        croyantsConsolides: Number(l.croyants_consolides),
+        bureau: l.bureau_id
+          ? {
+              id: l.bureau_id,
+              libelle: l.bureau_libelle ?? 'Bureau',
+              dateFin: l.bureau_date_fin,
+              membres: Number(l.bureau_membres),
+            }
+          : null,
+      },
+    ]),
+  );
+}
+
