@@ -281,7 +281,18 @@ describe('RG-24 — delegation : on ne delegue que ce que l on detient', () => {
       // des fiches des croyants concernes (EF-BUR-08).
       'bureau.delete',
       'entity.delete',
-      'finance.delegate',
+      /*
+        `finance.delegate` EST SORTI DE CETTE LISTE le 19 aout 2026.
+
+        Non delegable, seul le Siege pouvait saisir pour une entite privee
+        d'acces — un district dont trois eglises n'ont pas de connexion
+        devait lui faire remonter chaque recette.
+
+        Ce qui le borne desormais : la portee de son octroi (RG-25) et
+        `sans_acces_application` sur l'entite visee, verifie a la saisie.
+        Deux conditions cumulatives valent mieux qu une interdiction qui
+        empechait aussi le cas legitime.
+      */
       /**
        * EF-FIN-18 — se dispenser de la separation saisie/validation.
        *

@@ -115,6 +115,28 @@ export async function saisirMouvement(
      */
     if (data.estDelegue) {
       await requirePermission(session, 'finance.delegate', entite.path);
+
+      /**
+       * ARB-2 / EF-STR-10 — LA SAISIE DELEGUEE SUPPOSE UNE ENTITE PRIVEE
+       * D'ACCES, et le drapeau ne le disait que dans sa description.
+       *
+       * Rien ne le verifiait : detenir `finance.delegate` suffisait a signer
+       * une ecriture du nom de n'importe quelle entite, y compris de celles
+       * qui saisissent tres bien les leurs. Un reglage qui ne decide de rien
+       * est decoratif (regle 21) — et celui-ci porte la seule raison pour
+       * laquelle la delegation existe.
+       *
+       * Le refus NOMME l'entite et dit ou se change le reglage : « vous n'avez
+       * pas le droit » ferait chercher une habilitation qui, elle, est detenue.
+       */
+      if (!entite.sans_acces_application) {
+        return ko(
+          `${entite.nom} accède à l’application : ses mouvements se saisissent ` +
+            'depuis son propre compte. La saisie déléguée est réservée aux ' +
+            'entités déclarées sans accès — réglage « Accès à l’application », ' +
+            'sur l’écran des finances.',
+        );
+      }
     } else {
       await requirePermission(session, 'finance.create', entite.path);
     }

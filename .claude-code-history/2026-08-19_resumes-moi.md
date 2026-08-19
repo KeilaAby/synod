@@ -17,16 +17,21 @@
 
 ## L'état de la base
 
-Migrations `0001` à **`0048`** appliquées. Les quatre dernières :
+Migrations `0001` à **`0050`** appliquées. Les cinq dernières :
 
 | N° | Ce qu'elle apporte |
 |---|---|
-| `0045` | `organisation_settings.rapport_composition_libre` — les entités autres que le Siège composent-elles leurs propres modèles de rapport ? `true` par défaut. |
 | `0046` | `organisation_settings.reinitialisation_par_email` et `profiles.doit_changer_mot_de_passe` — les deux circuits de réinitialisation, et le mot de passe provisoire. |
 | `0047` | `profiles.est_responsable_informatique` (index partiel : **un seul par entité**), `email_settings`, `email_templates` avec trois modèles. |
 | `0048` | `grades.peut_celebrer` — la liste des célébrants sort du code et rentre dans le référentiel. |
+| `0049` | RG-17 laisse passer le **rattachement à un bordereau** d'une collecte de dîme déjà validée. Sans elle, aucune collecte antérieure à `0038` ne pouvait plus être remise au Siège. |
+| `0050` | `fn_permissions_portee_propre()` — onze droits dont la portée est l'entité **seule**, et `has_perm` réécrite en conséquence. |
 
-**Aucune migration n'attend.**
+> ⏳ **`0051` attend d'être appliquée** : elle retire `finance.delegate` de
+> `fn_permissions_non_delegables()`. Le lint et les tests passent sans elle,
+> mais la délégation du droit sera refusée par la base tant qu'elle n'est pas
+> jouée — et la liste TypeScript et la liste SQL divergeront, ce qu'un test
+> détecte.
 
 ---
 
@@ -44,7 +49,21 @@ Migrations `0001` à **`0048`** appliquées. Les quatre dernières :
 | Rapports — bibliothèque, éditeur, aperçu A4, génération | ✅ |
 | **Administration — comptes, habilitations, audit, corbeille, paramètres, courriels** | ✅ |
 
-**698 tests unitaires, 32 fichiers.** `pnpm verify` vert.
+**707 tests unitaires, 32 fichiers.** `pnpm verify` vert.
+
+### Depuis le dernier point d'étape
+
+- **RG-25 précisé** : la portée est une propriété du **droit**, pas de l'octroi.
+  Onze droits sont `PROPRE` — ils ne descendent plus dans le sous-arbre.
+  *(À arbitrer : `finance.create` en fait partie, voir « À décider par vous ».)*
+- **La saisie déléguée n'est plus décorative** : elle exige que l'entité visée
+  soit **déclarée sans accès à l'application**, en plus de la portée du droit.
+- **Un écran pour ce réglage** — bouton « Accès à l'application » sur
+  `/finances`. Il vivait dans la fiche de chaque entité, où la question
+  « lesquelles saisissent elles-mêmes ? » demandait vingt ouvertures de fiche.
+- **Le PDF d'un rapport s'imprime dans une fenêtre vide**, avec `<base>` pour
+  que les feuilles de style se résolvent. Quatre tentatives : les trois
+  premières masquaient l'écran, et il restait toujours un élément non prévu.
 
 ---
 
@@ -163,6 +182,16 @@ désormais aussi. Il ne manque que le branchement.
 
 ### À décider par vous
 
+- **`finance.create` doit-il vraiment rester `PROPRE` ?** La migration `0050` en
+  a fait un droit qui ne descend plus : un administrateur de district ne peut
+  plus saisir un mouvement pour une de ses églises, sauf par la saisie déléguée,
+  elle-même réservée aux entités déclarées sans accès. C'est la lettre de
+  « chaque bureau gère ses finances », mais l'exemple qui a lancé le sujet ne
+  parlait que de **validation**. Les dix autres droits `PROPRE` sont listés dans
+  `lib/domain/permissions.ts`.
+- **Appliquer la migration `0051`** — sans elle, `finance.delegate` reste non
+  délégable en base et le Siège reste seul à pouvoir saisir pour les églises
+  sans connexion.
 - **Poser `SMTP_PASS`** dans les variables d'environnement : sans lui, le
   serveur d'envoi est configuré mais aucun message ne part. Le bouton d'essai le
   dira sans détour.

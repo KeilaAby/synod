@@ -383,7 +383,32 @@ connaît ni l'auteur applicatif, ni le motif d'un refus.
 **EF-BUR-11 clos** : l'export Excel de la composition est abandonné le 12 août
 2026, le PDF de l'organigramme couvre le besoin.
 
-Base à jour jusqu'à la migration `0048` — fuseau `Indian/Antananarivo` (UTC+3).
+**RG-25 précisé — la portée est une propriété du DROIT** (`0050`,
+`fn_permissions_portee_propre()`). `has_perm` testait une inclusion de chemin
+pour *tous* les droits : accorder `finance.validate` à un district lui donnait
+la validation de ses paroisses et de ses églises, l'inverse exact de la doctrine
+du lot 4 — « chaque bureau gère ses finances ; la hiérarchie ne fait que les
+consulter ». Onze droits sont désormais `PROPRE` (l'entité seule) ; tout le
+reste est `DESCENDANTE` **par défaut**, pour qu'un droit ajouté demain se
+comporte comme avant et que `PROPRE` reste une décision explicite. Ce n'est pas
+à l'administrateur de décider si « valider une finance » descend : cela tient à
+la nature de l'acte. La liste vit aux deux endroits, et un test lit le SQL pour
+les comparer — sinon l'écart serait **invisible** : l'écran refuserait pendant
+que la base accorderait.
+
+**La saisie déléguée exige `sans_acces_application`** (règle 21). Le drapeau ne
+décidait de rien : détenir `finance.delegate` suffisait à signer une écriture au
+nom de n'importe quelle entité du périmètre, y compris de celles qui saisissent
+elles-mêmes. Deux bornes cumulatives maintenant, toutes deux vérifiées côté
+serveur : la portée de l'octroi **et** l'entité déclarée sans accès. Le droit
+devient de ce fait **délégable** (`0051`) — ce qui le rendait dangereux n'était
+pas le droit mais l'absence de la seconde borne. Le réglage a son écran, sur
+`/finances` : il vivait dans la fiche de chaque entité, où savoir lesquelles de
+ses vingt églises saisissent elles-mêmes demandait vingt ouvertures de fiche —
+une question de comparaison veut une réponse en tableau.
+
+Base à jour jusqu'à la migration `0050` (`0051` **en attente**) — fuseau
+`Indian/Antananarivo` (UTC+3).
 **Toute migration qui crée ou remplace
 une fonction doit finir par `notify pgrst, 'reload schema'`** : sans lui, l'API
 répond « fonction inconnue » sur du SQL pourtant en place — constaté deux fois,

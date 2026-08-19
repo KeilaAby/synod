@@ -3,6 +3,7 @@ import Link from 'next/link';
 
 import { ChartColumn, ClipboardCheck, Coins, LayoutList } from 'lucide-react';
 
+import { AccesApplicationDialog } from '@/components/finances/acces-application-dialog';
 import { ClotureDialog } from '@/components/finances/cloture-dialog';
 import { WorkflowDialog } from '@/components/finances/workflow-dialog';
 import { PageHeader } from '@/components/shared/page-header';
@@ -19,6 +20,7 @@ import {
 import { signerJustificatifs } from '@/lib/data/photos';
 import { getParametres } from '@/lib/data/settings';
 import { clePeriode } from '@/lib/domain/finance';
+import type { EntityType } from '@/lib/domain/hierarchy';
 import { detient } from '@/lib/domain/permissions';
 import { getSession } from '@/lib/session';
 import { formatNombre } from '@/lib/utils/format';
@@ -174,6 +176,22 @@ export default async function FinancesPage() {
               )}
               closes={closes}
               mouvements={mouvements}
+            />
+
+            {/* ARB-2 / EF-STR-10 — qui se connecte, et qui ne se connecte
+                pas. Le reglage vivait dans la fiche de chaque entite : pour
+                savoir lesquelles de ses vingt eglises saisissent elles-memes,
+                il fallait ouvrir vingt fiches. */}
+            <AccesApplicationDialog
+              lignes={arbre
+                .filter((e) => e.is_active)
+                .map((e) => ({
+                  id: e.id,
+                  nom: e.nom,
+                  code: e.code,
+                  type: e.type as EntityType,
+                  sansAcces: e.sans_acces_application,
+                }))}
             />
 
             <WorkflowDialog

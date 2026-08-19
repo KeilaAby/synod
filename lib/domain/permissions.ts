@@ -372,7 +372,23 @@ export const NON_DELEGABLES: readonly Permission[] = [
   'bureau.delete',
   'referentiel.manage',
   'settings.manage',
-  'finance.delegate',
+  /**
+   * `finance.delegate` N'EST PLUS RESERVE AU SIEGE — 19 aout 2026.
+   *
+   * Il ne pouvait pas etre delegue, si bien que seul le Siege pouvait saisir
+   * pour une entite privee d'acces. Un district dont trois eglises n'ont pas
+   * de connexion devait donc lui envoyer chaque recette, alors que la
+   * doctrine du lot 4 place les finances au plus pres du bureau.
+   *
+   * Ce qui le borne desormais n'est plus la non-delegation, mais DEUX
+   * conditions cumulatives et verifiees :
+   *   - la portee de l'octroi (RG-25) : un district le recoit pour sa branche ;
+   *   - `sans_acces_application` sur l'entite visee (ARB-2), verifie a la
+   *     saisie depuis le 19 aout — avant, le drapeau ne decidait de rien.
+   *
+   * Et l'ecriture reste marquee « saisie deleguee » avec le nom de son auteur
+   * reel (EF-FIN-06) : elle se voit dans chaque liste.
+   */
   /**
    * EF-FIN-18 — se dispenser de la separation saisie/validation ne se delegue
    * pas. Un compte qui le detient pourrait sinon l'accorder a celui qu'il

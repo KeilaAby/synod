@@ -4245,14 +4245,31 @@ combinateur `>` ne remonte pas. L'écart entre le commentaire et le sélecteur
 avait survécu à deux réécritures de ce bloc : le commentaire décrivait
 l'intention, pas ce que le code faisait.
 
-### Note d'environnement
+### Note d'environnement — `could not find plugin "jsx-a11y"`
 
-`pnpm verify` a échoué sur `A configuration object specifies rule
-"jsx-a11y/alt-text", but could not find plugin "jsx-a11y"` alors que le lint
-passait dix minutes plus tôt. L'installation pnpm était **incomplète**, pas la
-configuration : `pnpm install --force` l'a rétablie. À noter pour la prochaine
-fois — chercher `node_modules/<paquet>` est un mauvais test avec pnpm, les
-dépendances transitives vivent dans `node_modules/.pnpm/`.
+**Diagnostic corrigé le 19 août 2026. Ce n'est PAS l'installation.**
+
+`pnpm lint` échoue sur `A configuration object specifies rule
+"jsx-a11y/alt-text", but could not find plugin "jsx-a11y"` dès qu'**un fichier
+étranger traîne à la racine** — typiquement un script `.cjs` jetable qu'une
+commande a laissé derrière elle en échouant avant son `rm`.
+
+La cause tient à la configuration plate d'ESLint 9 : les préréglages
+`eslint-config-next` déclarent leurs plugins **avec un `files`** qui borne les
+extensions du projet. Notre bloc de règles maison, lui, n'a pas de `files` : il
+s'applique donc à **tout** fichier qu'ESLint accepte de lire. Pour un fichier
+qu'aucun préréglage ne couvre, la règle `jsx-a11y/*` est demandée sans que le
+plugin y soit défini — et ESLint refuse la configuration entière, sans jamais
+nommer le fichier fautif. D'où un message qui accuse la configuration alors que
+seul l'inventaire des fichiers a changé.
+
+**Le réflexe** : `ls -a | grep -E '^\.[a-z-]+\.(cjs|mjs|js)$'` à la racine, et
+supprimer ce qui n'appartient pas au dépôt. `pnpm install --force` a *semblé*
+corriger le problème une première fois — c'était une coïncidence, le fichier
+égaré avait été retiré entre-temps. Dix minutes perdues.
+
+Corollaire qui reste vrai : chercher `node_modules/<paquet>` est un mauvais test
+avec pnpm, les dépendances transitives vivent dans `node_modules/.pnpm/`.
 
 ### Le PDF d'un rapport — quatrième tentative, et changement de méthode
 
@@ -4341,3 +4358,50 @@ et un test lit le fichier SQL pour comparer les deux. Sans lui, l'écart serait
 sémantique qu'on change. Il a été réécrit sur `croyant.create`, qui est resté
 `DESCENDANTE`, et doublé d'un test disant la nouvelle règle. Le supprimer aurait
 effacé la trace de ce qui a changé.
+
+### La saisie déléguée avait un réglage décoratif
+
+**Le défaut.** `saisirMouvement` acceptait `estDelegue` de qui détenait
+`finance.delegate`, **sans jamais regarder `sans_acces_application`**. Le
+drapeau ne décidait de rien (règle 21) : le champ existait sur la fiche de
+chaque entité, on le basculait, et le comportement de l'application restait
+identique. Autrement dit, un droit délégué signait une écriture au nom de
+n'importe quelle entité du périmètre, y compris de celles qui saisissent
+elles-mêmes — et l'écriture arrivait chez elles marquée « saisie déléguée »
+sans que personne ne l'ait demandée.
+
+**Deux bornes cumulatives, toutes deux vérifiées côté serveur.** La portée de
+l'octroi (RG-25 — `finance.delegate` reste `DESCENDANTE`, c'est bien un acte
+qui descend), **et** `sans_acces_application` sur l'entité visée. Le refus est
+motivé et dit où se change le réglage : un refus qui n'indique pas la sortie
+est un cul-de-sac.
+
+**`finance.delegate` devient délégable** (migration `0051`). Il ne l'était pas,
+ce qui obligeait le Siège à saisir lui-même pour les églises sans connexion de
+chaque district. Ce qui rendait la délégation dangereuse n'était pas le droit
+mais l'absence de la seconde borne ; maintenant qu'elle existe, un district peut
+recevoir le droit pour son seul district et ne l'exercer que sur les entités
+déclarées sans accès.
+
+### Un réglage de comparaison doit s'afficher en tableau
+
+`sans_acces_application` vivait dans le formulaire d'une entité. Pour savoir
+lesquelles de ses vingt églises saisissent elles-mêmes, il fallait **ouvrir
+vingt fiches**. La question est de comparaison — « lesquelles dois-je saisir à
+leur place ? » — donc la réponse doit l'être aussi.
+
+`AccesApplicationDialog` reprend le patron du réglage du workflow : onglets par
+niveau, recherche, un interrupteur par ligne, chaque bascule enregistrée
+immédiatement. Elle réutilise `basculerAccesApplication`, qui existait déjà —
+un second chemin d'écriture aurait divergé (règle 16).
+
+Le texte dit **ce que le réglage ne fait pas**, avant qu'on s'en inquiète :
+« sans accès » ressemble à « désactivée », et ce n'en est pas. Les croyants, les
+bureaux et le solde d'une entité sans accès restent entiers.
+
+**Question ouverte pour l'utilisateur** : les onze droits passés `PROPRE` par la
+migration `0050` incluent `finance.create`. Un administrateur de district ne
+peut donc plus saisir un mouvement pour une de ses églises autrement que par la
+saisie déléguée, elle-même réservée aux entités sans accès. C'est ce que dit
+« chaque bureau gère ses finances », mais c'est plus restrictif que l'exemple
+qui a lancé le sujet, lequel ne parlait que de **validation**. À arbitrer.
