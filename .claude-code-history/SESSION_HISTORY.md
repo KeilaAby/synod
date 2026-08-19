@@ -4253,3 +4253,28 @@ passait dix minutes plus tôt. L'installation pnpm était **incomplète**, pas l
 configuration : `pnpm install --force` l'a rétablie. À noter pour la prochaine
 fois — chercher `node_modules/<paquet>` est un mauvais test avec pnpm, les
 dépendances transitives vivent dans `node_modules/.pnpm/`.
+
+### Le PDF d'un rapport — quatrième tentative, et changement de méthode
+
+La correction du sélecteur n'a pas suffi : la première feuille restait blanche.
+
+**Le problème n'était pas le sélecteur, c'était la méthode.** Imprimer l'écran
+en masquant tout ce qui n'est pas l'aperçu oblige à **énumérer ce qui gêne**, et
+cette liste est toujours incomplète d'un élément qu'on n'a pas prévu. Trois
+réécritures, trois causes différentes : la barre latérale collante, puis les
+hauteurs d'écran et les `transform`, puis les portails montés sur `body`. Chaque
+correction était juste, et la suivante arrivait quand même.
+
+`imprimerRapport` ouvre désormais **une fenêtre vide** et n'y met que l'aperçu.
+Il n'y a plus rien à cacher, parce qu'on ne donne que lui.
+
+**Ce n'est pas un second rendu** (règle 16) : on ne refabrique pas le document à
+partir des données, on déplace le **balisage déjà produit** par `RenduRapport`,
+avec les feuilles de style de l'application. Même chaîne de rendu, page vide.
+L'enveloppe `data-apercu` est conservée pour que les règles `@media print` de
+`globals.css` s'y accrochent — remise à zéro de la marge intérieure, que `@page`
+fournit déjà, et interdiction de couper une feuille en son milieu.
+
+C'est le patron qui sert déjà l'organigramme et les reçus de dîme, et qui n'a
+jamais failli. Les règles de masquage restent en place : un `Ctrl+P` sur l'écran
+doit continuer de donner quelque chose de correct.

@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 
 import { exporterDonnees } from '@/components/rapports/exporter-donnees';
+import { imprimerRapport } from '@/components/rapports/imprimer-rapport';
 import { RenduRapport, type EnteteRapport } from '@/components/rapports/rendu-rapport';
 import { avertir } from '@/components/shared/messages';
 import { PermissionGate } from '@/components/shared/permission-gate';
@@ -121,7 +122,7 @@ export function RapportClient({
           Données (Excel)
         </Button>
 
-        <Button className="h-10" onClick={() => window.print()}>
+        <Button className="h-10" onClick={() => imprimerRapport(nom)}>
           <Printer className="mr-2 size-4" aria-hidden />
           Exporter en PDF
         </Button>

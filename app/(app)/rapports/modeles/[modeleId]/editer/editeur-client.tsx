@@ -18,6 +18,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import { ApercuPanneau } from '@/components/rapports/apercu-panneau';
+import { imprimerRapport } from '@/components/rapports/imprimer-rapport';
 import {
   ICONES_BLOC,
   PaletteBlocs,
@@ -305,7 +306,7 @@ export function EditeurClient({
         onReglagesDocument={() => setReglagesDocument(true)}
         // Imprimer, c'est imprimer l'aperçu du panneau : `globals.css` masque
         // le reste et le rend à l'échelle 1 (règle 16).
-        onImprimer={() => window.print()}
+        onImprimer={() => imprimerRapport(nom || 'Rapport')}
       />
 
       <div
