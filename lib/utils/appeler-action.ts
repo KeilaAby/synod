@@ -1,4 +1,5 @@
 import { type ActionResult, ko } from '@/lib/domain/result';
+import { estNavigationNext } from '@/lib/utils/erreurs-next';
 
 /**
  * Appeler une Server Action sans jamais laisser l'ecran muet — ENF-UTI-05.
@@ -37,6 +38,20 @@ export async function appelerAction<T>(
   try {
     return await appel();
   } catch (erreur) {
+    /**
+     * UNE REDIRECTION N'EST PAS UN ÉCHEC — et l'avaler la supprime.
+     *
+     * Une action qui se termine par `redirect()` rejette sa promesse : c'est
+     * ainsi que la navigation voyage. Attrapée ici, elle devenait un
+     * `ActionResult` en erreur — l'appelant annonçait « le serveur n'a pas
+     * répondu » alors que l'écriture était faite, ET la page d'arrivée ne
+     * s'affichait jamais. Le seul traitement correct est de la relever
+     * telle quelle.
+     */
+    if (estNavigationNext(erreur)) {
+      throw erreur;
+    }
+
     console.error('[action] appel impossible', erreur);
     return ko<T>(messageEchec(erreur));
   }

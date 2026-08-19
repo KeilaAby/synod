@@ -407,7 +407,26 @@ pas le droit mais l'absence de la seconde borne. Le réglage a son écran, sur
 ses vingt églises saisissent elles-mêmes demandait vingt ouvertures de fiche —
 une question de comparaison veut une réponse en tableau.
 
-Base à jour jusqu'à la migration `0050` (`0051` **en attente**) — fuseau
+**Une saisie déléguée ne passe par AUCUN workflow** (`0052`). Ce n'est pas une
+commodité : c'est le seul état cohérent. `finance.validate` étant `PROPRE`
+depuis `0050`, et l'entité visée n'ayant aucun compte, une écriture déléguée
+née `SOUMIS` n'aurait **personne** pour la valider — ni l'entité, ni
+l'ascendant qui l'a saisie. Elle attendrait indéfiniment, comptée nulle part,
+et le solde serait faux sans que rien ne le signale. Les dîmes n'y entrent
+pas : `fn_saisir_collecte_dime` n'écrit jamais `est_delegue`, et une collecte
+doit naître `SOUMIS` — c'est la remise qui la valide. Le formulaire l'annonce
+**avant** de le faire.
+
+**Une redirection n'est pas une panne** (`lib/utils/erreurs-next.ts`).
+`redirect()` et `notFound()` **lèvent** — c'est ainsi que la navigation voyage,
+dans le `digest` de l'exception. Trois traitements d'erreur la voyaient
+différemment ; le pire l'**avalait**, ce qui annonçait « action non aboutie »
+*et* supprimait la redirection. `estNavigationNext` porte la règle une seule
+fois, teste le **préfixe** `NEXT_` — large est le choix sûr, se relever de trop
+est bénin — et ne l'importe pas de `next/dist/…`, un chemin interne qui se
+déplace d'une version à l'autre.
+
+Base à jour jusqu'à la migration `0051` (`0052` **en attente**) — fuseau
 `Indian/Antananarivo` (UTC+3).
 **Toute migration qui crée ou remplace
 une fonction doit finir par `notify pgrst, 'reload schema'`** : sans lui, l'API

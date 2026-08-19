@@ -2,6 +2,8 @@
 
 import { useEffect } from 'react';
 
+import { estNavigationNext } from '@/lib/utils/erreurs-next';
+
 import { avertir } from './messages';
 
 /**
@@ -63,6 +65,11 @@ export function GardeErreurs() {
       // Une navigation interrompue rejette aussi : ce n'est pas une panne, et
       // l'annoncer ferait crier l'application à chaque changement de page.
       if (raison?.name === 'AbortError') return;
+
+      // `redirect()` et `notFound()` lèvent pour partir ailleurs. Une action qui
+      // redirige a ABOUTI — c'est même son succès qui déclenche la redirection,
+      // et le pop-up s'affichait par-dessus la page d'arrivée.
+      if (estNavigationNext(raison)) return;
 
       console.error('[garde] promesse rejetée sans traitement', raison);
 

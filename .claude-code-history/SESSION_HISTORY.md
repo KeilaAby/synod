@@ -4405,3 +4405,75 @@ peut donc plus saisir un mouvement pour une de ses églises autrement que par la
 saisie déléguée, elle-même réservée aux entités sans accès. C'est ce que dit
 « chaque bureau gère ses finances », mais c'est plus restrictif que l'exemple
 qui a lancé le sujet, lequel ne parlait que de **validation**. À arbitrer.
+
+### « Action non aboutie » après une action qui avait abouti
+
+Le pop-up s'affichait par-dessus la page d'arrivée, portant en référence
+`NEXT_REDIRECT;push;/tableau-de-bord;307;`.
+
+**Ce digest n'est pas une panne : c'est une consigne de navigation.**
+`redirect()` et `notFound()` ne retournent pas, elles **lèvent** — c'est ainsi
+que Next interrompt le travail en cours pour partir ailleurs. L'exception
+signale donc qu'une action a *réussi* et que l'écran doit changer.
+
+Trois endroits traitaient les rejets, et ils ne disaient pas la même chose :
+
+| | avant | dégât |
+|---|---|---|
+| `executerAction` | relevait les `NEXT_*` | — |
+| `appelerAction` | **avalait tout** | la redirection n'avait jamais lieu |
+| `GardeErreurs` | ignorait `AbortError` seulement | le faux pop-up |
+
+Le plus grave était le silencieux : `appelerAction` convertissait la
+redirection en `ActionResult` d'erreur, si bien que l'appelant annonçait une
+panne *et* que la page d'arrivée ne venait jamais.
+
+`estNavigationNext` (`lib/utils/erreurs-next.ts`) porte la règle **une seule
+fois**, lue par les trois. Elle teste le **préfixe** `NEXT_` : les erreurs
+serveur ordinaires portent un digest haché, sans lettres. Large est ici le
+choix sûr — une sentinelle ajoutée par une version future sera relevée au lieu
+d'être avalée, et se relever de trop est bénin.
+
+Le préfixe se teste, il ne s'importe pas de `next/dist/…` : un chemin interne
+se déplace d'une version à l'autre, là où cette chaîne voyage jusque dans le
+navigateur.
+
+### La saisie déléguée ne passe par aucun workflow
+
+Règle posée par l'utilisateur : une entité **sans** accès à l'application voit
+son ascendant saisir pour elle, **sans validation** ; une entité **avec** accès
+monte son bureau, saisit elle-même, et son workflow reste réglable par son
+administrateur ou par le Siège.
+
+**Ce n'est pas qu'une préférence : l'alternative était un blocage.** Depuis
+`0050`, `finance.validate` est à portée `PROPRE` — un district ne valide pas
+les mouvements de ses églises. Et une entité déclarée sans accès n'a aucun
+compte pour se connecter. Une écriture déléguée née `SOUMIS` n'aurait donc eu
+**personne** pour la valider : ni l'entité, qui ne se connecte pas, ni
+l'ascendant qui l'a saisie, dont le droit ne descend plus jusqu'à elle. Elle
+serait restée en attente indéfiniment, comptée nulle part, et le solde aurait
+été faux sans que rien ne le signale.
+
+Migration `0052`, greffée sur `fn_finance_before_write` — donc sur l'écriture,
+pas sur un bouton. **Les dîmes n'y entrent pas** : une collecte naît `SOUMIS`
+parce qu'elle annonce sans encaisser, et `fn_saisir_collecte_dime` n'écrit
+jamais `est_delegue`. Vérifié avant d'écrire la migration, pas après : la
+valider d'office aurait crédité le Siège avant la remise physique.
+
+Et le formulaire le **dit avant** de le faire : cocher la case affiche « elle
+sera validée immédiatement ». Une écriture validée d'office sans que rien ne
+l'annonce serait une surprise.
+
+### Les cartes de solde prennent l'habit du tableau de bord
+
+Filet coloré en tête, pastille d'icône, chiffre dominant — le motif de la
+maquette fournie. Les trois porteurs de couleur (filet, pastille, chiffre) sont
+déclarés **côte à côte** dans `HABITS_CARTE` : séparés, l'un d'eux part de son
+côté à la première retouche.
+
+**Une seule jauge, parce qu'une seule mesure quelque chose** : ce que les
+dépenses consomment des recettes. Un montant seul ne dit pas s'il est
+soutenable — « 2 400 000 » se lit tout autrement selon qu'il représente un
+tiers ou le double de ce qui est entré. Sans recette, `part` vaut `null` et la
+barre disparaît : « 0 % » se lirait comme une mesure là où il n'y a rien à
+rapporter (même règle qu'EF-DSH-05).

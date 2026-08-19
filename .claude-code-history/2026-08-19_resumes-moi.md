@@ -26,12 +26,12 @@ Migrations `0001` à **`0050`** appliquées. Les cinq dernières :
 | `0048` | `grades.peut_celebrer` — la liste des célébrants sort du code et rentre dans le référentiel. |
 | `0049` | RG-17 laisse passer le **rattachement à un bordereau** d'une collecte de dîme déjà validée. Sans elle, aucune collecte antérieure à `0038` ne pouvait plus être remise au Siège. |
 | `0050` | `fn_permissions_portee_propre()` — onze droits dont la portée est l'entité **seule**, et `has_perm` réécrite en conséquence. |
+| `0051` | `finance.delegate` devient délégable — ce qui le bornait n'était pas l'interdiction de le déléguer, mais ses deux conditions cumulatives. |
 
-> ⏳ **`0051` attend d'être appliquée** : elle retire `finance.delegate` de
-> `fn_permissions_non_delegables()`. Le lint et les tests passent sans elle,
-> mais la délégation du droit sera refusée par la base tant qu'elle n'est pas
-> jouée — et la liste TypeScript et la liste SQL divergeront, ce qu'un test
-> détecte.
+> ⏳ **`0052` attend d'être appliquée** : une saisie **déléguée** ne passe par
+> aucun workflow de validation. Sans elle, une écriture déléguée reste `SOUMIS`
+> sans que personne ne puisse la valider — ni l'entité, qui ne se connecte pas,
+> ni l'ascendant, dont `finance.validate` ne descend plus depuis `0050`.
 
 ---
 
@@ -49,21 +49,34 @@ Migrations `0001` à **`0050`** appliquées. Les cinq dernières :
 | Rapports — bibliothèque, éditeur, aperçu A4, génération | ✅ |
 | **Administration — comptes, habilitations, audit, corbeille, paramètres, courriels** | ✅ |
 
-**707 tests unitaires, 32 fichiers.** `pnpm verify` vert.
+**714 tests unitaires, 33 fichiers.** `pnpm verify` vert.
 
 ### Depuis le dernier point d'étape
 
 - **RG-25 précisé** : la portée est une propriété du **droit**, pas de l'octroi.
   Onze droits sont `PROPRE` — ils ne descendent plus dans le sous-arbre.
-  *(À arbitrer : `finance.create` en fait partie, voir « À décider par vous ».)*
-- **La saisie déléguée n'est plus décorative** : elle exige que l'entité visée
-  soit **déclarée sans accès à l'application**, en plus de la portée du droit.
+- **La doctrine de la saisie déléguée est complète.** Entité **sans** accès :
+  l'ascendant saisit pour elle, et l'écriture est **validée d'emblée** — elle
+  n'a personne pour soumettre ni pour valider. Entité **avec** accès : elle
+  monte son bureau et saisit elle-même, son workflow restant réglable par son
+  administrateur ou par le Siège.
 - **Un écran pour ce réglage** — bouton « Accès à l'application » sur
   `/finances`. Il vivait dans la fiche de chaque entité, où la question
   « lesquelles saisissent elles-mêmes ? » demandait vingt ouvertures de fiche.
-- **Le PDF d'un rapport s'imprime dans une fenêtre vide**, avec `<base>` pour
-  que les feuilles de style se résolvent. Quatre tentatives : les trois
-  premières masquaient l'écran, et il restait toujours un élément non prévu.
+- **« Action non aboutie » après une action réussie** : `redirect()` lève, et
+  ce rejet était pris pour une panne. Pire, `appelerAction` l'**avalait** — la
+  redirection n'avait alors jamais lieu. La règle vit désormais à un seul
+  endroit, `lib/utils/erreurs-next.ts`.
+- **Les cartes de `/finances`** prennent l'habit de la maquette : filet coloré
+  en tête, pastille d'icône, et une jauge là où elle mesure quelque chose.
+
+### ⚠ Le PDF d'un rapport reste bâclé
+
+Quatrième tentative infructueuse. `imprimerRapport` ouvre une fenêtre vide et y
+recopie l'aperçu avec les feuilles de style de l'application, `<base>` compris —
+et le rendu ne suit toujours pas. **Reporté volontairement en fin de liste** par
+l'utilisateur le 19 août 2026 ; à reprendre avec le PDF produit sous les yeux,
+les trois diagnostics précédents ayant chacun été justes sans être suffisants.
 
 ---
 
@@ -182,16 +195,8 @@ désormais aussi. Il ne manque que le branchement.
 
 ### À décider par vous
 
-- **`finance.create` doit-il vraiment rester `PROPRE` ?** La migration `0050` en
-  a fait un droit qui ne descend plus : un administrateur de district ne peut
-  plus saisir un mouvement pour une de ses églises, sauf par la saisie déléguée,
-  elle-même réservée aux entités déclarées sans accès. C'est la lettre de
-  « chaque bureau gère ses finances », mais l'exemple qui a lancé le sujet ne
-  parlait que de **validation**. Les dix autres droits `PROPRE` sont listés dans
-  `lib/domain/permissions.ts`.
-- **Appliquer la migration `0051`** — sans elle, `finance.delegate` reste non
-  délégable en base et le Siège reste seul à pouvoir saisir pour les églises
-  sans connexion.
+- **Appliquer la migration `0052`** — sans elle, une écriture déléguée peut
+  rester bloquée en `SOUMIS` sans personne pour la valider.
 - **Poser `SMTP_PASS`** dans les variables d'environnement : sans lui, le
   serveur d'envoi est configuré mais aucun message ne part. Le bouton d'essai le
   dira sans détour.

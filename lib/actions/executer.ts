@@ -3,6 +3,7 @@ import 'server-only';
 import { DataError } from '@/lib/data/errors';
 import { type ActionResult, ko } from '@/lib/domain/result';
 import { ErreurAcces } from '@/lib/session';
+import { estNavigationNext } from '@/lib/utils/erreurs-next';
 
 /**
  * Enveloppe commune des Server Actions.
@@ -38,13 +39,7 @@ export async function executerAction<T>(
 
     // `redirect()` et `notFound()` de Next passent par une exception dédiée
     // qu'il ne faut SURTOUT pas avaler : elle porte la navigation.
-    if (
-      erreur !== null &&
-      typeof erreur === 'object' &&
-      'digest' in erreur &&
-      typeof (erreur as { digest?: unknown }).digest === 'string' &&
-      (erreur as { digest: string }).digest.startsWith('NEXT_')
-    ) {
+    if (estNavigationNext(erreur)) {
       throw erreur;
     }
 

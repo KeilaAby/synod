@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   FileEdit,
   FilterX,
+  Landmark,
   Lock,
   MoreVertical,
   Paperclip,
@@ -19,6 +20,7 @@ import {
   Wallet,
   XCircle,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
 import { toast } from 'sonner';
@@ -358,18 +360,48 @@ export function FinancesClient({
               valeur={soldeAffiche.recettesConsolidees}
               devise={devise}
               ton="success"
+              icone={ArrowUpCircle}
             />
             <CarteSolde
               libelle="Dépenses"
               valeur={soldeAffiche.depensesConsolidees}
               devise={devise}
               ton="danger"
+              icone={ArrowDownCircle}
+              /*
+                LA SEULE PART QUI MESURE QUELQUE CHOSE ICI : ce que les dépenses
+                consomment des recettes. Un montant seul ne dit pas s'il est
+                soutenable — « 2 400 000 » se lit tout autrement selon qu'il
+                représente un tiers ou le double de ce qui est entré.
+
+                `null` sans recette : « 0 % » se lirait comme une mesure, quand
+                il n'y a rien à rapporter.
+              */
+              part={
+                soldeAffiche.recettesConsolidees > 0
+                  ? (soldeAffiche.depensesConsolidees /
+                      soldeAffiche.recettesConsolidees) *
+                    100
+                  : null
+              }
+              partLibelle={
+                soldeAffiche.recettesConsolidees > 0
+                  ? `${(
+                      (soldeAffiche.depensesConsolidees /
+                        soldeAffiche.recettesConsolidees) *
+                      100
+                    )
+                      .toFixed(1)
+                      .replace('.', ',')} % des recettes`
+                  : undefined
+              }
             />
             <CarteSolde
               libelle={uneSeuleEntite ? `Solde — ${nomPropre}` : 'Solde consolidé'}
               valeur={soldeConsolide(soldeAffiche)}
               devise={devise}
               ton={soldeConsolide(soldeAffiche) < 0 ? 'danger' : 'success'}
+              icone={Wallet}
               detail={
                 uneSeuleEntite
                   ? 'Cette entité seule — les mouvements de ses enfants ne sont pas comptés.'
@@ -390,6 +422,7 @@ export function FinancesClient({
                 valeur={soldePropre(soldeAffiche)}
                 devise={devise}
                 ton={soldePropre(soldeAffiche) < 0 ? 'danger' : 'neutral'}
+                icone={Landmark}
               />
             )}
           </div>
@@ -963,33 +996,111 @@ export function FinancesClient({
  * n'y ajoutait rien — c'est `tabular-nums` qui aligne, pas `font-mono` — et
  * donnait à un écran de trésorerie l'aspect d'un terminal.
  */
+/**
+ * Les trois habits d'une carte de solde, tenus ENSEMBLE.
+ *
+ * Le filet coloré en tête, la teinte de la pastille et la couleur du chiffre
+ * disent la même chose ; les déclarer côte à côte est ce qui empêche qu'un des
+ * trois parte de son côté à la prochaine retouche.
+ */
+const HABITS_CARTE = {
+  success: {
+    filet: 'from-emerald-400 to-teal-500',
+    pastille: 'bg-emerald-50 text-emerald-600',
+    chiffre: 'text-emerald-700',
+    jauge: 'from-emerald-400 to-teal-500',
+  },
+  danger: {
+    filet: 'from-rose-400 to-orange-500',
+    pastille: 'bg-rose-50 text-rose-600',
+    chiffre: 'text-rose-700',
+    jauge: 'from-rose-400 to-orange-500',
+  },
+  neutral: {
+    filet: 'from-indigo-400 to-violet-500',
+    pastille: 'bg-indigo-50 text-indigo-600',
+    chiffre: 'text-foreground',
+    jauge: 'from-indigo-400 to-violet-500',
+  },
+} as const;
+
 function CarteSolde({
   libelle,
   valeur,
   devise,
   ton,
   detail,
+  icone: Icone,
+  part,
+  partLibelle,
 }: {
   libelle: string;
   valeur: number;
   devise: string;
   ton: Tone;
   detail?: string;
+  icone: LucideIcon;
+  /** 0 à 100, ou `null` quand il n'y a rien à mesurer. Jamais `0` par défaut. */
+  part?: number | null;
+  partLibelle?: string;
 }) {
-  const couleur =
-    ton === 'success'
-      ? 'text-emerald-700'
-      : ton === 'danger'
-        ? 'text-rose-700'
-        : 'text-foreground';
+  const habit = HABITS_CARTE[ton === 'success' || ton === 'danger' ? ton : 'neutral'];
 
   return (
-    <Card>
-      <CardContent className="space-y-1 p-6">
-        <p className="text-muted-foreground text-xs font-medium">{libelle}</p>
-        <p className={`text-2xl font-semibold tabular-nums ${couleur}`}>
+    /*
+      SUR FOND BLANC, C'EST L'OMBRE ET LE FILET QUI SÉPARENT — même raisonnement
+      qu'au tableau de bord. Le filet ajoute ce que l'ombre seule ne donne pas :
+      on distingue une recette d'une dépense AVANT d'avoir lu le libellé.
+    */
+    <Card className="border-border/70 overflow-hidden py-0 shadow-sm">
+      <span
+        className={`block h-1 bg-gradient-to-r ${habit.filet}`}
+        aria-hidden
+      />
+
+      {/* `pt-4.5` — l'écart de deux pixels assumé au tableau de bord (règle 6) :
+          la pastille porte son propre air, et l'aplomb du haut paraissait plus
+          lourd que celui des côtés. */}
+      <CardContent className="space-y-2 px-5 pt-4.5 pb-5">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-muted-foreground text-xs font-semibold tracking-[0.08em] uppercase">
+            {libelle}
+          </p>
+          {/* Masquée aux lecteurs d'écran : elle ne porte rien que le libellé
+              n'ait déjà, et l'annoncer ferait entendre deux fois la même chose. */}
+          <span
+            className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${habit.pastille}`}
+          >
+            <Icone className="size-4.5" aria-hidden />
+          </span>
+        </div>
+
+        <p className={`text-2xl font-semibold tabular-nums ${habit.chiffre}`}>
           {formatMontant(valeur, devise)}
         </p>
+
+        {/*
+          LA JAUGE NE S'AFFICHE QUE QUAND ELLE MESURE QUELQUE CHOSE.
+
+          `part` vaut `null` — et non `0` — lorsque le dénominateur est nul :
+          une barre vide se lit comme une mesure là où il n'y a rien à mesurer
+          (même règle qu'`EF-DSH-05`). La borner à 100 % évite qu'un dépassement
+          déborde du cadre ; le libellé, lui, porte la valeur réelle.
+        */}
+        {part !== null && part !== undefined && (
+          <div className="space-y-1.5 pt-1">
+            <span className="bg-muted block h-1.5 overflow-hidden rounded-full">
+              <span
+                className={`block h-full rounded-full bg-gradient-to-r ${habit.jauge}`}
+                style={{ width: `${Math.min(100, Math.max(0, part))}%` }}
+              />
+            </span>
+            {partLibelle && (
+              <p className="text-muted-foreground text-xs tabular-nums">{partLibelle}</p>
+            )}
+          </div>
+        )}
+
         {detail && <p className="text-muted-foreground text-xs">{detail}</p>}
       </CardContent>
     </Card>

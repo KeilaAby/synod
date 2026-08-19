@@ -389,10 +389,22 @@ export function MouvementDialog({
                               Saisie pour le compte de cette entité
                             </span>
                             <span className="text-muted-foreground block text-xs">
-                              À cocher lorsque l’entité n’a pas accès à l’application.
-                              Le mouvement lui est rattaché et porte la mention
-                              « déléguée » avec votre nom.
+                              Réservé aux entités déclarées sans accès à
+                              l’application. Le mouvement leur est rattaché et
+                              porte la mention « déléguée » avec votre nom.
                             </span>
+                            {/*
+                              Une écriture validée d'office sans que rien ne
+                              l'annonce serait une surprise : on le dit AVANT,
+                              là où la case se coche.
+                            */}
+                            {Boolean(field.value) && (
+                              <span className="text-muted-foreground block text-xs">
+                                Elle sera <strong>validée immédiatement</strong> :
+                                une entité qui ne se connecte pas n’a personne
+                                pour soumettre ni pour valider.
+                              </span>
+                            )}
                           </span>
                         </label>
                       )}
