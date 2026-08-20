@@ -12,11 +12,23 @@ function Card({
       data-slot="card"
       data-size={size}
       className={cn(
-        // UI-03 / UI-05 : la separation visuelle repose sur une BORDURE fine
-        // Gray-200, jamais sur une ombre ni sur un ring. `p-6` (24px) est
-        // applique au cas par cas ; l'espacement par defaut reste sur la
-        // grille de 8px via --card-spacing.
-        "group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl border border-border bg-card py-(--card-spacing) text-sm text-card-foreground shadow-none [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
+        // UI-03 / UI-05 — LA SEPARATION REPOSAIT SUR LA SEULE BORDURE, et
+        // c'etait juste TANT QUE LA PAGE ETAIT GRISE : une carte blanche s'y
+        // decoupait d'elle-meme, la bordure ne faisait que la finir.
+        //
+        // Le fond de page est blanc depuis le 20 aout 2026. Il n'y a plus de
+        // contraste de fond a emprunter, et la bordure seule laisse les cartes
+        // se fondre dans la page. L'OMBRE PREND LE RELAIS — `shadow-sm`, et pas
+        // davantage : une ombre marquee sur vingt cartes fabrique un bruit que
+        // l'oeil doit trier avant d'atteindre les chiffres.
+        //
+        // La bordure reste : c'est elle qui tient le trait sur les ecrans dont
+        // le rendu des ombres est pauvre, et elle borne la carte quand deux se
+        // touchent.
+        //
+        // `p-6` (24px) est applique au cas par cas ; l'espacement par defaut
+        // reste sur la grille de 8px via --card-spacing.
+        "group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl border border-border/70 bg-card py-(--card-spacing) text-sm text-card-foreground shadow-sm [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
         className
       )}
       {...props}

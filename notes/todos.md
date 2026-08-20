@@ -14,12 +14,13 @@
 
 ## ⚠ État de la base
 
-**Appliquées : `0001` à `0060`.**
+**Appliquées : `0001` à `0061`.**
 
-> ⏳ **`0061` ATTEND D’ÊTRE APPLIQUÉE — la page `/referentiels` est cassée sans
-> elle.** Elle rétablit `fonctions.ordre_protocolaire`, que la migration `0022`
-> avait supprimée le 9 août. Sans elle, la lecture du référentiel Fonctions
-> échoue en `42703 — column does not exist`.
+> ⏳ **`0062` attend d'être appliquée.** Sans elle, le glisser-déposer de l'ordre
+> protocolaire échoue : le premier jet passait par un `upsert`, que PostgREST
+> traduit en `insert … on conflict`, et PostgreSQL valide le tuple **inséré**
+> avant de résoudre le conflit — d'où un `23502` sur `code`, colonne à laquelle
+> on ne touchait pas. `fn_reordonner_referentiel` fait le tout en une écriture.
 
 C'est **cette ligne** qui fait foi — pas le numéro le plus élevé de
 `supabase/migrations/`, qui dit ce qui est *écrit* et non ce qui est *appliqué*.
@@ -306,8 +307,27 @@ soldes consolidés — la décision a déjà été prise et tenue une fois.
 
 ## 6. Transversal
 
-- [ ] **Fond blanc et ombres légères sur toutes les pages.** Fait sur
-      `/tableau-de-bord` et sur les cartes de `/finances` ; reste le reste.
+- [x] **Fond blanc et ombres légères sur toutes les pages.** *(20 août 2026,
+      demandé à la suite des marges à 4 px.)*
+      **Le fond se demandait écran par écran** — `data-fond="blanc"` — et deux
+      pages seulement l'avaient posé. Un réglage que chaque nouvel écran doit
+      penser à reprendre finit par manquer quelque part, et c'est l'écran oublié
+      qu'on remarque : celui dont le fond reste gris quand tous les autres sont
+      blancs se lit comme un défaut d'affichage. Le gabarit le pose désormais
+      pour tous, et l'attribut est **retiré** — un drapeau qui ne décide plus de
+      rien devient un piège (règle 21).
+      **Ce que cela obligeait à changer ailleurs**, et c'est le vrai travail :
+      sur gris, une carte blanche se découpait d'elle-même et la bordure ne
+      faisait que la finir. Sans contraste de fond à emprunter, elle se fond
+      dans la page. `Card` porte donc **`shadow-sm` par défaut**, et sa bordure
+      passe à `border-border/70`.
+      **`shadow-sm`, et pas davantage** : une ombre marquée sur vingt cartes
+      fabrique un bruit que l'œil doit trier avant d'atteindre les chiffres.
+      La bordure **reste** — elle tient le trait là où le rendu des ombres est
+      pauvre, et elle borne la carte quand deux se touchent.
+      *(Le commentaire UI-03/UI-05 « la séparation repose sur une bordure,
+      jamais sur une ombre » a été amendé sur place : il était juste tant que la
+      page était grise.)*
 - [ ] **Réécrire toutes les descriptions en langage courant.** Les libellés
       d'écran et d'aide, pas les commentaires de code.
 

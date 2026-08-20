@@ -4931,3 +4931,57 @@ premier rechargement, sans que personne n'ait rien demandé. En partant de ce qu
 est déjà à l'écran, la migration ne déplace rien — elle rend l'ordre modifiable.
 Et l'initialisation est bornée aux lignes restées au défaut, pour qu'un rejeu ne
 défasse pas un ordre posé entre-temps.
+
+### `upsert` n'est pas « mets à jour si ça existe »
+
+Le glisser-déposer de l'ordre protocolaire échouait, et le message accusait une
+colonne à laquelle on ne touchait pas.
+
+L'action envoyait `upsert([{ id, ordre_protocolaire: 10 }, …])`. PostgREST le
+traduit en `insert … on conflict (id) do update` — et **PostgreSQL valide le
+tuple inséré AVANT de résoudre le conflit**. `code` et `libelle` étant
+`not null` sans défaut, l'écriture tombait en `23502` sur `code`, alors qu'on
+ne voulait rien insérer du tout.
+
+C'est ce qui rend la panne difficile à lire : `upsert` ressemble à « mets à jour
+si ça existe », mais c'est **un INSERT qui se rattrape**, pas un UPDATE qui
+s'étend.
+
+`fn_reordonner_referentiel` (`0062`) fait le tout en une écriture. Dix appels
+seraient dix allers-retours (règle 28) — et surtout, une interruption à
+mi-parcours laisserait deux valeurs au même rang, ou un trou : un état faux ET
+indétectable, donc il se traite en base (règle 20).
+
+**La liste blanche des tables n'est pas décorative.** Le nom de table vient du
+client ; `format(%I)` échappe l'identifiant, ce qui empêche l'injection mais pas
+de viser une autre table. On énumère donc ce qui est réordonnable, et un test
+lit le SQL pour comparer cette liste aux `colonneOrdre` du registre.
+
+La fonction rend le **nombre de lignes touchées**. Un identifiant sans ligne
+correspondante — valeur supprimée depuis l'ouverture de l'écran — ne fait pas
+échouer l'ordre, mais l'annoncer comme un succès complet ferait croire à un
+classement qui n'est pas celui qu'on voit.
+
+### Le fond blanc partout, et ce qu'il oblige à changer ailleurs
+
+Le fond se demandait écran par écran (`data-fond="blanc"`), et **deux pages
+seulement** l'avaient posé. Un réglage que chaque nouvel écran doit penser à
+reprendre finit par manquer quelque part — et c'est l'écran oublié qu'on
+remarque.
+
+**Le vrai travail n'était pas le fond, c'était les cartes.** Sur gris, une carte
+blanche se découpait d'elle-même : la bordure ne faisait que la finir. Sans
+contraste de fond à emprunter, elle se fond dans la page. `Card` porte donc
+`shadow-sm` par défaut, et sa bordure passe à `border-border/70`.
+
+Le commentaire UI-03/UI-05 — « la séparation repose sur une bordure fine, jamais
+sur une ombre » — a été **amendé sur place** plutôt que contredit en silence :
+il était juste tant que la page était grise, et il faut que le prochain lecteur
+sache pourquoi il ne l'est plus.
+
+`shadow-sm` et pas davantage : une ombre marquée sur vingt cartes fabrique un
+bruit que l'œil doit trier avant d'atteindre les chiffres. Et la bordure reste —
+elle tient le trait là où le rendu des ombres est pauvre.
+
+L'attribut `data-fond` est **retiré**, pas laissé en place : un drapeau qui ne
+décide plus de rien devient un piège (règle 21).

@@ -258,3 +258,43 @@ describe('EF-REF-02 — ordre protocolaire', () => {
     }
   });
 });
+
+/**
+ * EF-REF-02 — la liste blanche SQL et le registre disent la meme chose.
+ *
+ * `fn_reordonner_referentiel` enumere les tables reordonnables et la colonne
+ * d'ordre de chacune. Le registre TypeScript la declare de son cote. Une regle
+ * ecrite a deux endroits ne diverge jamais le jour ou on l'ecrit : c'est plus
+ * tard, quand on ajoute un referentiel d'un seul cote, et l'ecran propose alors
+ * un glisser-deposer que la base refuse.
+ */
+describe('EF-REF-02 — alignement du registre et de la fonction SQL', () => {
+  it('tient la MEME liste de tables reordonnables que la base', async () => {
+    const { readFile, readdir } = await import('node:fs/promises');
+    const dossier = new URL('../../supabase/migrations/', import.meta.url);
+
+    // La DERNIERE migration qui definit la fonction, jamais un fichier nomme
+    // en dur : la suivante qui la remplace serait ignoree en silence.
+    const fichiers = (await readdir(dossier)).filter((f) => f.endsWith('.sql')).sort();
+
+    let derniere: string | null = null;
+    for (const fichier of fichiers) {
+      const contenu = await readFile(new URL(fichier, dossier), 'utf8');
+      if (contenu.includes('function fn_reordonner_referentiel')) derniere = contenu;
+    }
+
+    expect(derniere, 'aucune migration ne definit fn_reordonner_referentiel').not.toBeNull();
+
+    // Les branches `when '<table>' then '<colonne>'` du CASE.
+    const paires = [...derniere!.matchAll(/when\s+'([a-z_]+)'\s+then\s+'([a-z_]+)'/g)];
+    const sql = new Map(paires.map((m) => [m[1]!, m[2]!]));
+
+    const domaine = new Map(
+      SLUGS_REFERENTIELS.map((slug) => REFERENTIELS[slug])
+        .filter((d) => d.colonneOrdre)
+        .map((d) => [d.table, d.colonneOrdre!]),
+    );
+
+    expect(Object.fromEntries(sql)).toEqual(Object.fromEntries(domaine));
+  });
+});

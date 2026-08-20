@@ -79,13 +79,24 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <Topbar compteurs={compteurs} />
 
             {/*
-              LE FOND SE DÉCIDE PAR LA PAGE, sans marges négatives.
+              LE FOND EST BLANC PARTOUT — 20 août 2026.
 
-              `has-[[data-fond=blanc]]` : la zone principale devient blanche dès
-              qu'une page pose l'attribut. Faire déborder un fond depuis la page
+              Il se demandait écran par écran (`data-fond="blanc"`), et deux
+              pages seulement l'avaient posé. Un réglage que chaque nouvel écran
+              doit penser à reprendre finit par manquer quelque part, et c'est
+              l'écran oublié qu'on remarque : celui dont le fond est gris quand
+              tous les autres sont blancs se lit comme un défaut d'affichage.
+
+              CE QUE CELA OBLIGEAIT À CHANGER AILLEURS. Sur gris, une carte
+              blanche se découpait d'elle-même et la bordure ne faisait que la
+              finir. Sans contraste de fond à emprunter, la bordure seule laisse
+              les cartes se fondre dans la page : `Card` porte donc une ombre
+              légère par défaut (voir `components/ui/card.tsx`).
+
+              Le fond est posé ICI et non depuis la page : la faire déborder
               elle-même aurait demandé des marges négatives à recompenser à
-              chaque point de rupture — et un écran court aurait laissé une
-              bande grise en bas, qu'on lirait comme un défaut d'affichage.
+              chaque point de rupture, et un écran court aurait laissé une bande
+              grise en bas.
             */}
             {/*
               LA PLEINE LARGEUR SE DEMANDE, elle aussi, PAR UN ATTRIBUT.
@@ -96,9 +107,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               qu'on leur retire est pris sur la composition, au milieu, qui est
               la seule chose qu'on regarde.
 
-              Même mécanisme que `data-fond` : la page pose l'attribut, le
-              gabarit y répond. Des marges négatives depuis la page seraient à
-              recompenser à chaque point de rupture.
+              La page pose l'attribut, le gabarit y répond — des marges
+              négatives depuis la page seraient à recompenser à chaque point de
+              rupture. C'est le mécanisme qu'employait `data-fond`, retiré le
+              20 août 2026 quand le fond blanc est devenu la règle : un attribut
+              qui ne décide plus de rien devient un piège (règle 21).
             */}
             {/*
               MARGES HORIZONTALES DE 4 px — ÉCART ASSUMÉ À LA RÈGLE 6.
@@ -116,7 +129,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               `px-1` est sur l'échelle Tailwind, pas une valeur arbitraire :
               ESLint l'accepte, et l'écart reste lisible pour qui relit.
             */}
-            <main className="flex-1 px-1 py-6 md:px-2 has-[[data-fond=blanc]]:bg-card has-[[data-large]]:px-1 md:has-[[data-large]]:px-1">
+            <main className="bg-card flex-1 px-1 py-6 md:px-2 has-[[data-large]]:px-1 md:has-[[data-large]]:px-1">
               <div className="mx-auto w-full max-w-[1600px] has-[[data-large]]:max-w-none">
                 {children}
               </div>

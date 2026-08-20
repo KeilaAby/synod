@@ -318,23 +318,41 @@ export async function reordonnerReferentiel(input: unknown): Promise<ActionResul
     const sb = await createClient();
 
     /**
-     * DES RANGS ESPACES DE DIX, jamais de 1 a N.
+     * UNE FONCTION EN BASE, ET NON UN `upsert`.
      *
-     * Une valeur creee plus tard, ou par un import, prend son `ordre` par
-     * defaut ; des rangs contigus la placeraient forcement en queue ou en
-     * conflit. L'espacement laisse de la place a une insertion sans toucher
-     * aux voisines — et si elle vient a manquer, un simple reordonnancement la
-     * retablit.
+     * Le premier jet envoyait `upsert([{ id, ordre: 10 }, …])`. PostgREST le
+     * traduit en `insert … on conflict (id) do update`, et PostgreSQL VALIDE
+     * LE TUPLE INSERE AVANT de resoudre le conflit : `code` et `libelle` etant
+     * `not null` sans defaut, l'ecriture echouait en 23502 sur une colonne a
+     * laquelle on ne touchait pas. `upsert` ressemble a « mets a jour si ca
+     * existe » ; c'est un INSERT qui se rattrape, pas un UPDATE qui s'etend.
+     *
+     * `fn_reordonner_referentiel` (0062) fait le tout en UNE ecriture : dix
+     * appels seraient dix allers-retours (regle 28), et une interruption a
+     * mi-parcours laisserait deux valeurs au meme rang — un etat faux ET
+     * indetectable, donc il se traite en base (regle 20).
      */
-    const colonne = definition.colonneOrdre;
-    const lignes = analyse.data.ids.map((id, rang) => ({
-      id,
-      [colonne]: (rang + 1) * 10,
-    }));
-
-    const { error } = await sb.from(definition.table).upsert(lignes, { onConflict: 'id' });
+    const { data: touchees, error } = await sb.rpc('fn_reordonner_referentiel', {
+      p_table: definition.table,
+      p_ids: analyse.data.ids,
+    });
 
     if (error) return ko(messageErreurSql(error));
+
+    /**
+     * UNE REUSSITE PARTIELLE SE DIT. Un identifiant sans ligne correspondante —
+     * valeur supprimee depuis l'ouverture de l'ecran — est ignore par la
+     * fonction : annoncer un succes complet ferait croire a un ordre qui n'est
+     * pas celui qu'on voit.
+     */
+    const attendues = analyse.data.ids.length;
+    if (typeof touchees === 'number' && touchees < attendues) {
+      return ko(
+        `L’ordre n’a été appliqué qu’à ${touchees} valeur(s) sur ${attendues} : ` +
+          'la liste a changé depuis l’ouverture de cet écran. Rechargez la page, ' +
+          'puis reprenez le classement.',
+      );
+    }
 
     await auditer({
       session,

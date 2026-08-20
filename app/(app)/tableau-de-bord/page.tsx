@@ -164,7 +164,7 @@ export default async function TableauDeBordPage({
       découpe toute seule ; ici, c'est le relief qui la sépare — et la lecture
       y gagne, parce que rien ne vient concurrencer les chiffres.
     */
-    <div data-fond="blanc" className="space-y-8">
+    <div className="space-y-8">
       <PageHeader
         eyebrow={`Périmètre — ${libelleType} ${entiteNom}`}
         title="Tableau de bord"
