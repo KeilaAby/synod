@@ -299,15 +299,13 @@ export const genererRapportSchema = z
 export type GenererRapportInput = z.input<typeof genererRapportSchema>;
 
 /**
- * EF-RAP-18 — publier, et depublier.
+ * LA PUBLICATION A ETE RETIREE le 20 aout 2026 (migration `0060`).
  *
- * UN SEUL SCHEMA POUR LES DEUX SENS (regle 16). Publier n'est pas irreversible :
- * un rapport diffuse par erreur doit pouvoir etre retire de la vue du perimetre
- * — ce qui ne le modifie pas, RG-27 restant entier.
+ * Publier rendait un rapport lisible par tout le perimetre SANS `report.read`.
+ * Or RG-26 omet les blocs non habilites A LA GENERATION, sous la session de
+ * celui qui genere, et le contenu est ensuite fige (RG-27) : un rapport publie
+ * montrait donc ses finances a quelqu'un a qui `finance.read` avait ete refuse.
+ *
+ * Un rapport est desormais confidentiel a son entite, et `report.read` decide
+ * seul, avec sa portee.
  */
-export const publierRapportSchema = z.object({
-  rapportId: z.uuid(),
-  publier: z.boolean(),
-});
-
-export type PublierRapportInput = z.input<typeof publierRapportSchema>;

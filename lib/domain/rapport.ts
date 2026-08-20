@@ -1195,3 +1195,163 @@ export function modeleSApplique(
   // restriction totale (regle 15 — une absence n'est pas un refus).
   return niveaux.length === 0 || niveaux.includes(typeEntite);
 }
+
+// ---------------------------------------------------------------------------
+// Les filtres d'un bloc — EF-RAP-03
+// ---------------------------------------------------------------------------
+
+/**
+ * CE QU'UN BLOC PEUT RESTREINDRE, source par source.
+ *
+ * LE BESOIN : un rapport de district veut « les baptemes des femmes » ou
+ * « les depenses seulement ». Sans filtre, il fallait un bloc par cas et
+ * l'omission des autres a la main — c'est-a-dire refaire le rapport.
+ *
+ * QUE DES ENSEMBLES CLOS ET CONNUS (regle 18). Sexe, sens, statut, niveau : on
+ * les declare ici, et l'editeur les rend en menus. Un filtre par GRADE ou par
+ * CATEGORIE serait ouvert — il demanderait de charger un referentiel dans
+ * l'editeur, et surtout un modele fige le jour ou l'on renomme la categorie
+ * qu'il designe. Ceux-la se feront quand le besoin sera nomme, pas avant.
+ *
+ * `null` OU ABSENT VEUT DIRE « TOUT », jamais « rien ». Un modele ecrit avant
+ * cette version n'a aucun filtre, et doit continuer a rendre exactement ce
+ * qu'il rendait.
+ */
+export interface OptionFiltre {
+  readonly valeur: string;
+  readonly label: string;
+}
+
+export interface DescriptionFiltre {
+  readonly cle: string;
+  readonly label: string;
+  readonly options: readonly OptionFiltre[];
+}
+
+export const FILTRES_SOURCE: Record<SourceRapport, readonly DescriptionFiltre[]> = {
+  CROYANTS: [
+    {
+      cle: 'sexe',
+      label: 'Sexe',
+      options: [
+        { valeur: 'M', label: 'Hommes' },
+        { valeur: 'F', label: 'Femmes' },
+      ],
+    },
+    {
+      cle: 'statut',
+      label: 'Statut',
+      options: [
+        { valeur: 'ACTIF', label: 'Actifs' },
+        { valeur: 'INACTIF', label: 'Inactifs' },
+        { valeur: 'TRANSFERE', label: 'Transférés' },
+        { valeur: 'DECEDE', label: 'Décédés' },
+      ],
+    },
+  ],
+
+  FINANCES: [
+    {
+      cle: 'sens',
+      label: 'Sens',
+      options: [
+        { valeur: 'RECETTE', label: 'Recettes' },
+        { valeur: 'DEPENSE', label: 'Dépenses' },
+      ],
+    },
+  ],
+
+  ENTITES: [
+    {
+      cle: 'niveau',
+      label: 'Niveau',
+      options: [
+        { valeur: 'REGIONAL', label: 'Régionaux' },
+        { valeur: 'DISTRICT', label: 'Districts' },
+        { valeur: 'PAROISSE', label: 'Paroisses' },
+        { valeur: 'EGLISE', label: 'Églises' },
+        { valeur: 'CELLULE', label: 'Cellules' },
+      ],
+    },
+  ],
+
+  BUREAUX: [
+    {
+      cle: 'etat',
+      label: 'État du mandat',
+      options: [
+        { valeur: 'EN_COURS', label: 'En cours' },
+        { valeur: 'CLOS', label: 'Clos' },
+      ],
+    },
+  ],
+
+  TRANSFERTS: [
+    {
+      cle: 'statut',
+      label: 'Statut',
+      options: [
+        { valeur: 'EN_ATTENTE', label: 'En attente' },
+        { valeur: 'APPROUVE', label: 'Approuvés' },
+        { valeur: 'REFUSE', label: 'Refusés' },
+      ],
+    },
+  ],
+
+  // Un bapteme n'a que sa date et son lieu : la periode du rapport la borne
+  // deja, et le lieu est un texte libre — donc un ensemble ouvert.
+  BAPTEMES: [],
+};
+
+/** Les filtres qu'un bloc peut regler, compte tenu de sa source. */
+export function filtresDuBloc(bloc: BlocRapport): readonly DescriptionFiltre[] {
+  const source = sourceDuBloc(bloc);
+  return source ? FILTRES_SOURCE[source] : [];
+}
+
+/**
+ * Les filtres POSES sur un bloc, nettoyes.
+ *
+ * On ne rend que ceux que la source connait ET dont la valeur figure dans ses
+ * options : un modele dont la source a change garderait sinon un filtre
+ * orphelin, qui ne s'affiche nulle part et restreint quand meme.
+ */
+export function filtresPoses(bloc: BlocRapport): Readonly<Record<string, string>> {
+  const brut = bloc.reglages.filtres;
+  if (typeof brut !== 'object' || brut === null) return {};
+
+  const table = brut as Record<string, unknown>;
+  const retenus: Record<string, string> = {};
+
+  for (const filtre of filtresDuBloc(bloc)) {
+    const valeur = table[filtre.cle];
+    if (typeof valeur !== 'string') continue;
+    if (filtre.options.some((o) => o.valeur === valeur)) retenus[filtre.cle] = valeur;
+  }
+
+  return retenus;
+}
+
+/** Combien de filtres restreignent ce bloc — l'editeur l'annonce sur la carte. */
+export function compteFiltres(bloc: BlocRapport): number {
+  return Object.keys(filtresPoses(bloc)).length;
+}
+
+/**
+ * La phrase qui dit ce que le bloc montre — affichee sous son titre.
+ *
+ * UN FILTRE QUI NE SE VOIT PAS EST PIRE QUE PAS DE FILTRE : sur un document
+ * imprime, personne ne peut ouvrir les reglages pour comprendre pourquoi le
+ * total ne correspond pas. Le rapport DIT donc ce qu'il a retenu.
+ */
+export function mentionFiltres(bloc: BlocRapport): string | null {
+  const poses = filtresPoses(bloc);
+  const descriptions = filtresDuBloc(bloc);
+
+  const libelles = Object.entries(poses).map(([cle, valeur]) => {
+    const filtre = descriptions.find((f) => f.cle === cle);
+    return filtre?.options.find((o) => o.valeur === valeur)?.label ?? valeur;
+  });
+
+  return libelles.length > 0 ? libelles.join(' · ') : null;
+}

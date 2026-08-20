@@ -337,10 +337,9 @@ export function RapportsClient({
         )}
 
         {/* Le réglage de la composition N'EST PAS ICI, et c'est délibéré : un
-            paramètre d'organisation se classe dans Administration (lot 7), pas
-            dans l'écran du module qu'il commande. `CompositionDialog` et
-            `reglerCompositionModeles` sont écrits et prêts — c'est l'écran
-            d'administration qui les montera. */}
+            paramètre d'organisation se classe dans Administration, pas dans
+            l'écran du module qu'il commande. Il vit dans
+            `/administration/parametres`, groupe « Rapports ». */}
         {/* EF-RAP-17 — l'historique est l'autre moitié du module : la
             bibliothèque dit comment composer, l'historique ce qui a été
             produit. */}

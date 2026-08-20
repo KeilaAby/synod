@@ -30,6 +30,8 @@ import {
   USAGES_GRAPHIQUE,
   afficheChamp,
   definitionBloc,
+  filtresDuBloc,
+  filtresPoses,
   margeDocument,
   sourceDuBloc,
   typeGraphique,
@@ -51,6 +53,16 @@ import { PERMISSIONS } from '@/lib/domain/permissions';
  * qu'un rapport composé par quelqu'un qui a tous les droits se vide chez le
  * lecteur qui ne les a pas, et que c'est ici que cela se décide.
  */
+
+/**
+ * La valeur qui dit « aucun filtre ».
+ *
+ * Le sélecteur n'accepte pas la chaîne vide comme valeur d'option : elle est
+ * réservée à « rien de choisi », et poserait un menu qui s'ouvre vide. On
+ * nomme donc explicitement le choix par défaut, et il ne quitte jamais cet
+ * écran — `filtresPoses` ne retient que les valeurs déclarées au registre.
+ */
+const TOUT = 'TOUT';
 
 const ICONES_LARGEUR: Record<LargeurBloc, typeof Columns2> = {
   PLEINE: RectangleHorizontal,
@@ -146,6 +158,51 @@ export function PanneauReglages({
           )}
         </Field>
       )}
+
+      {/*
+        EF-RAP-03 — CE QUE CE BLOC RETIENT.
+
+        « Tout » est le premier choix de chaque menu, et le défaut : un modèle
+        écrit avant cette version n'a aucun filtre et doit continuer à rendre
+        exactement ce qu'il rendait.
+
+        Seuls des ensembles CLOS ET CONNUS sont proposés (règle 18) — sexe,
+        sens, statut, niveau. Un filtre par grade ou par catégorie serait
+        ouvert : il figerait dans le modèle une valeur que le référentiel peut
+        renommer, et le bloc se viderait sans que rien ne l'explique.
+      */}
+      {filtresDuBloc(bloc).map((filtre) => (
+        <Field key={filtre.cle} label={filtre.label}>
+          {(aria) => (
+            <Select
+              value={filtresPoses(bloc)[filtre.cle] ?? TOUT}
+              onValueChange={(v) =>
+                onReglerBloc({
+                  filtres: {
+                    ...filtresPoses(bloc),
+                    // `undefined` RETIRE la clé : la garder à « tout » laisserait
+                    // dans le modèle un filtre qui ne filtre rien, et le compte
+                    // annoncé sur la carte serait faux.
+                    [filtre.cle]: v === TOUT ? undefined : v,
+                  },
+                })
+              }
+            >
+              <SelectTrigger {...aria} className="h-10 w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={TOUT}>Tout</SelectItem>
+                {filtre.options.map((o) => (
+                  <SelectItem key={o.valeur} value={o.valeur}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </Field>
+      ))}
 
       {/* EF-RAP-02 — six formes, six questions différentes. Le sélecteur dit à
           quoi chacune sert : « camembert » ne renseigne pas, « la part de

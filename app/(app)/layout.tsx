@@ -38,6 +38,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
    * de la navigation — on n'ouvre pas les finances avec un mot de passe que
    * quelqu'un d'autre connait.
    */
+  /**
+   * RG-07 — UN MANDAT ECHU FERME L'APPLICATION.
+   *
+   * Meme garde, meme raison : le drapeau vit sur le profil, donc la barriere
+   * se pose la ou le profil est connu. La poser ecran par ecran finirait par
+   * manquer quelque part, et c'est precisement l'ecran oublie qu'on trouverait.
+   *
+   * AVANT le mot de passe, et l'ordre compte : demander a quelqu'un dont le
+   * mandat est termine de choisir un mot de passe le ferait travailler pour
+   * un acces qu'on s'apprete a lui refuser — et l'action de changement, elle,
+   * le refuserait deja.
+   */
+  if (session.mandatEchu) redirect('/mandat-echu');
+
   if (session.doitChangerMotDePasse) redirect('/changer-mot-de-passe');
 
   // UI-21 — compteurs d'elements en attente.

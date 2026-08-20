@@ -17,7 +17,13 @@ import { normaliser } from './import-croyants';
  * Module PUR : aucune dependance serveur, donc testable directement.
  */
 
-export const CHAMPS_VERSEMENT = ['nom', 'prenom', 'enveloppe', 'montant'] as const;
+export const CHAMPS_VERSEMENT = [
+  'nom',
+  'prenom',
+  'enveloppe',
+  'montant',
+  'eglise',
+] as const;
 export type ChampVersement = (typeof CHAMPS_VERSEMENT)[number];
 
 export interface DescriptionChampVersement {
@@ -32,6 +38,12 @@ export const DESCRIPTION_VERSEMENT: readonly DescriptionChampVersement[] = [
   { cle: 'nom', label: 'Nom', requis: false, aide: 'Vide = enveloppe anonyme.' },
   { cle: 'prenom', label: 'Prenom', requis: false },
   { cle: 'enveloppe', label: "N° d'enveloppe", requis: false },
+  {
+    cle: 'eglise',
+    label: "Eglise de rattachement",
+    requis: false,
+    aide: "Nom ou code. Evite de la chercher au moment d'ouvrir la fiche.",
+  },
 ];
 
 export type CorrespondanceVersement = Partial<Record<ChampVersement, number | null>>;
@@ -41,6 +53,7 @@ const SYNONYMES: Record<ChampVersement, readonly string[]> = {
   prenom: ['prenom', 'prenoms', 'first name', 'firstname'],
   enveloppe: ['enveloppe', 'no enveloppe', 'numero enveloppe', 'n enveloppe', 'env'],
   montant: ['montant', 'somme', 'dime', 'valeur', 'amount', 'ariary', 'mga'],
+  eglise: ['eglise', 'paroisse', 'entite', 'rattachement', 'church', 'assemblee'],
 };
 
 /**
@@ -130,6 +143,54 @@ export interface LigneVersement {
   readonly nature: NatureVersement;
   /** Vrai si la ligne porte un nom qu'aucune fiche ne reconnait. */
   readonly aRapprocher: boolean;
+  /** Ce que la colonne « eglise » disait, TEL QUEL — la trace du fichier. */
+  readonly egliseSource: string | null;
+  /** L'entite reconnue, ou `null` si le libelle ne designe rien de connu. */
+  readonly egliseId: string | null;
+}
+
+/**
+ * Les eglises telles qu'on peut les DESIGNER dans un fichier.
+ *
+ * Nom ou code : les deux se retrouvent dans les fichiers reels, et exiger l'un
+ * ferait rejeter l'autre pour rien.
+ */
+export interface EgliseConnue {
+  readonly id: string;
+  readonly nom: string;
+  readonly code: string;
+}
+
+/**
+ * Index des eglises, par nom ET par code normalises.
+ *
+ * MEME TRAITEMENT DE L'AMBIGUITE QUE POUR LES DONATEURS : deux eglises portant
+ * le meme nom rendent `null`, et la ligne partira sans eglise. En choisir une
+ * au hasard rattacherait le croyant a la mauvaise paroisse — en silence, et
+ * pour toujours, puisque plus personne ne reverrait la question.
+ */
+export function indexerEglises(
+  eglises: readonly EgliseConnue[],
+): Map<string, string | null> {
+  const index = new Map<string, string | null>();
+
+  const poser = (cle: string, id: string) => {
+    const propre = normaliser(cle);
+    if (propre === '') return;
+
+    // `null` marque l'ambiguite — mais SEULEMENT entre deux eglises
+    // differentes. Une eglise dont le code s'ecrit comme le nom se
+    // designerait elle-meme deux fois, et se rendrait introuvable.
+    const deja = index.get(propre);
+    index.set(propre, deja === undefined || deja === id ? id : null);
+  };
+
+  for (const e of eglises) {
+    poser(e.nom, e.id);
+    poser(e.code, e.id);
+  }
+
+  return index;
 }
 
 export interface RapportImportVersements {
@@ -152,27 +213,43 @@ function lireMontant(brut: string): number | null {
 }
 
 /**
- * Analyse la feuille et classe CHAQUE ligne.
+ * Analyse la feuille et classe CHAQUE ligne — EF-FIN-34.
  *
- * QUATRE SORTS POSSIBLES, et un seul est un rejet :
+ * LES TROIS REGLES DE RAPPROCHEMENT, arretees le 20 aout 2026 :
  *
- *   - un nom RECONNU        -> versement nominatif, un recu sera emis ;
- *   - un nom INCONNU        -> versement anonyme + ligne a rapprocher : le
- *                              montant compte des maintenant, le nom se
- *                              retrouve dans `/croyants` ;
- *   - aucun nom, une enveloppe -> enveloppe anonyme ;
- *   - aucun nom, rien       -> en vrac.
+ *   A. NOM + PRENOM, SANS NUMERO
+ *      reconnu -> nominatif, un recu sera emis ;
+ *      inconnu -> versement anonyme ET ligne a rapprocher.
+ *
+ *   B. NOM + PRENOM, AVEC NUMERO
+ *      reconnu -> nominatif, et le numero LUI EST ATTRIBUE s'il est nouveau
+ *      (`fn_attribuer_enveloppe`, migration 0056) ;
+ *      inconnu -> comme en A.
+ *
+ *   C. SANS NOM, AVEC NUMERO
+ *      -> enveloppe anonyme ET ligne a rapprocher : la file proposera le
+ *      dernier porteur du numero.
+ *
+ *   Sans nom NI numero -> en vrac, et rien a rapprocher.
  *
  * Seule une ligne SANS MONTANT est ecartee : il n'y a rien a compter.
  *
- * UNE LIGNE SANS NOM N'ENTRE PAS DANS LA FILE DE RAPPROCHEMENT (EF-FIN-34).
- * Il n'y aurait rien a y rapprocher, et l'y inscrire remplirait la file de
- * lignes qu'aucun travail ne peut clore.
+ * CE QUI A CHANGE LE 20 AOUT. Toute ligne sans nom etait exclue de la file :
+ * « il n'y aurait rien a y rapprocher ». Le raisonnement etait juste TANT
+ * QU'IL N'Y AVAIT RIEN POUR TRAVAILLER — un numero d'enveloppe est precisement
+ * ce quelque chose. La regle est donc bornee a ce qu'elle couvrait vraiment :
+ * sans nom NI numero.
  */
 export function analyserVersements(
   lignes: readonly (readonly string[])[],
   correspondance: CorrespondanceVersement,
   donateurs: Map<string, string | null>,
+  /**
+   * Les eglises reconnaissables. FACULTATIF : un fichier sans colonne
+   * « eglise » — le cas le plus courant — n'a rien a y chercher, et l'exiger
+   * aurait casse tous les appels existants pour rien.
+   */
+  eglises: Map<string, string | null> = new Map(),
 ): RapportImportVersements {
   const retenues: LigneVersement[] = [];
   const ecartees: RapportImportVersements['ecartees'] = [];
@@ -202,6 +279,21 @@ export function analyserVersements(
     const nom = valeur(ligne, 'nom');
     const prenom = valeur(ligne, 'prenom');
     const enveloppe = valeur(ligne, 'enveloppe');
+    const egliseLue = valeur(ligne, 'eglise');
+
+    /**
+     * L'EGLISE RECONNUE, OU RIEN — et « rien » n'est pas un echec.
+     *
+     * Un libelle que l'index ne connait pas, ou qui designe deux eglises,
+     * laisse `egliseId` a `null` : le rapprochement se fera alors comme avant,
+     * en choisissant l'eglise a la main. On ne cree AUCUNE entite pour un nom
+     * qu'on ne reconnait pas — elle entrerait dans la structure, recevrait un
+     * code, apparaitrait dans chaque selecteur et dans les soldes consolides.
+     *
+     * Le libelle lu est conserve QUAND MEME : il dit ce que le fichier
+     * annoncait, et c'est souvent assez pour trancher a l'oeil.
+     */
+    const egliseId = egliseLue ? (eglises.get(normaliser(egliseLue)) ?? null) : null;
 
     if (nom === '') {
       retenues.push({
@@ -211,8 +303,22 @@ export function analyserVersements(
         prenomSource: null,
         enveloppe: enveloppe || null,
         montant,
+        egliseSource: egliseLue || null,
+        egliseId,
         nature: enveloppe ? 'ENVELOPPE_ANONYME' : 'EN_VRAC',
-        aRapprocher: false,
+        /**
+         * REGLE C — SANS NOM MAIS AVEC UN NUMERO, ELLE SE RAPPROCHE QUAND MEME.
+         *
+         * `0032` excluait toute ligne sans nom : « il n'y aurait rien a
+         * rapprocher ». C'etait juste tant qu'il n'y avait rien pour
+         * travailler — or le numero DIT quelque chose. Il a deja ete porte, la
+         * file proposera son dernier porteur, et la question se tranche.
+         *
+         * Sans numero, en revanche, la raison d'origine tient toujours : rien
+         * a rapprocher, et la file se remplirait de lignes qu'aucun travail ne
+         * peut clore.
+         */
+        aRapprocher: enveloppe !== '',
       });
       return;
     }
@@ -227,6 +333,8 @@ export function analyserVersements(
       prenomSource: prenom || null,
       enveloppe: enveloppe || null,
       montant,
+      egliseSource: egliseLue || null,
+      egliseId,
       /**
        * Un nom non reconnu donne une ENVELOPPE ANONYME, meme sans numero.
        *

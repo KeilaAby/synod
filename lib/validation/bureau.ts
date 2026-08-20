@@ -36,11 +36,24 @@ export const ouvrirMandatSchema = z
     entityId: z.uuid("Selectionnez l'entite."),
     libelle: z.string().trim().min(3, 'Le libelle est requis.').max(160),
     dateDebut: dateJour,
-    dateFin: dateJourOptionnelle,
+    /**
+     * EF-BUR-02, RG-07 — LE TERME EST EXIGE A L'OUVERTURE.
+     *
+     * Depuis qu'un mandat echu ferme l'application, un bureau sans terme ne
+     * s'acheve jamais, et l'acces de ses membres non plus : la regle « seuls
+     * les membres en exercice ont un compte » deviendrait inapplicable.
+     *
+     * Il reste MODIFIABLE : `modifierBureauSchema` accepte l'absence, parce que
+     * les bureaux ouverts avant cette regle n'en ont pas — et qu'inventer une
+     * date de fin de mandat serait pire que de la laisser vide. Le trigger
+     * `trg_bureau_terme_requis` (migration 0059) porte la meme borne en base,
+     * a l'INSERT seulement.
+     */
+    dateFin: dateJour,
     /** EF-BUR-09 — reprendre la composition du mandat qui se clot. */
     reconduire: z.boolean().default(false),
   })
-  .refine((d) => !d.dateFin || d.dateFin >= d.dateDebut, finApresDebut);
+  .refine((d) => d.dateFin >= d.dateDebut, finApresDebut);
 
 export type OuvrirMandatInput = z.input<typeof ouvrirMandatSchema>;
 

@@ -43,9 +43,38 @@ describe('EF-BUR-02 — la periode se clot le jour meme, jamais avant', () => {
     }
   });
 
-  it('laisse la fin facultative — un mandat peut rester ouvert', () => {
+  /**
+   * EF-BUR-02, RG-07 — CE TEST DISAIT L'INVERSE JUSQU'AU 20 AOUT 2026 : « la
+   * fin est facultative, un mandat peut rester ouvert ».
+   *
+   * Ce qui a change n'est pas l'avis, c'est la CONSEQUENCE. Depuis qu'un mandat
+   * echu ferme l'application, un bureau sans terme ne s'acheve jamais — et
+   * l'acces de ses membres non plus. La regle « seuls les membres en exercice
+   * ont un compte » deviendrait alors une regle qu'on ne peut plus appliquer.
+   */
+  it('EF-BUR-02 — un bureau ne s’OUVRE PAS sans terme', () => {
     const r = ouvrirMandatSchema.safeParse({
       entityId: ENTITE,
+      libelle: 'Bureau executif',
+      dateDebut: '2026-08-08',
+      dateFin: '',
+    });
+    expect(r.success).toBe(false);
+  });
+
+  /**
+   * LA MODIFICATION, ELLE, RESTE TOLERANTE — et ce n'est pas une incoherence.
+   *
+   * Des bureaux ont ete ouverts avant cette regle, sans terme. Corriger le
+   * LIBELLE de l'un d'eux ne doit pas obliger a inventer sa date de fin : une
+   * date de fin de mandat inventee est pire qu'une absente — elle a l'air
+   * vraie, elle fermera des acces le jour venu, et personne ne saura d'ou elle
+   * sort. Le trigger `trg_bureau_terme_requis` (0059) porte la meme borne en
+   * base, a l'INSERT seulement.
+   */
+  it('EF-BUR-02 — la modification tolère l’absence de terme sur l’existant', () => {
+    const r = modifierBureauSchema.safeParse({
+      bureauId: BUREAU,
       libelle: 'Bureau executif',
       dateDebut: '2026-08-08',
       dateFin: '',

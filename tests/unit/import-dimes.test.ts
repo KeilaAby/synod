@@ -6,6 +6,7 @@ import {
   cleDonateur,
   devinerVersement,
   indexerDonateurs,
+  indexerEglises,
 } from '@/lib/domain/import-dimes';
 
 /**
@@ -89,24 +90,94 @@ describe('EF-FIN-34 — quatre sorts, et un seul est un rejet', () => {
     expect(rapport.total).toBe(5000);
   });
 
-  it('classe une ligne SANS NOM avec enveloppe en anonyme, SANS rapprochement', () => {
-    /**
-     * EF-FIN-34 — une ligne sans nom n'entre pas dans la file : il n'y a rien
-     * a y rapprocher, et l'y inscrire remplirait la file de lignes qu'aucun
-     * travail ne peut clore.
-     */
+  /**
+   * REGLE C — CE TEST DISAIT L'INVERSE JUSQU'AU 20 AOUT 2026, et il avait
+   * raison a l'epoque : « une ligne sans nom n'entre pas dans la file, il n'y a
+   * rien a y rapprocher ». Le raisonnement valait TANT QU'IL N'Y AVAIT RIEN
+   * POUR TRAVAILLER — or un numero d'enveloppe est precisement ce quelque
+   * chose : il a deja ete porte, la file propose son dernier porteur, et la
+   * question se tranche.
+   */
+  it('EF-FIN-34, règle C — une ligne SANS NOM mais AVEC un numéro entre dans la file', () => {
     const rapport = analyserVersements([['', '', 'E-500', '3000']], CORRESPONDANCE, index);
 
     expect(rapport.retenues[0]).toMatchObject({
       nature: 'ENVELOPPE_ANONYME',
-      aRapprocher: false,
+      aRapprocher: true,
       nomSource: null,
+      enveloppe: 'E-500',
     });
   });
 
-  it('classe une ligne sans nom NI enveloppe en vrac', () => {
+  /**
+   * LA RAISON D'ORIGINE TIENT TOUJOURS ICI, et c'est la borne de la regle C :
+   * sans nom NI numero, il n'y a vraiment rien a rapprocher. L'y inscrire
+   * remplirait la file de lignes qu'aucun travail ne peut clore.
+   */
+  it('règle C — sans nom NI enveloppe : en vrac, et RIEN à rapprocher', () => {
     const rapport = analyserVersements([['', '', '', '2500']], CORRESPONDANCE, index);
     expect(rapport.retenues[0]).toMatchObject({ nature: 'EN_VRAC', aRapprocher: false });
+  });
+
+  /**
+   * REGLE B — le numero VOYAGE avec la ligne meme quand le nom est reconnu.
+   *
+   * C'est `fn_attribuer_enveloppe` (migration 0056) qui l'attribuera au
+   * croyant ; encore faut-il que l'analyse ne le perde pas en route.
+   */
+  it('règle B — un nom reconnu conserve le numéro lu, pour qu’il lui soit attribué', () => {
+    const rapport = analyserVersements(
+      [['Koffi', 'Amos', 'E-777', '8000']],
+      CORRESPONDANCE,
+      index,
+    );
+
+    expect(rapport.retenues[0]).toMatchObject({
+      croyantId: 'c2',
+      nature: 'NOMINATIF',
+      enveloppe: 'E-777',
+      aRapprocher: false,
+    });
+  });
+
+  /**
+   * REGLE A — sans numero, un nom reconnu se rattache tout simplement, et rien
+   * n'est attribue : il n'y a pas de numero a donner.
+   */
+  it('règle A — un nom reconnu sans numéro se rattache, sans enveloppe', () => {
+    const rapport = analyserVersements(
+      [['Koffi', 'Amos', '', '4000']],
+      CORRESPONDANCE,
+      index,
+    );
+
+    expect(rapport.retenues[0]).toMatchObject({
+      croyantId: 'c2',
+      nature: 'NOMINATIF',
+      enveloppe: null,
+      aRapprocher: false,
+    });
+  });
+
+  /**
+   * REGLE A, second cas — un nom INCONNU sans numero part quand meme dans la
+   * file : c'est le vivier des personnes non rattachees. La nature retombe sur
+   * le vrac, faute de numero, mais le montant compte et le nom est conserve.
+   */
+  it('règle A — un nom inconnu SANS numéro entre dans la file des non rattachés', () => {
+    const rapport = analyserVersements(
+      [['NOUVEAU', 'Venu', '', '1500']],
+      CORRESPONDANCE,
+      index,
+    );
+
+    expect(rapport.retenues[0]).toMatchObject({
+      croyantId: null,
+      nature: 'EN_VRAC',
+      aRapprocher: true,
+      nomSource: 'NOUVEAU',
+      prenomSource: 'Venu',
+    });
   });
 
   it('ECARTE la seule ligne sans montant lisible', () => {
@@ -174,5 +245,106 @@ describe('La correspondance des colonnes se DEVINE, elle ne se decide pas', () =
     // Le nom est facultatif — une feuille peut ne porter que des anonymes.
     expect(champsVersementManquants({ nom: 0 }).map((c) => c.cle)).toEqual(['montant']);
     expect(champsVersementManquants({ montant: 3 })).toEqual([]);
+  });
+});
+
+/**
+ * EF-FIN-34 — L'EGLISE DE RATTACHEMENT LUE DANS LE FICHIER (migration 0058).
+ *
+ * Celui qui a tenu la collecte connait ses gens : quand il ecrit l'eglise, ce
+ * temoignage vaut mieux que toute deduction. Reste a ne pas le croire quand il
+ * designe quelque chose d'introuvable ou d'ambigu.
+ */
+describe("L'eglise lue dans le fichier", () => {
+  const eglises = indexerEglises([
+    { id: 'e1', nom: 'Ambohipo', code: 'AMB' },
+    { id: 'e2', nom: 'Antsahatsiresy', code: 'ANT' },
+  ]);
+
+  /** Les colonnes : nom, prenom, enveloppe, montant, eglise. */
+  const AVEC_EGLISE = { nom: 0, prenom: 1, enveloppe: 2, montant: 3, eglise: 4 };
+
+  it('reconnait une eglise par son NOM, casse et accents indifferents', () => {
+    const rapport = analyserVersements(
+      [['NOUVEAU', 'Venu', '', '1000', '  ambohipo ']],
+      AVEC_EGLISE,
+      index,
+      eglises,
+    );
+
+    expect(rapport.retenues[0]).toMatchObject({
+      egliseId: 'e1',
+      egliseSource: 'ambohipo',
+    });
+  });
+
+  it('reconnait une eglise par son CODE', () => {
+    const rapport = analyserVersements(
+      [['NOUVEAU', 'Venu', '', '1000', 'ANT']],
+      AVEC_EGLISE,
+      index,
+      eglises,
+    );
+
+    expect(rapport.retenues[0]?.egliseId).toBe('e2');
+  });
+
+  /**
+   * `null` N'EST PAS UN ECHEC : le rapprochement se fera comme avant, en
+   * choisissant l'eglise a la main. Et le LIBELLE est conserve quand meme —
+   * « Soanierana » suffit souvent a trancher a l'oeil, la ou un champ vide ne
+   * dit rien.
+   */
+  it('garde le libelle meme quand rien ne le reconnait', () => {
+    const rapport = analyserVersements(
+      [['NOUVEAU', 'Venu', '', '1000', 'Soanierana']],
+      AVEC_EGLISE,
+      index,
+      eglises,
+    );
+
+    expect(rapport.retenues[0]).toMatchObject({
+      egliseId: null,
+      egliseSource: 'Soanierana',
+    });
+  });
+
+  /**
+   * MEME TRAITEMENT DE L'AMBIGUITE QUE POUR LES DONATEURS. Deux eglises du
+   * meme nom : en choisir une au hasard rattacherait le croyant a la mauvaise
+   * paroisse, en silence et pour toujours.
+   */
+  it('ECARTE un libelle qui designe deux eglises', () => {
+    const ambigu = indexerEglises([
+      { id: 'a', nom: 'Ambohipo', code: 'AMB1' },
+      { id: 'b', nom: 'AMBOHIPO', code: 'AMB2' },
+    ]);
+
+    expect(ambigu.get('ambohipo')).toBeNull();
+  });
+
+  /**
+   * Une eglise dont le code s'ecrit comme le nom se designerait elle-meme deux
+   * fois. La traiter comme ambigue la rendrait introuvable — alors qu'il n'y a
+   * qu'une seule reponse possible.
+   */
+  it("ne s'ambigue pas elle-meme quand son code egale son nom", () => {
+    const meme = indexerEglises([{ id: 'x', nom: 'ANT', code: 'ANT' }]);
+    expect(meme.get('ant')).toBe('x');
+  });
+
+  it('laisse l’eglise vide quand le fichier n’a pas la colonne', () => {
+    const rapport = analyserVersements(
+      [['NOUVEAU', 'Venu', '', '1000']],
+      CORRESPONDANCE,
+      index,
+    );
+
+    expect(rapport.retenues[0]).toMatchObject({ egliseId: null, egliseSource: null });
+  });
+
+  it('reconnait l’entete « Eglise » et ses synonymes', () => {
+    expect(devinerVersement(['Nom', 'Montant', 'Paroisse']).eglise).toBe(2);
+    expect(devinerVersement(['Nom', 'Montant', 'Église']).eglise).toBe(2);
   });
 });

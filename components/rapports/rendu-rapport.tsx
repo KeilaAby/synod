@@ -11,6 +11,7 @@ import {
   decouperEnFeuilles,
   definitionBloc,
   margeDocument,
+  mentionFiltres,
   typeGraphique,
 } from '@/lib/domain/rapport';
 import { type ContenuExemple, contenuExemple } from '@/lib/domain/rapport-exemple';
@@ -324,11 +325,23 @@ function BlocDeDonnees({ bloc, contenu }: { bloc: BlocRapport; contenu: ContenuR
    */
   const resolu = contenu?.[bloc.id] ?? contenuExemple(bloc);
 
+  /**
+   * EF-RAP-03 — CE QUE LE BLOC A RETENU, DIT SUR LE PAPIER.
+   *
+   * Un filtre qui ne se voit pas est pire que pas de filtre : sur une feuille
+   * imprimée, personne ne peut ouvrir les réglages pour comprendre pourquoi
+   * « 412 croyants » ne correspond pas au total connu. La mention l'explique —
+   * « Femmes · Actifs » — et rend le chiffre citable.
+   */
+  const filtres = mentionFiltres(bloc);
+
   return (
     <div className="flex h-full flex-col gap-2 rounded border border-slate-300 p-3">
       <p className="text-[8pt] font-medium tracking-wide text-slate-600 uppercase">
         {titre}
       </p>
+
+      {filtres && <p className="-mt-1 text-[7pt] text-slate-500 italic">{filtres}</p>}
 
       {resolu && <ContenuSimule contenu={resolu} forme={typeGraphique(bloc)} />}
     </div>

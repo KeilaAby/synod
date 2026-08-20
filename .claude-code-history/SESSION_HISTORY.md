@@ -4559,3 +4559,183 @@ l'ait demandé. `settings.manage` étant non délégable, le Siège était déj�
 règle qu'on veut tenir s'écrit, sinon elle dépend d'une autre qui pourrait
 changer. La suppression suit la même règle : n'autoriser que la création
 laisserait la porte ouverte du mauvais côté.
+
+## 20 août 2026 — La liste des demandes en attente, traitée dans l'ordre
+
+Cinq migrations, `0056` à `0060`, toutes appliquées le jour même. Le fil
+conducteur de la journée : `notes/todos.md`, la liste tenue par la machine
+distante, reprise point par point.
+
+### Deux lignes de la liste étaient déjà faites
+
+Avant d'écrire quoi que ce soit : le **numéro d'enveloppe facultatif** l'était
+depuis `0033` — vérifié aux trois niveaux, contrainte, validation, formulaire —
+et le **réglage de composition des rapports** vivait bien dans Administration.
+Un commentaire du code affirmait le contraire ; il a été corrigé.
+
+Un avertissement de la liste était **périmé** : elle signalait deux contraintes
+de dates contradictoires entre `bureaux` et `bureau_membres`. La migration
+`0020` les avait alignées le 8 août.
+
+### Le tri des colonnes, et ce qu'une case vide veut dire
+
+`lib/domain/tri.ts`, partagé — les autres tables n'auront qu'à s'y brancher.
+
+**Une absence n'est pas une petite valeur.** Un croyant sans date de baptême
+n'est pas « le premier baptisé » ; les lignes sans valeur restent donc en queue
+**dans les deux sens**. L'inverser avec le sens ferait remonter en tête, sur un
+simple second clic, exactement les lignes qu'on ne cherchait pas.
+
+**Deux états, pas trois.** Un « aucun tri » rendrait la liste à son ordre
+d'origine sans qu'aucun chevron ne l'explique.
+
+L'âge se trie **à l'envers de sa date** : la colonne affiche un âge, « croissant »
+veut donc dire du plus jeune au plus vieux.
+
+### Un mandat échu ferme l'application
+
+La règle « seuls les membres de bureau ont un compte » était tenue à la création
+et par nulle part ensuite : un trésorier remplacé en mars gardait son accès en
+décembre.
+
+Elle s'évalue **à chaque ouverture de session**, jamais par une tâche planifiée —
+celle-ci laisse passer la journée, tombe en silence, et demande un ordonnanceur
+que l'hébergement ne garantit pas. Les mandats voyagent avec le profil, en un
+seul aller-retour.
+
+**Deux portes fermées** : le gabarit redirige, et `requireSession` refuse. Une
+Server Action s'appelle sans passer par l'écran qui la propose.
+
+**On révoque sur preuve, jamais sur absence de preuve** (règle 15). Un compte
+dont on ne connaît AUCUN mandat n'est pas un compte dont les mandats sont
+échus : une fiche non reliée, une lecture bornée par la RLS, une base antérieure
+à la règle donnent toutes une liste vide, et fermer sur ce silence mettrait
+l'organisation dehors.
+
+**La dérogation du Siège porte sur l'ENTITÉ, pas sur le rôle** — précision
+apportée par l'utilisateur, et elle compte : ne dispenser que le SuperAdmin
+ferait dépendre le redémarrage d'une seule personne, absente le jour où il le
+faudrait. Le responsable informatique est dispensé **tant qu'il l'est** :
+remplacé, il redevient un membre de bureau comme les autres.
+
+Dans tous les cas **on ne ferme que l'accès** : la personne reste croyante de son
+église, avec son historique.
+
+### Les trois règles de rapprochement des dîmes
+
+Données par l'utilisateur, et arrêtées le jour même (`0056`).
+
+**Règle B** — un nom reconnu qui présente un numéro NOUVEAU se voit attribuer ce
+numéro. Le défaut était coûteux et invisible : le numéro restait sur le seul
+versement, la collecte suivante reposait la même question, et quelqu'un le
+ressaisissait chaque mois. L'attribution vaut à l'import **comme à la
+résolution** — ne la faire qu'à l'import laisserait ce numéro reposer la même
+question, alors qu'on vient d'y répondre.
+
+Trois précautions : le numéro va dans **l'église du croyant** et non dans
+l'entité collectrice — une cérémonie de district réunit des donateurs de vingt
+églises ; un numéro **déjà détenu par un autre n'est jamais pris**, le voler en
+silence attribuerait les dîmes suivantes au mauvais nom ; l'ancien numéro est
+**désactivé, pas supprimé**, il figure sur des reçus déjà remis.
+
+**Règle C** — une enveloppe numérotée SANS nom entre dans la file. C'est un
+**renversement assumé** : `0032` excluait toute ligne sans nom, « il n'y aurait
+rien à rapprocher ». Le raisonnement valait tant qu'il n'y avait rien pour
+travailler — un numéro *est* ce quelque chose. La règle est donc bornée à ce
+qu'elle couvrait vraiment : sans nom NI numéro, la ligne reste dehors.
+
+### Un nom lu suffit pour un reçu
+
+Constaté à l'essai, sur un fichier de cinq lignes (`0057`). Le reçu n'était émis
+que pour une personne AYANT UNE FICHE : un nom lu sans correspondance donnait un
+montant compté, un rapprochement en attente, **et aucun talon à remettre**.
+
+Or la personne est devant soi. Ce qui manque n'est pas son identité mais son
+enregistrement — un travail qui nous appartient, pas à elle.
+
+**La conséquence à ne pas manquer : le reçu ne se renumérote pas.** La
+résolution conserve le numéro déjà émis ; en générer un second donnerait deux
+références pour un versement, et le papier détenu par le donateur cesserait de
+correspondre à la base.
+
+### L'église lue dans le fichier
+
+`0058` — deux colonnes, et deux raisons différentes. `eglise_source` conserve ce
+que le fichier disait, même si rien ne le reconnaît : « Soanierana » suffit
+souvent à trancher à l'œil. `eglise_id` porte l'entité reconnue, résolue **une
+fois, à l'import** — la résoudre à l'affichage la ferait dépendre du lecteur.
+
+Deux églises du même nom écartent la ligne, comme pour les homonymes de
+donateurs. Aucune entité n'est créée pour un libellé inconnu.
+
+### Le relevé des dîmes : un menu, et deux propositions
+
+« Ticket » devient une entrée de menu, « Rapprocher » le rejoint quand il y a
+quelque chose à rapprocher — et disparaît une fois fait : proposer une action
+déjà accomplie ferait douter de ce qui l'a été.
+
+L'**enveloppe habituelle** s'affiche quand le versement n'en portait pas, mais
+**pas comme les autres** : la mention « (habituelle) » dit que ce numéro vient de
+la fiche et non du versement. Les confondre ferait croire que l'enveloppe a été
+présentée.
+
+### Deux verrous de bureau
+
+`0059`. **Le terme est exigé à l'ouverture** — depuis qu'un mandat échu ferme
+l'application, un bureau sans terme ne s'achève jamais. Mais la colonne n'est
+**pas** passée en `not null` : des bureaux existent sans terme, et **une date de
+fin inventée est pire qu'une absente** — elle a l'air vraie, elle fermera des
+accès le jour venu, et personne ne saura d'où elle sort. Le trigger ne regarde
+donc que les insertions.
+
+**Un bureau clos ne se supprime plus.** Le verrou est un TRIGGER et non une
+politique RLS : une politique rendrait la ligne invisible à la suppression, donc
+répondrait « 0 ligne supprimée » et l'écran annoncerait une réussite. Le trigger
+refuse **en disant pourquoi**.
+
+### La publication des rapports est retirée
+
+`0060`, et le défaut était réel, pas théorique. RG-26 omet les blocs non
+habilités **à la génération**, sous la session de celui qui génère, et le contenu
+est ensuite figé (RG-27). Un rapport publié montrait donc ses finances à
+quelqu'un à qui `finance.read` avait été refusé : l'omission avait eu lieu, mais
+pour le mauvais lecteur.
+
+Rejouer l'omission à la lecture aurait fait varier le document d'un lecteur à
+l'autre — un rapport cesserait d'être un document. On resserre donc qui peut
+l'ouvrir : `report.read` décide seul, avec sa portée.
+
+Les rapports déjà publiés **gardent leur statut** — c'est de l'histoire — mais il
+n'ouvre plus rien. Passer à « publié » est **refusé** plutôt qu'ignoré : un
+statut qu'on peut encore poser et qui ne fait rien est un piège pour plus tard.
+Et `report.publish` **disparaît du registre** au lieu de devenir décoratif.
+
+### Les filtres par bloc
+
+Sans migration : les réglages du bloc existaient déjà. **Que des ensembles clos
+et connus** (règle 18) — un filtre par grade ou par catégorie figerait dans le
+modèle une valeur que le référentiel peut renommer.
+
+**L'absence vaut « tout »**, et un filtre orphelin est ignoré plutôt
+qu'appliqué : sinon il viderait le tableau, et on lirait « il n'y a rien ».
+
+**Le rapport dit ce qu'il a retenu**, sous le titre du bloc. Sur une feuille
+imprimée, personne ne peut ouvrir les réglages pour comprendre pourquoi le total
+ne correspond pas — sans cette mention, le chiffre ne serait pas citable.
+
+### Le modèle de configuration entre au dépôt
+
+`.gitignore` ignorait les fichiers d'environnement sans exception : la copie du
+modèle prescrite par la procédure d'installation échouait sur **tout clone
+frais**, et `lib/env.ts` renvoyait vers un fichier absent.
+
+### Deux défauts attrapés par les tests du projet
+
+Un **commentaire à l'intérieur d'une chaîne de sélection PostgREST** : elle
+n'accepte pas les commentaires, ils seraient partis au serveur comme des noms de
+colonnes. `tests/unit/embeds-postgrest.test.ts` l'a vu.
+
+Et deux tests qui **affirmaient l'ancienne règle** — la ligne sans nom exclue de
+la file, le mandat sans terme autorisé. Retournés en gardant ce qu'ils
+protégeaient, et en écrivant pourquoi l'avis a changé : ce n'est pas l'opinion
+qui a bougé, c'est la conséquence.

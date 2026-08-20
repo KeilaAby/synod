@@ -11,6 +11,7 @@ import {
   detient,
 } from '@/lib/domain/permissions';
 import { estDescendant } from '@/lib/domain/hierarchy';
+import { finDeMandatLaPlusRecente, mandatEchu } from '@/lib/domain/mandat';
 import { DataError } from '@/lib/data/errors';
 import { createClient } from '@/lib/supabase/server';
 import { MESSAGE_PANNE_RESEAU, estPanneReseau } from '@/lib/supabase/reseau';
@@ -47,6 +48,16 @@ interface LigneOctroi {
   scope: { path: string } | null;
 }
 
+/**
+ * Les mandats du croyant rattache au compte — RG-07.
+ *
+ * L'embed passe par `croyants`, parce que c'est lui qui siege : un compte n'est
+ * pas membre d'un bureau, une personne l'est.
+ */
+interface LigneMandat {
+  date_fin: string | null;
+}
+
 export interface SessionComplete extends SessionUtilisateur {
   readonly email: string;
   readonly nomComplet: string;
@@ -62,6 +73,17 @@ export interface SessionComplete extends SessionUtilisateur {
    * compte est partage sans que personne ne l'ait voulu.
    */
   readonly doitChangerMotDePasse: boolean;
+  /**
+   * RG-07 — TOUS LES MANDATS DE CE COMPTE ONT PRIS FIN.
+   *
+   * Seuls les membres de bureau ont un compte. La regle etait tenue a la
+   * creation et par nulle part ensuite : un tresorier remplace en mars gardait
+   * son acces en decembre. Elle s'evalue desormais a chaque ouverture de
+   * session — voir `lib/domain/mandat.ts` pour les deux exceptions.
+   */
+  readonly mandatEchu: boolean;
+  /** La fin de mandat la plus recente, pour que l'ecran puisse la citer. */
+  readonly finDeMandat: string | null;
 }
 
 /**
@@ -92,9 +114,14 @@ export const getSession = cache(async (): Promise<SessionComplete | null> => {
     .from('profiles')
     .select(
       'id, role, entity_id, nom_complet, email, doit_changer_mot_de_passe, ' +
+        'est_responsable_informatique, ' +
         'entity:entities!profiles_entity_id_fkey(path, nom, code, type), ' +
         'octrois:user_permissions!user_permissions_user_id_fkey(' +
-        'permission, scope:entities!user_permissions_scope_entity_id_fkey(path))',
+        'permission, scope:entities!user_permissions_scope_entity_id_fkey(path)), ' +
+        // RG-07 — les mandats voyagent avec le profil : une seconde lecture
+        // paierait un aller-retour de plus a CHAQUE page (regle 28).
+        'croyant:croyants!profiles_croyant_id_fkey(' +
+        'mandats:bureau_membres!bureau_membres_croyant_id_fkey(date_fin))',
     )
     .eq('auth_user_id', identite.authUserId)
     .eq('is_active', true)
@@ -103,7 +130,9 @@ export const getSession = cache(async (): Promise<SessionComplete | null> => {
         nom_complet: string;
         email: string;
         doit_changer_mot_de_passe: boolean;
+        est_responsable_informatique: boolean | null;
         octrois: LigneOctroi[];
+        croyant: { mandats: LigneMandat[] } | null;
       }
     >();
 
@@ -127,6 +156,16 @@ export const getSession = cache(async (): Promise<SessionComplete | null> => {
 
   if (!profil?.entity) return null;
 
+  /**
+   * RG-07 — les mandats, evalues ICI et pas dans un ordonnanceur.
+   *
+   * `mandats` vide n'est PAS « aucun mandat en cours » : c'est « on n'en
+   * connait aucun » — fiche non reliee, base anterieure a la regle, lecture
+   * bornee. `mandatEchu` ne ferme que sur preuve (regle 15).
+   */
+  const mandats = profil.croyant?.mandats ?? [];
+  const aujourdhui = new Date().toISOString().slice(0, 10);
+
   return {
     profileId: profil.id,
     role: profil.role,
@@ -138,6 +177,16 @@ export const getSession = cache(async (): Promise<SessionComplete | null> => {
     // ou `0046` n'est pas passee — ne doit PAS enfermer tout le monde dans
     // l'ecran de changement de mot de passe.
     doitChangerMotDePasse: profil.doit_changer_mot_de_passe === true,
+    mandatEchu: mandatEchu(
+      {
+        role: profil.role,
+        typeEntite: profil.entity.type,
+        estResponsableInformatique: profil.est_responsable_informatique === true,
+        mandats,
+      },
+      aujourdhui,
+    ),
+    finDeMandat: finDeMandatLaPlusRecente(mandats),
     entiteNom: profil.entity.nom,
     entiteCode: profil.entity.code,
     entiteType: profil.entity.type,
@@ -158,6 +207,23 @@ export async function requireSession(): Promise<SessionComplete> {
   if (!session) {
     throw new ErreurAcces('Votre session a expire. Reconnectez-vous.');
   }
+
+  /**
+   * RG-07 — LA REDIRECTION DU GABARIT NE SUFFIT PAS.
+   *
+   * Elle ecarte l'ecran, pas l'ecriture : une Server Action s'appelle
+   * directement, sans passer par la page qui la propose. Un mandat echu doit
+   * donc fermer les DEUX portes, et celle-ci est la seule qui compte — l'autre
+   * n'est qu'un affichage honnete.
+   *
+   * `deconnexion` n'appelle pas cette fonction : sortir doit rester possible.
+   */
+  if (session.mandatEchu) {
+    throw new ErreurAcces(
+      'Votre mandat a pris fin. Contactez le responsable de votre entite pour le prolonger.',
+    );
+  }
+
   return session;
 }
 

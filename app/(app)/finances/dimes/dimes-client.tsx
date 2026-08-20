@@ -4,10 +4,12 @@ import {
   ChevronDown,
   ChevronRight,
   Coins,
+  MoreVertical,
   Printer,
   Receipt,
   Search,
   Truck,
+  UserSearch,
 } from 'lucide-react';
 import { Fragment, useMemo, useState } from 'react';
 
@@ -17,12 +19,19 @@ import {
 } from '@/components/finances/collecte-dialog';
 import { ImportVersementsDialog } from '@/components/finances/import-versements-dialog';
 import { imprimerRecus } from '@/components/finances/imprimer-recus';
+import { RapprocherDialog } from '@/components/finances/rapprocher-dialog';
 import { RemiseDialog } from '@/components/finances/remise-dialog';
 import { EmptyState } from '@/components/shared/empty-state';
 import { FiltreIcone, GroupeFiltres } from '@/components/shared/filtre-icone';
 import { StatusBadge } from '@/components/shared/status-badge';
 import type { OptionEntite } from '@/components/structure/entity-picker';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
   Table,
@@ -85,6 +94,13 @@ export function DimesClient({
   const [recherche, setRecherche] = useState('');
   const [aRemettre, setARemettre] = useState(false);
   const [deplies, setDeplies] = useState<Set<string>>(new Set());
+  /** La ligne qu'on est en train de rapprocher, ou `null` — EF-FIN-34. */
+  const [aRapprocher, setARapprocher] = useState<{
+    id: string;
+    nom_source: string;
+    prenom_source: string | null;
+    enveloppe_source: string | null;
+  } | null>(null);
 
   const aujourdhui = new Date().toISOString().slice(0, 10);
 
@@ -121,18 +137,28 @@ export function DimesClient({
   /**
    * Les versements d'une collecte qui ouvrent un reçu — EF-FIN-33.
    *
-   * Un anonyme n'en ouvre aucun : il n'y a personne à qui le remettre. C'est
-   * `recu_numero` qui fait foi, pas la nature — la base est seule à l'attribuer.
+   * C'est `recu_numero` qui fait foi, pas la nature ni la fiche : la base est
+   * seule à l'attribuer, et elle ne l'attribue qu'à ce qui a un destinataire.
+   *
+   * UN NOM SUFFIT — IL N'EST PAS BESOIN D'UNE FICHE. Le fichier portait
+   * « KABORE Windyam », aucune fiche ne le reconnaît : la personne existe
+   * quand même, elle a donné, et elle attend son talon. Ce qui manque est un
+   * enregistrement administratif, pas une identité. Lui refuser son reçu le
+   * temps qu'on ouvre sa fiche ferait porter à un donateur le délai de notre
+   * propre travail.
+   *
+   * Le matricule, lui, reste vide : il n'existe pas encore, et en inventer un
+   * sur un papier qui fait foi serait pire que son absence.
    */
   const recusDe = (c: CollecteListe) =>
     c.versements
-      .filter((v) => v.recu_numero && v.croyant)
+      .filter((v) => v.recu_numero && (v.croyant || v.rapprochement?.[0]?.nom_source))
       .map((v) => ({
         reference: v.recu_numero!,
-        nom: v.croyant!.nom,
-        prenom: v.croyant!.prenom,
-        matricule: v.croyant!.matricule,
-        enveloppe: v.enveloppe_numero,
+        nom: v.croyant?.nom ?? v.rapprochement[0]!.nom_source,
+        prenom: v.croyant?.prenom ?? (v.rapprochement[0]?.prenom_source ?? ''),
+        matricule: v.croyant?.matricule ?? '',
+        enveloppe: v.enveloppe_numero ?? (v.rapprochement[0]?.enveloppe_source ?? null),
         montant: Number(v.montant),
         // La cérémonie est celle de la collecte : ici, toutes les lignes la
         // partagent — mais c'est le TICKET qui la porte, pas le lot.
@@ -435,7 +461,54 @@ export function DimesClient({
                           </div>
 
                           <ul className="divide-border divide-y">
-                            {c.versements.map((v) => (
+                            {c.versements.map((v) => {
+                              // PostgREST rend un tableau pour cette relation
+                              // inverse, même quand il n'y a qu'une ligne.
+                              const rappr = v.rapprochement?.[0] ?? null;
+
+                              /**
+                               * L'ENVELOPPE HABITUELLE, quand le versement n'en
+                               * portait pas.
+                               *
+                               * Quelqu'un dont l'enveloppe est connue donne
+                               * parfois sans rien écrire dessus : la ligne
+                               * arrive nue, et il faut ouvrir sa fiche pour
+                               * retrouver un numéro que la base connaît déjà.
+                               *
+                               * Elle s'affiche donc, mais PAS comme les autres :
+                               * « habituelle » dit que ce numéro vient de la
+                               * fiche et non du versement. Les confondre ferait
+                               * croire que l'enveloppe a été présentée, et
+                               * fausserait un rapprochement fait plus tard.
+                               */
+                              const habituelle =
+                                !v.enveloppe_numero && v.croyant_id
+                                  ? (enveloppes[v.croyant_id] ?? null)
+                                  : null;
+
+                              /**
+                               * Rapprochable : la ligne attend une identité, et
+                               * personne ne la lui a encore donnée. Une ligne
+                               * résolue garde son rapprochement — c'est la
+                               * trace de ce que le fichier disait — mais il n'y
+                               * a plus rien à y faire.
+                               */
+                              const rapprochable = rappr !== null && rappr.croyant_id === null;
+
+                              /**
+                               * IMPRIMABLE DÈS QU'IL Y A UN NOM, fiche ou pas.
+                               *
+                               * La personne a donné et on sait qui elle est ;
+                               * ce qui manque est son enregistrement, pas son
+                               * identité. Lui refuser son talon le temps qu'on
+                               * ouvre sa fiche lui ferait porter le délai de
+                               * notre propre travail.
+                               */
+                              const imprimable = Boolean(
+                                v.recu_numero && (v.croyant || rappr?.nom_source),
+                              );
+
+                              return (
                               <li
                                 key={v.id}
                                 className="flex flex-wrap items-center justify-between gap-4 py-2"
@@ -443,6 +516,15 @@ export function DimesClient({
                                 <span className="text-sm">
                                   {v.croyant ? (
                                     `${v.croyant.nom.toLocaleUpperCase('fr')} ${v.croyant.prenom}`
+                                  ) : rappr?.nom_source ? (
+                                    /* Ce que le fichier disait, et qu'aucune
+                                       fiche n'a reconnu : le taire ferait lire
+                                       « anonyme » là où un nom a bien été lu. */
+                                    <span className="text-muted-foreground italic">
+                                      {rappr.nom_source}
+                                      {rappr.prenom_source && ` ${rappr.prenom_source}`}
+                                      {' — à rapprocher'}
+                                    </span>
                                   ) : (
                                     /* Un anonyme n'a pas de nom : le DIRE vaut
                                        mieux qu'un tiret, qui se lit comme une
@@ -457,6 +539,14 @@ export function DimesClient({
                                       enveloppe {v.enveloppe_numero}
                                     </span>
                                   )}
+                                  {habituelle && (
+                                    <span className="text-muted-foreground/70 ml-2 font-mono text-xs">
+                                      enveloppe {habituelle}
+                                      <span className="ml-1 font-sans italic">
+                                        (habituelle)
+                                      </span>
+                                    </span>
+                                  )}
                                 </span>
                                 <span className="flex items-center gap-4">
                                   {/* EF-FIN-33 — un anonyme n'ouvre aucun reçu :
@@ -469,51 +559,98 @@ export function DimesClient({
                                   </span>
 
                                   {/*
-                                    EF-FIN-27 — LE TICKET DE CAISSE, un reçu à
-                                    la fois.
+                                    UN MENU, ET NON DEUX BOUTONS CÔTE À CÔTE.
 
-                                    C'est le geste qu'on fait devant quelqu'un :
-                                    le croyant vient réclamer son talon, on le
-                                    sort et on le lui tend. Imprimer la feuille
-                                    entière pour une personne gâcherait sept
-                                    talons et obligerait à découper.
+                                    La ligne porte déjà deux nombres et un
+                                    numéro de reçu ; y poser « Ticket » ET
+                                    « Rapprocher » l'aurait rendue illisible
+                                    sur les collectes de cent versements — et
+                                    ces deux actions ne se présentent presque
+                                    jamais ensemble : l'une suppose un reçu
+                                    émis, l'autre une identité manquante.
 
-                                    IL PORTE SON NOM. Une icône seule, sans
-                                    bordure, à l'extrémité droite d'une ligne
-                                    déjà chargée de deux nombres, ne se voyait
-                                    pas — c'est le retour qui en a été fait.
-                                    Un contrôle qu'il faut chercher n'existe
-                                    pas.
-
-                                    L'emplacement est RÉSERVÉ même sans reçu :
-                                    sans cela, les montants d'une liste mêlant
-                                    nominatifs et anonymes ne s'aligneraient
-                                    plus d'une ligne à l'autre.
+                                    L'emplacement est RÉSERVÉ même quand le
+                                    menu est vide : sans cela, les montants
+                                    d'une liste mêlant nominatifs et anonymes
+                                    ne s'aligneraient plus d'une ligne à
+                                    l'autre.
                                   */}
-                                  <span className="flex w-24 justify-end">
-                                    {v.recu_numero && v.croyant && (
-                                      <Button
-                                        variant="outline"
-                                        className="h-8 text-xs"
-                                        aria-label={`Imprimer le ticket de ${v.croyant.nom} ${v.croyant.prenom}`}
-                                        onClick={() =>
-                                          imprimerRecus(
-                                            recusDe(c).filter(
-                                              (r) => r.reference === v.recu_numero,
-                                            ),
-                                            devise,
-                                            'CAISSE',
-                                          )
-                                        }
-                                      >
-                                        <Receipt className="mr-2 size-3.5" aria-hidden />
-                                        Ticket
-                                      </Button>
+                                  <span className="flex w-10 justify-end">
+                                    {(imprimable || rapprochable) && (
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            className="size-8 p-0"
+                                            aria-label={
+                                              v.croyant
+                                                ? `Actions pour ${v.croyant.nom} ${v.croyant.prenom}`
+                                                : 'Actions pour ce versement'
+                                            }
+                                          >
+                                            <MoreVertical className="size-4" aria-hidden />
+                                          </Button>
+                                        </DropdownMenuTrigger>
+
+                                        <DropdownMenuContent align="end" className="w-auto">
+                                          {/*
+                                            EF-FIN-27 — LE TICKET DE CAISSE, un
+                                            reçu à la fois. C'est le geste qu'on
+                                            fait devant quelqu'un : le croyant
+                                            vient réclamer son talon, on le sort
+                                            et on le lui tend. Imprimer la
+                                            feuille entière pour une personne
+                                            gâcherait sept talons.
+                                          */}
+                                          {imprimable && (
+                                            <DropdownMenuItem
+                                              onSelect={() =>
+                                                imprimerRecus(
+                                                  recusDe(c).filter(
+                                                    (r) => r.reference === v.recu_numero,
+                                                  ),
+                                                  devise,
+                                                  'CAISSE',
+                                                )
+                                              }
+                                            >
+                                              <Receipt className="mr-2 size-4" aria-hidden />
+                                              Ticket
+                                            </DropdownMenuItem>
+                                          )}
+
+                                          {/*
+                                            EF-FIN-34 — RAPPROCHER SANS CHANGER
+                                            D'ÉCRAN. On constate ici qu'une
+                                            enveloppe n'a pas de nom ; l'envoyer
+                                            dans `/croyants` pour un seul geste
+                                            ferait perdre la collecte qu'on est
+                                            en train de lire.
+
+                                            L'entrée n'apparaît QUE si le
+                                            rapprochement est encore ouvert :
+                                            proposer une action déjà faite
+                                            ferait douter de ce qui l'a été.
+                                          */}
+                                          {rapprochable && (
+                                            <DropdownMenuItem
+                                              onSelect={() => setARapprocher(rappr)}
+                                            >
+                                              <UserSearch
+                                                className="mr-2 size-4"
+                                                aria-hidden
+                                              />
+                                              Rapprocher
+                                            </DropdownMenuItem>
+                                          )}
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
                                     )}
                                   </span>
                                 </span>
                               </li>
-                            ))}
+                              );
+                            })}
                           </ul>
                         </TableCell>
                       </TableRow>
@@ -525,6 +662,30 @@ export function DimesClient({
           </Table>
         </div>
       )}
+
+      {/*
+        UN SEUL POP-UP pour tout l'écran, piloté par la ligne retenue (règle
+        16) : un par versement en monterait autant que la collecte en compte,
+        tous invisibles. Il vit hors du tableau, sinon replier une collecte
+        pendant le rapprochement le démonterait.
+      */}
+      <RapprocherDialog
+        rapprochement={aRapprocher}
+        croyants={croyants.map((c) => ({
+          id: c.id,
+          nom: c.nom,
+          prenom: c.prenom,
+          matricule: c.matricule,
+          photoKey: c.photoKey,
+          detail: c.egliseNom,
+        }))}
+        photos={photos}
+        porteurs={porteurs}
+        open={aRapprocher !== null}
+        onOpenChange={(ouvert) => {
+          if (!ouvert) setARapprocher(null);
+        }}
+      />
     </div>
   );
 }

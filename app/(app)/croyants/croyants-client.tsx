@@ -13,6 +13,7 @@ import {
 import { CroyantMenu } from '@/components/croyants/croyant-menu';
 import { useCroyantDialogs } from '@/components/croyants/use-croyant-dialogs';
 import { EmptyState } from '@/components/shared/empty-state';
+import { EnteteTriable } from '@/components/shared/entete-triable';
 import { useSession } from '@/components/shared/session-provider';
 import { StatusBadge, TON_CROYANT } from '@/components/shared/status-badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -28,6 +29,7 @@ import {
 } from '@/components/ui/table';
 import type { CroyantListe } from '@/lib/data/croyants';
 import {
+  type ColonneTriCroyant,
   FILTRES_LISTE_VIDES,
   type FiltresListeCroyants,
   LIBELLES_SEXE,
@@ -35,7 +37,9 @@ import {
   calculerAge,
   filtrerCroyants,
   nomComplet,
+  valeurTriCroyant,
 } from '@/lib/domain/croyant';
+import { type EtatTri, basculerTri, trierListe } from '@/lib/domain/tri';
 import { formatDate, formatNombre } from '@/lib/utils/format';
 
 import { FiltresCroyants } from './filtres';
@@ -82,6 +86,12 @@ export function CroyantsClient({
 
   const [filtres, setFiltres] = useState<FiltresListeCroyants>(filtresInitiaux);
   const [page, setPage] = useState(1);
+  /**
+   * `null` = l'ordre du serveur, qui range deja par nom. Poser d'emblee un tri
+   * sur « nom » afficherait un chevron actif que l'utilisateur n'a pas demande,
+   * et lui ferait croire qu'il a cliqué.
+   */
+  const [tri, setTri] = useState<EtatTri<ColonneTriCroyant> | null>(null);
 
   const { modifier, transferer, demanderSuppression, dialogues } = useCroyantDialogs({
     croyants,
@@ -93,9 +103,17 @@ export function CroyantsClient({
   // de la table prend quelques millisecondes.
   const filtresDifferes = useDeferredValue(filtres);
 
+  /**
+   * FILTRER PUIS TRIER, dans cet ordre : trier d'abord classerait des lignes
+   * qu'on s'apprete a jeter.
+   *
+   * Le tri porte sur TOUT le résultat, pas sur la page affichée — sinon
+   * « trier par âge » ne rangerait que les cinquante lignes sous les yeux, et
+   * la page suivante repartirait de zéro.
+   */
   const resultats = useMemo(
-    () => filtrerCroyants(croyants, filtresDifferes),
-    [croyants, filtresDifferes],
+    () => trierListe(filtrerCroyants(croyants, filtresDifferes), tri, valeurTriCroyant),
+    [croyants, filtresDifferes, tri],
   );
 
   const nbPages = Math.max(1, Math.ceil(resultats.length / TAILLE_PAGE));
@@ -128,7 +146,9 @@ export function CroyantsClient({
     // Lot tronqué : changer d'église doit RECHARGER un périmètre plus étroit,
     // sinon on ne filtrerait que les 2 000 premiers et l'alerte mentirait.
     if (tronque && 'egliseId' in modifs && modifs.egliseId !== filtres.egliseId) {
-      router.replace(modifs.egliseId ? `/croyants?eglise=${modifs.egliseId}` : '/croyants');
+      router.replace(
+        modifs.egliseId ? `/croyants?eglise=${modifs.egliseId}` : '/croyants',
+      );
       return;
     }
 
@@ -140,6 +160,13 @@ export function CroyantsClient({
 
   function effacer() {
     setFiltres(FILTRES_LISTE_VIDES);
+    setPage(1);
+  }
+
+  function trier(colonne: ColonneTriCroyant) {
+    setTri((actuel) => basculerTri(actuel, colonne));
+    // Le premier de la liste triée doit être VISIBLE. Rester en page 4 après
+    // avoir demandé « les plus jeunes d'abord » montrerait le 151ᵉ.
     setPage(1);
   }
 
@@ -166,8 +193,8 @@ export function CroyantsClient({
           <AlertTitle>Périmètre trop large pour une recherche complète</AlertTitle>
           <AlertDescription>
             Seuls les {formatNombre(croyants.length)} premiers croyants sont chargés.
-            Choisissez une église pour restreindre le périmètre : la recherche
-            redeviendra exhaustive.
+            Choisissez une église pour restreindre le périmètre : la recherche redeviendra
+            exhaustive.
           </AlertDescription>
         </Alert>
       )}
@@ -202,15 +229,40 @@ export function CroyantsClient({
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead>Nom</TableHead>
-                    <TableHead>Matricule</TableHead>
-                    <TableHead>Sexe</TableHead>
-                    <TableHead className="text-right">Âge</TableHead>
-                    <TableHead>Église</TableHead>
-                    <TableHead>Cellule</TableHead>
-                    <TableHead>Grade</TableHead>
-                    <TableHead>Baptême</TableHead>
-                    <TableHead>Statut</TableHead>
+                    {/* EF-CRO-04 — chaque colonne se trie au clic. Le menu ⋮
+                        n'est pas une donnée : il n'a rien à classer. */}
+                    <EnteteTriable colonne="nom" etat={tri} onTrier={trier}>
+                      Nom
+                    </EnteteTriable>
+                    <EnteteTriable colonne="matricule" etat={tri} onTrier={trier}>
+                      Matricule
+                    </EnteteTriable>
+                    <EnteteTriable colonne="sexe" etat={tri} onTrier={trier}>
+                      Sexe
+                    </EnteteTriable>
+                    <EnteteTriable
+                      colonne="age"
+                      etat={tri}
+                      onTrier={trier}
+                      alignementDroite
+                    >
+                      Âge
+                    </EnteteTriable>
+                    <EnteteTriable colonne="eglise" etat={tri} onTrier={trier}>
+                      Église
+                    </EnteteTriable>
+                    <EnteteTriable colonne="cellule" etat={tri} onTrier={trier}>
+                      Cellule
+                    </EnteteTriable>
+                    <EnteteTriable colonne="grade" etat={tri} onTrier={trier}>
+                      Grade
+                    </EnteteTriable>
+                    <EnteteTriable colonne="bapteme" etat={tri} onTrier={trier}>
+                      Baptême
+                    </EnteteTriable>
+                    <EnteteTriable colonne="statut" etat={tri} onTrier={trier}>
+                      Statut
+                    </EnteteTriable>
                     <TableHead className="w-12 text-right">
                       <span className="sr-only">Options</span>
                     </TableHead>
@@ -226,7 +278,7 @@ export function CroyantsClient({
                         <TableCell>
                           <Link
                             href={`/croyants/${c.id}`}
-                            className="flex items-center gap-3 font-medium text-foreground transition-colors hover:text-indigo-700"
+                            className="text-foreground flex items-center gap-3 font-medium transition-colors hover:text-indigo-700"
                           >
                             {/* EF-CRO-09 — en attendant le téléversement de photo. */}
                             <AvatarCroyant
@@ -234,11 +286,13 @@ export function CroyantsClient({
                               prenom={c.prenom}
                               url={c.photo_key ? photos[c.photo_key] : null}
                             />
-                            <span className="truncate">{nomComplet(c.nom, c.prenom)}</span>
+                            <span className="truncate">
+                              {nomComplet(c.nom, c.prenom)}
+                            </span>
                           </Link>
                         </TableCell>
 
-                        <TableCell className="font-mono text-xs text-muted-foreground">
+                        <TableCell className="text-muted-foreground font-mono text-xs">
                           {c.matricule}
                         </TableCell>
 
@@ -252,13 +306,15 @@ export function CroyantsClient({
                           {c.eglise?.nom ?? '—'}
                         </TableCell>
 
-                        <TableCell className="max-w-32 truncate text-sm text-muted-foreground">
+                        <TableCell className="text-muted-foreground max-w-32 truncate text-sm">
                           {c.cellule?.nom ?? '—'}
                         </TableCell>
 
-                        <TableCell className="text-sm">{c.grade?.libelle ?? '—'}</TableCell>
+                        <TableCell className="text-sm">
+                          {c.grade?.libelle ?? '—'}
+                        </TableCell>
 
-                        <TableCell className="font-mono text-xs tabular-nums text-muted-foreground">
+                        <TableCell className="text-muted-foreground font-mono text-xs tabular-nums">
                           {formatDate(c.date_bapteme)}
                         </TableCell>
 
@@ -276,7 +332,9 @@ export function CroyantsClient({
                             peutTransferer={
                               portee ? peut('croyant.transfer', portee) : false
                             }
-                            peutSupprimer={portee ? peut('croyant.delete', portee) : false}
+                            peutSupprimer={
+                              portee ? peut('croyant.delete', portee) : false
+                            }
                             onModifier={modifier}
                             onTransferer={transferer}
                             onSupprimer={demanderSuppression}

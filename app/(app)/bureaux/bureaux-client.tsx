@@ -60,7 +60,7 @@ import {
   libelleAffichage,
 } from '@/lib/domain/bureau';
 import { normaliserRecherche } from '@/lib/domain/croyant';
-import type { EntityType } from '@/lib/domain/hierarchy';
+import { ENTITY_LABELS, ENTITY_TYPES, type EntityType } from '@/lib/domain/hierarchy';
 import type { ActionResult } from '@/lib/domain/result';
 import { formatDate, formatNombre } from '@/lib/utils/format';
 
@@ -107,6 +107,18 @@ export function BureauxClient({
 
   const [recherche, setRecherche] = useState('');
   const [statut, setStatut] = useState<'tous' | 'actifs' | 'clos'>('actifs');
+  /**
+   * LE NIVEAU D'ENTITE, EN ONGLETS — règle 18.
+   *
+   * Les six niveaux forment un ensemble CLOS ET CONNU : ils se présentent donc
+   * en onglets, pas en sélecteur. Les entités elles-mêmes sont un ensemble
+   * ouvert — un onglet par église en donnerait vingt, illisibles, et un de plus
+   * à chaque création.
+   *
+   * `null` = tous les niveaux, et c'est le défaut : un écran qui s'ouvre déjà
+   * filtré cache une partie de ce qu'on vient voir.
+   */
+  const [niveau, setNiveau] = useState<EntityType | null>(null);
   const [ouvert, setOuvert] = useState<BureauComplet | null>(null);
 
   const rechercheDifferee = useDeferredValue(recherche);
@@ -117,6 +129,7 @@ export function BureauxClient({
     return bureaux.filter((b) => {
       if (statut === 'actifs' && !b.is_active) return false;
       if (statut === 'clos' && b.is_active) return false;
+      if (niveau && b.entite?.type !== niveau) return false;
       if (!terme) return true;
 
       const texte = normaliserRecherche(
@@ -124,7 +137,67 @@ export function BureauxClient({
       );
       return terme.split(' ').every((mot) => texte.includes(mot));
     });
-  }, [bureaux, rechercheDifferee, statut]);
+  }, [bureaux, rechercheDifferee, statut, niveau]);
+
+  /**
+   * Les niveaux qui portent VRAIMENT un bureau, et combien.
+   *
+   * On ne propose pas les six d'office : un onglet « Régional » sur une
+   * organisation qui n'en a aucun se cliquerait pour ne rien montrer, et
+   * ferait chercher une donnée qui n'existe pas (règle 15 — un vide doit se
+   * distinguer d'une absence).
+   *
+   * Le compte suit le filtre de STATUT mais ignore la recherche : il dit
+   * combien de bureaux ce niveau contient, pas combien répondent à la frappe
+   * en cours — un onglet dont le nombre change à chaque touche ne se lit plus.
+   */
+  const niveaux = useMemo(() => {
+    const compte = new Map<EntityType, number>();
+
+    for (const b of bureaux) {
+      if (statut === 'actifs' && !b.is_active) continue;
+      if (statut === 'clos' && b.is_active) continue;
+
+      const type = b.entite?.type as EntityType | undefined;
+      if (!type) continue;
+      compte.set(type, (compte.get(type) ?? 0) + 1);
+    }
+
+    // L'ordre hiérarchique, jamais celui des données : le Siège en tête.
+    return ENTITY_TYPES.filter((t) => compte.has(t)).map((t) => ({
+      type: t,
+      libelle: ENTITY_LABELS[t].pluriel,
+      nombre: compte.get(t)!,
+    }));
+  }, [bureaux, statut]);
+
+  /**
+   * Les bureaux GROUPÉS PAR ENTITÉ — « onglets d'entité → cartes → liste ».
+   *
+   * Une entité peut porter plusieurs bureaux : le mandat en cours et ceux qui
+   * l'ont précédé. Les mêler dans une grille plate obligeait à lire le
+   * sous-titre de chaque carte pour reconstituer à qui elle appartient.
+   * Le titre le dit une fois, et les cartes suivent.
+   */
+  const groupes = useMemo(() => {
+    const table = new Map<
+      string,
+      { nom: string; code: string; bureaux: BureauComplet[] }
+    >();
+
+    for (const b of filtres) {
+      const cle = b.entity_id;
+      const groupe = table.get(cle) ?? {
+        nom: b.entite?.nom ?? 'Entité inconnue',
+        code: b.entite?.code ?? '',
+        bureaux: [],
+      };
+      groupe.bureaux.push(b);
+      table.set(cle, groupe);
+    }
+
+    return [...table.values()].sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+  }, [filtres]);
 
   const comptes = useMemo(
     () => ({
@@ -250,13 +323,14 @@ export function BureauxClient({
             />
           </GroupeFiltres>
 
-          {(recherche !== '' || statut !== 'actifs') && (
+          {(recherche !== '' || statut !== 'actifs' || niveau !== null) && (
             <Button
               variant="ghost"
               className="h-10"
               onClick={() => {
                 setRecherche('');
                 setStatut('actifs');
+                setNiveau(null);
               }}
             >
               <X className="mr-2 size-4" aria-hidden />
@@ -277,6 +351,33 @@ export function BureauxClient({
             />
           </span>
         </div>
+
+        {/*
+          LES ONGLETS DE NIVEAU — « onglets d'entité → cartes → liste ».
+
+          Ils ne s'affichent qu'à partir de DEUX niveaux : une organisation qui
+          n'a que des églises verrait un onglet unique, qui ne filtre rien et
+          n'apprend rien.
+        */}
+        {niveaux.length > 1 && (
+          <div className="border-border flex flex-wrap gap-1 border-b">
+            <BoutonNiveau
+              libelle="Tous"
+              nombre={niveaux.reduce((s, n) => s + n.nombre, 0)}
+              actif={niveau === null}
+              onClick={() => setNiveau(null)}
+            />
+            {niveaux.map((n) => (
+              <BoutonNiveau
+                key={n.type}
+                libelle={n.libelle}
+                nombre={n.nombre}
+                actif={niveau === n.type}
+                onClick={() => setNiveau(n.type)}
+              />
+            ))}
+          </div>
+        )}
 
         {filtres.length === 0 ? (
           <EmptyState
@@ -302,154 +403,204 @@ export function BureauxClient({
             }
           />
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filtres.map((bureau) => {
-              const niveau = (bureau.entite?.type ?? 'EGLISE') as EntityType;
-              const compte = comptePostes(
-                composerBureau(
-                  fonctions,
-                  bureau.membres.map((m) => ({
-                    id: m.id,
-                    croyantId: m.croyant_id,
-                    fonctionId: m.fonction_id,
-                    dateDebut: m.date_debut,
-                    dateFin: m.date_fin,
-                  })),
-                  niveau,
-                ),
-              );
+          <div className="space-y-8">
+            {groupes.map((groupe) => (
+              <section key={groupe.nom + groupe.code} className="space-y-3">
+                {/*
+              LE TITRE D'ENTITÉ PORTE LE NOM UNE FOIS.
 
-              return (
-                <Card
-                  key={bureau.id}
-                  className={
-                    bureau.is_active
-                      ? 'transition-colors hover:border-slate-300'
-                      : 'opacity-70 transition-colors hover:border-slate-300'
-                  }
-                >
-                  <CardContent className="space-y-4 p-6">
-                    {/*
+              Une entité peut avoir plusieurs bureaux — le mandat en cours et
+              ceux qui l'ont précédé. Dans une grille plate, il fallait lire le
+              sous-titre de chaque carte pour reconstituer à qui elle
+              appartient ; le titre le dit une fois, et les cartes suivent.
+            */}
+                <div className="flex items-baseline gap-3">
+                  <h2 className="text-sm font-semibold">{groupe.nom}</h2>
+                  {groupe.code && (
+                    <span className="text-muted-foreground font-mono text-xs">
+                      {groupe.code}
+                    </span>
+                  )}
+                  <span className="text-muted-foreground text-xs tabular-nums">
+                    {formatNombre(groupe.bureaux.length)} bureau
+                    {groupe.bureaux.length > 1 ? 'x' : ''}
+                  </span>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {groupe.bureaux.map((bureau) => {
+                    const niveau = (bureau.entite?.type ?? 'EGLISE') as EntityType;
+                    const compte = comptePostes(
+                      composerBureau(
+                        fonctions,
+                        bureau.membres.map((m) => ({
+                          id: m.id,
+                          croyantId: m.croyant_id,
+                          fonctionId: m.fonction_id,
+                          dateDebut: m.date_debut,
+                          dateFin: m.date_fin,
+                        })),
+                        niveau,
+                      ),
+                    );
+
+                    return (
+                      <Card
+                        key={bureau.id}
+                        className={
+                          bureau.is_active
+                            ? 'transition-colors hover:border-slate-300'
+                            : 'opacity-70 transition-colors hover:border-slate-300'
+                        }
+                      >
+                        <CardContent className="space-y-4 p-6">
+                          {/*
                       La carte n'est plus un bouton géant : le menu ⋮ en porte
                       un, et un bouton dans un bouton est un HTML invalide que
                       les lecteurs d'écran ne restituent pas. Seul le TITRE
                       ouvre la composition.
                     */}
-                    <div className="space-y-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <span className="min-w-0 space-y-1">
-                          <button
-                            type="button"
-                            onClick={() => setOuvert(bureau)}
-                            className="text-foreground block max-w-full truncate text-left text-sm font-semibold transition-colors hover:text-indigo-700"
-                          >
-                            {bureau.libelle}
-                          </button>
-                          <span className="text-muted-foreground block truncate text-xs">
-                            {bureau.entite?.nom}
-                          </span>
-                        </span>
+                          <div className="space-y-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <span className="min-w-0 space-y-1">
+                                <button
+                                  type="button"
+                                  onClick={() => setOuvert(bureau)}
+                                  className="text-foreground block max-w-full truncate text-left text-sm font-semibold transition-colors hover:text-indigo-700"
+                                >
+                                  {bureau.libelle}
+                                </button>
+                                <span className="text-muted-foreground block truncate text-xs">
+                                  {bureau.entite?.nom}
+                                </span>
+                              </span>
 
-                        <span className="flex shrink-0 items-center gap-2">
-                          {bureau.entite && <TypeBadge type={bureau.entite.type} />}
+                              <span className="flex shrink-0 items-center gap-2">
+                                {bureau.entite && <TypeBadge type={bureau.entite.type} />}
 
-                          {/* Le même menu ⋮ que partout ailleurs. */}
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <button
-                                type="button"
-                                aria-label={`Actions sur ${bureau.libelle}`}
-                                className="text-muted-foreground hover:text-foreground flex size-6 items-center justify-center rounded-md transition-colors hover:bg-slate-100"
-                              >
-                                <MoreVertical className="size-4" aria-hidden />
-                              </button>
-                            </DropdownMenuTrigger>
+                                {/* Le même menu ⋮ que partout ailleurs. */}
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <button
+                                      type="button"
+                                      aria-label={`Actions sur ${bureau.libelle}`}
+                                      className="text-muted-foreground hover:text-foreground flex size-6 items-center justify-center rounded-md transition-colors hover:bg-slate-100"
+                                    >
+                                      <MoreVertical className="size-4" aria-hidden />
+                                    </button>
+                                  </DropdownMenuTrigger>
 
-                            <DropdownMenuContent align="end" className="w-64">
-                              <DropdownMenuItem onSelect={() => setOuvert(bureau)}>
-                                <List className="mr-2 size-4" aria-hidden />
-                                Voir la composition
-                              </DropdownMenuItem>
+                                  <DropdownMenuContent align="end" className="w-64">
+                                    <DropdownMenuItem onSelect={() => setOuvert(bureau)}>
+                                      <List className="mr-2 size-4" aria-hidden />
+                                      Voir la composition
+                                    </DropdownMenuItem>
 
-                              {/* EF-BUR-07 — un plan de travail, pas un
+                                    {/* EF-BUR-07 — un plan de travail, pas un
                                   formulaire : il lui faut la page entière. */}
-                              <DropdownMenuItem asChild>
-                                <Link href={`/bureaux/${bureau.id}/organigramme`}>
-                                  <Network className="mr-2 size-4" aria-hidden />
-                                  Définir l&apos;organigramme
-                                </Link>
-                              </DropdownMenuItem>
+                                    <DropdownMenuItem asChild>
+                                      <Link href={`/bureaux/${bureau.id}/organigramme`}>
+                                        <Network className="mr-2 size-4" aria-hidden />
+                                        Définir l&apos;organigramme
+                                      </Link>
+                                    </DropdownMenuItem>
 
-                              {bureau.entite &&
-                                peut('bureau.manage', bureau.entite.path) && (
-                                  <>
-                                    {/* Règle 16 — la modification rouvre le
+                                    {bureau.entite &&
+                                      peut('bureau.manage', bureau.entite.path) && (
+                                        <>
+                                          {/* Règle 16 — la modification rouvre le
                                         pop-up de création, pré-rempli. */}
-                                    <DropdownMenuItem
-                                      onSelect={() => setAModifier(bureau)}
-                                    >
-                                      <Pencil className="mr-2 size-4" aria-hidden />
-                                      Modifier le bureau
-                                    </DropdownMenuItem>
+                                          <DropdownMenuItem
+                                            onSelect={() => setAModifier(bureau)}
+                                          >
+                                            <Pencil className="mr-2 size-4" aria-hidden />
+                                            Modifier le bureau
+                                          </DropdownMenuItem>
 
-                                    {bureau.is_active && (
-                                      <DropdownMenuItem
-                                        onSelect={() => setAClore(bureau)}
-                                        disabled={enCours}
-                                      >
-                                        <SquarePen className="mr-2 size-4" aria-hidden />
-                                        Clore le mandat
-                                        <span className="text-muted-foreground ml-auto text-xs">
-                                          conserve
-                                        </span>
-                                      </DropdownMenuItem>
-                                    )}
-                                  </>
-                                )}
+                                          {bureau.is_active && (
+                                            <DropdownMenuItem
+                                              onSelect={() => setAClore(bureau)}
+                                              disabled={enCours}
+                                            >
+                                              <SquarePen
+                                                className="mr-2 size-4"
+                                                aria-hidden
+                                              />
+                                              Clore le mandat
+                                              <span className="text-muted-foreground ml-auto text-xs">
+                                                conserve
+                                              </span>
+                                            </DropdownMenuItem>
+                                          )}
+                                        </>
+                                      )}
 
-                              {/* EF-BUR-08 — droit DISTINCT : clore conserve,
-                                  supprimer efface l'historique des titulaires. */}
-                              {bureau.entite &&
-                                peut('bureau.delete', bureau.entite.path) && (
-                                  <>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                      className="text-destructive focus:text-destructive"
-                                      onSelect={() => setASupprimer(bureau)}
-                                    >
-                                      <Trash2 className="mr-2 size-4" aria-hidden />
-                                      Supprimer le bureau
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </span>
-                      </div>
+                                    {/*
+                                EF-BUR-08 — droit DISTINCT : clore conserve,
+                                supprimer efface l'historique des titulaires.
 
-                      <div className="flex flex-wrap items-center gap-2">
-                        <StatusBadge tone={bureau.is_active ? 'success' : 'neutral'}>
-                          {bureau.is_active ? 'En cours' : 'Clos'}
-                        </StatusBadge>
-                        {/* Le manque avant le reste : c'est ce qu'on cherche. */}
-                        {compte.vacants > 0 && bureau.is_active && (
-                          <StatusBadge tone="warning">
-                            {formatNombre(compte.vacants)} vacant
-                            {compte.vacants > 1 ? 's' : ''}
-                          </StatusBadge>
-                        )}
-                      </div>
+                                ET SEULEMENT SUR UN BUREAU EN COURS. Supprimer
+                                un bureau CLOS effacerait ce qui a été — qui
+                                était trésorier en 2024, qui a signé les
+                                comptes — alors que des rapports, des reçus et
+                                le journal d'audit le citent. L'entrée
+                                disparaît donc, plutôt que d'être proposée puis
+                                refusée : un menu qui offre ce qu'il n'accorde
+                                pas fait douter du reste.
 
-                      <p className="text-muted-foreground font-mono text-xs tabular-nums">
-                        {formatNombre(compte.pourvus)} / {formatNombre(compte.total)} ·{' '}
-                        {formatDate(bureau.date_debut)}
-                        {bureau.date_fin && ` → ${formatDate(bureau.date_fin)}`}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                                Le verrou réel est en base
+                                (`trg_bureau_clos_immuable`, migration 0059) :
+                                une entrée masquée se contourne par un appel
+                                direct à l'API.
+                              */}
+                                    {bureau.is_active &&
+                                      bureau.entite &&
+                                      peut('bureau.delete', bureau.entite.path) && (
+                                        <>
+                                          <DropdownMenuSeparator />
+                                          <DropdownMenuItem
+                                            className="text-destructive focus:text-destructive"
+                                            onSelect={() => setASupprimer(bureau)}
+                                          >
+                                            <Trash2 className="mr-2 size-4" aria-hidden />
+                                            Supprimer le bureau
+                                          </DropdownMenuItem>
+                                        </>
+                                      )}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </span>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                              <StatusBadge
+                                tone={bureau.is_active ? 'success' : 'neutral'}
+                              >
+                                {bureau.is_active ? 'En cours' : 'Clos'}
+                              </StatusBadge>
+                              {/* Le manque avant le reste : c'est ce qu'on cherche. */}
+                              {compte.vacants > 0 && bureau.is_active && (
+                                <StatusBadge tone="warning">
+                                  {formatNombre(compte.vacants)} vacant
+                                  {compte.vacants > 1 ? 's' : ''}
+                                </StatusBadge>
+                              )}
+                            </div>
+
+                            <p className="text-muted-foreground font-mono text-xs tabular-nums">
+                              {formatNombre(compte.pourvus)} /{' '}
+                              {formatNombre(compte.total)} ·{' '}
+                              {formatDate(bureau.date_debut)}
+                              {bureau.date_fin && ` → ${formatDate(bureau.date_fin)}`}
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
           </div>
         )}
 
@@ -563,5 +714,44 @@ export function BureauxClient({
         </Dialog>
       </div>
     </TooltipProvider>
+  );
+}
+
+/**
+ * Un onglet de niveau — EF-BUR-01, règle 18.
+ *
+ * UN VRAI BOUTON, pas un `div` cliquable : il doit s'atteindre au clavier et
+ * s'annoncer comme actionnable. `aria-pressed` dit lequel est retenu — le
+ * soulignement ne se voit pas d'un lecteur d'écran.
+ *
+ * LE NOMBRE EST TOUJOURS LÀ, y compris sur l'onglet inactif : c'est lui qui
+ * décide si l'onglet vaut un clic. Le masquer obligerait à cliquer pour savoir
+ * s'il y avait quelque chose à voir.
+ */
+function BoutonNiveau({
+  libelle,
+  nombre,
+  actif,
+  onClick,
+}: {
+  libelle: string;
+  nombre: number;
+  actif: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={actif}
+      className={
+        actif
+          ? 'border-b-2 border-indigo-600 px-4 py-2 text-sm font-medium text-indigo-700'
+          : 'text-muted-foreground hover:text-foreground border-b-2 border-transparent px-4 py-2 text-sm font-medium transition-colors'
+      }
+    >
+      {libelle}
+      <span className="ml-2 text-xs tabular-nums opacity-70">{formatNombre(nombre)}</span>
+    </button>
   );
 }

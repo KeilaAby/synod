@@ -7,6 +7,7 @@ import {
   type ContenuRapport,
   type SourceRapport,
   type StructureRapport,
+  filtresPoses,
   sourceDuBloc,
 } from '@/lib/domain/rapport';
 import { createClient } from '@/lib/supabase/server';
@@ -135,10 +136,80 @@ export async function resoudreContenu(
     const source = sourceDuBloc(bloc);
     if (!source) continue;
 
-    const resolu = composer(bloc, source, recoltes, contexte);
+    /**
+     * EF-RAP-03 — LES FILTRES S'APPLIQUENT PAR BLOC, PAS PAR LECTURE.
+     *
+     * Deux blocs peuvent partager une source et la restreindre differemment —
+     * « les hommes » d'un cote, « les femmes » de l'autre. Filtrer dans la
+     * requete demanderait alors DEUX lectures de la meme table, quand une
+     * seule suffit : on recolte une fois le perimetre entier, et chaque bloc
+     * y taille sa part en memoire (regle 28).
+     */
+    const resolu = composer(bloc, source, filtrer(recoltes, bloc, source), contexte);
     if (resolu) contenu[bloc.id] = resolu;
   }
   return contenu;
+}
+
+/**
+ * La part des recoltes qu'un bloc retient — EF-RAP-03.
+ *
+ * PURE, et bornee aux filtres que `filtresPoses` a valides : un filtre inconnu
+ * de la source, ou dont la valeur n'existe pas, est ignore plutot que
+ * d'exclure tout. Un modele dont la source a change ne doit pas rendre un
+ * tableau vide qu'on lirait « il n'y a rien ».
+ */
+function filtrer(r: Recoltes, bloc: BlocRapport, source: SourceRapport): Recoltes {
+  const poses = filtresPoses(bloc);
+  if (Object.keys(poses).length === 0) return r;
+
+  /**
+   * ON NE TAILLE QUE DANS LA SOURCE DU BLOC.
+   *
+   * `statut` existe pour les croyants ET pour les transferts, avec des valeurs
+   * differentes. Appliquer aveuglement la table de filtres a toutes les
+   * recoltes ferait qu'un bloc de croyants filtre sur « ACTIF » viderait aussi
+   * les transferts — sans consequence aujourd'hui, puisque ce bloc ne les lit
+   * pas, mais c'est exactement le genre de coincidence qui cesse d'etre vraie
+   * le jour ou un bloc croise deux sources.
+   */
+  switch (source) {
+    case 'CROYANTS':
+      return {
+        ...r,
+        croyants: r.croyants.filter(
+          (c) =>
+            (!poses.sexe || c.sexe === poses.sexe) &&
+            (!poses.statut || c.statut === poses.statut),
+        ),
+      };
+
+    case 'FINANCES':
+      return { ...r, finances: r.finances.filter((f) => !poses.sens || f.sens === poses.sens) };
+
+    case 'ENTITES':
+      return {
+        ...r,
+        entites: r.entites.filter((e) => !poses.niveau || e.type === poses.niveau),
+      };
+
+    case 'BUREAUX':
+      return {
+        ...r,
+        bureaux: r.bureaux.filter(
+          (b) => !poses.etat || b.is_active === (poses.etat === 'EN_COURS'),
+        ),
+      };
+
+    case 'TRANSFERTS':
+      return {
+        ...r,
+        transferts: r.transferts.filter((t) => !poses.statut || t.statut === poses.statut),
+      };
+
+    default:
+      return r;
+  }
 }
 
 // -----------------------------------------------------------------------------

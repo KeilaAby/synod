@@ -372,3 +372,85 @@ export function filtrerCroyants<T extends CroyantFiltrable>(
     return correspondRecherche(c, filtres.recherche);
   });
 }
+
+// -----------------------------------------------------------------------------
+// Tri de la liste — EF-CRO-04
+// -----------------------------------------------------------------------------
+
+export const COLONNES_TRI_CROYANT = [
+  'nom',
+  'matricule',
+  'sexe',
+  'age',
+  'eglise',
+  'cellule',
+  'grade',
+  'bapteme',
+  'statut',
+] as const;
+
+export type ColonneTriCroyant = (typeof COLONNES_TRI_CROYANT)[number];
+
+/**
+ * La forme MINIMALE qu'il faut porter pour etre trie.
+ *
+ * Comme `CroyantFiltrable` : une regle metier n'a pas a dependre de la forme
+ * exacte que PostgREST renvoie. Les libelles sont nommes `nom` parce que c'est
+ * ce que l'ecran AFFICHE — trier sur l'identifiant d'une eglise rangerait la
+ * liste dans un ordre que personne ne peut lire.
+ */
+export interface CroyantTriable {
+  nom: string;
+  prenom: string;
+  matricule: string;
+  sexe: Sexe;
+  statut: string;
+  date_naissance: string;
+  date_bapteme: string | null;
+  eglise: { nom: string } | null;
+  cellule: { nom: string } | null;
+  grade: { libelle: string } | null;
+}
+
+/**
+ * Ce qu'une colonne compare — a lire avec `trierListe`.
+ *
+ * DEUX CHOIX QUI NE VONT PAS DE SOI :
+ *
+ * - L'AGE SE TRIE A L'ENVERS DE SA DATE. La colonne affiche un age ; « age
+ *   croissant » veut donc dire « du plus jeune au plus vieux », c'est-a-dire de
+ *   la date de naissance la plus RECENTE a la plus ancienne. Trier sur la date
+ *   telle quelle donnerait l'ordre inverse de ce que le chevron annonce. D'ou
+ *   l'horodatage NEGATIF, qui remet les deux d'accord.
+ * - LES AUTRES DATES SE COMPARENT EN CHAINES. Le format ISO (`2026-08-20`) se
+ *   classe correctement caractere par caractere : construire un `Date` par
+ *   comparaison serait plus lent et n'apporterait rien.
+ */
+export function valeurTriCroyant(
+  croyant: CroyantTriable,
+  colonne: ColonneTriCroyant,
+): string | number | null {
+  switch (colonne) {
+    case 'nom':
+      return nomComplet(croyant.nom, croyant.prenom);
+    case 'matricule':
+      return croyant.matricule;
+    case 'sexe':
+      return LIBELLES_SEXE[croyant.sexe];
+    case 'age': {
+      const horodatage = Date.parse(croyant.date_naissance);
+      // Une date illisible ne vaut pas « age zero » : elle n'a pas de valeur.
+      return Number.isNaN(horodatage) ? null : -horodatage;
+    }
+    case 'eglise':
+      return croyant.eglise?.nom ?? null;
+    case 'cellule':
+      return croyant.cellule?.nom ?? null;
+    case 'grade':
+      return croyant.grade?.libelle ?? null;
+    case 'bapteme':
+      return croyant.date_bapteme;
+    case 'statut':
+      return croyant.statut;
+  }
+}

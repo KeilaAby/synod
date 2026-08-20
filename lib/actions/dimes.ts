@@ -15,6 +15,7 @@ import {
   type CorrespondanceVersement,
   analyserVersements,
   indexerDonateurs,
+  indexerEglises,
 } from '@/lib/domain/import-dimes';
 import { type ActionResult, ko, ok } from '@/lib/domain/result';
 import { auditer, requirePermission, requireSession } from '@/lib/session';
@@ -479,10 +480,17 @@ export async function importerVersementsDime(
       );
     }
 
+    /**
+     * L'EGLISE SE RECONNAIT CONTRE L'ARBRE DEJA CHARGE — aucune lecture de
+     * plus (regle 28). Seules les EGLISES entrent dans l'index : le fichier
+     * designe l'eglise de rattachement d'une personne, et un croyant ne se
+     * rattache pas a un district (RG-05).
+     */
     const rapport = analyserVersements(
       data.lignes,
       data.correspondance as CorrespondanceVersement,
       indexerDonateurs(donateurs.donateurs),
+      indexerEglises(arbre.filter((e) => e.type === 'EGLISE')),
     );
 
     if (rapport.retenues.length === 0) {
@@ -510,6 +518,10 @@ export async function importerVersementsDime(
         // contre lui que le rapprochement se fera.
         nom_source: l.nomSource ? sanitize(l.nomSource) : null,
         prenom_source: l.prenomSource ? sanitize(l.prenomSource) : null,
+        // EF-FIN-34 — l'eglise lue amorce la creation de fiche. Le libelle
+        // part meme quand rien ne le reconnait : il suffit souvent a trancher.
+        eglise_source: l.egliseSource ? sanitize(l.egliseSource) : null,
+        eglise_id: l.egliseId,
       })),
     });
 

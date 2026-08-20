@@ -289,9 +289,29 @@ export function MandatDialog({
                 )}
               </Field>
 
+              {/*
+                LE TERME EST EXIGÉ À L'OUVERTURE, PAS À LA MODIFICATION.
+
+                Un mandat sans fin ne s'achève jamais — et depuis qu'un mandat
+                échu ferme l'application (RG-07), l'accès de ses membres non
+                plus. Ouvrir un bureau « pour voir » reviendrait à donner des
+                accès qui ne se reprendront jamais.
+
+                En modification, il reste facultatif : les bureaux ouverts
+                avant cette règle n'ont pas de terme, et corriger le LIBELLÉ de
+                l'un d'eux ne doit pas obliger à inventer sa date de fin. Une
+                date de fin inventée est pire qu'absente — elle a l'air vraie,
+                elle fermera des accès le jour venu, et personne ne saura d'où
+                elle sort.
+              */}
               <Field
-                label="Fin prévue"
-                hint="Facultative — un mandat peut rester ouvert."
+                label={edition ? 'Fin prévue' : 'Fin du mandat'}
+                required={!edition}
+                hint={
+                  edition
+                    ? 'Se corrige, et se prolonge : reconduire un mandat repousse ce terme.'
+                    : 'Un mandat a un terme. Il se corrige ensuite, et se reconduit.'
+                }
               >
                 {(aria) => (
                   <Input

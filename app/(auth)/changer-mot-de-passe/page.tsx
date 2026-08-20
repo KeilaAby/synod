@@ -22,6 +22,15 @@ export const metadata: Metadata = { title: 'Choisir un mot de passe' };
 export default async function ChangerMotDePassePage() {
   const session = await getSession();
   if (!session) redirect('/connexion');
+
+  /**
+   * RG-07 — le mandat passe AVANT. Cet ecran vit hors du gabarit applicatif,
+   * donc hors de sa garde : sans cette ligne, quelqu'un dont le mandat est
+   * termine choisirait un mot de passe, et l'action le refuserait pour une
+   * raison que l'ecran n'aurait jamais mentionnee.
+   */
+  if (session.mandatEchu) redirect('/mandat-echu');
+
   if (!session.doitChangerMotDePasse) redirect('/tableau-de-bord');
 
   return <ChangementForm nomComplet={session.nomComplet} />;

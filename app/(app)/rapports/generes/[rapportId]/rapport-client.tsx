@@ -1,26 +1,18 @@
 'use client';
 
-import { ArrowLeft, Download, Eye, EyeOff, Loader2, Printer } from 'lucide-react';
+import { ArrowLeft, Download, Printer } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import { toast } from 'sonner';
 
 import { exporterDonnees } from '@/components/rapports/exporter-donnees';
 import { imprimerRapport } from '@/components/rapports/imprimer-rapport';
 import { RenduRapport, type EnteteRapport } from '@/components/rapports/rendu-rapport';
-import { avertir } from '@/components/shared/messages';
-import { PermissionGate } from '@/components/shared/permission-gate';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { publierRapport } from '@/lib/actions/rapports';
 import {
   type BlocOmis,
   type ContenuRapport,
   type StructureRapport,
   mentionOmissions,
 } from '@/lib/domain/rapport';
-import { appelerAction } from '@/lib/utils/appeler-action';
 
 /**
  * Un rapport GENERE — EF-RAP-15 a 18.
@@ -35,44 +27,32 @@ import { appelerAction } from '@/lib/utils/appeler-action';
  * document : ce qu'on voit est ce qui sort. Aucun fichier n'est donc stocke, et
  * il n'a pas a l'etre : le contenu etant fige, la reimpression est reproductible
  * par construction (EF-RAP-17).
+ *
+ * IL N'Y A PLUS DE PUBLICATION (retiree le 20 aout 2026, migration `0060`).
+ *
+ * Publier rendait un rapport lisible par tout le perimetre SANS `report.read` —
+ * c'en etait la definition. Le defaut se voyait mal : RG-26 omet bien les blocs
+ * non habilites, mais A LA GENERATION et sous la session de CELUI QUI GENERE.
+ * Le contenu etant ensuite fige (RG-27), un rapport publie montrait ses
+ * finances a quelqu'un a qui `finance.read` avait ete refuse. L'omission avait
+ * eu lieu, mais pour le mauvais lecteur.
+ *
+ * Un rapport est desormais confidentiel a son entite : `report.read` decide
+ * seul, avec sa portee. Un droit, une portee, une regle.
  */
 export function RapportClient({
-  rapportId,
   nom,
   structure,
   contenu,
   blocsOmis,
   entete,
-  publie,
-  cheminEntite,
 }: {
-  rapportId: string;
   nom: string;
   structure: StructureRapport;
   contenu: ContenuRapport;
   blocsOmis: BlocOmis[];
   entete: EnteteRapport;
-  publie: boolean;
-  cheminEntite: string;
 }) {
-  const router = useRouter();
-  const [enCours, setEnCours] = useState(false);
-
-  async function basculerPublication() {
-    setEnCours(true);
-    const resultat = await appelerAction(() =>
-      publierRapport({ rapportId, publier: !publie }),
-    );
-    setEnCours(false);
-
-    if (!resultat.ok) {
-      avertir(resultat.error);
-      return;
-    }
-    toast.success(resultat.data.publie ? 'Rapport publié.' : 'Publication retirée.');
-    router.refresh();
-  }
-
   return (
     <div data-large className="space-y-4">
       <div className="no-print flex flex-wrap items-center gap-4">
@@ -88,29 +68,6 @@ export function RapportClient({
             {entete.entite} · {entete.periode}
           </p>
         </div>
-
-        {publie && <Badge>Publié</Badge>}
-
-        {/* EF-RAP-18 — publier est un droit à part : composer un rapport pour
-            soi et le rendre lisible par tout un périmètre ne sont pas le même
-            geste. */}
-        <PermissionGate perm="report.publish" scope={cheminEntite}>
-          <Button
-            variant="outline"
-            className="h-10"
-            onClick={basculerPublication}
-            disabled={enCours}
-          >
-            {enCours ? (
-              <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
-            ) : publie ? (
-              <EyeOff className="mr-2 size-4" aria-hidden />
-            ) : (
-              <Eye className="mr-2 size-4" aria-hidden />
-            )}
-            {publie ? 'Retirer la publication' : 'Publier'}
-          </Button>
-        </PermissionGate>
 
         {/* EF-RAP-16 — le classeur sert à REPRENDRE, le PDF à TRANSMETTRE. */}
         <Button

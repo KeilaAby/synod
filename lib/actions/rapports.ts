@@ -28,7 +28,6 @@ import {
   enregistrerStructureSchema,
   genererRapportSchema,
   modifierModeleSchema,
-  publierRapportSchema,
 } from '@/lib/validation/rapport';
 import { champsEnErreur } from '@/lib/validation/zod-errors';
 
@@ -588,57 +587,6 @@ export async function genererRapport(
 
 // -----------------------------------------------------------------------------
 
-/**
- * EF-RAP-18 — publier un rapport, ou le retirer.
- *
- * LE DROIT SE VERIFIE EN BASE, PAS ICI. `fn_rapport_before_update` (migration
- * 0043) exige `report.publish` sur l'entite du rapport au moment ou le statut
- * passe a `PUBLIE` : une politique RLS ne sait pas comparer l'ancien statut au
- * nouveau, un trigger si. Cette action ne fait donc que demander — et rapporte
- * fidelement le refus.
- *
- * RG-27 RESTE ENTIER : publier ne touche ni au contenu, ni a la structure, ni
- * a la periode. Le trigger le verifie aussi.
- */
-export async function publierRapport(
-  input: unknown,
-): Promise<ActionResult<{ publie: boolean }>> {
-  return executerAction('publierRapport', async () => {
-    const session = await requireSession();
-
-    const analyse = publierRapportSchema.safeParse(input);
-    if (!analyse.success) return ko('Requete invalide.');
-    const { rapportId, publier } = analyse.data;
-
-    const sb = await createClient();
-    const { error } = await sb
-      .from('report_instances')
-      .update({ statut: publier ? 'PUBLIE' : 'GENERE' })
-      .eq('id', rapportId);
-
-    if (error) {
-      // Le message du trigger EST destine a l'utilisateur : il nomme le droit
-      // qui manque. Le remplacer par un generique perdrait la seule chose
-      // utile de l'echec.
-      return ko(
-        error.message.includes('EF-RAP-18')
-          ? error.message
-          : "Le rapport n'a pas pu etre publie.",
-      );
-    }
-
-    await auditer({
-      session,
-      action: publier ? 'APPROVE' : 'CANCEL',
-      table: 'report_instances',
-      recordId: rapportId,
-      diff: { champ: 'statut', apres: publier ? 'PUBLIE' : 'GENERE' },
-    });
-
-    revalidatePath('/rapports/generes');
-    return ok({ publie: publier });
-  });
-}
 
 // -----------------------------------------------------------------------------
 

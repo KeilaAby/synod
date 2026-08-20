@@ -93,10 +93,9 @@ s'appliquent pas toutes seules** : c'est l'utilisateur qui les passe dans
 l'éditeur SQL Supabase, et il le confirme. Ne jamais supposer qu'une migration
 écrite est appliquée.
 
-La dernière appliquée est la **`0053`** (19 août 2026) ; **`0054` et `0055`
-attendent**. `notes/todos.md` et le dernier point d'étape le confirment tous
-deux — et c'est cette liste-là qui fait foi, pas le numéro le plus élevé du
-dossier.
+La derniere appliquee est la **`0060`** (20 aout 2026) ; **aucune n'attend**.
+`notes/todos.md` et le dernier point d'étape le confirment tous deux — et c'est
+cette liste-là qui fait foi, pas le numéro le plus élevé du dossier.
 
 Pour une base **neuve**, `supabase/install.sql` les regroupe toutes — il est
 **généré** (`pnpm db:bundle`), donc jamais édité à la main.

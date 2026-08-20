@@ -15,7 +15,7 @@ Application web de gestion d'église. **Lire avant toute tâche** :
 Toute modification doit citer l'exigence ou la règle qu'elle sert. Si une
 demande contredit `cdg.md`, signalez-le avant d'implémenter.
 
-## État — 19 août 2026
+## État — 20 août 2026
 
 **Lots 0 à 7 livrés.** Il reste le **lot 8** — portabilité, recette et mise en
 production — et quelques finitions listées au dernier point d'étape.
@@ -454,8 +454,72 @@ entité. `settings.manage` étant non délégable, le Siège était déjà seul 
 détenir en pratique ; mais « en pratique » n'est pas une garantie, et la
 suppression suit la même règle que la création.
 
-Base à jour jusqu'à la migration `0053` (`0054` et `0055` **en attente**) —
-fuseau `Indian/Antananarivo` (UTC+3).
+**Journée du 20 août 2026 — la liste `notes/todos.md`, reprise dans l'ordre**
+(migrations `0056` à `0060`). Ce qui a été livré, et ce qu'il ne faut pas
+défaire :
+
+**Tri des colonnes** (`lib/domain/tri.ts`, partagé). **Une absence n'est pas une
+petite valeur** : les lignes sans valeur restent en queue **dans les deux
+sens** — un croyant sans date de baptême n'est pas « le premier baptisé ».
+Deux états, pas trois : un « aucun tri » rendrait un ordre qu'aucun chevron
+n'explique.
+
+**Un mandat échu ferme l'application** (`lib/domain/mandat.ts`, sans migration).
+Évalué **à chaque ouverture de session**, jamais par une tâche planifiée — qui
+laisserait passer la journée et tomberait en silence. **Deux portes** : le
+gabarit redirige vers `/mandat-echu`, et `requireSession` refuse. **On révoque
+sur preuve, jamais sur absence de preuve** (règle 15) : aucun mandat *connu* ne
+ferme rien. Deux dérogations — **le Siège**, portée par l'**entité** et non par
+le rôle (ne dispenser que le SuperAdmin ferait dépendre le redémarrage d'une
+seule personne), et le **responsable informatique tant qu'il l'est**. Dans tous
+les cas **on ne ferme que l'accès** : la personne reste croyante de son église.
+
+**Bureaux** (`0059`) : le **terme est exigé à l'ouverture** — mais la colonne
+n'est **pas** `not null`, parce qu'**une date de fin inventée est pire qu'une
+absente** : elle a l'air vraie et fermera des accès sans que personne sache d'où
+elle sort. Le trigger ne regarde que les insertions. **Un bureau clos est
+archivé, jamais supprimé** : le verrou est un **trigger** et non une politique
+RLS — une politique rendrait la ligne invisible, répondrait « 0 ligne
+supprimée », et l'écran annoncerait une réussite.
+
+**Dîmes — les trois règles de rapprochement** (`0056`). Un nom reconnu qui
+présente un numéro **nouveau** se le voit attribuer, à l'import **comme** à la
+résolution. Le numéro va dans **l'église du croyant**, jamais dans l'entité
+collectrice ; un numéro **déjà détenu par un autre n'est jamais pris** ; l'ancien
+est **désactivé, pas supprimé** — il figure sur des reçus remis. Une enveloppe
+numérotée **sans nom** entre dans la file : `0032` l'excluait, mais ce
+raisonnement valait tant qu'il n'y avait rien pour travailler — un numéro *est*
+ce quelque chose. Sans nom NI numéro, elle reste dehors.
+
+**Un nom lu suffit pour un reçu** (`0057`) : ce qui manque à quelqu'un que le
+fichier nomme sans qu'une fiche le reconnaisse n'est pas son identité mais son
+enregistrement — un travail qui nous appartient. **Le reçu ne se renumérote
+pas** : la résolution conserve celui déjà émis, sinon deux références
+désigneraient le même argent et le papier détenu cesserait de correspondre.
+
+**L'église lue dans le fichier** (`0058`) : `eglise_source` garde ce que le
+fichier disait **même si rien ne le reconnaît**, `eglise_id` porte l'entité,
+résolue **une fois à l'import** — la résoudre à l'affichage la ferait dépendre
+du lecteur.
+
+**La publication des rapports est retirée** (`0060`). Le défaut était réel :
+RG-26 omet les blocs non habilités **à la génération**, sous la session de celui
+qui génère, et le contenu est ensuite figé (RG-27) — un rapport publié montrait
+ses finances à qui n'y avait pas droit. Rejouer l'omission à la lecture ferait
+varier le document d'un lecteur à l'autre. **`report.read` décide seul**, avec sa
+portée ; les rapports déjà publiés gardent leur statut (c'est de l'histoire) mais
+il n'ouvre plus rien, et `report.publish` **disparaît du registre** au lieu de
+devenir décoratif.
+
+**Filtres par bloc** (EF-RAP-03, sans migration) : **que des ensembles clos et
+connus** (règle 18) — un filtre par grade figerait dans le modèle une valeur que
+le référentiel peut renommer. **L'absence vaut « tout »**, un filtre orphelin est
+ignoré, et **le rapport dit ce qu'il a retenu** sous le titre du bloc : sur une
+feuille imprimée, personne ne peut ouvrir les réglages pour comprendre pourquoi
+le total ne correspond pas.
+
+Base à jour jusqu'à la migration `0060` — **aucune n'attend**. Fuseau
+`Indian/Antananarivo` (UTC+3).
 **Toute migration qui crée ou remplace
 une fonction doit finir par `notify pgrst, 'reload schema'`** : sans lui, l'API
 répond « fonction inconnue » sur du SQL pourtant en place — constaté deux fois,
@@ -467,7 +531,7 @@ configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` 
 l'API.
 
 Historique : [`SESSION_HISTORY.md`](.claude-code-history/SESSION_HISTORY.md) ·
-dernier point d'étape : [`.claude-code-history/2026-08-19_resumes-moi.md`](.claude-code-history/2026-08-19_resumes-moi.md)
+dernier point d'étape : [`.claude-code-history/2026-08-20_resumes-moi.md`](.claude-code-history/2026-08-20_resumes-moi.md)
 
 ## Publication — lire `.agents/rules/gitpush.md` AVANT tout push
 

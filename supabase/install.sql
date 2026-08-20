@@ -10,8 +10,8 @@
 --         pnpm db:bundle --depuis <derniere version appliquee>
 --     La derniere version appliquee se lit dans supabase/diagnostic.sql.
 --
--- Genere le 2026-08-19T12:35:42.626Z
--- Migrations : 48 + amorce
+-- Genere le 2026-08-20T12:43:10.792Z
+-- Migrations : 60 + amorce
 -- =============================================================================
 
 
@@ -7214,6 +7214,1994 @@ update grades
 notify pgrst, 'reload schema';
 
 insert into schema_migrations (version) values ('0048')
+  on conflict (version) do nothing;
+
+-- #############################################################################
+-- ## 0049_remise_dime_sur_mouvement_valide.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0049 — Rattacher un bordereau n'est pas modifier le mouvement
+-- =============================================================================
+-- Reference : RG-17 (un mouvement valide est immuable), EF-FIN-30 (la remise
+--             physique est ce que constate la validation).
+--
+-- CE QUI N'ALLAIT PAS, ET POURQUOI PERSONNE NE POUVAIT LE VOIR EN LISANT LE SQL
+--
+-- `fn_remettre_collectes` rattache les collectes au bordereau en DEUX passes :
+-- celles qui restent a valider, puis celles qui sont DEJA validees — ces
+-- dernieres sans toucher au statut, precisement pour ne pas heurter RG-17.
+--
+-- Le commentaire de la migration 0038 disait : « RG-17 refuse toute ecriture
+-- sur un mouvement valide, les inclure ci-dessus ferait echouer le bordereau
+-- entier ». C'etait juste. Mais la seconde passe est une ECRITURE elle aussi, et
+-- le garde-fou de `fn_finance_before_write` ne regarde PAS ce qui a change :
+--
+--     if old.statut = 'VALIDE' then
+--       if not (new.statut = 'ANNULE' and ...) then raise ...
+--
+-- Il se declenche donc sur TOUT `update` d'une ligne validee, y compris celui
+-- qui ne pose qu'un `dime_remise_id`. Separer les deux passes ne changeait rien :
+-- la seconde etait vouee a echouer a coup sur, et avec elle la remise entiere.
+--
+-- Symptome constate le 19 aout 2026 : remise du District Avaradrano, 512 000 MGA,
+-- refusee avec « RG-17 : un mouvement valide est immuable ». Aucune collecte
+-- anterieure a 0038 ne pouvait donc etre portee au Siege.
+--
+-- CE QUE RG-17 PROTEGE VRAIMENT
+--
+-- RG-17 defend les DONNEES d'un mouvement : son montant, sa categorie, son
+-- entite, sa date, son sens, son statut. Le bordereau de remise n'en fait pas
+-- partie — c'est la trace d'un geste POSTERIEUR, la remise en mains propres au
+-- Siege. L'enregistrer ne reecrit pas l'histoire, il la complete.
+--
+-- Le seul changement tolere est donc le passage de `dime_remise_id` de NULL a
+-- une valeur, et rien d'autre dans la meme ecriture. Le REMPLACEMENT d'un
+-- bordereau par un autre reste refuse : il ferait compter la meme collecte sur
+-- deux bordereaux.
+--
+-- REJOUABLE (regle 23) : `create or replace` sur une fonction `returns trigger`
+-- dont le type de retour ne change pas.
+-- =============================================================================
+
+create or replace function fn_finance_before_write() returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_workflow_actif boolean;
+  v_rattache_bordereau boolean;
+begin
+  new.periode := date_trunc('month', new.date_operation)::date;
+
+  -- RG-13 : le sens est DEDUIT de la categorie, jamais saisi a la main.
+  if tg_op = 'INSERT' or new.categorie_id is distinct from old.categorie_id then
+    select sens into new.sens from finance_categories where id = new.categorie_id;
+  end if;
+
+  -- EF-FIN-26 : rien n'entre dans une periode close.
+  if fn_periode_est_close(new.entity_id, new.date_operation) then
+    raise exception
+      'EF-FIN-26 : la periode % de cette entite est cloturee ; sa reouverture est necessaire.',
+      to_char(new.periode, 'MM/YYYY')
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  if tg_op = 'INSERT' then
+    v_workflow_actif := fn_finance_workflow_actif(new.entity_id);
+
+    -- RG-16 : workflow inactif POUR CETTE ENTITE => validation immediate.
+    if not v_workflow_actif and new.statut = 'BROUILLON' then
+      new.statut := 'VALIDE';
+      new.valide_le := now();
+    end if;
+
+  else
+    /**
+     * Rien ne SORT non plus d'une periode close — ni par un changement de
+     * date, ni par un changement d'entite.
+     */
+    if old.date_operation is distinct from new.date_operation
+    or old.entity_id is distinct from new.entity_id
+    then
+      if fn_periode_est_close(old.entity_id, old.date_operation) then
+        raise exception
+          'EF-FIN-26 : ce mouvement appartient a la periode cloturee % ; sa reouverture est necessaire.',
+          to_char(old.periode, 'MM/YYYY')
+          using errcode = 'insufficient_privilege';
+      end if;
+    end if;
+
+    /**
+     * EF-FIN-30 — LE RATTACHEMENT A UN BORDEREAU DE REMISE.
+     *
+     * Vrai quand l'ecriture ne fait QUE poser `dime_remise_id` sur une collecte
+     * qui n'en avait pas : le statut, le montant, la categorie, l'entite, la
+     * date et le sens restent identiques. C'est la trace d'un geste posterieur
+     * — la remise en mains propres —, pas une reecriture du mouvement.
+     *
+     * Le remplacement d'un bordereau par un autre n'entre PAS dans ce cas :
+     * `old.dime_remise_id is null` l'exige. Une collecte ne se remet qu'une
+     * fois, sans quoi le meme argent figurerait sur deux bordereaux.
+     */
+    v_rattache_bordereau :=
+      old.dime_remise_id is null
+      and new.dime_remise_id is not null
+      and (new.statut, new.montant, new.categorie_id, new.entity_id,
+           new.date_operation, new.sens)
+          is not distinct from
+          (old.statut, old.montant, old.categorie_id, old.entity_id,
+           old.date_operation, old.sens);
+
+    -- RG-17 : un mouvement valide est immuable, sauf annulation motivee.
+    if old.statut = 'VALIDE' and not v_rattache_bordereau then
+      if not (new.statut = 'ANNULE' and new.motif_annulation is not null) then
+        raise exception
+          'RG-17 : un mouvement valide est immuable ; seule une annulation motivee est possible';
+      end if;
+      if (new.montant, new.categorie_id, new.entity_id, new.date_operation, new.sens)
+         is distinct from
+         (old.montant, old.categorie_id, old.entity_id, old.date_operation, old.sens)
+      then
+        raise exception
+          'RG-17 : les donnees d''un mouvement valide ne peuvent pas etre modifiees';
+      end if;
+    end if;
+
+    -- Transitions autorisees. Chaque branche enumere les etats ATTEIGNABLES
+    -- depuis l'etat courant ; tout le reste est refuse.
+    if (old.statut = 'BROUILLON' and new.statut not in ('BROUILLON','SOUMIS','VALIDE','ANNULE'))
+    or (old.statut = 'SOUMIS'    and new.statut not in ('SOUMIS','VALIDE','REJETE','ANNULE'))
+    or (old.statut = 'REJETE'    and new.statut not in ('REJETE','BROUILLON','ANNULE'))
+    or (old.statut = 'ANNULE'    and new.statut <> 'ANNULE')
+    then
+      raise exception 'Transition de statut interdite : % -> %', old.statut, new.statut;
+    end if;
+
+    if new.statut = 'SOUMIS' and old.statut is distinct from 'SOUMIS' then
+      new.soumis_le := now();
+    end if;
+    if new.statut = 'VALIDE' and old.statut is distinct from 'VALIDE' then
+      new.valide_le := now();
+    end if;
+  end if;
+
+  new.updated_at := now();
+  return new;
+end $$;
+
+comment on function fn_finance_before_write is
+  'RG-13, RG-16, RG-17, EF-FIN-26, EF-FIN-30. Depuis 0049 : poser un '
+  'dime_remise_id sur une collecte validee est autorise — c''est la trace de la '
+  'remise physique, pas une modification du mouvement.';
+
+notify pgrst, 'reload schema';
+
+insert into schema_migrations (version) values ('0049')
+  on conflict (version) do nothing;
+
+-- #############################################################################
+-- ## 0050_portee_propre_des_droits.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0050 — La portee est une propriete du DROIT
+-- =============================================================================
+-- Reference : RG-25, precise le 19 aout 2026.
+--
+-- LE CAS QUI A TRANCHE
+--
+-- Un administrateur de district a qui l'on accorde `finance.validate` validait,
+-- de ce fait, les mouvements de ses paroisses et de ses eglises : `has_perm`
+-- teste une INCLUSION DE CHEMIN, donc toute la descendance.
+--
+-- Or le lot 4 a pose l'inverse en doctrine : « chaque entite a son bureau et
+-- chaque bureau gere ses finances ; la hierarchie ne fait que les CONSULTER ».
+-- Le controle de droit ne l'avait jamais suivie.
+--
+-- CE QUI CHANGE, ET CE QUI NE CHANGE PAS
+--
+-- Certains actes portent naturellement sur la descendance : creer une eglise,
+-- enregistrer un croyant, consulter des finances. Un district structure ses
+-- paroisses — si son administrateur ne le pouvait pas, personne ne le ferait.
+--
+-- D'autres ne concernent QUE l'entite : valider ses ecritures, arreter ses
+-- comptes, composer son bureau, ouvrir des comptes et distribuer des
+-- habilitations. Ceux-la sont declares `PROPRE`.
+--
+-- La portee est donc une propriete du DROIT, pas de l'habilitation : ce n'est
+-- pas a l'administrateur de decider si « valider une finance » descend.
+--
+-- ALIGNEMENT AVEC LE DOMAINE — `fn_permissions_portee_propre()` DOIT rester
+-- identique aux droits marques `portee: 'PROPRE'` dans
+-- `lib/domain/permissions.ts`. Un test lit ce fichier et compare les deux
+-- listes : une regle ecrite a deux endroits ne diverge jamais le jour ou on
+-- l'ecrit, elle diverge six mois plus tard.
+--
+-- REJOUABLE (regle 23) : `create or replace`.
+-- =============================================================================
+
+create or replace function fn_permissions_portee_propre() returns text[]
+language sql immutable as $$
+  select array[
+    -- Chaque bureau gere SES finances ; la hierarchie les consulte (lot 4).
+    'finance.create',
+    'finance.update',
+    'finance.submit',
+    'finance.validate',
+    'finance.validate_own',
+    'finance.periode.close',
+    'finance.periode.reopen',
+    -- Composer le bureau d'une eglise ne revient pas au district.
+    'bureau.manage',
+    'bureau.delete',
+    -- Les comptes et les habilitations d'une entite ne se pilotent pas d'en haut.
+    'user.manage',
+    'permission.delegate'
+  ]::text[]
+$$;
+
+comment on function fn_permissions_portee_propre is
+  'RG-25 — droits qui valent pour l''entite SEULE, jamais pour sa descendance. '
+  'DOIT rester aligne sur les droits marques portee PROPRE dans '
+  'lib/domain/permissions.ts — verrouille par tests/unit/permissions.test.ts.';
+
+
+-- -----------------------------------------------------------------------------
+-- Le controle de reference
+-- -----------------------------------------------------------------------------
+--
+-- `p_entity_id is null` reste la DETENTION SEULE, sans portee : c'est ce qui
+-- sert a decider si un bouton s'affiche, avant de savoir sur quelle entite il
+-- portera.
+--
+-- Quand une portee est demandee, deux lectures s'opposent :
+--   - portee `null` sur l'octroi = « tout le perimetre du compte ». Pour un
+--     droit PROPRE, cela se lit « mon entite de rattachement », et rien de plus.
+--   - portee posee = l'entite designee. Pour un droit PROPRE, il faut l'EGALITE
+--     du chemin ; pour les autres, l'inclusion, comme avant.
+
+create or replace function has_perm(p_permission text, p_entity_id uuid default null)
+returns boolean
+language sql stable security definer set search_path = public as $$
+  select is_superadmin()
+      or exists (
+        select 1
+          from user_permissions up
+          left join entities se on se.id = up.scope_entity_id
+         where up.user_id = current_profile_id()
+           and up.permission = p_permission
+           and (
+                p_entity_id is null            -- detention seule
+             or exists (
+                  select 1
+                    from entities e
+                   where e.id = p_entity_id
+                     and (
+                       case
+                         when p_permission = any (fn_permissions_portee_propre())
+                           -- PROPRE : l'entite visee EST la portee accordee.
+                           then e.path = coalesce(se.path, current_scope_path())
+                         else
+                           -- DESCENDANTE : elle est sous la portee accordee.
+                           e.path <@ coalesce(se.path, current_scope_path())
+                       end
+                     )
+                )
+           )
+      )
+$$;
+
+comment on function has_perm is
+  'RG-24, RG-25 — le droit est-il detenu, et sa portee couvre-t-elle l''entite ? '
+  'Depuis 0050, la portee suit la NATURE du droit : PROPRE (l''entite seule) ou '
+  'DESCENDANTE (elle et son sous-arbre). Voir fn_permissions_portee_propre().';
+
+notify pgrst, 'reload schema';
+
+insert into schema_migrations (version) values ('0050')
+  on conflict (version) do nothing;
+
+-- #############################################################################
+-- ## 0051_delegation_saisie_deleguee.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0051 — La saisie deleguee descend la hierarchie
+-- =============================================================================
+-- Reference : ARB-2, EF-STR-10, EF-FIN-05, RG-24, RG-25.
+--
+-- CE QUI COINCAIT
+--
+-- `finance.delegate` figurait parmi les droits NON DELEGABLES : seul le Siege
+-- pouvait donc saisir pour une entite privee d'acces a l'application. Un
+-- district dont trois eglises n'ont pas de connexion devait lui faire remonter
+-- chaque recette — alors que la doctrine du lot 4 place les finances au plus
+-- pres du bureau qui les tient.
+--
+-- CE QUI LE BORNE DESORMAIS
+--
+-- Non plus l'interdiction de deleguer, mais DEUX conditions cumulatives, toutes
+-- deux verifiees :
+--
+--   1. LA PORTEE DE L'OCTROI (RG-25). Le Siege confie le droit a un district
+--      pour sa branche : il ne saisira que chez lui. `finance.delegate` reste
+--      a portee DESCENDANTE — c'est son objet meme que d'atteindre une autre
+--      entite que la sienne.
+--
+--   2. `sans_acces_application` SUR L'ENTITE VISEE (ARB-2). Verifie a la saisie
+--      depuis le 19 aout 2026 : avant, le drapeau ne decidait de rien, et
+--      detenir le droit suffisait a signer une ecriture du nom de n'importe
+--      quelle entite — y compris de celles qui saisissent tres bien les leurs.
+--
+-- Et l'ecriture reste marquee « saisie deleguee » avec le nom de son auteur
+-- reel (EF-FIN-06) : elle se voit dans chaque liste et dans chaque rapport.
+--
+-- ALIGNEMENT — cette liste DOIT rester identique a `NON_DELEGABLES` dans
+-- `lib/domain/permissions.ts` ; un test lit ce fichier et compare les deux.
+--
+-- REJOUABLE (regle 23) : `create or replace`.
+-- =============================================================================
+
+create or replace function fn_permissions_non_delegables() returns text[]
+language sql immutable as $$
+  select array[
+    'entity.delete',
+    -- Effacer l'histoire d'un bureau se decide au Siege, pas en cascade.
+    'bureau.delete',
+    'referentiel.manage',
+    'settings.manage',
+    -- EF-FIN-18 : la levee de la separation saisie/validation.
+    'finance.validate_own',
+    -- EF-FIN-26 : celui qui clot ne doit pas pouvoir s'accorder de quoi rouvrir.
+    'finance.periode.reopen'
+  ]::text[]
+$$;
+
+comment on function fn_permissions_non_delegables is
+  'RG-24 : droits reserves au Siege, jamais delegables. DOIT rester aligne sur '
+  'NON_DELEGABLES dans lib/domain/permissions.ts — verrouille par '
+  'tests/unit/permissions.test.ts. Depuis 0051, finance.delegate n''y figure '
+  'plus : il est borne par sa portee et par sans_acces_application.';
+
+notify pgrst, 'reload schema';
+
+insert into schema_migrations (version) values ('0051')
+  on conflict (version) do nothing;
+
+-- #############################################################################
+-- ## 0052_saisie_deleguee_sans_workflow.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0052 — La saisie deleguee ne passe par aucun workflow
+-- =============================================================================
+-- Reference : ARB-2, EF-STR-10, EF-FIN-05, EF-FIN-06, RG-16, RG-25.
+--
+-- LA REGLE, POSEE PAR L'UTILISATEUR LE 19 AOUT 2026
+--
+--   · Entite SANS acces a l'application : son ascendant saisit pour elle, et
+--     SANS workflow de validation. Tout lui est delegue.
+--   · Entite AVEC acces : elle monte un bureau et saisit elle-meme ; le
+--     workflow de validation reste reglable par son administrateur ou par le
+--     Siege — ce qui est deja le cas depuis le lot 4.
+--
+-- CE N'EST PAS QU'UNE PREFERENCE : L'ALTERNATIVE EST UN BLOCAGE
+--
+-- Depuis 0050, `finance.validate` est a portee PROPRE — un district ne valide
+-- pas les mouvements de ses eglises, il les consulte. Et une entite declaree
+-- sans acces n'a, par definition, aucun compte pour se connecter.
+--
+-- Une ecriture deleguee qui naitrait SOUMIS n'aurait donc PERSONNE pour la
+-- valider : ni l'entite, qui ne se connecte pas ; ni l'ascendant qui l'a
+-- saisie, dont le droit ne descend plus jusqu'a elle. Elle resterait en attente
+-- indefiniment, comptee nulle part — le solde de l'entite serait faux et rien
+-- ne le signalerait. La validation immediate est le seul etat coherent.
+--
+-- CE QUE CELA NE RELACHE PAS
+--
+-- La saisie deleguee reste bornee par deux conditions cumulatives, verifiees
+-- dans `saisirMouvement` : la portee de l'octroi de `finance.delegate`, et
+-- `sans_acces_application` sur l'entite visee. On ne peut donc pas se servir de
+-- cette regle pour contourner le workflow d'une entite qui, elle, se connecte :
+-- la saisie deleguee lui est refusee tout court.
+--
+-- Et l'ecriture porte `est_delegue` avec le nom de son auteur reel
+-- (EF-FIN-06) : elle se distingue dans chaque liste, chaque filtre et chaque
+-- rapport. Une validation sans controle qui ne se verrait pas serait un trou ;
+-- celle-ci est nommee.
+--
+-- LES DIMES NE SONT PAS CONCERNEES. Une collecte naît SOUMIS parce qu'elle
+-- annonce sans encaisser, et c'est la remise par bordereau qui la valide
+-- (EF-FIN-30). `fn_saisir_collecte_dime` n'ecrit jamais `est_delegue` — il
+-- reste a son defaut `false` —, donc la branche ci-dessous ne la voit pas.
+--
+-- REJOUABLE (regle 23) : `create or replace` sur une fonction `returns trigger`
+-- dont le type de retour ne change pas.
+-- =============================================================================
+
+create or replace function fn_finance_before_write() returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_workflow_actif boolean;
+  v_rattache_bordereau boolean;
+begin
+  new.periode := date_trunc('month', new.date_operation)::date;
+
+  -- RG-13 : le sens est DEDUIT de la categorie, jamais saisi a la main.
+  if tg_op = 'INSERT' or new.categorie_id is distinct from old.categorie_id then
+    select sens into new.sens from finance_categories where id = new.categorie_id;
+  end if;
+
+  -- EF-FIN-26 : rien n'entre dans une periode close.
+  if fn_periode_est_close(new.entity_id, new.date_operation) then
+    raise exception
+      'EF-FIN-26 : la periode % de cette entite est cloturee ; sa reouverture est necessaire.',
+      to_char(new.periode, 'MM/YYYY')
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  if tg_op = 'INSERT' then
+    v_workflow_actif := fn_finance_workflow_actif(new.entity_id);
+
+    /**
+     * ARB-2 — LA SAISIE DELEGUEE NE PASSE PAR AUCUN WORKFLOW.
+     *
+     * L'entite visee ne se connecte pas : elle n'a personne pour soumettre ni
+     * pour valider. Et depuis 0050 son ascendant ne le peut pas non plus a sa
+     * place. Laisser le workflow s'appliquer condamnerait l'ecriture a rester
+     * SOUMIS pour toujours.
+     */
+    if new.est_delegue then
+      v_workflow_actif := false;
+    end if;
+
+    -- RG-16 : workflow inactif POUR CETTE ENTITE => validation immediate.
+    if not v_workflow_actif and new.statut = 'BROUILLON' then
+      new.statut := 'VALIDE';
+      new.valide_le := now();
+    end if;
+
+  else
+    /**
+     * Rien ne SORT non plus d'une periode close — ni par un changement de
+     * date, ni par un changement d'entite.
+     */
+    if old.date_operation is distinct from new.date_operation
+    or old.entity_id is distinct from new.entity_id
+    then
+      if fn_periode_est_close(old.entity_id, old.date_operation) then
+        raise exception
+          'EF-FIN-26 : ce mouvement appartient a la periode cloturee % ; sa reouverture est necessaire.',
+          to_char(old.periode, 'MM/YYYY')
+          using errcode = 'insufficient_privilege';
+      end if;
+    end if;
+
+    /**
+     * EF-FIN-30 — LE RATTACHEMENT A UN BORDEREAU DE REMISE.
+     *
+     * Vrai quand l'ecriture ne fait QUE poser `dime_remise_id` sur une collecte
+     * qui n'en avait pas : le statut, le montant, la categorie, l'entite, la
+     * date et le sens restent identiques. C'est la trace d'un geste posterieur
+     * — la remise en mains propres —, pas une reecriture du mouvement.
+     *
+     * Le remplacement d'un bordereau par un autre n'entre PAS dans ce cas :
+     * `old.dime_remise_id is null` l'exige. Une collecte ne se remet qu'une
+     * fois, sans quoi le meme argent figurerait sur deux bordereaux.
+     */
+    v_rattache_bordereau :=
+      old.dime_remise_id is null
+      and new.dime_remise_id is not null
+      and (new.statut, new.montant, new.categorie_id, new.entity_id,
+           new.date_operation, new.sens)
+          is not distinct from
+          (old.statut, old.montant, old.categorie_id, old.entity_id,
+           old.date_operation, old.sens);
+
+    -- RG-17 : un mouvement valide est immuable, sauf annulation motivee.
+    if old.statut = 'VALIDE' and not v_rattache_bordereau then
+      if not (new.statut = 'ANNULE' and new.motif_annulation is not null) then
+        raise exception
+          'RG-17 : un mouvement valide est immuable ; seule une annulation motivee est possible';
+      end if;
+      if (new.montant, new.categorie_id, new.entity_id, new.date_operation, new.sens)
+         is distinct from
+         (old.montant, old.categorie_id, old.entity_id, old.date_operation, old.sens)
+      then
+        raise exception
+          'RG-17 : les donnees d''un mouvement valide ne peuvent pas etre modifiees';
+      end if;
+    end if;
+
+    -- Transitions autorisees. Chaque branche enumere les etats ATTEIGNABLES
+    -- depuis l'etat courant ; tout le reste est refuse.
+    if (old.statut = 'BROUILLON' and new.statut not in ('BROUILLON','SOUMIS','VALIDE','ANNULE'))
+    or (old.statut = 'SOUMIS'    and new.statut not in ('SOUMIS','VALIDE','REJETE','ANNULE'))
+    or (old.statut = 'REJETE'    and new.statut not in ('REJETE','BROUILLON','ANNULE'))
+    or (old.statut = 'ANNULE'    and new.statut <> 'ANNULE')
+    then
+      raise exception 'Transition de statut interdite : % -> %', old.statut, new.statut;
+    end if;
+
+    if new.statut = 'SOUMIS' and old.statut is distinct from 'SOUMIS' then
+      new.soumis_le := now();
+    end if;
+    if new.statut = 'VALIDE' and old.statut is distinct from 'VALIDE' then
+      new.valide_le := now();
+    end if;
+  end if;
+
+  new.updated_at := now();
+  return new;
+end $$;
+
+comment on function fn_finance_before_write is
+  'RG-13, RG-16, RG-17, EF-FIN-26, EF-FIN-30. Depuis 0049 : poser un '
+  'dime_remise_id sur une collecte validee est autorise. Depuis 0052 : une '
+  'saisie deleguee ne passe par aucun workflow — l''entite visee ne se '
+  'connecte pas, et depuis 0050 son ascendant ne valide pas a sa place.';
+
+notify pgrst, 'reload schema';
+
+insert into schema_migrations (version) values ('0052')
+  on conflict (version) do nothing;
+
+-- #############################################################################
+-- ## 0053_chiffres_entite.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0053 — Les chiffres d'une entite, pour toute la structure en une passe
+-- =============================================================================
+-- Reference : EF-STR-06 (fiche d'entite), EF-DSH-02 (la RLS borne, l'ecran ne
+--             refiltre pas), RG-20 (portee), regle 28 (le nombre d'allers-retours).
+--
+-- CE QU'ELLE REMPLACE
+--
+-- La fiche d'entite et le pop-up de l'organigramme annonçaient depuis le lot 1 :
+-- « les effectifs, la composition du bureau et le solde apparaitront ici avec
+-- les lots 2, 3 et 4 ». Ces lots sont livres. La promesse restait.
+--
+-- POURQUOI TOUT LE PERIMETRE, ET PAS UNE ENTITE
+--
+-- Le pop-up de l'organigramme s'ouvre sur n'importe quel noeud, sans requete —
+-- c'est ce qui le rend instantane. Interroger a l'ouverture y ajouterait un
+-- aller-retour de 0,5 a 4 s et un squelette, pour trois nombres. On charge donc
+-- le perimetre ENTIER une fois, avec l'arbre, et l'ouverture reste gratuite
+-- (regle 28). La fiche pleine page y lit sa propre ligne.
+--
+-- LES SOLDES NE SONT PAS ICI, ET C'EST VOULU. `fn_finance_soldes_perimetre`
+-- (0026) les calcule deja, propre et consolide, en une passe. En ecrire une
+-- seconde somme donnerait deux resultats que rien ne garantirait egaux
+-- (regle 16) — les deux fonctions s'appellent cote a cote, en parallele.
+--
+-- SECURITY INVOKER (le defaut) : la RLS de `croyants`, de `bureaux` et
+-- d'`entities` s'applique a l'appelant. Un gestionnaire de district n'obtient
+-- que son district, et l'ecran n'a aucun filtrage a refaire — donc aucune
+-- occasion de se tromper en le refaisant (EF-DSH-02).
+--
+-- REJOUABLE (regle 23). ATTENTION — `returns table` : les parametres OUT font
+-- partie de la signature, donc ajouter une colonne est un changement de type de
+-- retour que PostgreSQL refuse (42P13). D'ou le `drop function if exists` qui
+-- precede, indispensable et lui-meme rejouable.
+-- =============================================================================
+
+drop function if exists fn_chiffres_perimetre();
+
+create or replace function fn_chiffres_perimetre()
+returns table (
+  entity_id           uuid,
+  croyants_propres    bigint,
+  croyants_consolides bigint,
+  bureau_id           uuid,
+  bureau_libelle      text,
+  bureau_date_fin     date,
+  bureau_membres      bigint
+)
+language sql
+stable
+as $$
+  with croyants_situes as (
+    /**
+     * RG-04 — un croyant est rattache a son EGLISE, jamais a un district.
+     * Son chemin est donc celui de son eglise : c'est lui qui le fait remonter
+     * dans le consolide de tous ses ascendants.
+     *
+     * Meme critere que le tableau de bord (0041) : `ACTIF` et non supprime. Un
+     * effectif qui compterait les transferes partis serait faux des la premiere
+     * mutation, et faux dans le sens qui flatte.
+     */
+    select c.eglise_id, e.path
+    from croyants c
+    join entities e on e.id = c.eglise_id
+    where c.deleted_at is null
+      and c.statut = 'ACTIF'
+  ),
+  bureau_courant as (
+    /**
+     * RG-10 — au plus UN bureau actif par entite, garanti par un index partiel.
+     * Le `distinct on` n'est donc pas un choix arbitraire : il n'y a qu'une
+     * ligne a prendre, et `date_debut desc` fixe laquelle si l'index venait a
+     * manquer.
+     */
+    select distinct on (b.entity_id)
+      b.entity_id, b.id, b.libelle, b.date_fin
+    from bureaux b
+    where b.deleted_at is null
+      and b.is_active
+    order by b.entity_id, b.date_debut desc
+  ),
+  membres_en_cours as (
+    -- EF-BUR-04 — les mandats EN COURS. Une fonction dont le mandat s'est
+    -- acheve n'est plus une place occupee : la compter ferait paraitre complet
+    -- un bureau qui ne l'est plus.
+    select m.bureau_id, count(*) as n
+    from bureau_membres m
+    where m.date_fin is null or m.date_fin >= current_date
+    group by m.bureau_id
+  )
+  select
+    e.id,
+    -- PROPRE : les croyants de CETTE eglise. Nul pour un district, qui n'en
+    -- porte aucun en propre — c'est la verite, pas une lacune.
+    count(cs.eglise_id) filter (where cs.eglise_id = e.id),
+    -- CONSOLIDE : elle et tout son sous-arbre. `<@` lit « est descendant de,
+    -- ou egal a » : une eglise se compte donc elle-meme.
+    count(cs.eglise_id),
+    bc.id,
+    bc.libelle,
+    bc.date_fin,
+    coalesce(mc.n, 0)
+  from entities e
+  left join bureau_courant bc on bc.entity_id = e.id
+  left join membres_en_cours mc on mc.bureau_id = bc.id
+  -- LEFT JOIN : une entite SANS croyant sort a ZERO, elle ne disparait pas.
+  -- Une eglise absente du tableau se lirait « je ne la vois pas », quand la
+  -- verite est « elle n'en compte aucun » — deux constats opposes (regle 15).
+  left join croyants_situes cs on cs.path <@ e.path
+  where e.deleted_at is null
+  group by e.id, bc.id, bc.libelle, bc.date_fin, mc.n;
+$$;
+
+comment on function fn_chiffres_perimetre is
+  'EF-STR-06 — effectifs et bureau courant de CHAQUE entite du perimetre, en '
+  'une passe. Les soldes viennent de fn_finance_soldes_perimetre (0026) : une '
+  'seconde somme donnerait deux resultats que rien ne garantirait egaux. '
+  'SECURITY INVOKER : la RLS borne le resultat a la portee de l''appelant.';
+
+notify pgrst, 'reload schema';
+
+insert into schema_migrations (version) values ('0053')
+  on conflict (version) do nothing;
+
+-- #############################################################################
+-- ## 0054_purge_corbeille.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0054 — L'effacement definitif : un droit a part, non delegable
+-- =============================================================================
+-- Reference : EF-ADM-10 (corbeille), RG-24 (droits reserves au Siege),
+--             RG-25 (portee du droit).
+--
+-- POURQUOI UN DROIT DE PLUS PLUTOT QUE `trash.restore`
+--
+-- Restaurer DEFAIT une suppression ; purger la rend definitive. Ce ne sont pas
+-- deux degres du meme droit mais deux actes opposes, et le second est le seul
+-- de l'application qui ne se rattrape par rien : ni la corbeille, ni le
+-- journal, ni une restauration ne ramenent ce qu'il a retire.
+--
+-- NON DELEGABLE, pour cette raison meme. Un droit sans retour se decide au
+-- Siege, une fois, et ne se repand pas de proche en proche.
+--
+-- PORTEE PROPRE (declaree cote TypeScript, `fn_permissions_portee_propre` la
+-- porte en base depuis 0050 — a completer ci-dessous). Purger n'est pas un acte
+-- qui descend : un district qui effacerait pour de bon les fiches de ses
+-- eglises le ferait sans que personne, chez elles, ne s'en apercoive avant
+-- qu'il soit trop tard.
+--
+-- CE QUE LA PURGE NE POURRA PAS FAIRE, ET C'EST VOULU. Les cles etrangeres
+-- sont en `on delete restrict` a peu pres partout — un croyant qui a siege
+-- dans un bureau, une entite qui porte des mouvements. La base REFUSERA de les
+-- effacer, et c'est elle qui a raison : ces lignes sont citees ailleurs.
+-- L'application se contente de traduire ce refus en francais.
+--
+-- ALIGNEMENT — cette liste DOIT rester identique a `NON_DELEGABLES` dans
+-- `lib/domain/permissions.ts` ; un test lit ce fichier et compare. Sans lui
+-- l'ecart serait invisible : l'ecran refuserait pendant que la base
+-- accorderait, ou l'inverse.
+--
+-- UNE MIGRATION, UNE FONCTION. La portee PROPRE de `trash.purge` se pose dans
+-- la migration SUIVANTE et non ici : le test d'alignement extrait le PREMIER
+-- `select array[...]` du fichier, et deux listes dans un meme fichier lui
+-- feraient comparer la mauvaise. Le decoupage n'est pas cosmetique — c'est ce
+-- qui garde la verification honnete.
+--
+-- REJOUABLE (regle 23) : `create or replace`.
+-- =============================================================================
+
+create or replace function fn_permissions_non_delegables() returns text[]
+language sql immutable as $$
+  select array[
+    'entity.delete',
+    -- Effacer l'histoire d'un bureau se decide au Siege, pas en cascade.
+    'bureau.delete',
+    'referentiel.manage',
+    'settings.manage',
+    -- EF-FIN-18 : la levee de la separation saisie/validation.
+    'finance.validate_own',
+    -- EF-FIN-26 : celui qui clot ne doit pas pouvoir s'accorder de quoi rouvrir.
+    'finance.periode.reopen',
+    -- EF-ADM-10 : la seule operation sans retour de l'application.
+    'trash.purge'
+  ]::text[]
+$$;
+
+comment on function fn_permissions_non_delegables is
+  'RG-24 : droits reserves au Siege, jamais delegables. DOIT rester aligne sur '
+  'NON_DELEGABLES dans lib/domain/permissions.ts — verrouille par '
+  'tests/unit/permissions.test.ts. Depuis 0051, finance.delegate n''y figure '
+  'plus. Depuis 0054, trash.purge s''y ajoute.';
+
+notify pgrst, 'reload schema';
+
+insert into schema_migrations (version) values ('0054')
+  on conflict (version) do nothing;
+
+-- #############################################################################
+-- ## 0055_portee_propre_trash_purge.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0055 — `trash.purge` a la portee de l'entite SEULE
+-- =============================================================================
+-- Reference : RG-25 (la portee est une propriete du DROIT — 0050), EF-ADM-10.
+--
+-- POURQUOI CE DROIT NE DESCEND PAS
+--
+-- La portee par defaut est DESCENDANTE : un droit accorde a un district vaut
+-- pour ses paroisses et ses eglises. C'est le bon defaut pour presque tout —
+-- consulter, saisir, composer. Ce n'en est pas un pour l'effacement definitif.
+--
+-- Un district qui purgerait les fiches de ses eglises le ferait sans que
+-- personne, chez elles, ne puisse s'en apercevoir avant qu'il soit trop tard :
+-- il n'y a ni corbeille ou le retrouver, ni restauration a demander. Le droit
+-- se donne donc entite par entite, ce qui oblige a nommer ce qu'on autorise.
+--
+-- UNE MIGRATION, UNE FONCTION — voir 0054. Le test d'alignement extrait le
+-- PREMIER `select array[...]` du fichier ; deux listes dans un meme fichier lui
+-- feraient comparer la mauvaise, et la verification cesserait de verifier.
+--
+-- ALIGNEMENT — cette liste DOIT rester identique aux droits declares
+-- `portee: 'PROPRE'` dans `lib/domain/permissions.ts` ; un test lit ce fichier
+-- et compare.
+--
+-- REJOUABLE (regle 23) : `create or replace`.
+-- =============================================================================
+
+create or replace function fn_permissions_portee_propre() returns text[]
+language sql immutable as $$
+  select array[
+    'finance.create','finance.update','finance.submit','finance.validate',
+    'finance.validate_own','finance.periode.close','finance.periode.reopen',
+    'bureau.manage','bureau.delete','user.manage','permission.delegate',
+    -- EF-ADM-10 : l'effacement definitif se donne entite par entite.
+    'trash.purge'
+  ]::text[]
+$$;
+
+comment on function fn_permissions_portee_propre is
+  'RG-25 : droits dont la portee est l''entite SEULE, sans descendance. DOIT '
+  'rester aligne sur les entrees portee: PROPRE de lib/domain/permissions.ts — '
+  'verrouille par tests/unit/permissions.test.ts. Depuis 0055 : trash.purge.';
+
+notify pgrst, 'reload schema';
+
+insert into schema_migrations (version) values ('0055')
+  on conflict (version) do nothing;
+
+-- #############################################################################
+-- ## 0056_regles_rapprochement_dimes.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0056 — Les trois regles de rapprochement des dimes
+-- =============================================================================
+-- Reference : EF-FIN-34, EF-FIN-27, RG-33. Regles arretees le 20 aout 2026.
+--
+-- CE QUE L'IMPORT FAISAIT, ET CE QU'IL LUI MANQUAIT.
+--
+-- Il savait deja rattacher un nom reconnu, et laisser un nom inconnu dans la
+-- file de rapprochement. Deux situations lui echappaient, et chacune coutait
+-- un travail refait a la main :
+--
+--   1. UN NOM RECONNU QUI PRESENTE UN NUMERO NOUVEAU. Le versement gardait le
+--      numero, mais le CROYANT ne le recevait pas : `dime_enveloppes` restait
+--      muette. La collecte suivante reposait donc la meme question,
+--      indefiniment — le numero n'apprenait jamais rien, et quelqu'un le
+--      ressaisissait chaque mois.
+--
+--   2. UNE ENVELOPPE SANS NOM MAIS AVEC UN NUMERO. Elle etait classee anonyme
+--      et sortait du champ. Or le numero DIT quelque chose — il a deja ete
+--      porte, et par quelqu'un. La ligne etait perdue alors qu'une question
+--      simple restait posable.
+--
+-- LES TROIS REGLES, telles qu'elles ont ete arretees :
+--
+--   A. NOM + PRENOM, SANS NUMERO
+--      Reconnu -> rattache. Inconnu -> file des personnes non rattachees.
+--      (Deja en place ; rien ne change.)
+--
+--   B. NOM + PRENOM, AVEC NUMERO
+--      Reconnu et numero NOUVEAU -> rattache ET le numero lui est attribue.
+--      Inconnu -> file des personnes non rattachees.
+--
+--   C. SANS NOM, AVEC NUMERO
+--      -> la ligne entre dans la file, ou le dernier porteur du numero sera
+--      propose. Numero inconnu -> elle reste une enveloppe sans nom.
+--
+-- CE QUI CHANGE DANS LA DOCTRINE — et c'est le point a ne pas manquer.
+--
+-- `0032` disait : « une ligne SANS nom n'entre pas dans la file : il n'y aurait
+-- rien a rapprocher, et la file se remplirait de lignes qu'aucun travail ne
+-- peut clore ». Le raisonnement etait juste TANT QU'IL N'Y AVAIT RIEN POUR
+-- TRAVAILLER. Un numero d'enveloppe est precisement ce quelque chose : il a un
+-- dernier porteur, la question se pose, elle se tranche.
+--
+-- La regle devient donc : une ligne sans nom entre dans la file SI ELLE PORTE
+-- UN NUMERO, et elle seule. Une ligne sans nom ET sans numero reste dehors —
+-- la, il n'y a toujours rien a rapprocher. La raison d'origine n'est pas
+-- abandonnee : elle est bornee a ce qu'elle couvrait vraiment.
+--
+-- REJOUABLE (regle 23) : `create or replace function` sur des signatures
+-- INCHANGEES, et l'attribution des numeros se conditionne d'elle-meme.
+-- =============================================================================
+
+
+-- -----------------------------------------------------------------------------
+-- Attribuer un numero d'enveloppe a un croyant — regle B
+-- -----------------------------------------------------------------------------
+
+/**
+ * Attribue `p_numero` a `p_croyant`, dans l'eglise DU CROYANT.
+ *
+ * TROIS REFUS, ET AUCUN N'EST UNE ERREUR — d'ou le `boolean` plutot qu'une
+ * exception : l'appelant continue sa collecte, il n'a rien a rattraper.
+ *
+ *   - le numero est deja le sien -> il n'y a rien a faire ;
+ *   - le numero appartient a QUELQU'UN D'AUTRE dans cette eglise -> on ne le
+ *     prend pas. Deux personnes ne partagent pas un numero
+ *     (`dime_enveloppes_unicite`), et le voler en silence attribuerait les
+ *     dimes suivantes a la mauvaise personne ;
+ *   - le croyant n'a pas d'eglise lisible -> il n'y a rien a quoi rattacher.
+ *
+ * L'EGLISE EST CELLE DU CROYANT, jamais l'entite collectrice : une ceremonie de
+ * district reunit des donateurs de vingt eglises, et un numero appartient a une
+ * eglise — `dime_enveloppes_unicite` porte sur le couple.
+ *
+ * L'ANCIEN NUMERO EST DESACTIVE, PAS SUPPRIME. Il figure sur des recus deja
+ * remis, et `dime_enveloppe_active_idx` ne contraint que les actifs : l'effacer
+ * rendrait illisible un papier que quelqu'un detient.
+ *
+ * SECURITY DEFINER : appelee par des fonctions elles-memes DEFINER, qui ont
+ * deja verifie `finance.dime.collect` sur l'entite collectrice. Le reverifier
+ * ici sur l'eglise du croyant refuserait une collecte de district legitime.
+ */
+create or replace function fn_attribuer_enveloppe(
+  p_croyant uuid,
+  p_numero  text
+) returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_eglise  uuid;
+  v_numero  text;
+  v_proprio uuid;
+begin
+  v_numero := nullif(trim(coalesce(p_numero, '')), '');
+  if p_croyant is null or v_numero is null then
+    return false;
+  end if;
+
+  select eglise_id into v_eglise from croyants where id = p_croyant;
+  if v_eglise is null then
+    return false;
+  end if;
+
+  -- Qui detient deja ce numero dans cette eglise ?
+  select croyant_id into v_proprio
+    from dime_enveloppes
+   where eglise_id = v_eglise
+     and numero    = v_numero;
+
+  -- Deja le sien : rien a faire, et surtout pas une seconde ligne.
+  if v_proprio = p_croyant then
+    return false;
+  end if;
+
+  -- A quelqu'un d'autre : on ne le prend pas. Le silence serait pire que le
+  -- conflit — il attribuerait les dimes suivantes au mauvais nom.
+  if v_proprio is not null then
+    return false;
+  end if;
+
+  -- Le precedent numero cesse d'etre actif ; il reste en base pour les recus.
+  update dime_enveloppes
+     set is_active = false
+   where eglise_id  = v_eglise
+     and croyant_id = p_croyant
+     and is_active;
+
+  insert into dime_enveloppes (eglise_id, croyant_id, numero, is_active)
+  values (v_eglise, p_croyant, v_numero, true);
+
+  return true;
+end $$;
+
+comment on function fn_attribuer_enveloppe is
+  'EF-FIN-27, regle B du rapprochement — attribue un numero d''enveloppe au '
+  'croyant, dans SON eglise. Ne prend jamais un numero deja detenu par un '
+  'autre : le conflit se tranche a l''ecran, pas en silence.';
+
+revoke execute on function fn_attribuer_enveloppe from anon;
+
+
+-- -----------------------------------------------------------------------------
+-- La saisie d'une collecte applique les regles B et C
+-- -----------------------------------------------------------------------------
+
+/**
+ * Identique a `0038` pour TOUT ce qui touche a l'argent — le total, le
+ * rattachement au Siege (RG-33), le statut `SOUMIS` pose explicitement
+ * (EF-FIN-30), les recus et leur description. Rien de cela ne change.
+ *
+ * DEUX AJOUTS, ET RIEN D'AUTRE :
+ *   - regle B : un nom reconnu qui presente un numero se voit attribuer ce
+ *     numero — `fn_attribuer_enveloppe` refuse d'elle-meme les conflits ;
+ *   - regle C : une ligne sans nom mais AVEC un numero entre dans la file.
+ *
+ * POURQUOI `''` ET NON `null` POUR LE NOM D'UNE LIGNE SANS NOM.
+ * `dime_rapprochements.nom_source` est `not null` depuis `0030`, et la rendre
+ * nullable obligerait a reprendre toutes les lectures qui s'y fient. La chaine
+ * vide dit exactement ce qui s'est passe — le fichier ne portait pas de nom —
+ * et l'ecran la lit comme telle : « Enveloppe 1234, sans nom », pas un blanc.
+ */
+create or replace function fn_saisir_collecte_dime(
+  p_entite_collecte uuid,
+  p_categorie       uuid,
+  p_date_operation  date,
+  p_evenement       type_evenement_dime,
+  p_libelle         text default null,
+  p_reference       text default null,
+  p_versements      jsonb default '[]'::jsonb
+)
+returns table (finance_entry_id uuid, recus jsonb)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_siege     uuid := siege_id();
+  v_code      text;
+  v_profil    uuid := current_profile_id();
+  v_total     numeric(14,2);
+  v_entry     uuid;
+  v_recus     jsonb := '[]'::jsonb;
+  v_ligne     jsonb;
+  v_recu      text;
+  v_nature    nature_versement;
+  v_croyant   uuid;
+  v_versement uuid;
+  v_nom       text;
+  v_prenom    text;
+  v_libelle   text;
+  v_enveloppe text;
+  v_sens      sens_finance;
+begin
+  if v_siege is null then
+    raise exception 'Aucun Siege n''est defini : une dime ne peut pas etre rattachee.';
+  end if;
+
+  if not can('finance.dime.collect', p_entite_collecte) then
+    raise exception 'Vous n''avez pas le droit de collecter les dimes de cette entite.'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  select code into v_code from entities where id = p_entite_collecte;
+  if v_code is null then
+    raise exception 'Cette entite est introuvable.';
+  end if;
+
+  select sens into v_sens from finance_categories where id = p_categorie;
+  if v_sens is distinct from 'RECETTE' then
+    raise exception 'RG-13 : une collecte de dimes doit relever d''une categorie de recette.';
+  end if;
+
+  select coalesce(sum((l->>'montant')::numeric), 0)
+    into v_total
+    from jsonb_array_elements(p_versements) as l;
+
+  if v_total <= 0 then
+    raise exception 'Le montant de la collecte doit etre superieur a zero.';
+  end if;
+
+  /**
+   * RG-33 : `entity_id` est le SIEGE, jamais l'eglise.
+   *
+   * `statut = 'SOUMIS'` est pose explicitement : une collecte est une ANNONCE
+   * — « voici ce que nous avons recueilli » — et non un encaissement. C'est la
+   * REMISE qui valide (EF-FIN-30).
+   */
+  insert into finance_entries (
+    entity_id, categorie_id, montant, date_operation, libelle, reference,
+    entite_collecte_id, dime_evenement, statut, soumis_par, soumis_le,
+    saisi_par, saisi_depuis_entity_id
+  )
+  values (
+    v_siege, p_categorie, v_total, p_date_operation, p_libelle, p_reference,
+    p_entite_collecte, p_evenement, 'SOUMIS', v_profil, now(),
+    v_profil, p_entite_collecte
+  )
+  returning id into v_entry;
+
+  for v_ligne in select * from jsonb_array_elements(p_versements)
+  loop
+    v_croyant   := nullif(v_ligne->>'croyant_id', '')::uuid;
+    v_libelle   := nullif(trim(coalesce(v_ligne->>'nom_source', '')), '');
+    v_enveloppe := nullif(trim(coalesce(v_ligne->>'enveloppe', '')), '');
+
+    -- `coalesce` exige des types compatibles : les deux branches sont typees.
+    v_nature  := coalesce(
+      nullif(v_ligne->>'nature', '')::nature_versement,
+      (case when v_croyant is null then 'EN_VRAC' else 'NOMINATIF' end)::nature_versement
+    );
+
+    -- Le recu n'existe que pour un versement NOMINATIF.
+    v_recu := case when v_nature = 'NOMINATIF' then fn_generer_recu_dime(v_code) end;
+
+    insert into dime_versements (
+      finance_entry_id, croyant_id, enveloppe_numero, montant, recu_numero, nature
+    )
+    values (
+      v_entry,
+      v_croyant,
+      v_enveloppe,
+      (v_ligne->>'montant')::numeric,
+      v_recu,
+      v_nature
+    )
+    returning id into v_versement;
+
+    if v_recu is not null then
+      -- Le recu porte sa propre description : nom, prenom, enveloppe.
+      select c.nom, c.prenom into v_nom, v_prenom
+        from croyants c where c.id = v_croyant;
+
+      v_recus := v_recus || jsonb_build_object(
+        'croyant_id', v_ligne->>'croyant_id',
+        'recu', v_recu,
+        'nom', v_nom,
+        'prenom', v_prenom,
+        'enveloppe', v_enveloppe
+      );
+    end if;
+
+    /**
+     * REGLE B — un nom reconnu qui presente un numero le GARDE.
+     *
+     * Sans cela le numero restait sur le seul versement : la collecte suivante
+     * reposait la meme question, et quelqu'un le ressaisissait chaque mois.
+     */
+    if v_croyant is not null and v_enveloppe is not null then
+      perform fn_attribuer_enveloppe(v_croyant, v_enveloppe);
+    end if;
+
+    /**
+     * REGLES A et C — ce qui reste a identifier entre dans la file.
+     *
+     * Un nom que rien ne reconnait (A), ou AUCUN nom mais un numero (C). Dans
+     * les deux cas le montant compte deja — l'argent est recu — et ce qui
+     * manque est une identite, que quelqu'un retrouvera dans `/croyants`.
+     *
+     * Une ligne sans nom ET sans numero reste dehors : il n'y aurait rien a
+     * rapprocher, et la file se remplirait de lignes qu'aucun travail ne peut
+     * clore. C'est la raison de `0032`, bornee a ce qu'elle couvrait vraiment.
+     */
+    if v_croyant is null and (v_libelle is not null or v_enveloppe is not null) then
+      insert into dime_rapprochements (
+        versement_id, entite_id, nom_source, prenom_source, enveloppe_source
+      )
+      values (
+        v_versement,
+        p_entite_collecte,
+        -- `''` dit « le fichier ne portait pas de nom ». La colonne est
+        -- `not null` depuis 0030 et l'ecran lit la chaine vide comme telle.
+        coalesce(v_libelle, ''),
+        nullif(trim(coalesce(v_ligne->>'prenom_source', '')), ''),
+        v_enveloppe
+      );
+    end if;
+  end loop;
+
+  return query select v_entry, v_recus;
+end $$;
+
+revoke execute on function fn_saisir_collecte_dime from anon;
+
+
+-- -----------------------------------------------------------------------------
+-- La resolution applique elle aussi la regle B
+-- -----------------------------------------------------------------------------
+
+/**
+ * Identique a `0032` — deux ecritures indissociables (regle 20), et le recu
+ * emis au moment ou il y a quelqu'un a qui le remettre.
+ *
+ * UN SEUL AJOUT : le numero lu devient celui du croyant.
+ *
+ * Rapprocher une ligne, c'est reconnaitre la personne. Si la ligne portait un
+ * numero, il est desormais le sien — exactement comme a l'import. Ne le faire
+ * qu'a l'import laisserait ce meme numero reposer la meme question a la
+ * collecte suivante, alors qu'on vient tout juste d'y repondre.
+ */
+create or replace function fn_resoudre_rapprochement(
+  p_rapprochement uuid,
+  p_croyant       uuid
+)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_entite    uuid;
+  v_versement uuid;
+  v_enveloppe text;
+  v_code      text;
+  v_recu      text;
+begin
+  select r.entite_id, r.versement_id, r.enveloppe_source
+    into v_entite, v_versement, v_enveloppe
+    from dime_rapprochements r
+   where r.id = p_rapprochement and r.croyant_id is null;
+
+  if v_entite is null then
+    raise exception 'Ce rapprochement est introuvable ou deja resolu.';
+  end if;
+
+  if not can('finance.dime.collect', v_entite) then
+    raise exception 'Vous n''avez pas le droit de resoudre ce rapprochement.'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  select code into v_code from entities where id = v_entite;
+  v_recu := fn_generer_recu_dime(v_code);
+
+  update dime_versements
+     set croyant_id  = p_croyant,
+         nature      = 'NOMINATIF',
+         recu_numero = v_recu
+   where id = v_versement;
+
+  update dime_rapprochements
+     set croyant_id = p_croyant,
+         resolu_le  = now(),
+         resolu_par = current_profile_id()
+   where id = p_rapprochement;
+
+  -- Regle B : le numero lu devient le sien, s'il n'appartient a personne.
+  if v_enveloppe is not null then
+    perform fn_attribuer_enveloppe(p_croyant, v_enveloppe);
+  end if;
+
+  return v_recu;
+end $$;
+
+revoke execute on function fn_resoudre_rapprochement from anon;
+
+
+/**
+ * PostgREST garde un CACHE DE SCHEMA : sans cette purge, l'API repondrait
+ * « fonction inconnue » sur du SQL pourtant en place — constate deux fois.
+ */
+notify pgrst, 'reload schema';
+
+insert into schema_migrations (version) values ('0056')
+  on conflict (version) do nothing;
+
+-- #############################################################################
+-- ## 0057_recu_sur_nom_lu.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0057 — Un nom lu suffit pour un recu
+-- =============================================================================
+-- Reference : EF-FIN-29, EF-FIN-33, EF-FIN-34. Constate a l'essai du 20 aout
+-- 2026, sur un fichier de cinq lignes.
+--
+-- LE DEFAUT.
+--
+-- Le recu n'etait emis que pour un versement NOMINATIF, c'est-a-dire rattache a
+-- une FICHE. Un fichier portant « KABORE Windyam Francois » sans qu'aucune
+-- fiche ne le reconnaisse donnait donc un versement compte, un rapprochement en
+-- attente… et AUCUN TALON A REMETTRE.
+--
+-- Or la personne est devant soi. Elle a donne, on sait qui elle est, et ce qui
+-- manque n'est pas son identite mais son ENREGISTREMENT — un travail qui nous
+-- appartient, pas a elle. Lui refuser son recu le temps qu'on ouvre sa fiche
+-- lui fait porter le delai de notre propre administration.
+--
+-- CE QUI CHANGE : le recu suit LE NOM, plus la fiche.
+--
+--   - un nom RECONNU        -> recu, comme avant ;
+--   - un nom LU mais inconnu -> recu AUSSI, au nom lu dans le fichier ;
+--   - aucun nom              -> toujours pas de recu. Il n'y a personne a qui
+--                              le remettre, et consommer la sequence pour rien
+--                              brouillerait la numerotation de ceux qui
+--                              existent vraiment (raison de `0030`, intacte).
+--
+-- LA CONSEQUENCE A NE PAS MANQUER : LE RECU NE SE RENUMEROTE PAS.
+--
+-- `fn_resoudre_rapprochement` emettait un recu a la resolution — c'etait le
+-- moment ou quelqu'un apparaissait. Maintenant qu'il existe deja pour les
+-- lignes nommees, en emettre un second donnerait DEUX recus pour UN versement :
+-- le donateur detiendrait un papier dont le numero ne serait plus celui de la
+-- base, et deux references pointeraient le meme argent. La resolution CONSERVE
+-- donc le numero existant, et n'en genere un que s'il n'y en avait aucun —
+-- c'est-a-dire pour une enveloppe sans nom (regle C).
+--
+-- La nature, elle, ne bouge pas a l'import : une ligne non rattachee reste
+-- ENVELOPPE_ANONYME ou EN_VRAC, parce que `dime_versements_nature_coherente`
+-- exige une fiche pour NOMINATIF. Aucune contrainte ne lie le recu a la
+-- nature — verifie avant d'ecrire cette migration.
+--
+-- REJOUABLE (regle 23) : `create or replace` sur des signatures inchangees.
+-- =============================================================================
+
+
+create or replace function fn_saisir_collecte_dime(
+  p_entite_collecte uuid,
+  p_categorie       uuid,
+  p_date_operation  date,
+  p_evenement       type_evenement_dime,
+  p_libelle         text default null,
+  p_reference       text default null,
+  p_versements      jsonb default '[]'::jsonb
+)
+returns table (finance_entry_id uuid, recus jsonb)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_siege     uuid := siege_id();
+  v_code      text;
+  v_profil    uuid := current_profile_id();
+  v_total     numeric(14,2);
+  v_entry     uuid;
+  v_recus     jsonb := '[]'::jsonb;
+  v_ligne     jsonb;
+  v_recu      text;
+  v_nature    nature_versement;
+  v_croyant   uuid;
+  v_versement uuid;
+  v_nom       text;
+  v_prenom    text;
+  v_libelle   text;
+  v_prenom_lu text;
+  v_enveloppe text;
+  v_sens      sens_finance;
+begin
+  if v_siege is null then
+    raise exception 'Aucun Siege n''est defini : une dime ne peut pas etre rattachee.';
+  end if;
+
+  if not can('finance.dime.collect', p_entite_collecte) then
+    raise exception 'Vous n''avez pas le droit de collecter les dimes de cette entite.'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  select code into v_code from entities where id = p_entite_collecte;
+  if v_code is null then
+    raise exception 'Cette entite est introuvable.';
+  end if;
+
+  select sens into v_sens from finance_categories where id = p_categorie;
+  if v_sens is distinct from 'RECETTE' then
+    raise exception 'RG-13 : une collecte de dimes doit relever d''une categorie de recette.';
+  end if;
+
+  select coalesce(sum((l->>'montant')::numeric), 0)
+    into v_total
+    from jsonb_array_elements(p_versements) as l;
+
+  if v_total <= 0 then
+    raise exception 'Le montant de la collecte doit etre superieur a zero.';
+  end if;
+
+  -- RG-33 : `entity_id` est le SIEGE. `SOUMIS` : une collecte annonce sans
+  -- encaisser, c'est la REMISE qui valide (EF-FIN-30).
+  insert into finance_entries (
+    entity_id, categorie_id, montant, date_operation, libelle, reference,
+    entite_collecte_id, dime_evenement, statut, soumis_par, soumis_le,
+    saisi_par, saisi_depuis_entity_id
+  )
+  values (
+    v_siege, p_categorie, v_total, p_date_operation, p_libelle, p_reference,
+    p_entite_collecte, p_evenement, 'SOUMIS', v_profil, now(),
+    v_profil, p_entite_collecte
+  )
+  returning id into v_entry;
+
+  for v_ligne in select * from jsonb_array_elements(p_versements)
+  loop
+    v_croyant   := nullif(v_ligne->>'croyant_id', '')::uuid;
+    v_libelle   := nullif(trim(coalesce(v_ligne->>'nom_source', '')), '');
+    v_prenom_lu := nullif(trim(coalesce(v_ligne->>'prenom_source', '')), '');
+    v_enveloppe := nullif(trim(coalesce(v_ligne->>'enveloppe', '')), '');
+
+    v_nature  := coalesce(
+      nullif(v_ligne->>'nature', '')::nature_versement,
+      (case when v_croyant is null then 'EN_VRAC' else 'NOMINATIF' end)::nature_versement
+    );
+
+    /**
+     * LE RECU SUIT LE NOM, PLUS LA FICHE.
+     *
+     * Une fiche reconnue, ou un nom lu dans le fichier : dans les deux cas il y
+     * a quelqu'un a qui remettre le talon. Sans nom du tout, en revanche,
+     * toujours rien — consommer la sequence brouillerait la numerotation de
+     * ceux qui existent vraiment.
+     */
+    v_recu := case
+      when v_croyant is not null or v_libelle is not null
+      then fn_generer_recu_dime(v_code)
+    end;
+
+    insert into dime_versements (
+      finance_entry_id, croyant_id, enveloppe_numero, montant, recu_numero, nature
+    )
+    values (
+      v_entry, v_croyant, v_enveloppe,
+      (v_ligne->>'montant')::numeric, v_recu, v_nature
+    )
+    returning id into v_versement;
+
+    if v_recu is not null then
+      /**
+       * LE TALON PORTE LE NOM QU'ON A. Celui de la fiche quand elle existe,
+       * celui du fichier sinon — c'est le meme papier, remis a la meme
+       * personne. Le matricule reste absent tant qu'il n'y a pas de fiche : en
+       * inventer un sur un document qui fait foi serait pire que son absence.
+       */
+      if v_croyant is not null then
+        select c.nom, c.prenom into v_nom, v_prenom
+          from croyants c where c.id = v_croyant;
+      else
+        v_nom    := v_libelle;
+        v_prenom := v_prenom_lu;
+      end if;
+
+      v_recus := v_recus || jsonb_build_object(
+        'croyant_id', v_ligne->>'croyant_id',
+        'recu', v_recu,
+        'nom', v_nom,
+        'prenom', v_prenom,
+        'enveloppe', v_enveloppe
+      );
+    end if;
+
+    -- Regle B — un nom reconnu qui presente un numero le GARDE.
+    if v_croyant is not null and v_enveloppe is not null then
+      perform fn_attribuer_enveloppe(v_croyant, v_enveloppe);
+    end if;
+
+    -- Regles A et C — ce qui reste a identifier entre dans la file. Une ligne
+    -- sans nom ET sans numero reste dehors : rien a rapprocher.
+    if v_croyant is null and (v_libelle is not null or v_enveloppe is not null) then
+      insert into dime_rapprochements (
+        versement_id, entite_id, nom_source, prenom_source, enveloppe_source
+      )
+      values (
+        v_versement, p_entite_collecte,
+        coalesce(v_libelle, ''), v_prenom_lu, v_enveloppe
+      );
+    end if;
+  end loop;
+
+  return query select v_entry, v_recus;
+end $$;
+
+revoke execute on function fn_saisir_collecte_dime from anon;
+
+
+/**
+ * LA RESOLUTION NE RENUMEROTE JAMAIS UN RECU DEJA EMIS.
+ *
+ * C'est la contrepartie directe du changement ci-dessus. Une ligne nommee porte
+ * desormais son recu des l'import ; en emettre un second a la resolution
+ * donnerait DEUX references pour UN versement, et le papier detenu par le
+ * donateur cesserait de correspondre a la base.
+ *
+ * On n'en genere donc un que s'il n'y en avait aucun — le cas d'une enveloppe
+ * sans nom (regle C), ou personne n'etait identifiable avant ce geste.
+ */
+create or replace function fn_resoudre_rapprochement(
+  p_rapprochement uuid,
+  p_croyant       uuid
+)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_entite    uuid;
+  v_versement uuid;
+  v_enveloppe text;
+  v_code      text;
+  v_recu      text;
+begin
+  select r.entite_id, r.versement_id, r.enveloppe_source
+    into v_entite, v_versement, v_enveloppe
+    from dime_rapprochements r
+   where r.id = p_rapprochement and r.croyant_id is null;
+
+  if v_entite is null then
+    raise exception 'Ce rapprochement est introuvable ou deja resolu.';
+  end if;
+
+  if not can('finance.dime.collect', v_entite) then
+    raise exception 'Vous n''avez pas le droit de resoudre ce rapprochement.'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  -- Le recu deja emis fait foi : il est peut-etre deja entre les mains du
+  -- donateur.
+  select recu_numero into v_recu from dime_versements where id = v_versement;
+
+  if v_recu is null then
+    select code into v_code from entities where id = v_entite;
+    v_recu := fn_generer_recu_dime(v_code);
+  end if;
+
+  update dime_versements
+     set croyant_id  = p_croyant,
+         nature      = 'NOMINATIF',
+         recu_numero = v_recu
+   where id = v_versement;
+
+  update dime_rapprochements
+     set croyant_id = p_croyant,
+         resolu_le  = now(),
+         resolu_par = current_profile_id()
+   where id = p_rapprochement;
+
+  -- Regle B : le numero lu devient le sien, s'il n'appartient a personne.
+  if v_enveloppe is not null then
+    perform fn_attribuer_enveloppe(p_croyant, v_enveloppe);
+  end if;
+
+  return v_recu;
+end $$;
+
+revoke execute on function fn_resoudre_rapprochement from anon;
+
+
+/**
+ * PostgREST garde un CACHE DE SCHEMA : sans cette purge, l'API repondrait
+ * « fonction inconnue » sur du SQL pourtant en place.
+ */
+notify pgrst, 'reload schema';
+
+insert into schema_migrations (version) values ('0057')
+  on conflict (version) do nothing;
+
+-- #############################################################################
+-- ## 0058_eglise_lue_a_l_import.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0058 — L'eglise de rattachement lue dans le fichier
+-- =============================================================================
+-- Reference : EF-FIN-34, EF-CRO-01. Demande du 20 aout 2026.
+--
+-- LE PROBLEME QU'ELLE RESOUT.
+--
+-- Une ligne non rattachee finit dans la file des personnes non rattachees, et
+-- s'y resout de trois facons : le numero propose, la recherche trouve, la
+-- creation ouvre une fiche. Le troisieme chemin butait toujours au meme
+-- endroit : L'EGLISE. Le formulaire s'ouvre amorce du nom lu, mais l'eglise se
+-- choisit dans un selecteur de toute l'organisation — et celui qui saisit ne la
+-- connait pas forcement.
+--
+-- L'eglise etait pourtant DANS LE FICHIER, la plupart du temps : c'est celui
+-- qui a tenu la collecte qui l'a ecrite, et lui la connait. On la perdait en
+-- route.
+--
+-- DEUX COLONNES, ET DEUX RAISONS DIFFERENTES.
+--
+--   `eglise_source` — CE QUE LE FICHIER DISAIT, tel quel. Meme role que
+--   `nom_source` : c'est la seule trace de ce qui a ete lu, et elle vaut meme
+--   quand rien ne la reconnait — « Ambohipo » suffit souvent a trancher a
+--   l'oeil, la ou un champ vide ne dit rien.
+--
+--   `eglise_id` — L'ENTITE RECONNUE, ou `null`. Resolue A L'IMPORT, une fois,
+--   contre les entites du perimetre de celui qui importe. La resoudre a
+--   l'affichage la ferait dependre du lecteur : deux personnes ouvrant la meme
+--   file verraient deux propositions differentes.
+--
+-- `null` N'EST PAS UN ECHEC. Un libelle inconnu — ou qui designe deux eglises —
+-- laisse la ligne sans eglise, et le rapprochement se fait alors comme avant,
+-- en la choisissant a la main. AUCUNE ENTITE N'EST CREEE pour un nom qu'on ne
+-- reconnait pas : elle entrerait dans la structure, recevrait un code,
+-- apparaitrait dans chaque selecteur et dans les soldes consolides, et
+-- quelqu'un finirait par y transferer un vrai croyant. C'est la meme decision
+-- que pour l'« eglise inconnue » refusee au lot des dimes.
+--
+-- `on delete set null` SUR L'ENTITE : supprimer une eglise ne doit pas
+-- emporter une ligne d'argent recu. La proposition disparait, le montant reste.
+--
+-- REJOUABLE (regle 23) : `add column if not exists`, et la fonction est
+-- remplacee sur une signature inchangee.
+-- =============================================================================
+
+alter table dime_rapprochements
+  add column if not exists eglise_source text,
+  add column if not exists eglise_id     uuid references entities(id) on delete set null;
+
+comment on column dime_rapprochements.eglise_source is
+  'EF-FIN-34 — l''eglise telle que le FICHIER l''ecrivait, conservee meme si '
+  'rien ne la reconnait : elle suffit souvent a trancher a l''oeil.';
+
+comment on column dime_rapprochements.eglise_id is
+  'EF-FIN-34 — l''entite reconnue a l''import, ou NULL. Resolue une fois, cote '
+  'serveur : la resoudre a l''affichage la ferait dependre du lecteur.';
+
+
+-- -----------------------------------------------------------------------------
+-- La saisie transporte l'eglise jusqu'a la file
+-- -----------------------------------------------------------------------------
+
+/**
+ * Identique a `0057` — le total, le rattachement au Siege (RG-33), le statut
+ * `SOUMIS`, le recu qui suit le nom lu, les regles A, B et C. Rien de cela ne
+ * change.
+ *
+ * UN SEUL AJOUT : les deux colonnes d'eglise sont ecrites sur la ligne de
+ * rapprochement. Elles ne servent qu'a la creation de fiche, et n'entrent dans
+ * aucun solde — l'argent, lui, appartient toujours au Siege.
+ */
+create or replace function fn_saisir_collecte_dime(
+  p_entite_collecte uuid,
+  p_categorie       uuid,
+  p_date_operation  date,
+  p_evenement       type_evenement_dime,
+  p_libelle         text default null,
+  p_reference       text default null,
+  p_versements      jsonb default '[]'::jsonb
+)
+returns table (finance_entry_id uuid, recus jsonb)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_siege     uuid := siege_id();
+  v_code      text;
+  v_profil    uuid := current_profile_id();
+  v_total     numeric(14,2);
+  v_entry     uuid;
+  v_recus     jsonb := '[]'::jsonb;
+  v_ligne     jsonb;
+  v_recu      text;
+  v_nature    nature_versement;
+  v_croyant   uuid;
+  v_versement uuid;
+  v_nom       text;
+  v_prenom    text;
+  v_libelle   text;
+  v_prenom_lu text;
+  v_enveloppe text;
+  v_eglise_lu text;
+  v_eglise    uuid;
+  v_sens      sens_finance;
+begin
+  if v_siege is null then
+    raise exception 'Aucun Siege n''est defini : une dime ne peut pas etre rattachee.';
+  end if;
+
+  if not can('finance.dime.collect', p_entite_collecte) then
+    raise exception 'Vous n''avez pas le droit de collecter les dimes de cette entite.'
+      using errcode = 'insufficient_privilege';
+  end if;
+
+  select code into v_code from entities where id = p_entite_collecte;
+  if v_code is null then
+    raise exception 'Cette entite est introuvable.';
+  end if;
+
+  select sens into v_sens from finance_categories where id = p_categorie;
+  if v_sens is distinct from 'RECETTE' then
+    raise exception 'RG-13 : une collecte de dimes doit relever d''une categorie de recette.';
+  end if;
+
+  select coalesce(sum((l->>'montant')::numeric), 0)
+    into v_total
+    from jsonb_array_elements(p_versements) as l;
+
+  if v_total <= 0 then
+    raise exception 'Le montant de la collecte doit etre superieur a zero.';
+  end if;
+
+  -- RG-33 : `entity_id` est le SIEGE. `SOUMIS` : une collecte annonce sans
+  -- encaisser, c'est la REMISE qui valide (EF-FIN-30).
+  insert into finance_entries (
+    entity_id, categorie_id, montant, date_operation, libelle, reference,
+    entite_collecte_id, dime_evenement, statut, soumis_par, soumis_le,
+    saisi_par, saisi_depuis_entity_id
+  )
+  values (
+    v_siege, p_categorie, v_total, p_date_operation, p_libelle, p_reference,
+    p_entite_collecte, p_evenement, 'SOUMIS', v_profil, now(),
+    v_profil, p_entite_collecte
+  )
+  returning id into v_entry;
+
+  for v_ligne in select * from jsonb_array_elements(p_versements)
+  loop
+    v_croyant   := nullif(v_ligne->>'croyant_id', '')::uuid;
+    v_libelle   := nullif(trim(coalesce(v_ligne->>'nom_source', '')), '');
+    v_prenom_lu := nullif(trim(coalesce(v_ligne->>'prenom_source', '')), '');
+    v_enveloppe := nullif(trim(coalesce(v_ligne->>'enveloppe', '')), '');
+    v_eglise_lu := nullif(trim(coalesce(v_ligne->>'eglise_source', '')), '');
+    v_eglise    := nullif(v_ligne->>'eglise_id', '')::uuid;
+
+    v_nature  := coalesce(
+      nullif(v_ligne->>'nature', '')::nature_versement,
+      (case when v_croyant is null then 'EN_VRAC' else 'NOMINATIF' end)::nature_versement
+    );
+
+    -- Le recu suit LE NOM, plus la fiche (0057). Sans nom du tout, rien :
+    -- consommer la sequence brouillerait la numerotation de ceux qui existent.
+    v_recu := case
+      when v_croyant is not null or v_libelle is not null
+      then fn_generer_recu_dime(v_code)
+    end;
+
+    insert into dime_versements (
+      finance_entry_id, croyant_id, enveloppe_numero, montant, recu_numero, nature
+    )
+    values (
+      v_entry, v_croyant, v_enveloppe,
+      (v_ligne->>'montant')::numeric, v_recu, v_nature
+    )
+    returning id into v_versement;
+
+    if v_recu is not null then
+      -- Le talon porte le nom qu'on a : celui de la fiche, ou celui du fichier.
+      if v_croyant is not null then
+        select c.nom, c.prenom into v_nom, v_prenom
+          from croyants c where c.id = v_croyant;
+      else
+        v_nom    := v_libelle;
+        v_prenom := v_prenom_lu;
+      end if;
+
+      v_recus := v_recus || jsonb_build_object(
+        'croyant_id', v_ligne->>'croyant_id',
+        'recu', v_recu,
+        'nom', v_nom,
+        'prenom', v_prenom,
+        'enveloppe', v_enveloppe
+      );
+    end if;
+
+    -- Regle B — un nom reconnu qui presente un numero le GARDE.
+    if v_croyant is not null and v_enveloppe is not null then
+      perform fn_attribuer_enveloppe(v_croyant, v_enveloppe);
+    end if;
+
+    /**
+     * Regles A et C — ce qui reste a identifier entre dans la file, avec
+     * l'eglise lue quand le fichier en portait une. Elle ne sert qu'a amorcer
+     * la creation de fiche : aucun solde ne la lit.
+     */
+    if v_croyant is null and (v_libelle is not null or v_enveloppe is not null) then
+      insert into dime_rapprochements (
+        versement_id, entite_id, nom_source, prenom_source, enveloppe_source,
+        eglise_source, eglise_id
+      )
+      values (
+        v_versement, p_entite_collecte,
+        coalesce(v_libelle, ''), v_prenom_lu, v_enveloppe,
+        v_eglise_lu, v_eglise
+      );
+    end if;
+  end loop;
+
+  return query select v_entry, v_recus;
+end $$;
+
+revoke execute on function fn_saisir_collecte_dime from anon;
+
+
+/**
+ * PostgREST garde un CACHE DE SCHEMA : sans cette purge, les deux colonnes
+ * resteraient invisibles a l'API et la lecture de la file repondrait
+ * « column ... does not exist » sur du SQL pourtant en place.
+ */
+notify pgrst, 'reload schema';
+
+insert into schema_migrations (version) values ('0058')
+  on conflict (version) do nothing;
+
+-- #############################################################################
+-- ## 0059_bureau_terme_et_archivage.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0059 — Un mandat a un terme, et un bureau clos ne se supprime plus
+-- =============================================================================
+-- Reference : EF-BUR-02, EF-BUR-08, RG-07, RG-10. Demandes du 20 aout 2026.
+--
+-- DEUX REGLES, ET ELLES SE TIENNENT.
+--
+-- 1. UN MANDAT A UN TERME.
+--
+--    `bureaux.date_fin` etait facultative : un bureau pouvait s'ouvrir sans
+--    qu'on sache quand il finit. Depuis que le mandat echu ferme l'application
+--    (RG-07), cette absence a une consequence qu'elle n'avait pas : un mandat
+--    sans terme ne s'acheve JAMAIS, et l'acces de ses membres non plus. La
+--    regle « seuls les membres de bureau en exercice ont un compte » devient
+--    alors une regle qu'on ne peut plus appliquer.
+--
+--    ON NE MET PAS `not null` SUR LA COLONNE, et c'est la decision qui compte.
+--    Des bureaux existent, ouverts avant cette regle, sans date de fin. Une
+--    contrainte `not null` exigerait de leur en inventer une — et une date de
+--    fin de mandat inventee est pire qu'une absente : elle a l'air vraie, elle
+--    fermera des acces le jour venu, et personne ne saura d'ou elle sort.
+--
+--    Le terme est donc EXIGE A L'OUVERTURE, par un trigger qui ne regarde que
+--    les insertions. L'existant survit tel quel et se corrige a l'ecran, quand
+--    quelqu'un connait la reponse. La regle est tenue pour tout ce qui nait
+--    apres elle, ce qui est exactement ce qu'on peut garantir.
+--
+-- 2. UN BUREAU CLOS EST ARCHIVE, JAMAIS SUPPRIME.
+--
+--    `bureaux_delete` autorisait le Siege a effacer n'importe quel bureau.
+--    Effacer un bureau CLOS efface ce qui a ete : qui etait tresorier en 2024,
+--    qui a signe les comptes de l'exercice, qui figurait sur l'organigramme.
+--    Ces mandats sont cites par des lignes d'audit, des rapports generes et des
+--    reçus — l'histoire ne se corrige pas, elle se lit.
+--
+--    La suppression reste possible sur un bureau EN COURS : c'est le rattrapage
+--    d'une ouverture faite par erreur, le matin meme, et rien n'en depend
+--    encore. Un bureau clos, lui, a vecu.
+--
+--    LE VERROU EST EN BASE, pas sur un bouton grise : un bouton se contourne
+--    par un appel direct a l'API. Meme raison que la cloture de periode (0040).
+--
+-- REJOUABLE (regle 23) : `drop trigger if exists` avant chaque `create`.
+-- =============================================================================
+
+
+-- -----------------------------------------------------------------------------
+-- 1. Le terme est exige a l'OUVERTURE
+-- -----------------------------------------------------------------------------
+
+create or replace function fn_bureau_terme_requis() returns trigger
+language plpgsql as $$
+begin
+  /**
+   * A L'INSERTION SEULEMENT.
+   *
+   * Un `update` qui laisse `date_fin` a null sur un bureau ancien doit rester
+   * possible : sinon corriger le LIBELLE d'un bureau de 2024 exigerait d'abord
+   * d'inventer sa date de fin, et l'on inventerait.
+   */
+  if tg_op = 'INSERT' and new.date_fin is null then
+    raise exception
+      'EF-BUR-02 : un mandat a un terme. Indiquez la date de fin — elle peut '
+      'etre corrigee ensuite, et le mandat se reconduit.'
+      using errcode = 'check_violation';
+  end if;
+
+  return new;
+end $$;
+
+comment on function fn_bureau_terme_requis is
+  'EF-BUR-02, RG-07 — un bureau ne s''ouvre pas sans terme : un mandat sans fin '
+  'ne s''acheve jamais, et l''acces de ses membres non plus. Borne a l''INSERT, '
+  'pour ne pas forcer a inventer une date sur les bureaux anterieurs.';
+
+drop trigger if exists trg_bureau_terme_requis on bureaux;
+create trigger trg_bureau_terme_requis
+  before insert on bureaux
+  for each row execute function fn_bureau_terme_requis();
+
+
+-- -----------------------------------------------------------------------------
+-- 2. Un bureau CLOS ne se supprime plus
+-- -----------------------------------------------------------------------------
+
+/**
+ * Le verrou est un TRIGGER et non une politique RLS.
+ *
+ * Une politique `delete` peut rendre la ligne invisible a la suppression, mais
+ * elle le fait en SILENCE : l'appel repond « 0 ligne supprimee », l'ecran
+ * annonce une reussite, et le bureau est toujours la. Le trigger, lui, REFUSE
+ * en disant pourquoi — et c'est ce message que l'utilisateur doit lire.
+ */
+create or replace function fn_bureau_clos_immuable() returns trigger
+language plpgsql as $$
+begin
+  if not old.is_active then
+    raise exception
+      'EF-BUR-08 : un bureau clos ne se supprime pas. Sa composition est citee '
+      'par des rapports, des recus et le journal d''audit — elle se consulte '
+      'dans les archives.'
+      using errcode = 'check_violation';
+  end if;
+
+  return old;
+end $$;
+
+comment on function fn_bureau_clos_immuable is
+  'EF-BUR-08 — effacer un bureau clos effacerait ce qui a ete : qui etait '
+  'tresorier, qui a signe les comptes. La suppression reste ouverte sur un '
+  'bureau EN COURS, ou elle rattrape une ouverture faite par erreur.';
+
+drop trigger if exists trg_bureau_clos_immuable on bureaux;
+create trigger trg_bureau_clos_immuable
+  before delete on bureaux
+  for each row execute function fn_bureau_clos_immuable();
+
+
+/**
+ * PostgREST garde un CACHE DE SCHEMA : sans cette purge, l'API pourrait
+ * repondre sur une definition perimee des fonctions qu'on vient de poser.
+ */
+notify pgrst, 'reload schema';
+
+insert into schema_migrations (version) values ('0059')
+  on conflict (version) do nothing;
+
+-- #############################################################################
+-- ## 0060_rapport_confidentiel.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0060 — Un rapport reste confidentiel a son entite
+-- =============================================================================
+-- Reference : EF-RAP-18 (retire), RG-26, RG-27. Decision du 20 aout 2026.
+--
+-- CE QU'ON RETIRE, ET POURQUOI.
+--
+-- Un rapport pouvait etre PUBLIE : il devenait alors lisible par tout le
+-- perimetre SANS `report.read`. C'etait la definition meme de « publier ».
+--
+-- Le defaut etait connu et documente des le lot 6, sans etre corrige. RG-26
+-- omet les blocs qu'on n'a pas le droit de lire, mais elle le fait A LA
+-- GENERATION, sous la session de CELUI QUI GENERE. Le contenu est ensuite fige
+-- (RG-27). Un tresorier de district generait donc un rapport contenant ses
+-- finances, le publiait, et TOUTE personne du district pouvait l'ouvrir — y
+-- compris quelqu'un a qui `finance.read` avait ete refuse. L'omission avait
+-- bien eu lieu, mais pour le mauvais lecteur.
+--
+-- Rejouer l'omission a la lecture aurait fait varier le document d'un lecteur a
+-- l'autre : deux personnes citant « le rapport du 18 aout » n'auraient plus
+-- parle du meme, et un rapport cesse alors d'etre un document. La seule autre
+-- issue est de RESSERRER QUI PEUT L'OUVRIR — c'est celle-ci.
+--
+-- CE QUI DECIDE DESORMAIS : `report.read`, SEUL, AVEC SA PORTEE.
+--
+-- Un droit, une portee, une regle — la meme que partout ailleurs (RG-25). Il
+-- n'y a plus deux chemins pour ouvrir un rapport, donc plus de chemin qu'on
+-- oublie de refermer.
+--
+-- LES RAPPORTS DEJA PUBLIES NE SONT PAS REECRITS.
+--
+-- `statut = 'PUBLIE'` reste sur les lignes qui le portent, et `publie_le` avec.
+-- C'est de l'HISTOIRE : ce rapport A ETE publie, quelqu'un l'a diffuse, et
+-- effacer cette trace serait exactement ce que RG-27 interdit. Ce qui change
+-- est que ce statut ne DONNE PLUS RIEN — il se lit, il n'ouvre plus.
+--
+-- La valeur 'PUBLIE' reste donc dans l'enumeration : la retirer casserait les
+-- lignes existantes, et une enumeration ne se reduit pas sans reecrire ce qui
+-- s'y refere.
+--
+-- REJOUABLE (regle 23) : `drop policy if exists` avant `create policy`, et
+-- `create or replace` sur une fonction de trigger existante.
+-- =============================================================================
+
+
+-- -----------------------------------------------------------------------------
+-- La lecture ne depend plus que du droit
+-- -----------------------------------------------------------------------------
+
+drop policy if exists report_instances_select on report_instances;
+create policy report_instances_select on report_instances
+  for select to authenticated
+  using (
+    entity_in_scope(entity_id)
+    and can('report.read', entity_id)
+  );
+
+comment on column report_instances.publie_le is
+  'HISTORIQUE — la date a laquelle ce rapport a ete publie, du temps ou la '
+  'publication existait (retiree le 20 aout 2026, migration 0060). Elle ne '
+  'donne plus aucun acces : `report.read` decide seul.';
+
+
+-- -----------------------------------------------------------------------------
+-- Le trigger ne connait plus la publication
+-- -----------------------------------------------------------------------------
+
+/**
+ * Identique a `0043` moins la branche de publication.
+ *
+ * RG-27 est INTACTE, et c'est l'essentiel de cette fonction : ni les donnees,
+ * ni la structure qui les a produites, ni la periode d'un rapport genere ne
+ * changent apres coup.
+ *
+ * PASSER A 'PUBLIE' EST DESORMAIS REFUSE. On aurait pu l'ignorer en silence —
+ * le statut ne donnant plus rien, il serait devenu decoratif. Mais un statut
+ * qu'on peut encore poser et qui ne fait rien est un piege pose pour plus
+ * tard : quelqu'un le verrait dans l'enumeration, le poserait, et croirait
+ * avoir diffuse. Le refus dit ce qui a change.
+ */
+create or replace function fn_rapport_before_update() returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.statut = 'PUBLIE' and old.statut is distinct from 'PUBLIE' then
+    raise exception
+      'La publication a ete retiree : un rapport reste confidentiel a son '
+      'entite, et son acces se decide par le droit de lecture.'
+      using errcode = 'check_violation';
+  end if;
+
+  /**
+   * RG-27 — UN RAPPORT GENERE EST FIGE.
+   *
+   * Ni ses donnees, ni la structure qui les a produites, ni sa periode ne
+   * changent apres coup. Sans ce verrou, « corriger » un rapport diffuse
+   * reecrirait l'histoire sans laisser de trace — et deux personnes citant le
+   * meme rapport ne parleraient plus du meme document.
+   */
+  if (new.contenu, new.template_snapshot, new.periode_debut, new.periode_fin, new.entity_id)
+     is distinct from
+     (old.contenu, old.template_snapshot, old.periode_debut, old.periode_fin, old.entity_id)
+  then
+    raise exception
+      'RG-27 : un rapport genere est fige ; regenerez-en un nouveau plutot que de le modifier.';
+  end if;
+
+  return new;
+end $$;
+
+comment on function fn_rapport_before_update is
+  'RG-27 — un rapport genere est fige. Depuis 0060, la publication n''existe '
+  'plus : `report.read` decide seul qui peut ouvrir un rapport.';
+
+
+/**
+ * PostgREST garde un CACHE DE SCHEMA : sans cette purge, l'API repondrait sur
+ * une definition perimee de la fonction qu'on vient de remplacer.
+ */
+notify pgrst, 'reload schema';
+
+insert into schema_migrations (version) values ('0060')
   on conflict (version) do nothing;
 
 -- #############################################################################

@@ -38,7 +38,6 @@ export default async function RapportGenerePage({
 
   return (
     <RapportClient
-      rapportId={rapport.id}
       nom={rapport.nom}
       structure={rapport.structure}
       contenu={rapport.contenu}
@@ -48,8 +47,6 @@ export default async function RapportGenerePage({
         entite: rapport.entite?.nom ?? '—',
         periode: `${formatDate(rapport.periodeDebut)} — ${formatDate(rapport.periodeFin)}`,
       }}
-      publie={rapport.statut === 'PUBLIE'}
-      cheminEntite={rapport.entite?.path ?? ''}
     />
   );
 }

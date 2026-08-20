@@ -290,11 +290,23 @@ export const PERMISSIONS = {
     group: 'Rapports',
     description: 'Assembler des blocs, enregistrer un modele et produire un PDF.',
   },
-  'report.publish': {
-    label: 'Publier un rapport',
-    group: 'Rapports',
-    description: 'Rendre un rapport genere visible aux comptes du perimetre.',
-  },
+  /**
+   * `report.publish` A ETE RETIRE le 20 aout 2026 (migration `0060`).
+   *
+   * Publier rendait un rapport lisible par tout le perimetre SANS
+   * `report.read` — c'en etait la definition. Or RG-26 omet les blocs non
+   * habilites A LA GENERATION, sous la session de celui qui genere, et le
+   * contenu est ensuite fige (RG-27) : un rapport publie montrait donc ses
+   * finances a quelqu'un a qui `finance.read` avait ete refuse.
+   *
+   * LE DROIT DISPARAIT DU REGISTRE PLUTOT QUE DE DEVENIR DECORATIF. Un
+   * interrupteur qu'on peut encore poser et qui n'accorde rien est un piege
+   * pose pour plus tard : quelqu'un le cocherait et croirait avoir diffuse.
+   *
+   * Les octrois deja enregistres en base restent, inertes : ce sont des
+   * chaines, plus rien ne les lit. Les effacer aurait touche des lignes que
+   * le journal d'audit cite.
+   */
   'report.template.manage': {
     label: 'Gerer les modeles partages',
     group: 'Rapports',
@@ -488,7 +500,6 @@ export const ROLE_TEMPLATES: Record<UserRole, readonly Permission[]> = {
     'finance.periode.close',
     'report.read',
     'report.create',
-    'report.publish',
     'report.template.manage',
     'dashboard.configure',
     'export.data',

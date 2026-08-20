@@ -19,6 +19,15 @@ import { DataError } from './errors';
  * La RLS laisse voir les deux (migration `0027`) : sans quoi une eglise ne
  * pourrait pas repondre au croyant qui lui demande la trace de sa dime, alors
  * qu'elle lui en a remis le recu (EF-FIN-31).
+ *
+ * `rapprochement` VOYAGE AVEC LE VERSEMENT — EF-FIN-34. Le demander ligne par
+ * ligne au moment de deplier couterait un aller-retour par versement, et c'est
+ * justement en depliant qu'on veut une reponse immediate (regle 28).
+ *
+ * AUCUN COMMENTAIRE DANS LA CHAINE CI-DESSOUS. PostgREST lit un `select` , pas
+ * du SQL : un `/* … *\/` y serait envoye tel quel et pris pour des colonnes.
+ * `tests/unit/embeds-postgrest.test.ts` l'a attrape le 20 aout 2026, sur un
+ * commentaire pose au milieu de l'embed.
  */
 
 const CHAMPS = `
@@ -32,7 +41,10 @@ const CHAMPS = `
   ),
   versements:dime_versements!dime_versements_finance_entry_id_fkey (
     id, croyant_id, enveloppe_numero, montant, recu_numero, nature,
-    croyant:croyants!dime_versements_croyant_id_fkey (id, nom, prenom, matricule)
+    croyant:croyants!dime_versements_croyant_id_fkey (id, nom, prenom, matricule),
+    rapprochement:dime_rapprochements!dime_rapprochements_versement_id_fkey (
+      id, nom_source, prenom_source, enveloppe_source, croyant_id
+    )
   )
 ` as const;
 
@@ -46,6 +58,20 @@ export interface VersementListe {
   recu_numero: string | null;
   nature: NatureVersement;
   croyant: { id: string; nom: string; prenom: string; matricule: string } | null;
+  /**
+   * EF-FIN-34 — la ligne attend une identite, ou l'a deja trouvee.
+   *
+   * PostgREST rend un TABLEAU pour cette relation inverse, meme quand il n'y a
+   * au plus qu'une ligne : le declarer au singulier ferait echouer la lecture
+   * a l'execution, sans que le compilateur n'en sache rien.
+   */
+  rapprochement: {
+    id: string;
+    nom_source: string;
+    prenom_source: string | null;
+    enveloppe_source: string | null;
+    croyant_id: string | null;
+  }[];
 }
 
 export interface CollecteListe {
@@ -291,6 +317,10 @@ export interface RapprochementEnAttente {
   nom_source: string;
   prenom_source: string | null;
   enveloppe_source: string | null;
+  /** Ce que le fichier disait de l'eglise, meme si rien ne l'a reconnu. */
+  eglise_source: string | null;
+  /** L'entite reconnue a l'import, ou `null` : elle amorce la creation. */
+  eglise_id: string | null;
   created_at: string;
   versement: {
     id: string;
@@ -317,7 +347,8 @@ export const chargerRapprochements = cache(
     const { data, error } = await sb
       .from('dime_rapprochements')
       .select(
-        'id, entite_id, nom_source, prenom_source, enveloppe_source, created_at, ' +
+        'id, entite_id, nom_source, prenom_source, enveloppe_source, ' +
+          'eglise_source, eglise_id, created_at, ' +
           'versement:dime_versements!dime_rapprochements_versement_id_fkey (' +
           '  id, montant,' +
           '  entree:finance_entries!dime_versements_finance_entry_id_fkey (id, date_operation)' +

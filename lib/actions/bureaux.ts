@@ -514,6 +514,25 @@ export async function supprimerBureau(input: unknown): Promise<ActionResult<void
 
     await requirePermission(session, 'bureau.delete', contexte.entite!.path);
 
+    /**
+     * EF-BUR-08 — UN BUREAU CLOS EST ARCHIVE, JAMAIS SUPPRIME.
+     *
+     * Le refus est aussi en base (`trg_bureau_clos_immuable`, migration 0059),
+     * et c'est lui qui protege vraiment. Ici, on le dit AVANT d'ecrire : le
+     * message de la base est exact mais technique, et l'utilisateur merite
+     * d'apprendre la regle plutot que de lire une contrainte.
+     *
+     * La suppression reste ouverte sur un bureau EN COURS : elle rattrape une
+     * ouverture faite par erreur, et rien n'en depend encore.
+     */
+    if (!contexte.is_active) {
+      return ko(
+        'Un bureau clos ne se supprime pas : sa composition est citee par des '
+          + 'rapports, des recus et le journal d\'audit. Il reste consultable '
+          + 'dans les archives.',
+      );
+    }
+
     const sb = await createClient();
 
     // L'audit est ecrit AVANT la suppression : apres, il n'y aurait plus rien
