@@ -1,10 +1,11 @@
 # TODO — demandes en attente
 
-> Liste tenue à jour au **19 août 2026**, pour la reprise sur une autre machine.
+> Liste tenue à jour au **20 août 2026**, pour la reprise sur une autre machine.
 >
-> Elle ne contient QUE ce qui a été demandé et n'est pas encore fait. Ce qui est
-> livré sort d'ici et entre dans [`CLAUDE.md`](../CLAUDE.md) et dans le dernier
-> [point d'étape](../.claude-code-history/2026-08-19_resumes-moi.md).
+> Elle porte les demandes **et** ce qui a déjà été tranché, avec le motif : une
+> décision dont on a perdu la raison se redéfait. Ce qui est livré passe en
+> `[x]`, garde sa justification ici, et entre dans [`CLAUDE.md`](../CLAUDE.md)
+> et dans le dernier point d'étape.
 >
 > **À lire avant de commencer** : [`.agents/rules/reprise.md`](../.agents/rules/reprise.md),
 > puis `CLAUDE.md`, [`cdg.md`](cdg.md) et [`plan.md`](plan.md).
@@ -13,11 +14,15 @@
 
 ## ⚠ État de la base
 
-Appliquées : `0001` à `0058`.
+**Appliquées : `0001` à `0060`. Aucune migration n'attend.**
 
-| N° | Ce qu'elle apporte | Sans elle |
-|---|---|---|
-| `0059` | Deux verrous de bureau : le **terme exigé à l'ouverture** et l'**interdiction de supprimer un bureau clos** | Un bureau peut s'ouvrir sans fin — donc ses membres gardent l'accès indéfiniment (RG-07) — et l'écran seul empêche la suppression, ce qu'un appel direct à l'API contourne |
+C'est **cette ligne** qui fait foi — pas le numéro le plus élevé de
+`supabase/migrations/`, qui dit ce qui est *écrit* et non ce qui est *appliqué*.
+Les migrations ne s'appliquent pas toutes seules : l'utilisateur les passe dans
+l'éditeur SQL Supabase et le confirme.
+
+*(Cette section annonçait encore `0058` le 20 août, alors que `0059` et `0060`
+étaient appliquées depuis le matin. Corrigé.)*
 
 ---
 
@@ -42,6 +47,38 @@ Appliquées : `0001` à `0058`.
       elle est fermée par défaut — on vient sur cet écran pour la liste des
       croyants. Le pop-up de création vit hors du repli, sinon refermer la file
       emporterait une saisie en cours.
+
+### Demandes du 20 août 2026
+
+- [ ] **Impression PDF de la liste**, respectant **les filtres appliqués**.
+      Ce qui s'imprime doit être ce qu'on voit — même doctrine que l'export
+      XLSX/CSV d'EF-FIN-25, dont la sélection filtrée et son nombre de lignes
+      sont annoncés sur le menu. Attention règle 33 : sur une feuille, un
+      libellé tronqué est perdu — on replie entre les mots, on réduit la police,
+      on ne coupe pas. Et le document doit **dire quels filtres il porte**,
+      sinon un total qui ne correspond pas reste inexplicable au lecteur.
+- [ ] **Relier deux croyants mariés** (époux ↔ épouse).
+      - Dans le formulaire, si le statut marital est « marié », proposer une
+        liste de croyants **de sexe opposé** — même sélecteur que la liste des
+        croyants : photo + zone de recherche (règle 18 : l'ensemble est
+        *ouvert*, donc un sélecteur, pas des pictogrammes).
+      - Si le conjoint n'est pas encore enregistré : **« Non renseigné »**.
+      - Si les deux fiches existent déjà, le lien se pose **par simple mise à
+        jour** de l'une ou de l'autre.
+      - La fiche croyant **affiche le conjoint**, avec le maximum
+        d'informations le concernant.
+
+      **Points à trancher avant d'écrire** — ils décident du schéma :
+      1. **Le lien est-il symétrique et automatique ?** Relier A à B doit
+         relier B à A, sinon deux fiches se contrediront. Une colonne
+         `conjoint_id` de chaque côté demande un trigger pour rester cohérente
+         (règle 20 : deux écritures indissociables se font **en base**).
+      2. **Que se passe-t-il au veuvage, au divorce, au décès ?** Effacer le
+         lien perdrait l'histoire ; le garder afficherait un conjoint qui ne
+         l'est plus. Le statut marital et le lien doivent se répondre.
+      3. **Un conjoint hors périmètre.** La RLS le rendra invisible : la fiche
+         doit afficher « conjoint hors de votre périmètre » et non un blanc
+         (règle 15).
 
 ## 2. `/bureaux`
 
@@ -96,6 +133,20 @@ Appliquées : `0001` à `0058`.
       suppression **reste ouverte sur un bureau en cours** : elle rattrape une
       ouverture faite par erreur, et rien n'en dépend encore.
 
+### Demande du 20 août 2026
+
+- [ ] **Un niveau de navigation de plus : entité, puis bureaux.**
+      Le classement actuel est bon, mais l'onglet doit d'abord afficher **toutes
+      les entités du niveau sélectionné**. Le clic sur une entité ouvre alors sa
+      liste de bureaux — celle d'aujourd'hui, inchangée —, puis le menu ⋮ d'un
+      bureau fonctionne comme actuellement.
+
+      `Onglet de niveau → liste des entités → clic → liste des bureaux → menu ⋮`
+
+      À vérifier en chemin : une entité **sans aucun bureau** doit figurer dans
+      la liste et le dire, pas disparaître (règle 15) — c'est justement celle
+      sur laquelle il y a quelque chose à faire.
+
 ## 3. `/finances`
 
 - [x] **Trois nouvelles règles de rapprochement à l'import des dîmes.**
@@ -123,6 +174,60 @@ Appliquées : `0001` à `0058`.
       n'exige un numéro dans aucune nature, `versementSchema` le déclare
       facultatif, et le formulaire ne le marque pas requis. Vérifié le 20 août
       2026 sur les trois niveaux.
+
+### Demandes du 20 août 2026 — l'église lue, et le travail rendu à l'église
+
+**Le constat de départ.** À l'import Excel, l'application n'arrive pas toujours
+à reconnaître le nom de l'église : casse des lettres, accents, ou autre. La
+réponse demandée n'est *pas* d'améliorer le rapprochement automatique mais de
+**montrer ce que le fichier disait** et de laisser l'église trancher à l'œil.
+
+> ⚠ **Une partie existe déjà — vérifier avant d'écrire.** La migration `0058`
+> a introduit `eglise_source`, qui garde le texte lu **même si rien ne le
+> reconnaît**, précisément pour qu'on tranche à l'œil ; `eglise_id` porte
+> l'entité, résolue **une fois** à l'import. Ce qui suit peut donc être en
+> partie de l'affichage, pas du schéma.
+
+- [ ] **Afficher le nom d'église issu du fichier** dans la liste des dîmes, sur
+      les lignes à rapprocher. C'est lui qui permet d'associer la personne à la
+      bonne église sans deviner.
+- [ ] **Le pop-up de rapprochement propose de choisir l'église.** Si la personne
+      n'existe pas en base, on propose de **créer la fiche au niveau de cette
+      église** — la proposition arrive alors dans **sa** liste de croyants sans
+      rattachement. Si la personne existe, la procédure de rapprochement
+      actuelle s'applique sans changement.
+- [ ] **Même traitement pour un nom renseigné sans correspondance en base**,
+      sans enveloppe, église connue.
+- [ ] **En conséquence, la liste des croyants sans rattachement s'élargit.**
+      Elle doit désormais porter :
+      - les **propositions de création** faites par les opérateurs de la
+        finance et adressées à cette église ;
+      - les **enveloppes numérotées dont l'église est connue**, à charge pour
+        l'église de retrouver le porteur du numéro.
+
+      Le travail de l'église devient donc triple : **rapprocher**, **créer une
+      fiche**, ou **retrouver le propriétaire d'une enveloppe**.
+- [ ] **Basculer une enveloppe en anonyme.** Si le propriétaire reste
+      introuvable, l'église peut déclarer l'enveloppe anonyme, ce qui **met à
+      jour la ligne dans la liste des dîmes**.
+
+      À ne pas manquer : c'est une écriture qui touche **deux** endroits — la
+      file de rapprochement et le versement. Si l'état intermédiaire est faux et
+      indétectable, elle se fait **en base** dans une fonction (règle 20).
+
+**Le point de vigilance de tout ce bloc** — RG-33 : une dîme appartient au
+**Siège**, jamais à l'église qui la collecte. `entity_id = <Siège>`,
+`entite_collecte_id = <église>`. Rien de ce qui précède ne doit faire glisser un
+montant vers l'église, sous peine de compter le même argent deux fois. Et
+**aucune entité « église inconnue » ne doit être créée** : elle entrerait dans
+la structure, recevrait un code, apparaîtrait dans chaque sélecteur et dans les
+soldes consolidés — la décision a déjà été prise et tenue une fois.
+
+- [ ] **Menu de versement individuel sur chaque ligne** de `/finances/dimes`.
+      Le pop-up s'ouvre avec le champ entité **verrouillé** sur celle de la
+      ligne — même principe que l'enregistrement d'un croyant depuis la
+      structure, où le rattachement est imposé et n'a donc rien à se faire
+      choisir (règle 16).
 
 ## 4. `/rapports`
 
@@ -184,7 +289,141 @@ Appliquées : `0001` à `0058`.
 - [ ] **Réécrire toutes les descriptions en langage courant.** Les libellés
       d'écran et d'aide, pas les commentaires de code.
 
-## 7. ⏳ Reporté volontairement en fin de liste
+## 7. Design — demandes du 20 août 2026
+
+### Réglages à centraliser dans Administration
+
+- [ ] **Personnalisation du design, réservée au SuperAdmin.** En priorité : la
+      **couleur des boutons** (noire aujourd'hui).
+      Le point technique à ne pas rater — **règle 32** : une valeur arbitraire
+      qui pointe une variable CSS casse **toute la feuille**, et *citer la
+      classe fautive dans un commentaire la recrée*. Une couleur réglable passe
+      donc par les **jetons de `globals.css`**, jamais par une classe Tailwind
+      fabriquée à la volée. Et le réglage se **lit à chaque rendu** (règle 21),
+      sinon il est décoratif.
+- [ ] **Configuration des notifications Toast (Sonner)** : durée d'affichage,
+      bouton de fermeture, couleur de fond selon le cas.
+      ⚠ À croiser avec la **règle 30** : seul `toast.success` subsiste dans ce
+      projet, ESLint refuse les autres, et tout le reste passe par `avertir()`.
+      Le réglage ne doit pas rouvrir en douce ce que cette règle a fermé.
+- [ ] **Référentiel « Événement ».** La liste est figée dans le code ; elle doit
+      devenir un référentiel comme les grades, fonctions et nationalités —
+      `lib/domain/referentiels.ts` est déclaratif, en ajouter un cinquième c'est
+      ajouter une entrée. Même leçon qu'EF-ADM-14 : une liste écrite en dur ne
+      refuse rien, elle est simplement **plus courte**, et personne ne comprend
+      pourquoi.
+
+### Apparence
+
+- [ ] **Bordure de focus des champs : noire**, pas violette.
+- [ ] **Réduire les marges horizontales du contenu** de page (gauche et droite)
+      pour agrandir la zone utile : **4 px**.
+      ⚠ **Écart explicite à la règle 6** (grille de 8 px, vérifiée par ESLint) :
+      il doit être assumé et commenté, comme l'a été `pt-4.5` au tableau de bord.
+- [ ] **Annuler le flou derrière les pop-up** et les rendre **déplaçables**.
+      À vérifier : un pop-up déplaçable ne doit pas perdre son piège à focus ni
+      sa fermeture au clavier — c'est ce que le flou et la superposition
+      signalaient visuellement.
+- [ ] **Ordre protocolaire par glisser-déposer** dans les **fonctions** et dans
+      les **grades** : retirer la colonne de rang du tableau et laisser
+      réordonner verticalement.
+      Le glisser-déposer se double de **deux flèches** — décision déjà prise
+      pour la personnalisation du tableau de bord : inaccessible au clavier, il
+      ne serait un réglage que pour ceux qui ont une souris.
+
+### Écrans
+
+- [ ] **`/structure` : la barre latérale se replie automatiquement.**
+- [ ] **`/structure` : dupliquer le bouton « Accès à l'application »**, qui
+      n'est aujourd'hui que sur `/finances`.
+- [ ] **`/mon-compte` : afficher la photo de profil.**
+- [ ] **Pop-up « Accès à l'application » — trois corrections.**
+      1. **Verrouiller sa hauteur**, comme celui du workflow de validation.
+      2. **Inverser le sens des interrupteurs** : activé = l'entité **a** accès.
+         C'est l'inverse aujourd'hui. Reprendre en conséquence les libellés
+         « Se connecte » et « Ne se connecte pas ».
+         ⚠ **Le sens en base ne change pas** : la colonne s'appelle
+         `sans_acces_application`, et c'est l'affichage qui s'inverse. La
+         renommer toucherait `saisirMouvement`, la migration `0051` et toute la
+         doctrine de la saisie déléguée — ne pas confondre les deux gestes.
+      3. **Le spinner fait trembler le pop-up** et fait apparaître deux barres
+         de défilement : il doit prendre la place de l'interrupteur, pas s'y
+         ajouter.
+- [ ] **Hiérarchie intermédiaire dans l'organigramme des bureaux** — le cas du
+      vice-président, en violet sur l'image jointe — **sans toucher au design
+      actuel ni à l'impression PDF**.
+      ⚠ **L'image n'est pas arrivée** (`image.png`) : à redemander avant de
+      commencer. Rappel règle 33 : le PDF rend la **hiérarchie**, jamais les
+      coordonnées où l'utilisateur a posé ses blocs pour travailler.
+
+---
+
+## 8. Anomalies signalées le 20 août 2026
+
+- [ ] **Une saisie possible là où l'habilitation manque — à trancher.**
+      *Signalé :* Hanitra Eugenie, rattachée à l'église **Antsahatsiresy**, sans
+      l'habilitation de saisir pour le compte d'une entité, peut malgré tout
+      saisir un mouvement pour la cellule **FITAHIANA (CEL-0002)** — cellule qui
+      n'a pas encore de bureau **et** qui a accès à l'application.
+
+      **Ce qui a été vérifié dans le code le 20 août 2026 :**
+      - Le garde-fou **serveur est correct**. `saisirMouvement` appelle
+        `requirePermission(session, 'finance.create', entite.path)`, qui passe
+        par `peut()` — donc avec la portée. `finance.create` est `PROPRE` depuis
+        `0050` : une portée sur l'église **ne couvre pas** sa cellule.
+      - La branche déléguée est correcte aussi : elle exige `finance.delegate`
+        **et** `sans_acces_application` sur l'entité visée (`0051`, `0052`).
+      - **L'écran, lui, ne filtre rien.** `app/(app)/finances/page.tsx` passe
+        `arbre.filter((e) => e.is_active)` au sélecteur d'entité : **toutes** les
+        entités actives du périmètre sont proposées, sans jamais consulter
+        `peut('finance.create', …)`.
+
+      **Trois hypothèses à départager, dans cet ordre :**
+      1. **L'écran promet ce que le serveur refuse.** Le plus probable : la
+         cellule est *sélectionnable*, et l'écriture échoue à l'enregistrement.
+         C'est un défaut réel — on ne propose pas un geste qu'on n'accorde
+         pas —, mais ce n'est pas un trou de sécurité.
+      2. **L'écriture aboutit vraiment.** Alors vérifier ses habilitations
+         réelles en base : détient-elle `finance.create` avec un `scope_path`
+         plus large que son église ? Est-elle `SUPERADMIN` — `estSuperAdmin`
+         court-circuite tout contrôle ?
+      3. **`0050` n'est pas active sur cette base** : `has_perm` testerait
+         encore l'inclusion de chemin pour tous les droits.
+
+      **Le correctif attendu dans tous les cas** : filtrer le sélecteur d'entité
+      par `peut('finance.create', path)`, et par `sans_acces_application` pour
+      la saisie déléguée.
+
+- [ ] **Retirer un titulaire : demander le motif.** Deux cas se présentent, et
+      ils ne laissent pas la même trace :
+      1. **Erreur d'assignation** → **rien** n'est inscrit dans l'historique de
+         la fiche croyant. Ce n'est pas un événement de sa vie, c'est une
+         correction de saisie.
+      2. **Retrait avant la fin du mandat** → **motif obligatoire**, en texte
+         libre : décès, sanction pour faute lourde…
+
+      Un pop-up doit donc demander lequel des deux avant d'agir.
+
+- [ ] **« Gérer les modèles partagés » (rapports) : portée à vérifier.**
+      *Signalé :* un utilisateur habilité peut sélectionner **tous** les niveaux
+      d'organisation — Siège, Régional, District, Paroisse, Église, Cellule — et
+      donc fixer l'étendue d'un modèle **hors de son périmètre**.
+
+      À rapprocher de la doctrine du lot 6, déjà tranchée : *« une entité ne
+      compose que pour elle-même »*, l'entité propriétaire étant celle de
+      rattachement de l'auteur, lue dans la session — elle ne voyage pas dans le
+      formulaire, donc elle ne se choisit pas. Si l'étendue échappe au
+      périmètre, c'est la même règle qui fuit par une autre porte.
+
+---
+
+> **Pour toutes les demandes ci-dessus** — question posée par l'utilisateur le
+> 20 août 2026 : **vérifier si les habilitations fines méritent d'être mises à
+> jour**. Un geste nouveau qui réemploie un droit existant lui donne une portée
+> qu'il n'avait pas ; c'est exactement ce qui s'était produit avec
+> `finance.delegate` avant `0051`.
+
+## 9. ⏳ Reporté volontairement en fin de liste
 
 - [ ] **Le PDF d'un rapport est toujours bâclé.**
       *Quatre tentatives, toutes insuffisantes :*
@@ -195,16 +434,33 @@ Appliquées : `0001` à `0058`.
          fenêtre vide et n'y met que l'aperçu, avec les feuilles de style de
          l'application et un `<base href>` pour qu'elles se résolvent. Le rendu
          ne suit toujours pas.
-      5. Il faut personaliser le reglage des marges (Top - Bottom - Right - left) et non une barre de selection actuelle pour toutes les marges (Apercu A4 du rapport)
 
       **Reprendre avec le PDF produit sous les yeux.** Les trois premiers
       diagnostics étaient chacun justes sans être suffisants : la cause
       restante n'est probablement pas celle qu'on suppose.
 
+- [ ] **Quatre marges réglables séparément** — haut, bas, gauche, droite — au
+      lieu de l'unique curseur actuel, qui les fixe toutes ensemble (aperçu A4
+      du rapport). *(Demandé le 20 août 2026.)*
+
+      C'est une demande **distincte** du défaut ci-dessus, pas une cinquième
+      tentative pour le corriger. Le rendu émet déjà son propre `<style>` parce
+      que `@page` n'accepte ni classe ni variable ; ce sont ses quatre valeurs
+      qu'il faut ouvrir. À faire dans le même passage, tant que le sujet est
+      rouvert.
+
 ---
 
 ## Ce qui attend une réponse de l'utilisateur
 
+- **L'image `image.png`** citée pour la **hiérarchie intermédiaire dans
+  l'organigramme des bureaux** (§7, cas du vice-président en violet) n'est pas
+  arrivée. Sans elle, on ne peut pas savoir si le vice-président se place
+  *entre* deux rangs, *à côté* du président, ou *en dérivation* — trois dessins
+  et trois modèles de données différents.
+- **Le comportement voulu au veuvage et au divorce** pour le lien conjugal
+  (§1) : effacer le lien perd l'histoire, le garder affiche un conjoint qui ne
+  l'est plus.
 - **`SMTP_PASS`** doit être posé dans les variables d'environnement de
   production : sans lui le serveur d'envoi est configuré mais aucun message ne
   part. Le bouton d'essai le dit sans détour.
