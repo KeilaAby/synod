@@ -14,7 +14,12 @@
 
 ## ⚠ État de la base
 
-**Appliquées : `0001` à `0060`. Aucune migration n'attend.**
+**Appliquées : `0001` à `0060`.**
+
+> ⏳ **`0061` ATTEND D’ÊTRE APPLIQUÉE — la page `/referentiels` est cassée sans
+> elle.** Elle rétablit `fonctions.ordre_protocolaire`, que la migration `0022`
+> avait supprimée le 9 août. Sans elle, la lecture du référentiel Fonctions
+> échoue en `42703 — column does not exist`.
 
 C'est **cette ligne** qui fait foi — pas le numéro le plus élevé de
 `supabase/migrations/`, qui dit ce qui est *écrit* et non ce qui est *appliqué*.
@@ -365,11 +370,25 @@ soldes consolidés — la décision a déjà été prise et tenue une fois.
       tient, on n'a ajouté que des gestionnaires de pointeur.)*
 - [x] **Ordre protocolaire par glisser-déposer**, doublé de **deux flèches**.
       *(20 août 2026, **sans migration**.)*
-      **Le mot « remettre » de la demande était juste** : `fonctions` porte une
-      colonne `ordre_protocolaire` depuis la migration `0004`, et **rien ne la
-      lisait**. La liste se rangeait par libellé — la composition d'un bureau
-      affichait donc le trésorier avant le président. Elle est désormais lue,
-      avec le libellé pour ne départager que les rangs égaux.
+      **Le mot « remettre » de la demande était exact, et plus littéralement
+      que je ne l'avais cru.** J'avais d'abord écrit que la colonne
+      `ordre_protocolaire` existait depuis la migration `0004` et que rien ne la
+      lisait. **C'était faux** : la migration `0022` l'a *supprimée* le 9 août
+      2026, sur décision de l'utilisateur, parce qu'elle servait alors à
+      **déduire** l'organigramme d'un bureau — usage disparu depuis que
+      l'organigramme se dessine (`0021`). Je n'avais cherché la colonne que dans
+      le code TypeScript, jamais dans le SQL.
+      **Migration `0061`** la rétablit, et ce n'est pas un revirement : la
+      `0022` retirait un rang qui **prétendait dire** la hiérarchie ; celui-ci
+      ne fixe que l'**ordre d'affichage** d'une liste. `bureau_postes` reste la
+      seule source de préséance d'un bureau. **EF-REF-03 n'avait jamais été
+      amendée** et exige toujours l'ordre protocolaire au référentiel Fonction :
+      la remettre restaure la conformité, la note d'EF-BUR-07 a été précisée en
+      conséquence.
+      Les valeurs de départ reprennent l'**ordre alphabétique actuel** : un
+      défaut uniforme laisserait l'ordre indéfini, et la liste changerait toute
+      seule au premier rechargement. La migration ne déplace rien — elle rend
+      l'ordre modifiable.
       **Le rang ne se tape plus.** « Ordre d'affichage : 100, 200, 300 » est une
       représentation, pas une intention : pour glisser le pasteur avant
       l'évangéliste il fallait deviner un nombre libre entre les deux, et le jour

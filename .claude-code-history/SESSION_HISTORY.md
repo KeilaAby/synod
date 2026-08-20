@@ -4896,3 +4896,38 @@ interrupteur allumé se lit comme une capacité accordée, pas comme une
 privation. **Seul l'affichage change** : `sans_acces_application` garde son nom
 et son sens — la renommer toucherait `0051`, `0052` et toute la doctrine de la
 saisie déléguée, pour un gain d'apparence.
+
+### Une colonne que j'ai crue présente parce que je l'ai cherchée au mauvais endroit
+
+`/referentiels` est tombée en `42703 — column fonctions.ordre_protocolaire does
+not exist`.
+
+**Le diagnostic initial était faux, et la méthode explique pourquoi.** J'avais
+lu la migration `0004`, vu la colonne, puis lancé un
+`grep -rn "ordre_protocolaire" --include=*.ts --include=*.tsx` — **du code
+applicatif uniquement**. N'y trouvant rien, j'ai conclu « la colonne existe et
+personne ne la lit ». La vérité était l'inverse : la migration `0022` l'avait
+**supprimée** le 9 août 2026. Un `grep` sur `supabase/` l'aurait montré en une
+seconde.
+
+La leçon est étroite mais réutilisable : **une colonne se cherche dans tout
+l'historique des migrations, pas dans sa migration de création.** Un `create
+table` dit ce qui a existé, jamais ce qui existe.
+
+**Le rétablissement n'est pas un revirement**, et c'est ce qui a demandé le plus
+de soin. La `0022` retirait un rang qui **prétendait dire** la hiérarchie : il
+servait à *déduire* l'organigramme, usage disparu depuis que celui-ci se dessine
+(`0021`). Le rang qui revient (`0061`) ne fixe que l'**ordre d'affichage** d'une
+liste. `bureau_postes` reste la seule source de préséance d'un bureau.
+
+**EF-REF-03 n'avait jamais été amendée** et exige toujours l'ordre protocolaire
+au référentiel Fonction : le rétablir restaure la conformité. C'est la note
+d'EF-BUR-07 — « l'ordre alphabétique classe les listes » — qui était devenue
+fausse, et elle a été précisée.
+
+**Les valeurs de départ reprennent l'ordre alphabétique en place.** Un défaut
+uniforme à 100 laisserait l'ordre indéfini : la liste changerait toute seule au
+premier rechargement, sans que personne n'ait rien demandé. En partant de ce qui
+est déjà à l'écran, la migration ne déplace rien — elle rend l'ordre modifiable.
+Et l'initialisation est bornée aux lignes restées au défaut, pour qu'un rejeu ne
+défasse pas un ordre posé entre-temps.
