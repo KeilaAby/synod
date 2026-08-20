@@ -14,12 +14,16 @@
 
 ## ⚠ État de la base
 
-**Appliquées : `0001` à `0062`.**
+**Appliquées : `0001` à `0063`.**
 
-> ⏳ **`0063` attend d'être appliquée — l'écran des paramètres généraux échoue
-> sans elle**, les colonnes n'existant pas. Elle ajoute à
-> `organisation_settings` la couleur des boutons et les trois réglages de
-> notification.
+> ⏳ **`0063` est appliquée** — mais l'action ne reprenait pas les quatre
+> nouveaux champs dans son `update` : l'enregistrement réussissait **sans rien
+> changer**. Corrigé, et un test verrouille désormais l'invariant « aucun
+> paramètre validé ne reste non écrit ».
+>
+> ⏳ **`0064` attend d'être appliquée** : `bureau_postes.en_derivation`, le
+> poste qui se dessine à côté du tronc de son supérieur. Sans elle, enregistrer
+> un plan d'organigramme échoue — la colonne n'existe pas.
 
 C'est **cette ligne** qui fait foi — pas le numéro le plus élevé de
 `supabase/migrations/`, qui dit ce qui est *écrit* et non ce qui est *appliqué*.
@@ -522,34 +526,46 @@ soldes consolidés — la décision a déjà été prise et tenue une fois.
          faisait apparaître deux barres de défilement. Le gabarit est fixe ;
          c'est ce qui est dedans qui change.
 
-- [ ] **Hiérarchie intermédiaire dans l'organigramme des bureaux**, **sans
-      toucher au design actuel ni à l'impression PDF**.
+- [x] **Hiérarchie intermédiaire dans l'organigramme des bureaux.** *(20 août
+      2026, migration `0064`.)* Le modèle fourni : « Vice-président adjoint »
+      accroché au trait vertical qui descend du directeur général, décalé sur le
+      côté, au-dessus de la rangée des autres subordonnés.
 
-      **Ce que montre l'image reçue le 20 août 2026** — le modèle est clair :
-      « Directeur général » en tête, et « Vice-président adjoint » **accroché au
-      trait vertical** qui descend du DG, **décalé sur le côté**, au-dessus de
-      la rangée des autres subordonnés. Ce dernier n'est pas dans cette rangée :
-      il est **en dérivation** sur le tronc.
+      **Un drapeau sur le poste, jamais un niveau de plus.** C'est la décision
+      qui commande tout le reste : le vice-président est un **enfant** du
+      directeur général. Lui donner un rang intermédiaire décalerait toute la
+      descendance d'un cran pour obtenir un effet de dessin.
+      `parent_fonction_id` continue de dire **de qui l'on dépend** ;
+      `en_derivation` dit seulement **où l'on se dessine**. Un test le vérifie :
+      le petit-enfant reste au même niveau qu'en l'absence d'adjoint.
 
-      C'est le motif classique du **poste en dérivation** (adjoint, cabinet,
-      assistant de direction). Il se rattache au même parent que les autres,
-      mais il **ne se range pas avec eux**.
+      **L'invariant central : la rangée des frères ne bouge pas.** Une dérivation
+      compte parmi les enfants pour la parenté, jamais pour la **largeur** —
+      l'inclure dans le calcul déplacerait toute la rangée pour loger un bloc
+      qui n'y figure pas, et le plan changerait à chaque adjoint nommé. La
+      distinction se fait à un seul endroit, au tri ; tout le reste — largeur,
+      centrage, profondeur — ignore leur existence.
 
-      **Les deux décisions que cela impose :**
-      1. **Le rattachement reste un rattachement.** Le vice-président adjoint
-         est bien un enfant du DG — ce n'est pas un niveau de plus. Ajouter un
-         rang intermédiaire dans le modèle décalerait toute la descendance.
-         Ce qui change est le **placement**, pas la parenté.
-      2. **Donc un drapeau sur le poste**, du genre `en_derivation`, et non une
-         nouvelle table ni un `parent_id` détourné. La mise en page le lit ; la
-         composition tabulaire, qui reste la source des vacances, l'ignore.
+      **Le trait change aussi.** Le trait ordinaire descend puis coude vers
+      l'enfant, qui l'accueille par le **haut**. Un adjoint posé à mi-hauteur du
+      tronc n'a pas de haut à offrir : le trait y arriverait en biais ou
+      par-dessus le bloc. On sort donc du tronc à sa hauteur et on y entre par
+      la **gauche** — le « T » couché du modèle, qui fait lire l'adjoint comme
+      un rattachement latéral plutôt que comme un subordonné de plus.
 
-      ⚠ **Le PDF est le point délicat.** Règle 33 : il rend la **hiérarchie**,
-      jamais les coordonnées où l'utilisateur a posé ses blocs pour travailler.
-      Le poste en dérivation doit donc se dessiner **à partir du drapeau**, en
-      recalculant sa position dans `organigramme-svg.ts` — pas en recopiant la
-      position d'écran, qui rendrait le papier dépendant de la mise en page de
-      travail.
+      **Le PDF le recalcule, il ne le recopie pas** (règle 33) : la position
+      vient du drapeau, pas de l'écran. À l'écran, le bloc garde la place où on
+      l'a mis — un plan de travail n'est pas un document.
+
+      **Une dérivation sans supérieur n'en est pas une.** L'entrée de menu
+      n'apparaît que sur un bloc relié, et détacher un bloc marqué le remet dans
+      la rangée **côté écran** plutôt qu'en base : la contrainte de `0064`
+      refuserait l'écriture entière, et le plan serait perdu pour un détail de
+      dessin.
+
+      **Le réglage se voit à l'écran** — une pastille « Dérivation » — alors
+      qu'il ne change que le papier. Sans elle, on ne saurait qu'un bloc est en
+      dérivation qu'en imprimant, donc trop tard pour le corriger.
 
 ---
 

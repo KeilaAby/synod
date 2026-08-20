@@ -52,6 +52,22 @@ export async function reglerParametres(input: unknown): Promise<ActionResult<voi
       transfert_auto_approbation_interne: valeurs.transfertAutoApprobationInterne,
       rapport_composition_libre: valeurs.rapportCompositionLibre,
       reinitialisation_par_email: valeurs.reinitialisationParEmail,
+      /**
+       * EF-ADM-13 — apparence et notifications.
+       *
+       * Ces quatre lignes ont MANQUE au premier jet : le schema les validait,
+       * le formulaire les envoyait, et l'`update` ne les reprenait pas.
+       * L'enregistrement reussissait donc sans rien changer — la panne la plus
+       * ingrate, parce qu'elle ne se signale nulle part.
+       *
+       * Le typecheck ne pouvait pas la voir : l'objet passe a `.update()` n'est
+       * pas type contre la table. C'est le pendant exact de la regle 19 — une
+       * action qui n'ecrit pas un champ dont son formulaire est la source.
+       */
+      couleur_primaire: valeurs.couleurPrimaire,
+      toast_duree_ms: valeurs.toastDureeMs,
+      toast_bouton_fermer: valeurs.toastBoutonFermer,
+      toast_couleurs_vives: valeurs.toastCouleursVives,
     });
 
     const sb = await createClient();

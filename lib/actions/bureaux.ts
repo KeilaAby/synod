@@ -616,6 +616,9 @@ export async function enregistrerDisposition(input: unknown): Promise<ActionResu
           parent_fonction_id: poste.parentFonctionId,
           pos_x: poste.x,
           pos_y: poste.y,
+          // EF-BUR-07 — un adjoint se dessine A COTE DU TRONC. Le drapeau ne
+          // change ni la parente ni le niveau : seulement le placement.
+          en_derivation: poste.enDerivation,
           updated_by: session.profileId,
           updated_at: new Date().toISOString(),
         })),

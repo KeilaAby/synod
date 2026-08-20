@@ -5040,3 +5040,56 @@ l'identique de la dernière version.
 **Le risque n'est pas dans le référentiel, il est là** : cette fonction écrit
 les collectes de dîmes, à l'unité comme à l'import. La recopier de travers ne se
 verrait pas au typecheck.
+
+### Le poste en dérivation : un drapeau, jamais un niveau
+
+L'adjoint accroché au tronc de son supérieur, décalé sur le côté, au-dessus de
+la rangée des autres subordonnés — le motif du modèle fourni.
+
+**La décision qui commande tout le reste** : le vice-président est un **enfant**
+du directeur général. Lui donner un rang intermédiaire décalerait toute la
+descendance d'un cran pour obtenir un effet de dessin. `parent_fonction_id`
+continue de dire *de qui l'on dépend* ; `en_derivation` dit seulement *où l'on
+se dessine*.
+
+**L'invariant central : la rangée des frères ne bouge pas.** Une dérivation
+compte parmi les enfants pour la parenté, jamais pour la **largeur** — l'inclure
+déplacerait toute la rangée pour loger un bloc qui n'y figure pas, et le plan
+changerait à chaque adjoint nommé. La distinction se fait à un seul endroit, au
+tri ; largeur, centrage et profondeur ignorent leur existence. Un test compare
+le plan avec et sans adjoint.
+
+**Le trait a dû changer aussi**, et c'est ce qui ne se devine pas : le trait
+ordinaire descend puis coude vers l'enfant, qui l'accueille par le **haut**. Un
+adjoint posé à mi-hauteur du tronc n'a pas de haut à offrir — le trait y
+arriverait en biais ou par-dessus le bloc. On sort donc du tronc à sa hauteur et
+on y entre par la **gauche**.
+
+**Le PDF recalcule, il ne recopie pas** (règle 33). À l'écran le bloc garde la
+place où on l'a mis ; sur le papier il est replacé depuis le drapeau.
+
+**Deux détails d'implémentation qui ont demandé un détour :**
+
+- Le drapeau vit dans la **donnée du nœud**, pas dans un état séparé : `plan()`
+  lit déjà les nœuds, si bien qu'il suit le bloc partout sans qu'aucun des six
+  points d'écriture ne le sache. Mais le **gestionnaire**, lui, s'injecte au
+  rendu — le mettre dans `construireNoeud` le faisait capturer par
+  l'initialisateur d'état, donc lire avant sa propre déclaration.
+- Une dérivation sans supérieur n'en est pas une. Détacher un bloc marqué le
+  remet dans la rangée **côté écran**, parce que la contrainte de `0064`
+  refuserait l'écriture entière — et le plan serait perdu pour un détail de
+  dessin.
+
+### Un enregistrement qui réussissait sans rien changer
+
+Signalé juste après l'application de `0063` : les paramètres ne se gardaient
+pas.
+
+Les quatre nouveaux champs étaient dans le schéma, dans le formulaire, dans la
+lecture — et **absents de l'objet passé à `.update()`**. Mon édition de l'action
+n'avait pas pris, et rien ne l'avait signalé : le typecheck ne peut pas voir ce
+défaut, l'objet donné à `.update()` n'étant pas typé contre la table.
+
+C'est le pendant exact de la règle 19 — une action qui n'écrit pas un champ dont
+son formulaire est la source. Un test lit désormais le fichier de l'action et
+vérifie que **chaque** clé du schéma y apparaît.

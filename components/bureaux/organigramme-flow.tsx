@@ -99,6 +99,15 @@ function donneesNoeud(
     surRetirerTitulaire: (fonctionId: string) => void;
     surOterDuPlan: (fonctionId: string) => void;
   },
+  /**
+   * EF-BUR-07 — le poste se dessine A COTE DU TRONC de son supérieur.
+   *
+   * Il vit dans la donnée du NŒUD, et non dans un état séparé : `plan()` lit
+   * déjà les nœuds pour composer ce qu'on enregistre, si bien que le drapeau
+   * suit le bloc partout — ajout, retrait, repositionnement — sans qu'aucun
+   * des six points d'écriture n'ait à le savoir.
+   */
+  enDerivation = false,
 ) {
   const croyant = membre?.croyant ?? null;
 
@@ -120,6 +129,7 @@ function donneesNoeud(
     surDeposerCroyant: actions.surDeposerCroyant,
     surRetirerTitulaire: actions.surRetirerTitulaire,
     surOterDuPlan: actions.surOterDuPlan,
+    enDerivation,
   };
 }
 
@@ -129,6 +139,17 @@ function plan(noeuds: Node[], liens: Liens): DispositionPoste[] {
     parentFonctionId: liens[noeud.id] ?? null,
     x: noeud.position.x,
     y: noeud.position.y,
+    /**
+     * EF-BUR-07 — le drapeau vient de la donnée du nœud, comme le reste.
+     *
+     * UNE DÉRIVATION SANS SUPÉRIEUR N'EN EST PAS UNE : il n'y a pas de tronc
+     * auquel s'accrocher. Détacher un bloc marqué le remet donc dans la
+     * rangée, ici plutôt qu'en base — la contrainte de `0064` refuserait
+     * l'écriture entière, et le plan serait perdu pour un détail de dessin.
+     */
+    enDerivation:
+      Boolean((noeud.data as { enDerivation?: boolean }).enDerivation) &&
+      Boolean(liens[noeud.id]),
   }));
 }
 
@@ -270,7 +291,7 @@ function Editeur({
   );
 
   const construireNoeud = useCallback(
-    (poste: PosteBureau, x: number, y: number): Node => ({
+    (poste: PosteBureau, x: number, y: number, enDerivation = false): Node => ({
       id: poste.fonction.id,
       type: 'poste',
       position: { x, y },
@@ -285,6 +306,7 @@ function Editeur({
           surRetirerTitulaire: retirerTitulaire,
           surOterDuPlan: oterDuPlan,
         },
+        enDerivation,
       ),
     }),
     [parMandat, photos, modifiable, designer, retirerTitulaire, oterDuPlan],
@@ -303,12 +325,66 @@ function Editeur({
 
   const [noeuds, setNoeuds, surChangementNoeuds] = useNodesState<Node>(
     planInitial.map((place) =>
-      construireNoeud(parFonction.get(place.fonctionId)!, place.x, place.y),
+      construireNoeud(
+        parFonction.get(place.fonctionId)!,
+        place.x,
+        place.y,
+        place.enDerivation,
+      ),
     ),
   );
 
   const [liens, setLiens] = useState<Liens>(() =>
     Object.fromEntries(planInitial.map((d) => [d.fonctionId, d.parentFonctionId])),
+  );
+
+  /**
+   * EF-BUR-07 — poser un bloc EN DÉRIVATION, ou le remettre dans la rangée.
+   *
+   * Le geste ne touche NI la parenté NI la position : un adjoint reste enfant
+   * de son supérieur, et l'impression le replacera d'elle-même. À l'écran il
+   * garde la place où on l'a mis — un plan de travail n'est pas un document
+   * (règle 33).
+   */
+  const basculerDerivation = useCallback(
+    (fonctionId: string) => {
+      setNoeuds((precedents) =>
+        precedents.map((n) =>
+          n.id === fonctionId
+            ? {
+                ...n,
+                data: {
+                  ...n.data,
+                  enDerivation: !(n.data as { enDerivation?: boolean }).enDerivation,
+                },
+              }
+            : n,
+        ),
+      );
+    },
+    [setNoeuds],
+  );
+
+  /**
+   * LE GESTIONNAIRE S'INJECTE AU RENDU, LE DRAPEAU VIT DANS LA DONNÉE.
+   *
+   * Le mettre dans `construireNoeud` l'aurait fait capturer par l'initialisateur
+   * d'état — donc lu avant sa propre déclaration, puisqu'il a besoin de
+   * `setNoeuds`. La distinction est juste par ailleurs : `enDerivation` est un
+   * fait qu'on enregistre, `surBasculerDerivation` une capacité du rendu
+   * courant. Seul le premier a sa place dans l'état.
+   */
+  const noeudsAffiches = useMemo(
+    () =>
+      noeuds.map((n) => ({
+        ...n,
+        data: {
+          ...n.data,
+          surBasculerDerivation: basculerDerivation,
+          aUnSuperieur: Boolean(liens[n.id]),
+        },
+      })),
+    [noeuds, liens, basculerDerivation],
   );
 
   /**
@@ -662,7 +738,7 @@ function Editeur({
         }}
       >
         <ReactFlow
-          nodes={noeuds}
+          nodes={noeudsAffiches}
           edges={aretes}
           nodeTypes={TYPES_NOEUDS}
           onNodesChange={surChangementNoeuds}

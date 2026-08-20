@@ -123,7 +123,7 @@ export async function chargerDisposition(bureauId: string): Promise<DispositionP
 
   const { data, error } = await sb
     .from('bureau_postes')
-    .select('fonction_id, parent_fonction_id, pos_x, pos_y')
+    .select('fonction_id, parent_fonction_id, pos_x, pos_y, en_derivation')
     .eq('bureau_id', bureauId)
     .returns<
       {
@@ -131,6 +131,7 @@ export async function chargerDisposition(bureauId: string): Promise<DispositionP
         parent_fonction_id: string | null;
         pos_x: number;
         pos_y: number;
+        en_derivation: boolean;
       }[]
     >();
 
@@ -143,6 +144,7 @@ export async function chargerDisposition(bureauId: string): Promise<DispositionP
     parentFonctionId: p.parent_fonction_id,
     x: p.pos_x,
     y: p.pos_y,
+    enDerivation: p.en_derivation,
   }));
 }
 

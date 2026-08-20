@@ -26,6 +26,8 @@ export interface DispositionPoste {
   readonly parentFonctionId: string | null;
   readonly x: number;
   readonly y: number;
+  /** EF-BUR-07 — dessine a cote du tronc, pas dans la rangee des freres. */
+  readonly enDerivation?: boolean;
 }
 
 /** Grille de 8 px, jusque dans la disposition par defaut (UI-01). */

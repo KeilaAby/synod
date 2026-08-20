@@ -1,7 +1,14 @@
 'use client';
 
 import { Handle, type NodeProps, Position } from '@xyflow/react';
-import { CircleSlash, EyeOff, MoreVertical, UserMinus, UserPlus } from 'lucide-react';
+import {
+  CircleSlash,
+  CornerDownRight,
+  EyeOff,
+  MoreVertical,
+  UserMinus,
+  UserPlus,
+} from 'lucide-react';
 import { useState } from 'react';
 
 import { AvatarCroyant } from '@/components/croyants/avatar-croyant';
@@ -45,6 +52,20 @@ export interface DonneesNoeudPoste extends Record<string, unknown> {
    * Le référentiel n'est jamais touché.
    */
   surOterDuPlan?: (fonctionId: string) => void;
+  /**
+   * EF-BUR-07 — le poste se dessine A CÔTÉ DU TRONC de son supérieur, pas dans
+   * la rangée de ses frères : c'est l'adjoint, le cabinet.
+   *
+   * Il ne change ni la parenté ni le niveau — seulement le placement, et
+   * seulement à l'impression : à l'écran, chacun pose ses blocs où il veut.
+   */
+  enDerivation?: boolean;
+  /**
+   * Injecte AU RENDU : les liens vivent dans l'etat de l'editeur, pas dans la
+   * donnee du noeud. Sans superieur, il n'y a pas de tronc auquel s'accrocher.
+   */
+  aUnSuperieur?: boolean;
+  surBasculerDerivation?: (fonctionId: string) => void;
 }
 
 /**
@@ -80,6 +101,26 @@ export function NoeudPoste({ data }: NodeProps) {
                 icone: UserMinus,
                 destructif: false,
                 action: () => d.surRetirerTitulaire!(d.fonctionId),
+              },
+            ]
+          : []),
+        /*
+          EF-BUR-07 — L'ENTRÉE N'APPARAÎT QUE SI LE BLOC A UN SUPÉRIEUR.
+
+          Une dérivation s'accroche au tronc de quelqu'un ; sans lien, il n'y a
+          pas de tronc, et le geste n'aurait nulle part où poser le bloc. La
+          proposer quand même donnerait un réglage qui ne se voit pas — le
+          contraire de ce qu'on veut d'un plan.
+        */
+        ...(d.surBasculerDerivation && d.aUnSuperieur
+          ? [
+              {
+                libelle: d.enDerivation
+                  ? 'Remettre dans la rangée'
+                  : 'Poser en dérivation',
+                icone: CornerDownRight,
+                destructif: false,
+                action: () => d.surBasculerDerivation!(d.fonctionId),
               },
             ]
           : []),
@@ -141,6 +182,17 @@ export function NoeudPoste({ data }: NodeProps) {
             <span className="text-foreground text-xs font-semibold">{d.fonction}</span>
             {/* RG-31 — ce qui fait un « membre de finances ». */}
             {d.estFinanciere && <StatusBadge tone="accent">Finances</StatusBadge>}
+            {/*
+              EF-BUR-07 — LE RÉGLAGE SE VOIT À L'ÉCRAN, alors qu'il ne change
+              que le papier. Sans ce repère, on ne saurait qu'un bloc est en
+              dérivation qu'en imprimant — donc trop tard pour le corriger.
+            */}
+            {d.enDerivation && (
+              <StatusBadge tone="neutral">
+                <CornerDownRight className="mr-1 inline size-3" aria-hidden />
+                Dérivation
+              </StatusBadge>
+            )}
           </span>
 
           {/* Le même menu ⋮ que partout ailleurs. Un raccourci clavier ne se

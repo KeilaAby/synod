@@ -42,6 +42,14 @@ export interface BlocImprime {
   } | null;
   readonly estFinanciere: boolean;
   readonly parentFonctionId: string | null;
+  /**
+   * EF-BUR-07 — le poste se dessine A COTE DU TRONC de son superieur, pas dans
+   * la rangee de ses freres : c'est l'adjoint, le cabinet.
+   *
+   * Il ne change NI la parente NI le niveau. Un rang intermediaire decalerait
+   * toute la descendance d'un cran pour obtenir un effet de dessin.
+   */
+  readonly enDerivation?: boolean;
 }
 
 /**
@@ -186,6 +194,24 @@ const RAYON_PASTILLE = 18;
 function trait(parent: BlocImprime, enfant: BlocImprime): string {
   const departX = parent.x + LARGEUR / 2;
   const departY = parent.y + HAUTEUR;
+
+  /**
+   * EF-BUR-07 — UNE DERIVATION SE RACCROCHE AU TRONC, PAR LE COTE.
+   *
+   * Le trait ordinaire descend puis coude vers l'enfant, qui l'accueille par le
+   * HAUT. Un adjoint pose a mi-hauteur du tronc n'a pas de haut a offrir : le
+   * trait y arriverait en biais, ou par-dessus le bloc.
+   *
+   * On sort donc du tronc a la hauteur du bloc et on y entre par la GAUCHE.
+   * C'est ce qui produit le « T » couche du modele — et ce qui fait lire
+   * l'adjoint comme un rattachement lateral plutot que comme un subordonne de
+   * plus.
+   */
+  if (enfant.enDerivation) {
+    const milieu = enfant.y + HAUTEUR / 2;
+    return `M ${departX} ${departY} V ${milieu} H ${enfant.x}`;
+  }
+
   const arriveeX = enfant.x + LARGEUR / 2;
   const arriveeY = enfant.y;
   const coude = departY + (arriveeY - departY) / 2;
@@ -220,15 +246,34 @@ export function disposerEnArbre(blocs: readonly BlocImprime[]): BlocImprime[] {
   const parId = new Map(blocs.map((b) => [b.fonctionId, b]));
 
   const enfants = new Map<string, BlocImprime[]>();
+  /**
+   * EF-BUR-07 — LES POSTES EN DERIVATION SONT MIS DE COTE DES LE TRI.
+   *
+   * Ils dependent bien de leur superieur, mais ils ne participent NI a la
+   * largeur du sous-arbre NI au centrage : les compter parmi les freres
+   * decalerait la rangee entiere pour loger un bloc qui n'y figure pas.
+   *
+   * C'est le seul endroit ou la distinction se fait. Tout le reste — la
+   * largeur, le centrage, la profondeur — ignore leur existence, et c'est ce
+   * qui garde l'arbre identique a ce qu'il etait sans eux.
+   */
+  const derivations = new Map<string, BlocImprime[]>();
   const racines: BlocImprime[] = [];
 
   for (const bloc of blocs) {
     const parent = bloc.parentFonctionId;
-    if (parent && parId.has(parent) && parent !== bloc.fonctionId) {
-      (enfants.get(parent) ?? enfants.set(parent, []).get(parent)!).push(bloc);
-    } else {
+    const rattache = parent && parId.has(parent) && parent !== bloc.fonctionId;
+
+    if (!rattache) {
+      // Une racine ne peut pas etre en derivation : il n'y a pas de tronc
+      // au-dessus d'elle. La base l'interdit (0064) ; ici on retombe sur le
+      // comportement ordinaire plutot que de perdre le bloc.
       racines.push(bloc);
+      continue;
     }
+
+    const table = bloc.enDerivation ? derivations : enfants;
+    (table.get(parent) ?? table.set(parent, []).get(parent)!).push(bloc);
   }
 
   const places = new Map<string, { x: number; y: number }>();
@@ -281,6 +326,34 @@ export function disposerEnArbre(blocs: readonly BlocImprime[]): BlocImprime[] {
       poser(fils, curseur, profondeur + 1);
       curseur += largeur(fils) + ECART_X;
     }
+
+    /**
+     * EF-BUR-07 — LES DERIVATIONS, APRES COUP ET A COTE DU TRONC.
+     *
+     * Elles se posent une fois le bloc place, donc en fonction de SA position,
+     * et non de celle de la rangee : c'est ce qui les accroche au trait
+     * vertical plutot qu'a la ligne des freres.
+     *
+     * A MI-HAUTEUR entre le superieur et ses subordonnes, la ou le trait
+     * descend. Plus haut, elles toucheraient le bloc ; plus bas, elles se
+     * confondraient avec la rangee, ce qu'on veut precisement eviter.
+     *
+     * A DROITE, et empilees s'il y en a plusieurs. Le modele fourni les met a
+     * droite ; alterner les cotes pour « equilibrer » ferait changer de place
+     * un adjoint parce qu'un autre est apparu.
+     */
+    const miHauteur = (HAUTEUR + ECART_Y) / 2;
+    const place = places.get(bloc.fonctionId)!;
+
+    (derivations.get(bloc.fonctionId) ?? []).forEach((adjoint, rang) => {
+      if (poses.has(adjoint.fonctionId)) return;
+      poses.add(adjoint.fonctionId);
+
+      places.set(adjoint.fonctionId, {
+        x: place.x + LARGEUR + ECART_X,
+        y: place.y + miHauteur + rang * (HAUTEUR + ECART_X),
+      });
+    });
   }
 
   let curseur = 0;

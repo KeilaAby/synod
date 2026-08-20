@@ -406,3 +406,102 @@ describe("disposerEnArbre — la hierarchie decide, pas l'ecran", () => {
     expect(plan).toHaveLength(2);
   });
 });
+
+/**
+ * EF-BUR-07 — le poste EN DERIVATION : l'adjoint sur le tronc.
+ *
+ * Le modele fourni le 20 aout 2026 : « Directeur general » en tete,
+ * « Vice-president adjoint » accroche au trait vertical qui en descend, decale
+ * sur le cote, AU-DESSUS de la rangee des autres subordonnes.
+ */
+describe('disposerEnArbre — le poste en derivation', () => {
+  it('NE DECALE PAS la rangee des freres', () => {
+    /**
+     * L'invariant central. Un adjoint compte parmi les enfants pour la
+     * PARENTE, jamais pour la LARGEUR : l'inclure dans le calcul deplacerait
+     * toute la rangee pour loger un bloc qui n'y figure pas — et le plan
+     * changerait a chaque adjoint nomme.
+     */
+    const sans = disposerEnArbre([
+      bloc({ fonctionId: 'dg' }),
+      bloc({ fonctionId: 'a', parentFonctionId: 'dg' }),
+      bloc({ fonctionId: 'b', parentFonctionId: 'dg' }),
+    ]);
+
+    const avec = disposerEnArbre([
+      bloc({ fonctionId: 'dg' }),
+      bloc({ fonctionId: 'a', parentFonctionId: 'dg' }),
+      bloc({ fonctionId: 'b', parentFonctionId: 'dg' }),
+      bloc({ fonctionId: 'vp', parentFonctionId: 'dg', enDerivation: true }),
+    ]);
+
+    const posA = (plan: typeof sans, id: string) =>
+      plan.find((p) => p.fonctionId === id)!;
+
+    expect(posA(avec, 'a').x).toBeCloseTo(posA(sans, 'a').x, 5);
+    expect(posA(avec, 'b').x).toBeCloseTo(posA(sans, 'b').x, 5);
+    expect(posA(avec, 'dg').x).toBeCloseTo(posA(sans, 'dg').x, 5);
+  });
+
+  it('le pose A COTE du superieur, entre lui et la rangee', () => {
+    const plan = disposerEnArbre([
+      bloc({ fonctionId: 'dg' }),
+      bloc({ fonctionId: 'a', parentFonctionId: 'dg' }),
+      bloc({ fonctionId: 'vp', parentFonctionId: 'dg', enDerivation: true }),
+    ]);
+
+    const par = new Map(plan.map((b) => [b.fonctionId, b]));
+    const dg = par.get('dg')!;
+    const vp = par.get('vp')!;
+    const a = par.get('a')!;
+
+    // A DROITE du superieur, pas au-dessous de lui.
+    expect(vp.x).toBeGreaterThan(dg.x);
+
+    // ENTRE les deux niveaux : plus haut il toucherait le bloc, plus bas il se
+    // confondrait avec la rangee — ce qu'on veut precisement eviter.
+    expect(vp.y).toBeGreaterThan(dg.y);
+    expect(vp.y).toBeLessThan(a.y);
+  });
+
+  it('reste un ENFANT : il ne cree pas de niveau intermediaire', () => {
+    /**
+     * La distinction qui a decide du schema. Le vice-president est un enfant du
+     * directeur general ; lui donner un rang intermediaire decalerait toute la
+     * descendance d'un cran pour obtenir un effet de dessin.
+     */
+    const plan = disposerEnArbre([
+      bloc({ fonctionId: 'dg' }),
+      bloc({ fonctionId: 'vp', parentFonctionId: 'dg', enDerivation: true }),
+      bloc({ fonctionId: 'a', parentFonctionId: 'dg' }),
+      bloc({ fonctionId: 'petit', parentFonctionId: 'a' }),
+    ]);
+
+    const par = new Map(plan.map((b) => [b.fonctionId, b]));
+
+    // Le petit-enfant est au TROISIEME niveau, comme s'il n'y avait pas
+    // d'adjoint du tout.
+    const sansAdjoint = disposerEnArbre([
+      bloc({ fonctionId: 'dg' }),
+      bloc({ fonctionId: 'a', parentFonctionId: 'dg' }),
+      bloc({ fonctionId: 'petit', parentFonctionId: 'a' }),
+    ]);
+
+    const attendu = sansAdjoint.find((b) => b.fonctionId === 'petit')!;
+    expect(par.get('petit')!.y).toBeCloseTo(attendu.y, 5);
+  });
+
+  it('empile plusieurs adjoints du meme cote', () => {
+    // Alterner les cotes pour « equilibrer » ferait changer de place un adjoint
+    // parce qu'un autre est apparu.
+    const plan = disposerEnArbre([
+      bloc({ fonctionId: 'dg' }),
+      bloc({ fonctionId: 'v1', parentFonctionId: 'dg', enDerivation: true }),
+      bloc({ fonctionId: 'v2', parentFonctionId: 'dg', enDerivation: true }),
+    ]);
+
+    const par = new Map(plan.map((b) => [b.fonctionId, b]));
+    expect(par.get('v1')!.x).toBeCloseTo(par.get('v2')!.x, 5);
+    expect(par.get('v2')!.y).toBeGreaterThan(par.get('v1')!.y);
+  });
+});

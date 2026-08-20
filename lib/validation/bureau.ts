@@ -108,6 +108,14 @@ export const dispositionSchema = z.object({
       z.object({
         fonctionId: z.uuid(),
         parentFonctionId: z.uuid().nullable(),
+        /**
+         * EF-BUR-07 — le poste se dessine A COTE DU TRONC de son superieur.
+         *
+         * `default(false)` et non `optional()` : un plan enregistre avant cette
+         * version n'envoie pas le champ, et l'absence doit valoir « pose
+         * normalement » — jamais `undefined`, qui effacerait la colonne.
+         */
+        enDerivation: z.boolean().default(false),
         // Bornees : une coordonnee absurde placerait un bloc hors de portee du
         // cadrage automatique, et l'organigramme paraitrait vide.
         x: z.number().min(-100_000).max(100_000),

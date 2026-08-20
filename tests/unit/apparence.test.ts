@@ -61,3 +61,40 @@ describe('Duree des notifications', () => {
     expect(bornerDuree(Number.POSITIVE_INFINITY)).toBe(4000);
   });
 });
+
+/**
+ * EF-ADM-11 — le formulaire, le schema et l'ECRITURE disent la meme chose.
+ *
+ * Le defaut du 20 aout 2026 : quatre champs ont ete ajoutes au schema et au
+ * formulaire, mais l'objet passe a `.update()` ne les reprenait pas.
+ * L'enregistrement reussissait donc SANS RIEN CHANGER — la panne la plus
+ * ingrate, parce qu'elle ne se signale nulle part.
+ *
+ * Le typecheck ne pouvait pas la voir : l'objet donne a `.update()` n'est pas
+ * type contre la table. C'est le pendant exact de la regle 19 — une action qui
+ * n'ecrit pas un champ dont son formulaire est la source.
+ */
+describe('EF-ADM-11 — aucun parametre validé ne reste non écrit', () => {
+  it('reprend dans l action CHAQUE champ du schema', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const { parametresSchema } = await import('@/lib/validation/parametres');
+
+    const source = await readFile(
+      new URL('../../lib/actions/parametres.ts', import.meta.url),
+      'utf8',
+    );
+
+    const champs = Object.keys(parametresSchema.shape);
+
+    // Au moins autant de champs que ce qu'on connait : si le schema se vide
+    // par accident, le test passerait sans rien verifier.
+    expect(champs.length).toBeGreaterThanOrEqual(13);
+
+    for (const champ of champs) {
+      expect(
+        source.includes(`valeurs.${champ}`),
+        `le parametre « ${champ} » est validé mais jamais écrit`,
+      ).toBe(true);
+    }
+  });
+});
