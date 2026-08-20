@@ -116,7 +116,33 @@ export async function saisirMouvement(
      * signerait ses ecritures du nom d'une autre entite.
      */
     if (data.estDelegue) {
-      await requirePermission(session, 'finance.delegate', entite.path);
+      /**
+       * LE REFUS NOMME L'HABILITATION QUI MANQUE.
+       *
+       * `requirePermission` aurait suffi a proteger l'ecriture, mais il rend
+       * toujours la meme phrase : « Vous n'avez pas l'autorisation d'effectuer
+       * cette action ». Sur cet ecran-ci, elle est trompeuse — l'utilisateur
+       * detient bien `finance.create`, il le sait, et il cherche donc ailleurs.
+       * C'est ce qui a fait passer un blocage pour un bogue le 20 aout 2026.
+       *
+       * On garde la ligne d'audit `DENIED` : un refus est un evenement, et le
+       * remplacer par un message le ferait disparaitre du journal.
+       */
+      if (!peut(session, 'finance.delegate', entite.path)) {
+        await auditer({
+          session,
+          action: 'DENIED',
+          table: 'permissions',
+          entityId: entite.id,
+          diff: { permission: 'finance.delegate', portee: entite.path },
+        });
+
+        return ko(
+          `Saisir pour le compte de ${entite.nom} demande l’habilitation ` +
+            '« Saisie déléguée » sur cette entité, que vous ne détenez pas. ' +
+            'Demandez-la à votre administrateur.',
+        );
+      }
 
       /**
        * ARB-2 / EF-STR-10 — LA SAISIE DELEGUEE SUPPOSE QU'IL N'Y AIT PERSONNE

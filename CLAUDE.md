@@ -421,6 +421,15 @@ refusée, soit elle n'en a pas et c'est le seul mode. Laisser choisir, c'était
 laisser se tromper, et la case oubliée répondait « vous n'avez pas
 l'autorisation » quand l'autorisation était là.
 
+**Un refus nomme l'habilitation qui manque, et se dit AVANT la saisie.**
+`peutDeleguer` valait `true` en dur : l'écran ne vérifiait pas
+`finance.delegate` et le découvrait au retour du serveur, sous la formule
+générique de `requirePermission` — laquelle est trompeuse ici, l'utilisateur
+détenant bien `finance.create`. L'encart avertit désormais **sur l'entité
+choisie** (règle 3), et le serveur nomme le droit au lieu de la formule. La
+ligne d'audit `DENIED` est conservée : un refus est un événement, le remplacer
+par un message le ferait disparaître du journal.
+
 **Une saisie déléguée ne passe par AUCUN workflow** (`0052`). Ce n'est pas une
 commodité : c'est le seul état cohérent. `finance.validate` étant `PROPRE`
 depuis `0050`, et l'entité visée n'ayant aucun compte, une écriture déléguée

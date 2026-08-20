@@ -4782,3 +4782,37 @@ payer un balayage pour un test.
 
 *Reste ouvert :* le sélecteur d'entité n'est toujours pas filtré par
 `peut('finance.create', path)`. Il propose tout le périmètre actif.
+
+### Le refus se dit avant la saisie, et il nomme ce qui manque
+
+Suite directe du précédent. `peutDeleguer` valait **`true` en dur** dans
+`finances-client.tsx` : l'écran ne vérifiait jamais `finance.delegate`, et
+l'utilisateur le découvrait au retour du serveur sous la forme la moins
+utile — « Vous n'avez pas l'autorisation d'effectuer cette action », **sans
+dire laquelle**.
+
+C'est précisément ce qui a fait passer un blocage pour un bogue : détenant
+`finance.create` et le sachant, l'utilisateur cherchait la cause ailleurs.
+
+Deux corrections, aux deux moments où la question se pose :
+
+- **Avant** — l'encart de saisie déléguée avertit quand le droit manque, et
+  **sur l'entité choisie**. Le droit s'évalue avec sa portée (règle 3) :
+  détenir `finance.delegate` ne dit rien tant qu'on ne sait pas sur quelle
+  entité. Le message dit aussi quoi faire — le demander à son administrateur,
+  ou changer d'entité.
+- **Après** — si le serveur est atteint quand même, il **nomme l'habilitation**
+  au lieu de la formule générique. `requirePermission` protégeait bien
+  l'écriture, mais il rend toujours la même phrase ; ici on la remplace par un
+  `ko()` explicite.
+
+**La ligne d'audit `DENIED` est conservée.** Un refus est un événement, et le
+remplacer par un message le ferait disparaître du journal — c'est exactement ce
+qu'on aurait perdu en se contentant de retirer `requirePermission`.
+
+**Divorce — le lien s'efface, sans historique.** Décision de l'utilisateur, à ne
+pas « améliorer » plus tard en gardant une union passée : ce registre sert
+l'église d'aujourd'hui, pas la généalogie. Ce que cela impose est noté dans
+`todos.md` : effacer un lien symétrique touche **deux** fiches, et n'en effacer
+qu'une les ferait se contredire — l'une divorcée, l'autre toujours mariée à
+elle. Deux écritures indissociables, donc en base (règle 20).

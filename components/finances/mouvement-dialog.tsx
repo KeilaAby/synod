@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Field, TextField } from '@/components/shared/field';
 import { avertir } from '@/components/shared/messages';
 import { PermissionGate } from '@/components/shared/permission-gate';
+import { useSession } from '@/components/shared/session-provider';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EntityPicker, type OptionEntite } from '@/components/structure/entity-picker';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -81,6 +82,7 @@ export function MouvementDialog({
   exigeDelegationParEntite?: Record<string, boolean>;
 }) {
   const router = useRouter();
+  const { peut } = useSession();
   const [ouvert, setOuvert] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [fichier, setFichier] = useState<File | null>(null);
@@ -160,6 +162,26 @@ export function MouvementDialog({
   const delegationRequise = entiteChoisie
     ? (exigeDelegationParEntite[entiteChoisie] ?? false)
     : false;
+
+  /**
+   * DÉTIENT-IL LE DROIT DE SAISIR POUR CETTE ENTITÉ-LÀ ?
+   *
+   * `peutDeleguer` valait `true` en dur : l'écran ne vérifiait rien et le
+   * découvrait au retour du serveur, sous la forme la moins utile — « Vous
+   * n'avez pas l'autorisation d'effectuer cette action », sans dire laquelle.
+   *
+   * Le droit s'évalue AVEC SA PORTÉE (règle 3) : détenir `finance.delegate` ne
+   * dit rien tant qu'on ne sait pas sur quelle entité. D'où le chemin ltree de
+   * l'entité choisie, et non une simple détention.
+   *
+   * Ce contrôle ne REMPLACE pas celui du serveur, qui reste seul à décider — il
+   * le devance, pour que le refus se lise avant la saisie plutôt qu'après.
+   */
+  const cheminChoisi = entiteChoisie
+    ? (entites.find((e) => e.id === entiteChoisie)?.path ?? null)
+    : null;
+
+  const detientDelegation = cheminChoisi ? peut('finance.delegate', cheminChoisi) : false;
 
   /**
    * Le sens SE VOIT dès que la catégorie est choisie.
@@ -434,22 +456,48 @@ export function MouvementDialog({
                     chaque fois ce qui est déjà le cas.
                   */}
                   {peutDeleguer && !enModification && delegationRequise && (
-                    <div className="border-border space-y-1 rounded-lg border p-4">
+                    <div
+                      className={
+                        detientDelegation
+                          ? 'border-border space-y-1 rounded-lg border p-4'
+                          : 'space-y-1 rounded-lg border border-amber-300 bg-amber-50 p-4'
+                      }
+                    >
                       <p className="text-sm font-medium">Saisie déléguée</p>
                       <p className="text-muted-foreground text-xs">
                         Cette entité n’a personne pour enregistrer ses propres
                         mouvements. Celui-ci lui sera rattaché et portera la
                         mention « déléguée » avec votre nom.
                       </p>
-                      {/*
-                        Une écriture validée d'office sans que rien ne l'annonce
-                        serait une surprise : on le dit AVANT de le faire.
-                      */}
-                      <p className="text-muted-foreground text-xs">
-                        Elle sera <strong>validée immédiatement</strong> : sans
-                        titulaire sur place, personne ne pourrait la soumettre
-                        ni la valider, et elle attendrait indéfiniment.
-                      </p>
+
+                      {detientDelegation ? (
+                        /*
+                          Une écriture validée d'office sans que rien ne
+                          l'annonce serait une surprise : on le dit AVANT.
+                        */
+                        <p className="text-muted-foreground text-xs">
+                          Elle sera <strong>validée immédiatement</strong> : sans
+                          titulaire sur place, personne ne pourrait la soumettre
+                          ni la valider, et elle attendrait indéfiniment.
+                        </p>
+                      ) : (
+                        /*
+                          LE REFUS SE DIT AVANT LA SAISIE, PAS APRÈS.
+
+                          Sans cette ligne, on remplissait montant, date et
+                          libellé pour s'entendre répondre « vous n'avez pas
+                          l'autorisation » — sans savoir laquelle, ni à qui la
+                          demander. Le serveur refusera de toute façon : ceci ne
+                          fait que l'annoncer à temps.
+                        */
+                        <p className="text-xs text-amber-900">
+                          <strong>L’enregistrement sera refusé.</strong> Saisir
+                          pour le compte d’une autre entité demande
+                          l’habilitation « Saisie déléguée » sur celle-ci, et
+                          vous ne la détenez pas. Demandez-la à votre
+                          administrateur, ou choisissez une autre entité.
+                        </p>
+                      )}
                     </div>
                   )}
                 </section>

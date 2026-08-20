@@ -73,19 +73,26 @@ l'éditeur SQL Supabase et le confirme.
          relier B à A, sinon deux fiches se contrediront. Une colonne
          `conjoint_id` de chaque côté demande un trigger pour rester cohérente
          (règle 20 : deux écritures indissociables se font **en base**).
-      2. ✅ **Décès et caractère facultatif — tranché le 20 août 2026.**
-         - Si A ou B est déclaré **décédé**, l'autre devient **veuf ou veuve**.
-           Le statut marital du survivant suit donc le décès du conjoint : c'est
-           une conséquence, pas une saisie à refaire à la main — sinon deux
-           fiches se contrediraient jusqu'à ce que quelqu'un s'en aperçoive.
+      2. ✅ **Décès, divorce et caractère facultatif — tranchés le 20 août 2026.**
+         - **Décès.** Si A ou B est déclaré décédé, l'autre devient **veuf ou
+           veuve**. Le statut marital du survivant suit donc le décès du
+           conjoint : c'est une conséquence, pas une saisie à refaire à la main —
+           sinon deux fiches se contrediraient jusqu'à ce que quelqu'un s'en
+           aperçoive.
+         - **Divorce : le lien s'efface, sans historique.** Rien n'en est
+           conservé. C'est une décision explicite, à ne pas « améliorer » plus
+           tard en gardant une union passée : ce registre sert l'église
+           d'aujourd'hui, pas la généalogie, et une ex-union qui traîne dans une
+           fiche est une information que personne n'a demandé à voir.
          - **Le lien n'est jamais obligatoire**, même sur un croyant déclaré
            marié : son conjoint peut très bien ne pas être croyant. « Marié »
            sans conjoint renseigné est un état **normal**, pas une fiche
            incomplète — rien ne doit le signaler comme une anomalie.
 
-         *(Reste ouvert : le divorce. Il n'a pas été tranché, et il ne se déduit
-         d'aucun autre champ — contrairement au veuvage, qui a le décès pour
-         cause visible.)*
+         **Ce que le divorce impose à l'écriture** : effacer un lien symétrique
+         touche **deux** fiches, et n'en effacer qu'une les ferait se
+         contredire — l'une divorcée, l'autre toujours mariée à elle. Les deux
+         écritures sont donc indissociables et se font **en base** (règle 20).
       3. **Un conjoint hors périmètre.** La RLS le rendra invisible : la fiche
          doit afficher « conjoint hors de votre périmètre » et non un blanc
          (règle 15).
@@ -437,10 +444,24 @@ soldes consolidés — la décision a déjà été prise et tenue une fois.
       - **Aucune migration** : `fn_chiffres_perimetre` (`0053`) rendait déjà le
         nombre de titulaires par entité, en une passe, pour l'écran.
 
+      **Le refus se dit maintenant AVANT la saisie, et il nomme.** *(20 août
+      2026, second passage.)* `peutDeleguer` valait `true` **en dur** : l'écran
+      ne vérifiait pas `finance.delegate` et le découvrait au retour du serveur,
+      sous la forme la moins utile — « Vous n'avez pas l'autorisation
+      d'effectuer cette action », sans dire laquelle. L'utilisateur détenant
+      bien `finance.create` et le sachant, il cherchait ailleurs : c'est ce qui
+      a fait passer un blocage pour un bogue.
+      - L'encart avertit désormais quand le droit manque, **sur l'entité
+        choisie** (règle 3 : le droit s'évalue avec sa portée) ;
+      - et le serveur, s'il est atteint quand même, **nomme l'habilitation** au
+        lieu de la formule générique. La ligne d'audit `DENIED` est conservée :
+        un refus est un événement, le remplacer par un message le ferait
+        disparaître du journal.
+
       *Reste ouvert :* le **sélecteur d'entité n'est toujours pas filtré** par
-      `peut('finance.create', path)`. Il propose tout le périmètre actif. Le cas
-      signalé aboutit désormais, mais une entité pourvue d'un bureau et hors de
-      la portée du droit reste sélectionnable pour être refusée ensuite.
+      `peut('finance.create', path)`. Il propose tout le périmètre actif. Une
+      entité pourvue d'un bureau et hors de la portée du droit reste donc
+      sélectionnable — mais elle est maintenant refusée **avec son motif**.
 
 - [ ] **Retirer un titulaire : demander le motif.** Deux cas se présentent, et
       ils ne laissent pas la même trace :
@@ -501,10 +522,6 @@ soldes consolidés — la décision a déjà été prise et tenue une fois.
 
 ## Ce qui attend une réponse de l'utilisateur
 
-- **Le divorce**, pour le lien conjugal (§1). Le décès est tranché — le
-  survivant devient veuf ou veuve — mais le divorce ne se déduit d'aucun autre
-  champ : il n'a pas d'événement qui le trahisse, contrairement au décès. Faut-il
-  effacer le lien, le conserver comme une union passée, ou ne rien prévoir ?
 - **`SMTP_PASS`** doit être posé dans les variables d'environnement de
   production : sans lui le serveur d'envoi est configuré mais aucun message ne
   part. Le bouton d'essai le dit sans détour.
