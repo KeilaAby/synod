@@ -269,6 +269,11 @@ export async function listerFonctions(): Promise<FonctionBureau[]> {
   const { data, error } = await sb
     .from('fonctions')
     .select('id, code, libelle, est_financiere, niveaux_applicables, is_active')
+    // EF-REF-02 — L'ORDRE PROTOCOLAIRE D'ABORD. Il etait alphabetique : la
+    // composition d'un bureau listait le tresorier avant le president, ce
+    // qu'aucune assemblee ne fait. Le libelle ne departage plus que les rangs
+    // egaux — deux fonctions creees sans avoir ete ordonnees.
+    .order('ordre_protocolaire')
     .order('libelle')
     .returns<
       {

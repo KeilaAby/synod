@@ -109,8 +109,20 @@ export function AccesApplicationDialog({ lignes }: { lignes: LigneAcces[] }) {
         <Button variant="outline" className="h-10" onClick={() => setOuvert(true)}>
           <WifiOff className="mr-2 size-4" aria-hidden />
           Accès à l&apos;application
+          {/*
+            LE COMPTE PORTE L'EXCEPTION, PAS LA RÈGLE. On affiche combien
+            d'entités sont SANS accès — c'est le petit nombre, et celui qui a
+            des conséquences. Compter celles qui se connectent donnerait le
+            total de la structure, qu'on sait déjà.
+
+            Le `title` le dit, parce qu'un nombre nu à côté de « Accès à
+            l'application » se lirait aussi bien dans l'autre sens.
+          */}
           {sansAccesTotal > 0 && (
-            <span className="bg-foreground text-background ml-2 rounded-full px-2 py-0.5 text-xs tabular-nums">
+            <span
+              title={`${sansAccesTotal} entité(s) sans accès à l’application`}
+              className="bg-foreground text-background ml-2 rounded-full px-2 py-0.5 text-xs tabular-nums"
+            >
               {sansAccesTotal}
             </span>
           )}
@@ -134,10 +146,13 @@ export function AccesApplicationDialog({ lignes }: { lignes: LigneAcces[] }) {
               « sans accès » ressemble à « désactivée », et ce n'en est pas.
             */}
             <p className="text-muted-foreground border-border rounded-lg border p-3 text-sm">
-              Une entité déclarée sans accès continue d&apos;exister normalement :
-              ses croyants, ses bureaux et son solde restent visibles. Seule chose
-              qui change — quelqu&apos;un d&apos;autre peut saisir ses mouvements,
-              et chaque écriture porte alors la mention « saisie déléguée » avec le
+              <strong className="text-foreground">
+                Interrupteur allumé : l&apos;entité accède à l&apos;application.
+              </strong>{' '}
+              Éteint, elle continue d&apos;exister normalement — ses croyants, ses
+              bureaux et son solde restent visibles. Seule chose qui change :
+              quelqu&apos;un au-dessus d&apos;elle peut saisir ses mouvements, et
+              chaque écriture porte alors la mention « saisie déléguée » avec le
               nom de son auteur.
             </p>
 
@@ -184,11 +199,24 @@ export function AccesApplicationDialog({ lignes }: { lignes: LigneAcces[] }) {
                   {onglets.map((onglet) => (
                     <TabsContent key={onglet.type} value={onglet.type} className="mt-4">
                       {onglet.entites.length === 0 ? (
-                        <p className="text-muted-foreground text-sm">
+                        // La MÊME hauteur que la liste : sans elle, une
+                        // recherche qui ne trouve rien ferait s'effondrer le
+                        // pop-up, puis se rouvrir à la lettre suivante.
+                        <p className="text-muted-foreground flex h-[22rem] items-start text-sm">
                           Aucune entité de ce niveau ne correspond à votre recherche.
                         </p>
                       ) : (
-                        <ul className="divide-border max-h-96 divide-y overflow-y-auto">
+                        /*
+                          HAUTEUR FIXE, ET NON MAXIMALE — le même gabarit que
+                          le pop-up du workflow.
+
+                          `max-h-96` laissait la liste grandir avec son
+                          contenu : changer d'onglet ou taper une recherche
+                          faisait sauter la hauteur du pop-up, qui se
+                          recentrait à chaque frappe. Une hauteur fixe rend le
+                          cadre immobile ; c'est la liste qui défile dedans.
+                        */
+                        <ul className="divide-border h-[22rem] divide-y overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar]:block [&::-webkit-scrollbar]:w-2">
                           {onglet.entites.map((ligne) => (
                             <li
                               key={ligne.id}
@@ -206,25 +234,53 @@ export function AccesApplicationDialog({ lignes }: { lignes: LigneAcces[] }) {
                                 </span>
                               </span>
 
+                              {/*
+                                L'INTERRUPTEUR DIT « OUI », JAMAIS « NON ».
+
+                                Il portait `sans_acces_application` telle
+                                qu'elle est en base : activé signifiait « ne se
+                                connecte PAS ». Un interrupteur allumé se lit
+                                comme une capacité accordée, pas comme une
+                                privation — la lecture spontanée était donc
+                                l'inverse du réglage.
+
+                                Seul l'AFFICHAGE s'inverse. La colonne garde son
+                                nom et son sens : la renommer toucherait
+                                `saisirMouvement`, les migrations `0051` et
+                                `0052`, et toute la doctrine de la saisie
+                                déléguée — pour un gain d'apparence.
+                              */}
                               <span className="flex shrink-0 items-center gap-3">
                                 <span className="text-muted-foreground text-xs">
-                                  {sansAccesDe(ligne)
-                                    ? 'Ne se connecte pas'
-                                    : 'Se connecte'}
+                                  {sansAccesDe(ligne) ? 'Sans accès' : 'A accès'}
                                 </span>
-                                {enCours === ligne.id ? (
-                                  <Loader2
-                                    className="text-muted-foreground size-4 animate-spin"
-                                    aria-hidden
-                                  />
-                                ) : (
-                                  <Switch
-                                    checked={sansAccesDe(ligne)}
-                                    disabled={enCours !== null}
-                                    onCheckedChange={() => void basculer(ligne)}
-                                    aria-label={`${ligne.nom} ne se connecte pas`}
-                                  />
-                                )}
+                                {/*
+                                  LE CHARGEMENT PREND LA PLACE DE
+                                  L'INTERRUPTEUR, il ne s'y ajoute pas.
+
+                                  Une roue de 16 px substituée à un
+                                  interrupteur de 36 px faisait rétrécir la
+                                  ligne, donc trembler le pop-up, et sa hauteur
+                                  changeante faisait apparaître deux barres de
+                                  défilement le temps de l'aller-retour. Le
+                                  gabarit est fixe : c'est ce qui est dedans qui
+                                  change.
+                                */}
+                                <span className="flex h-6 w-9 items-center justify-center">
+                                  {enCours === ligne.id ? (
+                                    <Loader2
+                                      className="text-muted-foreground size-4 animate-spin"
+                                      aria-hidden
+                                    />
+                                  ) : (
+                                    <Switch
+                                      checked={!sansAccesDe(ligne)}
+                                      disabled={enCours !== null}
+                                      onCheckedChange={() => void basculer(ligne)}
+                                      aria-label={`${ligne.nom} accède à l’application`}
+                                    />
+                                  )}
+                                </span>
                               </span>
                             </li>
                           ))}

@@ -4,6 +4,7 @@ import type { EntityType } from '@/lib/domain/hierarchy';
 import type { UserRole } from '@/lib/domain/permissions';
 import { createClient } from '@/lib/supabase/server';
 
+import { signerPhotos } from './photos';
 import { DataError } from './errors';
 
 /**
@@ -263,4 +264,36 @@ export async function croyantsSansCompte(): Promise<CroyantEligible[]> {
       // Il ne siege nulle part — c'est justement la condition.
       fonction: 'Sans mandat',
     }));
+}
+
+/**
+ * EF-AUT-04 — le PORTRAIT du titulaire d'un compte, pour sa propre fiche.
+ *
+ * IL VIENT DU CROYANT, PAS DU COMPTE. Un compte n'a pas de visage : c'est la
+ * personne qui siege dans un bureau qui en a un, et sa photo vit sur sa fiche
+ * de croyant (RG-07 — un membre de bureau est toujours un croyant enregistre).
+ * Le responsable informatique, qui ne siege nulle part, peut donc n'en avoir
+ * aucune : l'avatar a initiales prend alors le relais, et ce n'est pas un
+ * defaut.
+ *
+ * L'URL est SIGNEE A L'AFFICHAGE et jamais persistee (regle 11) : elle expire.
+ */
+export async function photoDuCompte(profileId: string): Promise<string | null> {
+  const sb = await createClient();
+
+  const { data, error } = await sb
+    .from('profiles')
+    .select('croyant:croyants!profiles_croyant_id_fkey(photo_key)')
+    .eq('id', profileId)
+    .maybeSingle<{ croyant: { photo_key: string | null } | null }>();
+
+  /**
+   * UN PORTRAIT ABSENT N'EST PAS UNE PANNE (regle 15) — mais ce n'est pas une
+   * raison pour taire une lecture qui echoue : on rend `null` et l'ecran
+   * retombe sur les initiales, ce qu'il ferait de toute facon.
+   */
+  if (error || !data?.croyant?.photo_key) return null;
+
+  const signees = await signerPhotos([data.croyant.photo_key]);
+  return signees.get(data.croyant.photo_key) ?? null;
 }

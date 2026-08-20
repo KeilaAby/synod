@@ -193,3 +193,68 @@ describe('EF-REF-05 — ou chaque referentiel est employe', () => {
     }
   });
 });
+
+/**
+ * EF-REF-02 — l'ordre protocolaire se pose en deplaçant, plus en tapant.
+ */
+describe('EF-REF-02 — ordre protocolaire', () => {
+  it('declare `colonneOrdre` partout ou le tri se fait SUR un ordre', () => {
+    /**
+     * L'invariant qui compte : si la liste se RANGE par un ordre, elle doit
+     * pouvoir se REORDONNER. L'un sans l'autre donne une liste dont le
+     * classement existe mais que personne ne peut changer — c'etait le cas des
+     * fonctions, rangees par libelle avec une colonne `ordre_protocolaire`
+     * inutilisee depuis la migration 0004.
+     */
+    for (const slug of SLUGS_REFERENTIELS) {
+      const def = REFERENTIELS[slug];
+      if (def.triPar === 'libelle') continue;
+      expect(def.colonneOrdre, `${slug} se trie par ${def.triPar}`).toBe(def.triPar);
+    }
+  });
+
+  it('les nationalites n en ont PAS — un rang inventerait une hierarchie', () => {
+    expect(REFERENTIELS.nationalites.colonneOrdre).toBeUndefined();
+    expect(REFERENTIELS.nationalites.triPar).toBe('libelle');
+  });
+
+  it('aucun formulaire ne demande plus le rang a la main', () => {
+    // Regle 16 : garder le champ A COTE du glisser-deposer donnerait deux
+    // chemins pour la meme chose, sans dire lequel gagne.
+    for (const slug of SLUGS_REFERENTIELS) {
+      const def = REFERENTIELS[slug];
+      if (!def.colonneOrdre) continue;
+      expect(
+        def.champs.some((c) => c.cle === def.colonneOrdre),
+        `${slug} propose encore un champ ${def.colonneOrdre}`,
+      ).toBe(false);
+    }
+  });
+
+  it('REGLE 19 — le schema n ecrit pas un rang que le formulaire ne porte plus', () => {
+    /**
+     * Le piege evite de justesse : `ordre` etait reste dans le schema Zod avec
+     * `.default(100)`. Le formulaire ne l'affichant plus, chaque modification
+     * d'un grade aurait REMIS SON RANG A 100 — sans message et sans erreur.
+     */
+    for (const slug of SLUGS_REFERENTIELS) {
+      const def = REFERENTIELS[slug];
+      if (!def.colonneOrdre) continue;
+
+      const rendu = def.schema.safeParse({
+        code: 'TEST',
+        libelle: 'Valeur de test',
+        sens: 'RECETTE',
+        categorie: 'AUTRE',
+        niveaux_applicables: ['EGLISE'],
+      });
+
+      if (rendu.success) {
+        expect(
+          Object.hasOwn(rendu.data, def.colonneOrdre),
+          `${slug} reecrirait ${def.colonneOrdre}`,
+        ).toBe(false);
+      }
+    }
+  });
+});

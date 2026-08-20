@@ -265,3 +265,86 @@ export async function basculerActivationReferentiel(
     return ok({ actif: suivant });
   });
 }
+
+/**
+ * EF-REF-02 — REORDONNER, EN UNE SEULE ECRITURE.
+ *
+ * POURQUOI UN RANG NE SE TAPE PLUS. « Ordre d'affichage : 100, 200, 300 » est
+ * une representation, pas une intention : pour glisser le tresorier avant le
+ * secretaire, il fallait deviner un nombre libre entre les deux, et le jour ou
+ * il n'y en avait plus, renumeroter la liste entiere. L'ordre PROTOCOLAIRE est
+ * une suite de positions relatives — on le pose en deplaçant, pas en calculant.
+ *
+ * LA LISTE ENTIERE VOYAGE, ET C'EST VOULU. On pourrait n'envoyer que les lignes
+ * deplacees ; mais deux personnes qui reordonnent en meme temps produiraient
+ * alors des rangs qui s'entrelacent, sans que rien ne le signale. Envoyer
+ * l'ordre COMPLET fait de la derniere ecriture la seule qui compte — un
+ * arbitrage brutal, mais lisible, sur une table que deux personnes ne touchent
+ * jamais ensemble en pratique.
+ *
+ * `upsert` plutot que N `update` : une ligne par valeur couterait un
+ * aller-retour par fonction (regle 28), et une interruption a mi-parcours
+ * laisserait un ordre a moitie applique — donc faux, et sans trace.
+ */
+const reordonnerSchema = z.object({
+  slug: z.string(),
+  /** Les identifiants DANS L'ORDRE VOULU. Le rang est l'indice, rien d'autre. */
+  ids: z.array(z.uuid()).min(1).max(500),
+});
+
+export async function reordonnerReferentiel(input: unknown): Promise<ActionResult<void>> {
+  return executerAction('reordonnerReferentiel', async () => {
+    const session = await requireSession();
+    await requirePermission(session, 'referentiel.manage');
+
+    const analyse = reordonnerSchema.safeParse(input);
+    if (!analyse.success) return ko('Requete invalide.');
+
+    const slug = analyse.data.slug as SlugReferentiel;
+    const definition = REFERENTIELS[slug];
+    if (!definition) return ko('Referentiel inconnu.');
+
+    /**
+     * Le referentiel doit AVOIR un ordre. Les nationalites se rangent par
+     * libelle : leur imposer un rang inventerait une hierarchie entre des pays.
+     */
+    if (!definition.colonneOrdre) {
+      return ko(
+        `Les ${definition.titre.toLocaleLowerCase('fr')} n’ont pas d’ordre à définir : ` +
+          'elles se rangent par libellé.',
+      );
+    }
+
+    const sb = await createClient();
+
+    /**
+     * DES RANGS ESPACES DE DIX, jamais de 1 a N.
+     *
+     * Une valeur creee plus tard, ou par un import, prend son `ordre` par
+     * defaut ; des rangs contigus la placeraient forcement en queue ou en
+     * conflit. L'espacement laisse de la place a une insertion sans toucher
+     * aux voisines — et si elle vient a manquer, un simple reordonnancement la
+     * retablit.
+     */
+    const colonne = definition.colonneOrdre;
+    const lignes = analyse.data.ids.map((id, rang) => ({
+      id,
+      [colonne]: (rang + 1) * 10,
+    }));
+
+    const { error } = await sb.from(definition.table).upsert(lignes, { onConflict: 'id' });
+
+    if (error) return ko(messageErreurSql(error));
+
+    await auditer({
+      session,
+      action: 'UPDATE',
+      table: definition.table,
+      diff: { apres: { ordre: analyse.data.ids } },
+    });
+
+    revalidatePath(`/referentiels/${slug}`);
+    revalidatePath('/referentiels');
+    return ok();
+  });
+}

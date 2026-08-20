@@ -332,40 +332,115 @@ soldes consolidés — la décision a déjà été prise et tenue une fois.
 
 ### Apparence
 
-- [ ] **Bordure de focus des champs : noire**, pas violette.
-- [ ] **Réduire les marges horizontales du contenu** de page (gauche et droite)
-      pour agrandir la zone utile : **4 px**.
-      ⚠ **Écart explicite à la règle 6** (grille de 8 px, vérifiée par ESLint) :
-      il doit être assumé et commenté, comme l'a été `pt-4.5` au tableau de bord.
-- [ ] **Annuler le flou derrière les pop-up** et les rendre **déplaçables**.
-      À vérifier : un pop-up déplaçable ne doit pas perdre son piège à focus ni
-      sa fermeture au clavier — c'est ce que le flou et la superposition
-      signalaient visuellement.
-- [ ] **Ordre protocolaire par glisser-déposer** dans les **fonctions** et dans
-      les **grades** : retirer la colonne de rang du tableau et laisser
-      réordonner verticalement.
-      Le glisser-déposer se double de **deux flèches** — décision déjà prise
-      pour la personnalisation du tableau de bord : inaccessible au clavier, il
-      ne serait un réglage que pour ceux qui ont une souris.
+- [x] **Bordure de focus des champs : noire**, pas violette. *(20 août 2026)* —
+      le jeton `--ring` de `globals.css`, pas une classe posée écran par écran.
+      **En thème sombre elle ne peut pas être littérale** : un contour noir sur
+      fond sombre ne se verrait pas, et ENF-UTI-03 exige un focus visible. Chaque
+      thème prend donc son `--foreground` — noir en clair, presque blanc en
+      sombre. Même traitement pour `--sidebar-ring`, qui aurait sinon gardé
+      l'indigo dans la navigation.
+- [x] **Marges horizontales du contenu réduites à 4 px.** *(20 août 2026)* —
+      `px-1 md:px-2` dans le gabarit applicatif. **Écart assumé à la règle 6**,
+      et le raisonnement est écrit sur place : la grille de 8 px vaut pour ce qui
+      SÉPARE des éléments entre eux ; une marge extérieure ne sépare rien, elle
+      ne fait que rogner la zone utile. Sur les tableaux larges de cette
+      application, chaque pixel rendu est une colonne de moins à faire défiler.
+      Le `py-6` vertical, lui, **reste sur la grille** : il sépare bien quelque
+      chose. `px-1` est sur l'échelle Tailwind, donc ESLint l'accepte — ce n'est
+      pas une valeur arbitraire.
+- [x] **Flou retiré, pop-up déplaçables.** *(20 août 2026)* — `backdrop-filter`
+      forçait le navigateur à recomposer toute la page derrière le pop-up à
+      chaque image : sur un organigramme React Flow ou un tableau de mille
+      lignes, c'est ce qui rendait l'ouverture pâteuse. Le voile passe de
+      `bg-black/10` à `bg-black/20` et dit ce que le flou disait — « ceci est
+      au-dessus » — sans rien recalculer.
+      **On ne tire que par l'en-tête.** Rendre toute la surface saisissable
+      ferait déplacer le pop-up en essayant de sélectionner un libellé ou de
+      cocher une case ; un `pointerdown` sur un bouton ou un champ n'entraîne
+      rien non plus. **La position ne se mémorise pas** : le pop-up se démonte à
+      la fermeture, donc rouvrir redonne un pop-up centré. Une position retenue
+      ferait rouvrir hors écran après un changement de taille de fenêtre, et
+      personne ne saurait pourquoi le pop-up « ne s'ouvre plus ».
+      *(Le piège à focus et la fermeture au clavier sont inchangés : Radix les
+      tient, on n'a ajouté que des gestionnaires de pointeur.)*
+- [x] **Ordre protocolaire par glisser-déposer**, doublé de **deux flèches**.
+      *(20 août 2026, **sans migration**.)*
+      **Le mot « remettre » de la demande était juste** : `fonctions` porte une
+      colonne `ordre_protocolaire` depuis la migration `0004`, et **rien ne la
+      lisait**. La liste se rangeait par libellé — la composition d'un bureau
+      affichait donc le trésorier avant le président. Elle est désormais lue,
+      avec le libellé pour ne départager que les rangs égaux.
+      **Le rang ne se tape plus.** « Ordre d'affichage : 100, 200, 300 » est une
+      représentation, pas une intention : pour glisser le pasteur avant
+      l'évangéliste il fallait deviner un nombre libre entre les deux, et le jour
+      où il n'y en avait plus, renuméroter la liste entière. Le champ numérique
+      est retiré des formulaires — le garder à côté du glisser-déposer aurait
+      donné deux chemins pour la même chose (règle 16).
+      **Un piège de la règle 19 évité de justesse** : `ordre` était resté dans le
+      schéma Zod avec `.default(100)`. Le formulaire ne l'affichant plus, chaque
+      modification d'un grade aurait **remis son rang à 100**, sans message ni
+      erreur. Un test le verrouille désormais.
+      **La colonne d'ordre ne s'appelle pas partout pareil** — `ordre` pour les
+      grades et les catégories, `ordre_protocolaire` pour les fonctions : elle se
+      **déclare** au registre (`colonneOrdre`) au lieu d'être devinée. Les
+      nationalités n'en ont pas, et c'est voulu : leur imposer un rang
+      inventerait une hiérarchie entre des pays.
+      **Les rangs sont espacés de dix**, jamais de 1 à N : une valeur créée plus
+      tard, ou par un import, doit pouvoir s'insérer sans toucher ses voisines.
+      L'écriture est **un seul `upsert`** — une ligne par valeur coûterait un
+      aller-retour par fonction (règle 28), et une interruption à mi-parcours
+      laisserait un ordre à moitié appliqué, donc faux et sans trace.
+      *(Étendu aux **catégories financières**, qui se rangeaient déjà par
+      `ordre` : le même argument y vaut mot pour mot, et laisser une des trois
+      tables se comporter autrement aurait demandé plus d'explications que de
+      l'aligner.)*
 
 ### Écrans
 
-- [ ] **`/structure` : la barre latérale se replie automatiquement.**
-- [ ] **`/structure` : dupliquer le bouton « Accès à l'application »**, qui
-      n'est aujourd'hui que sur `/finances`.
-- [ ] **`/mon-compte` : afficher la photo de profil.**
-- [ ] **Pop-up « Accès à l'application » — trois corrections.**
-      1. **Verrouiller sa hauteur**, comme celui du workflow de validation.
-      2. **Inverser le sens des interrupteurs** : activé = l'entité **a** accès.
-         C'est l'inverse aujourd'hui. Reprendre en conséquence les libellés
-         « Se connecte » et « Ne se connecte pas ».
-         ⚠ **Le sens en base ne change pas** : la colonne s'appelle
-         `sans_acces_application`, et c'est l'affichage qui s'inverse. La
-         renommer toucherait `saisirMouvement`, la migration `0051` et toute la
-         doctrine de la saisie déléguée — ne pas confondre les deux gestes.
-      3. **Le spinner fait trembler le pop-up** et fait apparaître deux barres
-         de défilement : il doit prendre la place de l'interrupteur, pas s'y
-         ajouter.
+- [x] **`/structure` : la barre latérale se replie automatiquement.** *(20 août
+      2026)* — l'organigramme est un **graphe** : il se dispose lui-même en
+      largeur, et une branche de six niveaux n'a nulle part où aller si la
+      fenêtre rétrécit. Le mécanisme existait déjà pour `/rapports`
+      (`CHEMINS_LARGES`) : c'est un chemin de plus, pas un second dispositif.
+      **Le repli reste un défaut, pas un verrou** — on rouvre la navigation pour
+      la visite — et il ne touche pas à la préférence mémorisée.
+- [x] **`/structure` : le bouton « Accès à l'application » y figure aussi.**
+      *(20 août 2026)* — « qui se connecte » est une propriété de la structure
+      autant qu'une contrainte des finances. Ce n'est pas un second chemin
+      (règle 16) : même pop-up, même action, deux portes d'entrée.
+- [x] **`/mon-compte` : la photo de profil s'affiche.** *(20 août 2026)* — elle
+      vient de la fiche de **croyant** du titulaire : un compte n'a pas de
+      visage, une personne en a un. Le responsable informatique, qui ne siège
+      nulle part, peut n'en avoir aucune — les initiales prennent alors le
+      relais, et **c'est l'état normal**, pas un défaut d'affichage. C'est
+      `AvatarCroyant`, celui de tous les autres écrans (règle 16) : il porte déjà
+      la teinte dérivée du nom, si bien qu'une personne garde son visage d'un
+      écran à l'autre.
+- [x] **Pop-up « Accès à l'application » — les trois corrections.** *(20 août
+      2026)*
+      1. **Hauteur verrouillée** à `h-[22rem]`, le gabarit du pop-up de
+         workflow. `max-h-96` laissait la liste grandir avec son contenu :
+         changer d'onglet ou taper une recherche faisait sauter la hauteur, et
+         le pop-up se recentrait à chaque frappe. Le message « aucune entité ne
+         correspond » prend la **même** hauteur — sans quoi une recherche
+         infructueuse ferait s'effondrer le cadre puis le rouvrir à la lettre
+         suivante.
+      2. **Interrupteurs inversés** : allumé = l'entité **a** accès. Un
+         interrupteur allumé se lit comme une capacité accordée, pas comme une
+         privation — la lecture spontanée était donc l'inverse du réglage. Les
+         libellés suivent (« A accès » / « Sans accès »), et l'encart d'aide
+         **annonce le sens** avant qu'on touche à quoi que ce soit.
+         **Seul l'affichage s'inverse** : `sans_acces_application` garde son nom
+         et son sens en base. Le compte du bouton continue de porter
+         l'**exception** — combien d'entités sont sans accès —, avec un `title`
+         qui le dit, parce qu'un nombre nu se lirait aussi bien dans l'autre
+         sens.
+      3. **Le chargement prend la place de l'interrupteur**, il ne s'y ajoute
+         plus. Une roue de 16 px substituée à un interrupteur de 36 px faisait
+         rétrécir la ligne, donc trembler le pop-up, et sa hauteur changeante
+         faisait apparaître deux barres de défilement. Le gabarit est fixe ;
+         c'est ce qui est dedans qui change.
+
 - [ ] **Hiérarchie intermédiaire dans l'organigramme des bureaux**, **sans
       toucher au design actuel ni à l'impression PDF**.
 

@@ -87,7 +87,12 @@
   /* UI-06 — accent unique : eyebrows et etats « en cours ». Jamais un bouton. */
   --accent: #eef2ff; /* Indigo-50  — fond d'etat */
   --accent-foreground: #4338ca; /* Indigo-700 */
-  --ring: #6366f1; /* Indigo-500 — focus visible (ENF-UTI-03) */
+  /* ENF-UTI-03 — FOCUS VISIBLE, ET NEUTRE. L indigo faisait de chaque champ
+     actif une tache de couleur, la ou l accent doit rester rare (UI-06). Le
+     noir de l interface suffit a designer, sans rien annoncer.
+     En sombre il ne peut pas etre litteral : un contour noir sur fond sombre
+     ne se verrait pas. On prend le foreground de chaque theme. */
+  --ring: #0f172a; /* Slate-900 — le noir de l interface */
 
   /* --- Semantique (UI-08) ----------------------------------------------- */
   --destructive: #e11d48; /* Rose-600 */
@@ -112,7 +117,7 @@
   --sidebar-accent: #f1f5f9;
   --sidebar-accent-foreground: #0f172a;
   --sidebar-border: #e5e7eb;
-  --sidebar-ring: #6366f1;
+  --sidebar-ring: #0f172a;
 
   /* --- Graphiques -------------------------------------------------------
      Aligne sur le code couleur des niveaux hierarchiques (plan.md §13.1),
@@ -151,7 +156,7 @@
   --destructive: #fb7185;
   --border: #334155;
   --input: #334155;
-  --ring: #818cf8;
+  --ring: #f8fafc; /* Le foreground du theme sombre — voir le commentaire clair. */
   --sidebar: #1e293b;
   --sidebar-foreground: #f8fafc;
   --sidebar-primary: #f8fafc;
@@ -159,7 +164,7 @@
   --sidebar-accent: #334155;
   --sidebar-accent-foreground: #f8fafc;
   --sidebar-border: #334155;
-  --sidebar-ring: #818cf8;
+  --sidebar-ring: #f8fafc;
 }
 
 @layer base {

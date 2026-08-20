@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { List, Network } from 'lucide-react';
 import Link from 'next/link';
 
+import { AccesApplicationDialog } from '@/components/finances/acces-application-dialog';
 import { EmptyState } from '@/components/shared/empty-state';
 import { PageHeader } from '@/components/shared/page-header';
 import { EntityFlowLoader } from '@/components/structure/entity-flow-loader';
@@ -60,6 +61,27 @@ export default async function StructurePage() {
                 Vue liste
               </Link>
             </Button>
+
+            {/*
+              ARB-2 / EF-STR-10 — LE MÊME RÉGLAGE, À SA SECONDE PLACE NATURELLE.
+
+              « Qui se connecte » est une propriété de la STRUCTURE autant qu'une
+              contrainte des finances : on se pose la question en regardant
+              l'organigramme, pas en saisissant une recette. Ce n'est pas un
+              second chemin (règle 16) — c'est le même pop-up, la même action,
+              deux portes d'entrée.
+            */}
+            <AccesApplicationDialog
+              lignes={arbre
+                .filter((e) => e.is_active)
+                .map((e) => ({
+                  id: e.id,
+                  nom: e.nom,
+                  code: e.code,
+                  type: e.type as EntityType,
+                  sansAcces: e.sans_acces_application,
+                }))}
+            />
 
             <NouvelleEntiteBouton parentsPossibles={parents} />
           </>

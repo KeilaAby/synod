@@ -100,7 +100,23 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               gabarit y répond. Des marges négatives depuis la page seraient à
               recompenser à chaque point de rupture.
             */}
-            <main className="flex-1 px-4 py-6 md:px-8 has-[[data-fond=blanc]]:bg-card has-[[data-large]]:px-2 md:has-[[data-large]]:px-4">
+            {/*
+              MARGES HORIZONTALES DE 4 px — ÉCART ASSUMÉ À LA RÈGLE 6.
+
+              La grille de 8 px vaut pour ce qui SÉPARE des éléments entre eux :
+              c'est elle qui fait qu'un écran se lit comme un tout. La marge
+              extérieure de la page ne sépare rien — elle ne fait que rogner la
+              zone utile, et sur les tableaux larges de cette application (le
+              registre financier, la composition d'un bureau) chaque pixel rendu
+              est une colonne de moins à faire défiler.
+
+              Le `py-6` vertical, lui, reste sur la grille : il sépare bien
+              quelque chose — la barre du haut du contenu.
+
+              `px-1` est sur l'échelle Tailwind, pas une valeur arbitraire :
+              ESLint l'accepte, et l'écart reste lisible pour qui relit.
+            */}
+            <main className="flex-1 px-1 py-6 md:px-2 has-[[data-fond=blanc]]:bg-card has-[[data-large]]:px-1 md:has-[[data-large]]:px-1">
               <div className="mx-auto w-full max-w-[1600px] has-[[data-large]]:max-w-none">
                 {children}
               </div>

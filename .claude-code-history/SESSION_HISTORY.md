@@ -4816,3 +4816,83 @@ l'église d'aujourd'hui, pas la généalogie. Ce que cela impose est noté dans
 `todos.md` : effacer un lien symétrique touche **deux** fiches, et n'en effacer
 qu'une les ferait se contredire — l'une divorcée, l'autre toujours mariée à
 elle. Deux écritures indissociables, donc en base (règle 20).
+
+### Section Design — huit points sur douze
+
+**Les fondations partagées d'abord**, parce qu'elles touchent tous les écrans.
+
+**Le focus n'est plus indigo.** Le jeton `--ring` de `globals.css`, pas une
+classe posée écran par écran. En thème sombre il ne peut pas être littéralement
+noir — ENF-UTI-03 exige un focus *visible* — donc chaque thème prend son
+`--foreground`.
+
+**Les marges de page passent à 4 px**, écart assumé à la règle 6 et écrit sur
+place : la grille de 8 px vaut pour ce qui **sépare** des éléments entre eux ;
+une marge extérieure ne sépare rien, elle rogne. Le `py-6` vertical reste sur la
+grille, lui, parce qu'il sépare bien quelque chose.
+
+**Le flou des pop-up est retiré.** `backdrop-filter` force le navigateur à
+recomposer toute la page derrière le pop-up à chaque image — sur un
+organigramme React Flow, c'est ce qui rendait l'ouverture pâteuse. Un voile un
+peu plus dense dit la même chose sans rien recalculer.
+
+**Les pop-up se déplacent, par l'en-tête seulement.** Toute la surface
+saisissable ferait bouger le pop-up en essayant de cocher une case. Et **la
+position ne se mémorise pas** : elle ferait rouvrir hors écran après un
+changement de taille de fenêtre, et personne ne saurait pourquoi le pop-up « ne
+s'ouvre plus ».
+
+### L'ordre protocolaire existait déjà, et rien ne le lisait
+
+Le mot « remettre » de la demande était exact. `fonctions.ordre_protocolaire`
+est en base **depuis la migration `0004`** — et `listerFonctions` triait par
+libellé. La composition d'un bureau affichait donc le trésorier avant le
+président.
+
+**Le rang ne se tape plus.** « Ordre d'affichage : 100, 200, 300 » est une
+représentation, pas une intention : pour glisser le pasteur avant l'évangéliste
+il fallait deviner un nombre libre, et quand il n'y en avait plus, renuméroter
+la liste entière. Le champ numérique disparaît des formulaires — le garder à
+côté du glisser-déposer aurait donné deux chemins pour la même chose (règle 16).
+
+**Un piège de la règle 19, évité de justesse.** `ordre` était resté dans le
+schéma Zod avec `.default(100)`. Le formulaire ne l'affichant plus, chaque
+modification d'un grade aurait **remis son rang à 100** — sans message et sans
+erreur. Quatre tests verrouillent maintenant l'invariant.
+
+**La colonne d'ordre ne s'appelle pas partout pareil** — `ordre` pour les
+grades, `ordre_protocolaire` pour les fonctions. Elle se **déclare** au registre
+plutôt que d'être devinée : la deviner aurait marché jusqu'au jour où elle
+diffère, c'est-à-dire aujourd'hui.
+
+**Rangs espacés de dix**, jamais 1 à N : une valeur créée plus tard doit pouvoir
+s'insérer sans toucher ses voisines. Et **un seul `upsert`** — N `update`
+coûteraient un aller-retour par ligne, et une interruption à mi-parcours
+laisserait un ordre à moitié appliqué, donc faux et sans trace.
+
+### Trois écrans, et un pop-up qui tremblait
+
+**`/structure` replie la navigation** : le mécanisme existait pour `/rapports`,
+c'est un chemin de plus et non un second dispositif. Un graphe se dispose en
+largeur, et une branche de six niveaux n'a nulle part où aller.
+
+**Le bouton « Accès à l'application » y figure aussi** — « qui se connecte » est
+une propriété de la structure autant qu'une contrainte des finances. Même
+pop-up, même action, deux portes d'entrée.
+
+**`/mon-compte` affiche le portrait**, pris sur la fiche de croyant : un compte
+n'a pas de visage, une personne en a un. Le responsable informatique peut n'en
+avoir aucun, et les initiales qui prennent le relais sont **l'état normal**.
+
+**Le pop-up d'accès tremblait pour deux raisons cumulées**, et l'une masquait
+l'autre : une hauteur *maximale* au lieu de fixe, qui sautait à chaque frappe
+dans la recherche ; et une roue de 16 px substituée à un interrupteur de 36,
+qui faisait rétrécir la ligne. Les deux sont corrigées, et le message « aucune
+entité ne correspond » prend la même hauteur que la liste — sans quoi une
+recherche infructueuse ferait s'effondrer le cadre.
+
+**Les interrupteurs sont inversés** : allumé = l'entité **a** accès. Un
+interrupteur allumé se lit comme une capacité accordée, pas comme une
+privation. **Seul l'affichage change** : `sans_acces_application` garde son nom
+et son sens — la renommer toucherait `0051`, `0052` et toute la doctrine de la
+saisie déléguée, pour un gain d'apparence.

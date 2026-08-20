@@ -131,7 +131,17 @@ export const NAV_ITEMS: readonly NavItem[] = [
  * touche pas a la preference memorisee — on la retrouve intacte en sortant,
  * sans avoir eu a la reposer.
  */
-export const CHEMINS_LARGES: readonly string[] = ['/rapports'];
+export const CHEMINS_LARGES: readonly string[] = [
+  '/rapports',
+  /*
+   * L'organigramme est un GRAPHE : il se dispose lui-meme, en largeur, et une
+   * branche de six niveaux n'a nulle part ou aller si la fenetre se retrecit.
+   * C'est exactement le cas ou la navigation prend la place de ce qu'on est
+   * venu regarder. La vue liste partage le chemin et en profite aussi : sa
+   * table porte huit colonnes.
+   */
+  '/structure',
+];
 
 export function estEcranLarge(chemin: string): boolean {
   return CHEMINS_LARGES.some((p) => chemin === p || chemin.startsWith(`${p}/`));

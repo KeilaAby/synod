@@ -1,8 +1,18 @@
 'use client';
 
-import { Loader2, MoreVertical, Pencil, Plus, Power, Trash2 } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  GripVertical,
+  Loader2,
+  MoreVertical,
+  Pencil,
+  Plus,
+  Power,
+  Trash2,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
@@ -48,6 +58,7 @@ import {
   basculerActivationReferentiel,
   creerValeurReferentiel,
   modifierValeurReferentiel,
+  reordonnerReferentiel,
   supprimerValeurReferentiel,
 } from '@/lib/actions/referentiels';
 import {
@@ -57,6 +68,7 @@ import {
   REFERENTIELS,
   type SlugReferentiel,
 } from '@/lib/domain/referentiels';
+import { appelerAction } from '@/lib/utils/appeler-action';
 import { cn } from '@/lib/utils';
 
 /**
@@ -178,10 +190,69 @@ export function ReferentielTable({
     );
   }
 
+  /**
+   * EF-REF-02 — L'ORDRE SE POSE EN DÉPLAÇANT.
+   *
+   * `ordre` restitué localement pendant l'aller-retour : le serveur renvoie la
+   * liste réordonnée, mais l'attendre ferait revenir la ligne à sa place
+   * pendant une à quatre secondes, ce qui se lit comme un refus.
+   */
+  const [ordreLocal, setOrdreLocal] = useState<string[] | null>(null);
+  const [tire, setTire] = useState<string | null>(null);
+
+  const reordonnable = peutGerer && Boolean(definition.colonneOrdre);
+
+  const affichees = useMemo(() => {
+    if (!ordreLocal) return lignes;
+    const parId = new Map(lignes.map((l) => [l.id, l]));
+    // Les identifiants inconnus sont ignorés, et les lignes absentes de l'ordre
+    // local sont remises en queue : un rechargement concurrent ne doit pas
+    // faire disparaître une valeur de l'écran (règle 15).
+    const rangees = ordreLocal.map((id) => parId.get(id)).filter(Boolean) as Ligne[];
+    const vues = new Set(rangees.map((l) => l.id));
+    return [...rangees, ...lignes.filter((l) => !vues.has(l.id))];
+  }, [lignes, ordreLocal]);
+
+  function deplacer(depuis: number, vers: number) {
+    if (depuis === vers || vers < 0 || vers >= affichees.length) return;
+
+    const suivant = affichees.map((l) => l.id);
+    const [deplacee] = suivant.splice(depuis, 1);
+    suivant.splice(vers, 0, deplacee!);
+
+    setOrdreLocal(suivant);
+
+    void appelerAction(() =>
+      reordonnerReferentiel({ slug: definition.slug, ids: suivant }),
+    ).then((resultat) => {
+      if (!resultat.ok) {
+        // L'ordre local est ABANDONNÉ sur refus : le garder afficherait un
+        // classement que la base ne connaît pas.
+        setOrdreLocal(null);
+        avertir(resultat.error, { ton: 'refus', titre: 'Ordre non enregistré' });
+        return;
+      }
+      router.refresh();
+    });
+  }
+
   return (
     <>
       {peutGerer && (
-        <div className="flex justify-end">
+        <div className="flex items-center justify-between gap-4">
+          {/*
+            LE GESTE S'ANNONCE. Une poignée qu'on ne sait pas saisissable n'est
+            pas un réglage : c'est un détail graphique que personne n'essaie.
+          */}
+          {reordonnable ? (
+            <p className="text-muted-foreground text-xs">
+              Glissez une ligne pour définir l’ordre protocolaire, ou servez-vous
+              des flèches.
+            </p>
+          ) : (
+            <span />
+          )}
+
           <Button className="h-10" onClick={() => setEdition({ ligne: null })}>
             <Plus className="mr-2 size-4" aria-hidden />
             Ajouter {definition.singulier}
@@ -195,6 +266,13 @@ export function ReferentielTable({
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
+                {/* En-tête muet, mais PRÉSENT : sans lui, les cellules de la
+                    poignée décaleraient toute la table d'une colonne. */}
+                {reordonnable && (
+                  <TableHead className="w-24">
+                    <span className="sr-only">Ordre</span>
+                  </TableHead>
+                )}
                 {definition.colonnes.map((colonne) => (
                   <TableHead
                     key={colonne.cle}
@@ -209,11 +287,65 @@ export function ReferentielTable({
             </TableHeader>
 
             <TableBody>
-              {lignes.map((ligne) => (
+              {affichees.map((ligne, rang) => (
                 <TableRow
                   key={ligne.id}
-                  className={cn('h-12', !ligne.is_active && 'opacity-60')}
+                  draggable={reordonnable}
+                  onDragStart={() => setTire(ligne.id)}
+                  onDragEnd={() => setTire(null)}
+                  // `preventDefault` sur le survol : sans lui le navigateur
+                  // refuse le dépôt, et le curseur affiche « interdit » sur
+                  // toute la table.
+                  onDragOver={(e) => reordonnable && e.preventDefault()}
+                  onDrop={() => {
+                    if (!tire || tire === ligne.id) return;
+                    const depuis = affichees.findIndex((l) => l.id === tire);
+                    setTire(null);
+                    if (depuis >= 0) deplacer(depuis, rang);
+                  }}
+                  className={cn(
+                    'h-12',
+                    !ligne.is_active && 'opacity-60',
+                    tire === ligne.id && 'opacity-40',
+                  )}
                 >
+                  {/*
+                    LA POIGNÉE, ET LES DEUX FLÈCHES À CÔTÉ.
+
+                    Le glisser-déposer natif est inaccessible au clavier : seul,
+                    il ferait de l'ordre protocolaire un réglage réservé à ceux
+                    qui ont une souris. Les flèches sont la même opération —
+                    même appel, même action — pas un second chemin (règle 16).
+                  */}
+                  {reordonnable && (
+                    <TableCell className="w-24 pr-0">
+                      <span className="flex items-center gap-0.5">
+                        <GripVertical
+                          className="text-muted-foreground size-4 cursor-grab"
+                          aria-hidden
+                        />
+                        <button
+                          type="button"
+                          disabled={rang === 0}
+                          onClick={() => deplacer(rang, rang - 1)}
+                          aria-label={`Monter ${String(ligne.libelle ?? '')}`}
+                          className="text-muted-foreground hover:text-foreground rounded p-0.5 disabled:opacity-30"
+                        >
+                          <ChevronUp className="size-4" aria-hidden />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={rang === affichees.length - 1}
+                          onClick={() => deplacer(rang, rang + 1)}
+                          aria-label={`Descendre ${String(ligne.libelle ?? '')}`}
+                          className="text-muted-foreground hover:text-foreground rounded p-0.5 disabled:opacity-30"
+                        >
+                          <ChevronDown className="size-4" aria-hidden />
+                        </button>
+                      </span>
+                    </TableCell>
+                  )}
+
                   {definition.colonnes.map((colonne) => (
                     <TableCell
                       key={colonne.cle}

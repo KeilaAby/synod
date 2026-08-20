@@ -81,6 +81,18 @@ export interface DefinitionReferentiel {
   readonly description: string;
   /** Colonne de tri par defaut. */
   readonly triPar: string;
+  /**
+   * EF-REF-02 — la colonne qui porte l'ORDRE PROTOCOLAIRE, si le referentiel
+   * en a un. Declaree, la liste devient reordonnable au glisser-deposer.
+   *
+   * Elle ne s'appelle pas partout pareil : `ordre` pour les grades et les
+   * categories, `ordre_protocolaire` pour les fonctions. La deviner aurait
+   * marche jusqu'au jour ou elle differe — c'est-a-dire aujourd'hui.
+   *
+   * Absente — les nationalites —, il n'y a rien a ordonner : leur imposer un
+   * rang inventerait une hierarchie entre des pays.
+   */
+  readonly colonneOrdre?: string;
   readonly colonnes: readonly ColonneReferentiel[];
   readonly champs: readonly ChampReferentiel[];
   readonly schema: z.ZodType<Record<string, unknown>>;
@@ -134,10 +146,10 @@ export const REFERENTIELS: Record<SlugReferentiel, DefinitionReferentiel> = {
     description:
       "Statut ecclesial d'un croyant : Pasteur, Diacre, Croyant… Selectionnable a la creation d'une fiche.",
     triPar: 'ordre',
+    colonneOrdre: 'ordre',
     colonnes: [
       { cle: 'libelle', label: 'Libelle' },
       { cle: 'code', label: 'Code', mono: true },
-      { cle: 'ordre', label: 'Ordre', mono: true, alignementDroite: true },
       /**
        * EF-ADM-14 — LE REGLAGE SE VOIT AUTANT QU'IL SE REGLE.
        *
@@ -159,12 +171,19 @@ export const REFERENTIELS: Record<SlugReferentiel, DefinitionReferentiel> = {
         immuable: true,
         hint: 'Reference technique stable, non modifiable ensuite.',
       },
-      {
-        cle: 'ordre',
-        label: "Ordre d'affichage",
-        type: 'nombre',
-        hint: 'Les valeurs les plus faibles apparaissent en premier.',
-      },
+      /*
+        LE RANG NE SE TAPE PLUS — il se pose en deplaçant la ligne.
+
+        « Ordre d'affichage : 100, 200, 300 » est une representation, pas une
+        intention : pour glisser le pasteur avant l'evangeliste il fallait
+        deviner un nombre libre entre les deux, et le jour ou il n'y en avait
+        plus, renumeroter la liste entiere. Garder le champ A COTE du
+        glisser-deposer aurait donne deux chemins pour la meme chose (regle 16),
+        et rien n'aurait dit lequel gagne.
+
+        La colonne reste en base et dans le schema : c'est elle qui porte
+        l'ordre, seule sa SAISIE change.
+      */
       {
         /**
          * EF-ADM-14 — CE REGLAGE ETAIT UNE LISTE ECRITE DANS LE CODE.
@@ -183,7 +202,6 @@ export const REFERENTIELS: Record<SlugReferentiel, DefinitionReferentiel> = {
     schema: z.object({
       code: codeReferentiel,
       libelle,
-      ordre: z.coerce.number().int().min(0).max(9999).default(100),
       // Rien n'ouvre la celebration par defaut : elle se donne, elle ne
       // s'herite pas d'un oubli de saisie.
       peut_celebrer: z.boolean().default(false),
@@ -233,7 +251,8 @@ export const REFERENTIELS: Record<SlugReferentiel, DefinitionReferentiel> = {
     singulier: 'fonction',
     description:
       "Role occupe au sein d'un bureau. La hierarchie ne vit pas ici : elle est propre a chaque bureau, dessinee dans son organigramme.",
-    triPar: 'libelle',
+    triPar: 'ordre_protocolaire',
+    colonneOrdre: 'ordre_protocolaire',
     colonnes: [
       { cle: 'libelle', label: 'Libelle' },
       { cle: 'code', label: 'Code', mono: true },
@@ -296,11 +315,11 @@ export const REFERENTIELS: Record<SlugReferentiel, DefinitionReferentiel> = {
     description:
       "Nature d'un mouvement. Le SENS (recette ou depense) est porte par la categorie et n'est jamais saisi a la main.",
     triPar: 'ordre',
+    colonneOrdre: 'ordre',
     colonnes: [
       { cle: 'libelle', label: 'Libelle' },
       { cle: 'code', label: 'Code', mono: true },
       { cle: 'sens', label: 'Sens' },
-      { cle: 'ordre', label: 'Ordre', mono: true, alignementDroite: true },
     ],
     champs: [
       { cle: 'libelle', label: 'Libelle', type: 'texte', requis: true },
@@ -319,13 +338,11 @@ export const REFERENTIELS: Record<SlugReferentiel, DefinitionReferentiel> = {
           { valeur: 'DEPENSE', label: 'Depense' },
         ],
       },
-      { cle: 'ordre', label: "Ordre d'affichage", type: 'nombre' },
     ],
     schema: z.object({
       code: codeReferentiel,
       libelle,
       sens: z.enum(['RECETTE', 'DEPENSE']),
-      ordre: z.coerce.number().int().min(0).max(9999).default(100),
     }),
     // Rien ne les reference encore : les mouvements financiers arrivent au
     // lot 4. Cette liste devra grandir avec eux — d'ou l'interception de la

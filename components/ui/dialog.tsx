@@ -39,7 +39,13 @@ function DialogOverlay({
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        // LE FLOU EST RETIRE (20 aout 2026). `backdrop-filter` force le
+        // navigateur a composer toute la page derriere le pop-up a chaque
+        // image : sur un organigramme React Flow ou un tableau de mille lignes,
+        // c est ce qui rendait l ouverture pateuse. Le voile sombre suffit a
+        // dire ce que le flou disait — « ceci est au-dessus » —, sans rien
+        // recalculer.
+        "fixed inset-0 isolate z-50 bg-black/20 duration-100 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}
@@ -47,21 +53,99 @@ function DialogOverlay({
   )
 }
 
+/**
+ * UN POP-UP SE DEPLACE — 20 aout 2026.
+ *
+ * POURQUOI : un pop-up centre couvre exactement ce qu'on est venu consulter.
+ * Saisir un mouvement en relisant la ligne du registre, rapprocher une dime en
+ * regardant la liste : dans les deux cas il fallait fermer, lire, rouvrir.
+ *
+ * ON NE TIRE QUE PAR L'EN-TETE. Rendre toute la surface saisissable ferait
+ * deplacer le pop-up en essayant de selectionner un libelle ou de cocher une
+ * case. `closest()` sur l'en-tete borne la prise, et un `pointerdown` sur un
+ * bouton ou un champ n'entraine rien — c'est le second test.
+ *
+ * LA POSITION NE SE MEMORISE PAS. Le pop-up se demonte a la fermeture, donc
+ * l'etat repart a zero : rouvrir redonne un pop-up centre. C'est voulu — une
+ * position retenue ferait rouvrir hors ecran apres un changement de taille de
+ * fenetre, et personne ne saurait pourquoi le pop-up « ne s'ouvre plus ».
+ *
+ * Le decalage passe par `transform`, quand Tailwind v4 centre par la propriete
+ * `translate` : les deux se composent au lieu de s'ecraser.
+ */
+function useDeplacement() {
+  const [decalage, setDecalage] = React.useState({ x: 0, y: 0 })
+  const origine = React.useRef<{ x: number; y: number } | null>(null)
+
+  function auPointeur(evenement: React.PointerEvent<HTMLDivElement>) {
+    const cible = evenement.target as HTMLElement
+
+    // La prise, c'est l'en-tete — et rien qui s'y trouve d'interactif.
+    if (!cible.closest('[data-slot="dialog-header"]')) return
+    if (cible.closest("button, a, input, textarea, select, [role='button']")) return
+
+    origine.current = {
+      x: evenement.clientX - decalage.x,
+      y: evenement.clientY - decalage.y,
+    }
+    evenement.currentTarget.setPointerCapture(evenement.pointerId)
+  }
+
+  function auMouvement(evenement: React.PointerEvent<HTMLDivElement>) {
+    if (!origine.current) return
+    setDecalage({
+      x: evenement.clientX - origine.current.x,
+      y: evenement.clientY - origine.current.y,
+    })
+  }
+
+  function auRelachement(evenement: React.PointerEvent<HTMLDivElement>) {
+    if (!origine.current) return
+    origine.current = null
+    evenement.currentTarget.releasePointerCapture(evenement.pointerId)
+  }
+
+  const deplace = decalage.x !== 0 || decalage.y !== 0
+
+  return {
+    deplace,
+    style: deplace
+      ? { transform: `translate(${decalage.x}px, ${decalage.y}px)` }
+      : undefined,
+    poignee: {
+      onPointerDown: auPointeur,
+      onPointerMove: auMouvement,
+      onPointerUp: auRelachement,
+      onPointerCancel: auRelachement,
+    },
+  }
+}
+
 function DialogContent({
   className,
   children,
   showCloseButton = true,
+  style,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
 }) {
+  const { deplace, style: styleDeplacement, poignee } = useDeplacement()
+
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
+        {...poignee}
+        style={{ ...style, ...styleDeplacement }}
         className={cn(
           "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          // L'en-tete ANNONCE qu'il est saisissable, et seulement lui.
+          "[&_[data-slot=dialog-header]]:cursor-grab",
+          // Pendant le geste, l'animation d'ouverture ne doit pas reprendre la
+          // main sur `transform` : elle ferait sauter le pop-up sous le doigt.
+          deplace && "animate-none",
           className
         )}
         {...props}
