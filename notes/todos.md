@@ -14,13 +14,12 @@
 
 ## ⚠ État de la base
 
-**Appliquées : `0001` à `0061`.**
+**Appliquées : `0001` à `0062`.**
 
-> ⏳ **`0062` attend d'être appliquée.** Sans elle, le glisser-déposer de l'ordre
-> protocolaire échoue : le premier jet passait par un `upsert`, que PostgREST
-> traduit en `insert … on conflict`, et PostgreSQL valide le tuple **inséré**
-> avant de résoudre le conflit — d'où un `23502` sur `code`, colonne à laquelle
-> on ne touchait pas. `fn_reordonner_referentiel` fait le tout en une écriture.
+> ⏳ **`0063` attend d'être appliquée — l'écran des paramètres généraux échoue
+> sans elle**, les colonnes n'existant pas. Elle ajoute à
+> `organisation_settings` la couleur des boutons et les trois réglages de
+> notification.
 
 C'est **cette ligne** qui fait foi — pas le numéro le plus élevé de
 `supabase/migrations/`, qui dit ce qui est *écrit* et non ce qui est *appliqué*.
@@ -335,25 +334,68 @@ soldes consolidés — la décision a déjà été prise et tenue une fois.
 
 ### Réglages à centraliser dans Administration
 
-- [ ] **Personnalisation du design, réservée au SuperAdmin.** En priorité : la
-      **couleur des boutons** (noire aujourd'hui).
-      Le point technique à ne pas rater — **règle 32** : une valeur arbitraire
-      qui pointe une variable CSS casse **toute la feuille**, et *citer la
-      classe fautive dans un commentaire la recrée*. Une couleur réglable passe
-      donc par les **jetons de `globals.css`**, jamais par une classe Tailwind
-      fabriquée à la volée. Et le réglage se **lit à chaque rendu** (règle 21),
-      sinon il est décoratif.
-- [ ] **Configuration des notifications Toast (Sonner)** : durée d'affichage,
-      bouton de fermeture, couleur de fond selon le cas.
-      ⚠ À croiser avec la **règle 30** : seul `toast.success` subsiste dans ce
-      projet, ESLint refuse les autres, et tout le reste passe par `avertir()`.
-      Le réglage ne doit pas rouvrir en douce ce que cette règle a fermé.
-- [ ] **Référentiel « Événement ».** La liste est figée dans le code ; elle doit
-      devenir un référentiel comme les grades, fonctions et nationalités —
-      `lib/domain/referentiels.ts` est déclaratif, en ajouter un cinquième c'est
-      ajouter une entrée. Même leçon qu'EF-ADM-14 : une liste écrite en dur ne
-      refuse rien, elle est simplement **plus courte**, et personne ne comprend
-      pourquoi.
+- [x] **Couleur des boutons réglable.** *(20 août 2026, migration `0063`.)*
+      Elle voyage comme une **valeur** posée sur le jeton `--primary`, jamais
+      comme une classe : règle 32, Tailwind lit le **source** et ne devine pas
+      ce que le serveur enverra — une classe fabriquée à la volée n'existerait
+      dans aucune feuille.
+      **La couleur du texte ne se saisit pas, elle se déduit** de la luminance
+      du fond (`texteSurCouleur`). La laisser choisir permettrait de poser du
+      blanc sur du jaune, et personne ne relit un bouton qu'il a lui-même
+      réglé. La formule est celle de la luminance relative WCAG : une moyenne
+      des trois canaux donnerait du blanc sur du jaune vif, l'œil étant
+      beaucoup plus sensible au vert qu'au bleu.
+      **L'aperçu est le vrai contrôle** : personne ne sait à quoi ressemble
+      `#4f46e5` avant de le voir sur un bouton, avec son texte.
+      La borne hexadécimale est **en base** (`check`), dans le schéma Zod et
+      dans le rendu : une chaîne quelconque poussée dans un attribut `style`
+      n'est pas seulement laide.
+      *Réserve :* sur la page de connexion la RLS ne rend rien — la lecture est
+      réservée aux comptes connectés — et l'apparence d'origine s'applique. On
+      ne personnalise pas pour quelqu'un qu'on ne connaît pas encore.
+      *Non fait :* le réglage est sous `settings.manage`, donc au Siège en
+      pratique, mais il n'est pas **explicitement** réservé au SuperAdmin comme
+      le demandait la formulation. À reprendre si la distinction compte.
+- [x] **Notifications réglables** — durée, bouton de fermeture, fond coloré.
+      *(20 août 2026, migration `0063`.)*
+      **La règle 30 tient, et l'écran le dit** : seules les confirmations
+      passent par une notification ; un refus, un avertissement ou une panne va
+      dans un pop-up qu'on ferme, et ESLint refuse les autres appels. Ces
+      réglages ne rouvrent pas ce que cette règle a fermé — ils décident de la
+      **manière** dont s'affiche ce qui a déjà le droit de s'y afficher. Un
+      encart l'explique dans le formulaire, sinon on croirait pouvoir
+      raccourcir un message d'erreur.
+      La durée se **saisit en secondes** et s'enregistre en millisecondes :
+      personne ne pense une notification en millisecondes. Elle est bornée
+      entre 2 et 20 s — en deçà on ne lit pas, au-delà les messages s'empilent —
+      et **re-bornée à la lecture** : une valeur hors bornes venue d'une base
+      modifiée à la main ferait disparaître la notification avant qu'elle soit
+      lue.
+- [ ] **Référentiel « Événement ».** ⚠ **La demande est plus lourde que son
+      énoncé, et l'estimation portée ici le 20 août était fausse.**
+      Ce n'est **pas** une liste figée en TypeScript : `type_evenement_dime` est
+      un **enum PostgreSQL** (`0027`), porté par
+      `finance_entries.dime_evenement`, et surtout employé comme **type de
+      paramètre** de `fn_saisir_collecte_dime` — dont la signature est reprise
+      dans **huit migrations successives** (`0029`, `0030`, `0032`, `0035`,
+      `0036`, `0038`, `0056`, `0057`, `0058`).
+      **Ce que cela impose :**
+      1. une table `evenements_dime` (id, code, libellé, `niveau_hote`, ordre,
+         `is_active`) avec ses politiques RLS, et l'entrée au registre ;
+      2. la conversion de `finance_entries.dime_evenement` de l'enum vers du
+         **texte**, plus une clé étrangère sur le code — les valeurs existantes
+         sont déjà les codes, donc la reprise est directe ;
+      3. le **remplacement de `fn_saisir_collecte_dime`** : changer un type de
+         paramètre change la signature, donc `drop function` puis recréation à
+         l'identique de la dernière version — celle de `0058` —, et le point
+         d'appel TypeScript avec.
+      **Le risque est là, pas dans le référentiel** : cette fonction écrit les
+      collectes de dîmes, à l'unité comme à l'import. La recopier de travers ne
+      se verrait pas au typecheck.
+      **`NIVEAU_HOTE` doit devenir une colonne**, pas rester en dur : c'est lui
+      qui décide quelle entité peut héberger l'événement, et un événement créé
+      à l'écran sans niveau n'aurait aucune entité éligible — la liste serait
+      simplement vide, sans que rien ne l'explique (même piège qu'EF-ADM-14).
 
 ### Apparence
 

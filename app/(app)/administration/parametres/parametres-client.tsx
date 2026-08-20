@@ -10,6 +10,7 @@ import { FiltreIcone, GroupeFiltres } from '@/components/shared/filtre-icone';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
@@ -19,6 +20,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { reglerParametres } from '@/lib/actions/parametres';
+import {
+  COULEUR_PRIMAIRE_DEFAUT,
+  DUREE_TOAST_MAX,
+  DUREE_TOAST_MIN,
+  estCouleurHex,
+  texteSurCouleur,
+} from '@/lib/domain/apparence';
 import type { Parametres } from '@/lib/data/settings';
 import { appelerAction } from '@/lib/utils/appeler-action';
 import { cn } from '@/lib/utils';
@@ -90,6 +98,10 @@ export function ParametresClient({ parametres }: { parametres: Parametres }) {
     transfertAutoApprobationInterne: parametres.transfert_auto_approbation_interne,
     rapportCompositionLibre: parametres.rapport_composition_libre,
     reinitialisationParEmail: parametres.reinitialisation_par_email,
+    couleurPrimaire: parametres.couleur_primaire,
+    toastDureeMs: parametres.toast_duree_ms,
+    toastBoutonFermer: parametres.toast_bouton_fermer,
+    toastCouleursVives: parametres.toast_couleurs_vives,
   });
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
@@ -282,6 +294,112 @@ export function ParametresClient({ parametres }: { parametres: Parametres }) {
             onBascule={(v) => poser({ rapportCompositionLibre: v })}
             titre="Composition ouverte aux entités"
             texte="Chaque entité emploie les modèles du Siège ET dessine les siens. Fermée, elle se conforme à ceux du Siège — qui, lui, compose dans les deux cas."
+          />
+        </Groupe>
+
+        <Groupe
+          titre="Apparence"
+          description="La couleur des boutons principaux, partout dans l’application."
+        >
+          <Field
+            label="Couleur des boutons"
+            hint="La couleur du texte s’en déduit : clair sur un fond sombre, foncé sur un fond clair. Elle ne se règle donc pas."
+          >
+            {(aria) => (
+              <div className="flex items-center gap-3">
+                {/*
+                  Le sélecteur natif ET le champ texte, côte à côte : l'un pour
+                  choisir à l'œil, l'autre pour coller une valeur de charte.
+                  Ce n'est pas deux chemins (règle 16) — c'est un seul champ,
+                  avec deux façons de le remplir.
+                */}
+                <input
+                  {...aria}
+                  type="color"
+                  value={valeurs.couleurPrimaire}
+                  onChange={(e) => poser({ couleurPrimaire: e.target.value })}
+                  className="border-border size-10 shrink-0 cursor-pointer rounded-lg border bg-transparent"
+                />
+                <Input
+                  value={valeurs.couleurPrimaire}
+                  onChange={(e) => poser({ couleurPrimaire: e.target.value })}
+                  maxLength={7}
+                  className="h-10 w-32 font-mono"
+                  aria-label="Couleur en hexadécimal"
+                />
+
+                {/*
+                  L'APERÇU EST LE VRAI CONTRÔLE. Un hexadécimal ne se lit pas :
+                  personne ne sait à quoi ressemble #4f46e5 avant de le voir sur
+                  un bouton, avec son texte.
+                */}
+                <span
+                  className="rounded-lg px-4 py-2 text-sm font-medium"
+                  style={{
+                    backgroundColor: estCouleurHex(valeurs.couleurPrimaire)
+                      ? valeurs.couleurPrimaire
+                      : COULEUR_PRIMAIRE_DEFAUT,
+                    color: texteSurCouleur(valeurs.couleurPrimaire),
+                  }}
+                >
+                  Enregistrer
+                </span>
+              </div>
+            )}
+          </Field>
+        </Groupe>
+
+        <Groupe
+          titre="Notifications"
+          description="Les messages de confirmation qui apparaissent en haut à droite."
+        >
+          {/*
+            CE QUE CE GROUPE NE RÈGLE PAS, dit à l'utilisateur : seules les
+            confirmations passent par là (règle 30). Un refus ou une panne
+            s'affiche dans un pop-up qu'on ferme, et ces réglages n'y touchent
+            pas — sinon on croirait pouvoir raccourcir un message d'erreur.
+          */}
+          <p className="text-muted-foreground border-border rounded-lg border p-3 text-xs">
+            Seules les confirmations — « Croyant enregistré » — s’affichent ainsi.
+            Un refus, un avertissement ou une panne apparaît dans une fenêtre que
+            vous fermez : ces réglages ne la concernent pas.
+          </p>
+
+          <Field
+            label="Durée d’affichage"
+            hint="Entre 2 et 20 secondes. En deçà on n’a pas le temps de lire ; au-delà les messages s’empilent."
+          >
+            {(aria) => (
+              <div className="flex items-center gap-3">
+                <Input
+                  {...aria}
+                  type="number"
+                  min={DUREE_TOAST_MIN / 1000}
+                  max={DUREE_TOAST_MAX / 1000}
+                  step={1}
+                  // On saisit des SECONDES, on enregistre des millisecondes :
+                  // personne ne pense une notification en millisecondes.
+                  value={Math.round(Number(valeurs.toastDureeMs) / 1000)}
+                  onChange={(e) => poser({ toastDureeMs: Number(e.target.value) * 1000 })}
+                  className="h-10 w-24 tabular-nums"
+                />
+                <span className="text-muted-foreground text-sm">secondes</span>
+              </div>
+            )}
+          </Field>
+
+          <Bascule
+            coche={valeurs.toastBoutonFermer}
+            onBascule={(v) => poser({ toastBoutonFermer: v })}
+            titre="Bouton de fermeture"
+            texte="Une croix pour écarter le message sans attendre la fin du délai."
+          />
+
+          <Bascule
+            coche={valeurs.toastCouleursVives}
+            onBascule={(v) => poser({ toastCouleursVives: v })}
+            titre="Fond coloré selon le cas"
+            texte="Vert pour une réussite. Éteint, le message reste sobre et seul le texte distingue les cas."
           />
         </Groupe>
       </div>

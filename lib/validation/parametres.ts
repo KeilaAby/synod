@@ -1,4 +1,9 @@
 import { z } from 'zod';
+import {
+  DUREE_TOAST_MAX,
+  DUREE_TOAST_MIN,
+  estCouleurHex,
+} from '@/lib/domain/apparence';
 
 /**
  * EF-ADM-11, EF-ADM-13 — les parametres generaux de l'organisation.
@@ -79,6 +84,39 @@ export const parametresSchema = z.object({
 
   /** EF-AUT-02 — la reinitialisation passe-t-elle par un courriel ? */
   reinitialisationParEmail: z.boolean(),
+
+  /**
+   * EF-ADM-13 — la couleur des boutons principaux.
+   *
+   * La valeur part dans une FEUILLE DE STYLE : elle doit etre un hexadecimal,
+   * et rien d'autre. Le predicat vient du domaine, ou il sert aussi au rendu —
+   * la meme regle ecrite deux fois finirait par diverger.
+   *
+   * La couleur du TEXTE n'est pas demandee : elle se deduit du fond. La laisser
+   * saisir permettrait de poser du blanc sur du jaune, et personne ne relit un
+   * bouton qu'il a lui-meme regle.
+   */
+  couleurPrimaire: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .refine(estCouleurHex, 'Couleur attendue en hexadecimal : #0f172a.'),
+
+  /**
+   * EF-ADM-13 — les notifications.
+   *
+   * Bornes de la duree : en deca de deux secondes on ne lit pas, au-dela de
+   * vingt une notification cesse d'en etre une et s'empile. Une contrainte
+   * interdit l'impossible, pas l'inhabituel (regle 26) — d'ou une plage large.
+   */
+  toastDureeMs: z.coerce
+    .number()
+    .int('Un nombre entier de millisecondes.')
+    .min(DUREE_TOAST_MIN, 'Trop bref pour etre lu.')
+    .max(DUREE_TOAST_MAX, 'Au-dela de vingt secondes, les notifications s’empilent.'),
+
+  toastBoutonFermer: z.boolean(),
+  toastCouleursVives: z.boolean(),
 });
 
 export type ParametresInput = z.input<typeof parametresSchema>;

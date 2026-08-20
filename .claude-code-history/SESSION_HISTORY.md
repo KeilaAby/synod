@@ -4985,3 +4985,58 @@ elle tient le trait là où le rendu des ombres est pauvre.
 
 L'attribut `data-fond` est **retiré**, pas laissé en place : un drapeau qui ne
 décide plus de rien devient un piège (règle 21).
+
+### L'apparence et les notifications se règlent (migration `0063`)
+
+**La couleur voyage comme une VALEUR, posée sur un jeton.** Règle 32, payée une
+fois : Tailwind lit le *source* et ne devine pas ce que le serveur enverra —
+une classe fabriquée à la volée n'existerait dans aucune feuille, et une valeur
+arbitraire pointant une variable CSS casse la compilation entière. Le gabarit
+racine écrit donc `--primary` dans un `<style>`, que toutes les classes
+`bg-primary` existantes consomment sans rien changer.
+
+**La couleur du texte ne se saisit pas, elle se déduit.** La laisser choisir
+permettrait de poser du blanc sur du jaune, et personne ne relit un bouton qu'il
+a lui-même réglé. La formule est celle de la luminance relative WCAG, avec
+correction gamma : une moyenne des trois canaux mettrait du blanc sur du jaune
+vif, l'œil étant beaucoup plus sensible au vert qu'au bleu. C'est le cas que le
+test verrouille.
+
+**L'aperçu est le vrai contrôle** — personne ne sait à quoi ressemble `#4f46e5`
+avant de le voir sur un bouton, avec son texte.
+
+**Les notifications : la règle 30 tient, et l'écran le dit.** Ces réglages ne
+rouvrent pas ce qu'elle a fermé : seule une confirmation passe par une
+notification, le reste va dans un pop-up qu'on ferme. Un encart l'explique dans
+le formulaire — sans lui, on croirait pouvoir raccourcir un message d'erreur.
+
+La durée se saisit **en secondes** et s'enregistre en millisecondes : personne
+ne pense une notification en millisecondes. Elle est bornée en base, dans le
+schéma Zod, **et re-bornée à la lecture** : une valeur hors bornes venue d'une
+base modifiée à la main ferait disparaître la notification avant qu'elle soit
+lue.
+
+**Sur la page de connexion, l'apparence reste celle d'origine** : la RLS réserve
+la lecture aux comptes connectés, et `getParametres` retombe sur ses défauts.
+C'est correct — on ne personnalise pas pour quelqu'un qu'on ne connaît pas
+encore.
+
+### Le référentiel « Événement » est plus lourd que son énoncé
+
+L'estimation portée dans `todos.md` — « migration + entrée au registre » —
+**était fausse**, et je l'ai corrigée sur place plutôt que de m'en apercevoir à
+mi-parcours.
+
+`type_evenement_dime` n'est pas une liste figée en TypeScript : c'est un **enum
+PostgreSQL** (`0027`), porté par `finance_entries.dime_evenement`, et surtout
+employé comme **type de paramètre** de `fn_saisir_collecte_dime` — dont la
+signature est reprise dans **huit migrations successives**.
+
+Le transformer en référentiel impose donc, en plus de la table et du registre,
+de convertir la colonne vers du texte et de **remplacer la fonction** : changer
+un type de paramètre change la signature, donc `drop function` puis recréation à
+l'identique de la dernière version.
+
+**Le risque n'est pas dans le référentiel, il est là** : cette fonction écrit
+les collectes de dîmes, à l'unité comme à l'import. La recopier de travers ne se
+verrait pas au typecheck.

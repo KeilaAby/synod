@@ -2,6 +2,7 @@ import 'server-only';
 
 import { cache } from 'react';
 
+import { COULEUR_PRIMAIRE_DEFAUT, NOTIFICATIONS_DEFAUT } from '@/lib/domain/apparence';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -27,6 +28,17 @@ export interface Parametres {
   rapport_composition_libre: boolean;
   /** EF-AUT-02 — la reinitialisation passe-t-elle par un courriel ? */
   reinitialisation_par_email: boolean;
+  /**
+   * EF-ADM-13 — apparence et notifications, reglees au lieu d'etre ecrites.
+   *
+   * La couleur du TEXTE des boutons n'est pas ici : elle se deduit de celle du
+   * fond (`texteSurCouleur`). La laisser saisir permettrait de poser du blanc
+   * sur du jaune.
+   */
+  couleur_primaire: string;
+  toast_duree_ms: number;
+  toast_bouton_fermer: boolean;
+  toast_couleurs_vives: boolean;
 }
 
 /**
@@ -62,6 +74,19 @@ const REPLI: Parametres = {
    * volontairement cesse d'employer.
    */
   reinitialisation_par_email: false,
+  /**
+   * L'APPARENCE RETOMBE SUR CELLE DU CODE.
+   *
+   * Ce repli-ci n'obeit pas a la prudence des precedents — il n'y a pas de
+   * droit a ELARGIR dans une couleur. Ce qu'il evite est autre chose : une
+   * couleur vide donnerait des boutons transparents, et une duree nulle des
+   * notifications qui disparaissent avant d'etre lues. Une panne de lecture
+   * doit rendre l'application ORDINAIRE, jamais illisible.
+   */
+  couleur_primaire: COULEUR_PRIMAIRE_DEFAUT,
+  toast_duree_ms: NOTIFICATIONS_DEFAUT.dureeMs,
+  toast_bouton_fermer: NOTIFICATIONS_DEFAUT.boutonFermer,
+  toast_couleurs_vives: NOTIFICATIONS_DEFAUT.couleursVives,
 };
 
 export const getParametres = cache(async (): Promise<Parametres> => {
@@ -73,7 +98,8 @@ export const getParametres = cache(async (): Promise<Parametres> => {
       'nom_organisation, devise, fuseau_horaire, fenetre_nouveaux_baptises_jours, ' +
         'finance_validation_active, separation_saisie_validation, ' +
         'transfert_auto_approbation_interne, rapport_composition_libre, ' +
-        'reinitialisation_par_email',
+        'reinitialisation_par_email, couleur_primaire, toast_duree_ms, ' +
+        'toast_bouton_fermer, toast_couleurs_vives',
     )
     .eq('id', 1)
     .maybeSingle<Parametres>();
