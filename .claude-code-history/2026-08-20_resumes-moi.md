@@ -29,11 +29,38 @@ jour :
 | `0059` | Deux verrous de bureau : le **terme exigé à l'ouverture**, et l'**interdiction de supprimer un bureau clos**. |
 | `0060` | **La publication des rapports est retirée** : `report.read` décide seul qui peut ouvrir un rapport. |
 
-**767 tests unitaires, 36 fichiers.** `pnpm verify` vert.
+**773 tests unitaires, 37 fichiers.** `pnpm verify` vert.
 
 ---
 
 ## Ce qui a été livré aujourd'hui
+
+### Finances — la saisie déléguée, en fin de journée
+
+**Sans migration.** Deux passages, sur un même signalement qui disait l'inverse
+de ce qu'il était : *« une personne sans habilitation peut quand même saisir »*.
+Vérification faite, l'écriture n'aboutissait pas — elle était **refusée**, alors
+qu'elle aurait dû passer.
+
+- **Le critère était trop étroit.** Une cellule ouverte la veille a l'accès à
+  l'application et n'a **aucun compte** : un compte suppose un mandat en cours
+  (lot 7), et son bureau n'est pas constitué. Les deux branches refusaient donc
+  à la fois — la directe parce que `finance.create` est `PROPRE` depuis `0050`,
+  la déléguée parce qu'elle exigeait `sans_acces_application`. **L'argent de la
+  cellule n'entrait nulle part.**
+  « Personne pour saisir » couvre désormais les **deux** cas : entité déclarée
+  sans accès — une décision, qui durera — **ou** aucun titulaire en fonction —
+  un état de fait, qui se résoudra seul. La condition se relit à chaque
+  écriture : le jour où un bureau s'ouvre, la délégation se referme d'elle-même.
+- **La case à cocher a disparu.** Ce n'était pas un choix — soit l'entité a un
+  opérateur et la délégation lui est refusée, soit elle n'en a pas et c'est le
+  seul mode. Laisser choisir, c'était laisser se tromper, et la case oubliée
+  répondait « vous n'avez pas l'autorisation » quand l'autorisation était là.
+- **`peutDeleguer` valait `true` en dur** : l'écran ne vérifiait jamais
+  `finance.delegate`. L'encart avertit maintenant **avant** la saisie, sur
+  l'entité choisie, et le serveur **nomme** l'habilitation au lieu de la
+  formule générique. La ligne d'audit `DENIED` est conservée — un refus est un
+  événement.
 
 ### Croyants
 
@@ -125,6 +152,17 @@ une réussite.
 - **`/administration`** — portée par droit dans l'octroi ; profils locaux.
 - **Transversal** — fond blanc et ombres légères sur toutes les pages ;
   réécrire les libellés d'écran en langage courant.
+- **Nouveau, arrivé le 20 août au soir** — l'impression PDF de la liste des
+  croyants (filtres compris), le **lien conjugal** époux ↔ épouse, l'affichage
+  de l'**église lue du fichier** dans les dîmes, un niveau de navigation de plus
+  sur `/bureaux`, une **section Design entière** (12 points : couleur des
+  boutons réglable, réglages Sonner, référentiel « Événement », marges de 4 px,
+  pop-up déplaçables, ordre protocolaire au glisser-déposer…), et deux
+  anomalies : le **motif** au retrait d'un titulaire, et la portée de « Gérer
+  les modèles partagés ».
+- **`finance.create` n'est toujours pas filtré dans le sélecteur d'entité** de
+  `/finances`. Chaque refus est motivé désormais, mais l'écran propose encore
+  tout le périmètre actif.
 - **Reporté en fin de liste** — le **PDF d'un rapport**, toujours bâclé après
   cinq tentatives. La cinquième piste vient de l'utilisateur : régler les
   **quatre marges séparément** plutôt qu'une seule pour tout le papier.
