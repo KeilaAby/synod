@@ -170,10 +170,39 @@ export function NoeudPoste({ data }: NodeProps) {
         survole && 'border-solid border-indigo-500 ring-2 ring-indigo-200',
       )}
     >
+      {/*
+        DEUX POINTS D'ENTRÉE, PARCE QU'IL Y A DEUX FAÇONS DE DÉPENDRE.
+
+        Un subordonné ordinaire reçoit le trait par le HAUT : il est sous son
+        supérieur. Un poste en dérivation le reçoit par la GAUCHE — il est à
+        CÔTÉ, accroché au tronc. C'est ce qui produit le « T » couché du
+        modèle, et ce qui le distingue d'un rang de plus.
+
+        Les deux existent toujours, même inutilisés : React Flow ne peut
+        rattacher une arête qu'à une poignée qui est là. Elles portent un `id`
+        pour que l'arête désigne celle qu'elle veut — sans identifiant, avec
+        deux poignées du même type, le choix serait laissé au hasard.
+
+        Seule celle qui SERT se voit : une poignée visible sur un bloc qui n'en
+        a pas l'usage invite à un geste qui ne mène nulle part.
+      */}
       <Handle
         type="target"
+        id="haut"
         position={Position.Top}
-        className="!size-2 !border-2 !border-card !bg-slate-300"
+        className={cn(
+          '!size-2 !border-2 !border-card !bg-slate-300',
+          d.enDerivation && '!opacity-0',
+        )}
+      />
+      <Handle
+        type="target"
+        id="gauche"
+        position={Position.Left}
+        className={cn(
+          '!size-2 !border-2 !border-card !bg-slate-300',
+          !d.enDerivation && '!opacity-0',
+        )}
       />
 
       <div className="space-y-3">

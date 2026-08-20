@@ -87,3 +87,45 @@ export function bornerDuree(ms: number): number {
   if (!Number.isFinite(ms)) return NOTIFICATIONS_DEFAUT.dureeMs;
   return Math.min(DUREE_TOAST_MAX, Math.max(DUREE_TOAST_MIN, Math.round(ms)));
 }
+
+/**
+ * OU LES NOTIFICATIONS APPARAISSENT — EF-ADM-13.
+ *
+ * Ensemble CLOS et connu (regle 18) : les six coins que Sonner accepte, pas un
+ * de plus. Une valeur libre serait ignoree en silence par le composant, et le
+ * reglage paraitrait sans effet.
+ *
+ * Le defaut est en BAS a droite. En haut a droite vivent le menu ⋮ des lignes,
+ * le bouton d'export et les actions d'en-tete : la notification s'y posait sur
+ * ce qu'on venait de cliquer, au moment ou l'on s'apprete a cliquer a nouveau.
+ */
+export const POSITIONS_TOAST = [
+  'top-left',
+  'top-center',
+  'top-right',
+  'bottom-left',
+  'bottom-center',
+  'bottom-right',
+] as const;
+
+export type PositionToast = (typeof POSITIONS_TOAST)[number];
+
+export const POSITION_TOAST_DEFAUT: PositionToast = 'bottom-right';
+
+export const LIBELLES_POSITION_TOAST: Record<PositionToast, string> = {
+  'top-left': 'En haut à gauche',
+  'top-center': 'En haut au centre',
+  'top-right': 'En haut à droite',
+  'bottom-left': 'En bas à gauche',
+  'bottom-center': 'En bas au centre',
+  'bottom-right': 'En bas à droite (recommandé)',
+};
+
+/**
+ * Le repli n'est pas cosmetique : une position inconnue poussee dans Sonner
+ * ferait retomber la notification a SON defaut a lui, pas au notre — et le
+ * reglage semblerait fonctionner a moitie.
+ */
+export function estPositionToast(valeur: string): valeur is PositionToast {
+  return (POSITIONS_TOAST as readonly string[]).includes(valeur);
+}

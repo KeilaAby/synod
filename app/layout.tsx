@@ -6,8 +6,10 @@ import { Toaster } from '@/components/ui/sonner';
 import { getParametres } from '@/lib/data/settings';
 import {
   COULEUR_PRIMAIRE_DEFAUT,
+  POSITION_TOAST_DEFAUT,
   bornerDuree,
   estCouleurHex,
+  estPositionToast,
   texteSurCouleur,
 } from '@/lib/domain/apparence';
 import { fontMono, fontSans } from '@/lib/fonts';
@@ -100,7 +102,11 @@ export default async function RootLayout({ children }: LayoutProps<'/'>) {
           qu'elle soit lue.
         */}
         <Toaster
-          position="top-right"
+          position={
+            estPositionToast(parametres.toast_position)
+              ? parametres.toast_position
+              : POSITION_TOAST_DEFAUT
+          }
           duration={bornerDuree(parametres.toast_duree_ms)}
           richColors={parametres.toast_couleurs_vives}
           closeButton={parametres.toast_bouton_fermer}

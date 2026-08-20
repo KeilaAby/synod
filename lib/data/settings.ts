@@ -2,7 +2,11 @@ import 'server-only';
 
 import { cache } from 'react';
 
-import { COULEUR_PRIMAIRE_DEFAUT, NOTIFICATIONS_DEFAUT } from '@/lib/domain/apparence';
+import {
+  COULEUR_PRIMAIRE_DEFAUT,
+  NOTIFICATIONS_DEFAUT,
+  POSITION_TOAST_DEFAUT,
+} from '@/lib/domain/apparence';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -39,6 +43,7 @@ export interface Parametres {
   toast_duree_ms: number;
   toast_bouton_fermer: boolean;
   toast_couleurs_vives: boolean;
+  toast_position: string;
 }
 
 /**
@@ -87,6 +92,7 @@ const REPLI: Parametres = {
   toast_duree_ms: NOTIFICATIONS_DEFAUT.dureeMs,
   toast_bouton_fermer: NOTIFICATIONS_DEFAUT.boutonFermer,
   toast_couleurs_vives: NOTIFICATIONS_DEFAUT.couleursVives,
+  toast_position: POSITION_TOAST_DEFAUT,
 };
 
 export const getParametres = cache(async (): Promise<Parametres> => {
@@ -99,7 +105,7 @@ export const getParametres = cache(async (): Promise<Parametres> => {
         'finance_validation_active, separation_saisie_validation, ' +
         'transfert_auto_approbation_interne, rapport_composition_libre, ' +
         'reinitialisation_par_email, couleur_primaire, toast_duree_ms, ' +
-        'toast_bouton_fermer, toast_couleurs_vives',
+        'toast_bouton_fermer, toast_couleurs_vives, toast_position',
     )
     .eq('id', 1)
     .maybeSingle<Parametres>();

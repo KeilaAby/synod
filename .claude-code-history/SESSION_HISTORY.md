@@ -5093,3 +5093,40 @@ défaut, l'objet donné à `.update()` n'étant pas typé contre la table.
 C'est le pendant exact de la règle 19 — une action qui n'écrit pas un champ dont
 son formulaire est la source. Un test lit désormais le fichier de l'action et
 vérifie que **chaque** clé du schéma y apparaît.
+
+### Le trait de la dérivation manquait à l'écran
+
+Signalé sur capture : le Vice-Président posé à côté du Président, **sans aucun
+trait**. J'avais dessiné le raccordement latéral dans le SVG d'impression et
+laissé l'écran tel quel — donc deux dessins pour une même donnée, et personne
+pour dire lequel fait foi.
+
+**Deux points d'entrée sur le bloc**, parce qu'il y a deux façons de dépendre :
+un subordonné ordinaire reçoit le trait par le **haut**, un poste en dérivation
+par la **gauche**. Les deux poignées existent toujours — React Flow ne peut
+rattacher une arête qu'à une poignée présente — et portent un `id`, sans quoi le
+choix entre deux poignées du même type serait laissé au hasard. Seule celle qui
+sert se voit : une poignée visible sur un bloc qui n'en a pas l'usage invite à
+un geste qui ne mène nulle part.
+
+### Les notifications reprennent l'écran de Stratrack
+
+**La position se règle** (`0065`), et son défaut change : de « en haut à
+droite » à « en bas à droite ». En haut à droite vivent le menu ⋮ des lignes, le
+bouton d'export et les actions d'en-tête — la notification s'y posait sur ce
+qu'on venait de cliquer, au moment où l'on s'apprête à cliquer à nouveau.
+
+**La durée passe en curseur.** On ne connaît pas la bonne durée, on la
+*cherche* : « quatre secondes, est-ce trop ? » ne se répond qu'en comparant. Un
+champ oblige à effacer puis retaper pour essayer la valeur voisine ; un curseur
+la donne d'un cran, et rend l'intervalle visible — les bornes n'ont plus à être
+expliquées. Le nombre reste affiché à côté, sinon deux personnes ne liraient pas
+la même valeur au même endroit.
+
+**Les styles par contexte ne sont PAS faits, et c'est un arbitrage à rendre.**
+SYNOD compte 57 appels `toast.success` sans contexte : leur donner une couleur
+propre suppose de déclarer à chacun de quel geste il s'agit — mécanique mais
+large, et un demi-parcours donnerait un écran où la moitié des notifications
+ignore le réglage. Et le contexte « erreur » de la capture **n'existe pas ici** :
+la règle 30 envoie tout refus dans un pop-up qu'on ferme. Lui donner une couleur
+ferait un réglage qui ne décide de rien.

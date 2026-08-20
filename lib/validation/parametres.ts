@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   DUREE_TOAST_MAX,
   DUREE_TOAST_MIN,
+  POSITIONS_TOAST,
   estCouleurHex,
 } from '@/lib/domain/apparence';
 
@@ -117,6 +118,9 @@ export const parametresSchema = z.object({
 
   toastBoutonFermer: z.boolean(),
   toastCouleursVives: z.boolean(),
+
+  /** EF-ADM-13 — le coin. Ensemble clos : les six que Sonner accepte. */
+  toastPosition: z.enum(POSITIONS_TOAST, { message: 'Position inconnue.' }),
 });
 
 export type ParametresInput = z.input<typeof parametresSchema>;

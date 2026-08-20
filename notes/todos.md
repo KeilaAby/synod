@@ -14,16 +14,11 @@
 
 ## ⚠ État de la base
 
-**Appliquées : `0001` à `0063`.**
+**Appliquées : `0001` à `0064`.**
 
-> ⏳ **`0063` est appliquée** — mais l'action ne reprenait pas les quatre
-> nouveaux champs dans son `update` : l'enregistrement réussissait **sans rien
-> changer**. Corrigé, et un test verrouille désormais l'invariant « aucun
-> paramètre validé ne reste non écrit ».
->
-> ⏳ **`0064` attend d'être appliquée** : `bureau_postes.en_derivation`, le
-> poste qui se dessine à côté du tronc de son supérieur. Sans elle, enregistrer
-> un plan d'organigramme échoue — la colonne n'existe pas.
+> ⏳ **`0065` attend d'être appliquée** : `toast_position`, le coin où
+> apparaissent les notifications. Sans elle, l'écran des paramètres échoue à la
+> lecture — la colonne n'existe pas.
 
 C'est **cette ligne** qui fait foi — pas le numéro le plus élevé de
 `supabase/migrations/`, qui dit ce qui est *écrit* et non ce qui est *appliqué*.
@@ -369,12 +364,41 @@ soldes consolidés — la décision a déjà été prise et tenue une fois.
       **manière** dont s'affiche ce qui a déjà le droit de s'y afficher. Un
       encart l'explique dans le formulaire, sinon on croirait pouvoir
       raccourcir un message d'erreur.
-      La durée se **saisit en secondes** et s'enregistre en millisecondes :
-      personne ne pense une notification en millisecondes. Elle est bornée
-      entre 2 et 20 s — en deçà on ne lit pas, au-delà les messages s'empilent —
-      et **re-bornée à la lecture** : une valeur hors bornes venue d'une base
-      modifiée à la main ferait disparaître la notification avant qu'elle soit
-      lue.
+      La durée est bornée entre 2 et 20 s — en deçà on ne lit pas, au-delà les
+      messages s'empilent — et **re-bornée à la lecture** : une valeur hors
+      bornes venue d'une base modifiée à la main ferait disparaître la
+      notification avant qu'elle soit lue.
+
+      **Repris le 20 août au soir**, sur la capture de l'écran équivalent de
+      Stratrack *(migration `0065`)* :
+      - **Position réglable**, six coins. Le défaut passe de « en haut à
+        droite » à **« en bas à droite »** : en haut à droite vivent le menu ⋮
+        des lignes, le bouton d'export et les actions d'en-tête — la
+        notification s'y posait sur ce qu'on venait de cliquer, au moment où
+        l'on s'apprête à cliquer à nouveau.
+      - **La durée passe en curseur.** On ne connaît pas la bonne durée, on la
+        **cherche** : « quatre secondes, est-ce trop ? » ne se répond qu'en
+        comparant. Un champ oblige à effacer puis retaper pour essayer la valeur
+        voisine ; un curseur la donne d'un cran, et rend l'intervalle visible —
+        les bornes n'ont plus à être expliquées. La valeur reste affichée à
+        côté : un curseur sans nombre laisse deviner où l'on est.
+        Pas de **demi-seconde** : entre 2 et 5 s, là où le réglage se joue, la
+        seconde est trop grossière.
+
+- [ ] **Styles de toast PAR CONTEXTE** — les quatre listes de la capture
+      Stratrack : création, modification, suppression, erreur.
+      ⚠ **Ce qui bloque n'est pas le réglage mais l'appel.** SYNOD compte
+      **57 appels `toast.success`**, sans contexte : leur donner une couleur
+      propre suppose de déclarer, à chacun, de quel geste il s'agit. C'est
+      mécanique mais large, et un demi-parcours donnerait un écran où la moitié
+      des notifications ignore le réglage.
+      ⚠ **Et le contexte « erreur » n'existe pas ici** : la règle 30 envoie tout
+      refus, avertissement ou panne dans un pop-up qu'on ferme, et ESLint refuse
+      les autres appels à `toast`. Lui donner une couleur ferait un réglage qui
+      ne décide de rien — exactement ce que cette liste reproche ailleurs.
+      **À trancher avec l'utilisateur** avant d'entreprendre : trois contextes
+      (création, modification, suppression) et la migration des 57 appels, ou
+      s'en tenir au style unique actuel.
 - [ ] **Référentiel « Événement ».** ⚠ **La demande est plus lourde que son
       énoncé, et l'estimation portée ici le 20 août était fausse.**
       Ce n'est **pas** une liste figée en TypeScript : `type_evenement_dime` est

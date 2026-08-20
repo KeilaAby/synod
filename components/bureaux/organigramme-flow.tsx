@@ -425,6 +425,17 @@ function Editeur({
   // --- Palette : les fonctions applicables PAS ENCORE posées -------------------
 
   const poses = useMemo(() => new Set(noeuds.map((n) => n.id)), [noeuds]);
+
+  /** EF-BUR-07 — ceux qui reçoivent leur trait par le côté, et non par le haut. */
+  const enDerivation = useMemo(
+    () =>
+      new Set(
+        noeuds
+          .filter((n) => (n.data as { enDerivation?: boolean }).enDerivation)
+          .map((n) => n.id),
+      ),
+    [noeuds],
+  );
   const palette = useMemo(
     () => postes.filter((p) => !poses.has(p.fonction.id)),
     [postes, poses],
@@ -457,6 +468,15 @@ function Editeur({
             id,
             source: parent!,
             target: fonctionId,
+            /**
+             * EF-BUR-07 — UN ADJOINT REÇOIT LE TRAIT PAR LE CÔTÉ.
+             *
+             * Sans cela, l'écran montrait un subordonné ordinaire et le papier
+             * un rattachement latéral : deux dessins pour une même donnée, et
+             * personne pour dire lequel fait foi. La position se règle à
+             * l'écran, mais le SENS du lien doit s'y lire aussi.
+             */
+            targetHandle: enDerivation.has(fonctionId) ? 'gauche' : 'haut',
             type: 'smoothstep',
             // La sélection est tenue ICI : les arêtes sont recalculées quand un
             // lien change, et une sélection laissée au magasin interne
@@ -468,7 +488,7 @@ function Editeur({
             },
           };
         }),
-    [liens, poses, aretesSelectionnees],
+    [liens, poses, enDerivation, aretesSelectionnees],
   );
 
   const surChangementAretes = useCallback((changements: EdgeChange[]) => {

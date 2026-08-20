@@ -68,6 +68,7 @@ export async function reglerParametres(input: unknown): Promise<ActionResult<voi
       toast_duree_ms: valeurs.toastDureeMs,
       toast_bouton_fermer: valeurs.toastBoutonFermer,
       toast_couleurs_vives: valeurs.toastCouleursVives,
+      toast_position: valeurs.toastPosition,
     });
 
     const sb = await createClient();

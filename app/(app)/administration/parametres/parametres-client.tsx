@@ -24,7 +24,11 @@ import {
   COULEUR_PRIMAIRE_DEFAUT,
   DUREE_TOAST_MAX,
   DUREE_TOAST_MIN,
+  LIBELLES_POSITION_TOAST,
+  POSITIONS_TOAST,
+  POSITION_TOAST_DEFAUT,
   estCouleurHex,
+  estPositionToast,
   texteSurCouleur,
 } from '@/lib/domain/apparence';
 import type { Parametres } from '@/lib/data/settings';
@@ -102,6 +106,9 @@ export function ParametresClient({ parametres }: { parametres: Parametres }) {
     toastDureeMs: parametres.toast_duree_ms,
     toastBoutonFermer: parametres.toast_bouton_fermer,
     toastCouleursVives: parametres.toast_couleurs_vives,
+    toastPosition: estPositionToast(parametres.toast_position)
+      ? parametres.toast_position
+      : POSITION_TOAST_DEFAUT,
   });
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
@@ -366,24 +373,63 @@ export function ParametresClient({ parametres }: { parametres: Parametres }) {
           </p>
 
           <Field
-            label="Durée d’affichage"
-            hint="Entre 2 et 20 secondes. En deçà on n’a pas le temps de lire ; au-delà les messages s’empilent."
+            label="Position"
+            hint="En haut à droite se trouvent le menu ⋮ des lignes et les boutons d’en-tête : une notification y recouvre ce qu’on vient de cliquer."
           >
             {(aria) => (
-              <div className="flex items-center gap-3">
-                <Input
+              <Select
+                value={valeurs.toastPosition}
+                onValueChange={(v) =>
+                  poser({ toastPosition: v as ParametresInput['toastPosition'] })
+                }
+              >
+                <SelectTrigger {...aria} className="h-10 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {POSITIONS_TOAST.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {LIBELLES_POSITION_TOAST[p]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </Field>
+
+          <Field
+            label="Durée d’affichage"
+            hint="En deçà de deux secondes on n’a pas le temps de lire ; au-delà de vingt, les messages s’empilent."
+          >
+            {(aria) => (
+              /*
+                UN CURSEUR, ET NON UN CHAMP DE SAISIE.
+
+                On ne connaît pas la bonne durée, on la CHERCHE : « quatre
+                secondes, est-ce trop ? » ne se répond qu'en comparant. Un champ
+                oblige à effacer puis retaper pour essayer la valeur voisine ;
+                un curseur la donne d'un cran. Et il rend l'intervalle visible —
+                les bornes n'ont plus à être expliquées, elles se voient.
+
+                La valeur reste affichée à côté : un curseur sans nombre laisse
+                deviner où l'on est, et deux personnes ne le liraient pas pareil.
+              */
+              <div className="flex items-center gap-4">
+                <input
                   {...aria}
-                  type="number"
-                  min={DUREE_TOAST_MIN / 1000}
-                  max={DUREE_TOAST_MAX / 1000}
-                  step={1}
-                  // On saisit des SECONDES, on enregistre des millisecondes :
-                  // personne ne pense une notification en millisecondes.
-                  value={Math.round(Number(valeurs.toastDureeMs) / 1000)}
-                  onChange={(e) => poser({ toastDureeMs: Number(e.target.value) * 1000 })}
-                  className="h-10 w-24 tabular-nums"
+                  type="range"
+                  min={DUREE_TOAST_MIN}
+                  max={DUREE_TOAST_MAX}
+                  // Par demi-seconde : le pas de la seconde est trop grossier
+                  // entre 2 et 5 s, là où le réglage se joue vraiment.
+                  step={500}
+                  value={Number(valeurs.toastDureeMs)}
+                  onChange={(e) => poser({ toastDureeMs: Number(e.target.value) })}
+                  className="accent-primary h-2 w-full cursor-pointer"
                 />
-                <span className="text-muted-foreground text-sm">secondes</span>
+                <span className="text-foreground w-14 shrink-0 text-right text-sm font-medium tabular-nums">
+                  {(Number(valeurs.toastDureeMs) / 1000).toFixed(1)} s
+                </span>
               </div>
             )}
           </Field>
