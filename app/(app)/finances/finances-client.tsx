@@ -117,6 +117,7 @@ export function FinancesClient({
   devise,
   justificatifs,
   periodesCloses = [],
+  exigeDelegationParEntite = {},
 }: {
   mouvements: MouvementListe[];
   categories: CategorieFinance[];
@@ -128,6 +129,8 @@ export function FinancesClient({
   justificatifs: Record<string, string>;
   /** EF-FIN-26 — les mois arrêtés, en clés `entite|AAAA-MM`. */
   periodesCloses?: readonly string[];
+  /** ARB-2 — les entités qui n'ont personne pour tenir leurs écritures. */
+  exigeDelegationParEntite?: Record<string, boolean>;
 }) {
   const router = useRouter();
   const [enCours, demarrer] = useTransition();
@@ -578,6 +581,7 @@ export function FinancesClient({
           categoriesParDefaut={entite ?? entiteRacine?.id ?? null}
           devise={devise}
           peutDeleguer
+          exigeDelegationParEntite={exigeDelegationParEntite}
         />
       </div>
 

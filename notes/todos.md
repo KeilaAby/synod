@@ -73,9 +73,19 @@ l'éditeur SQL Supabase et le confirme.
          relier B à A, sinon deux fiches se contrediront. Une colonne
          `conjoint_id` de chaque côté demande un trigger pour rester cohérente
          (règle 20 : deux écritures indissociables se font **en base**).
-      2. **Que se passe-t-il au veuvage, au divorce, au décès ?** Effacer le
-         lien perdrait l'histoire ; le garder afficherait un conjoint qui ne
-         l'est plus. Le statut marital et le lien doivent se répondre.
+      2. ✅ **Décès et caractère facultatif — tranché le 20 août 2026.**
+         - Si A ou B est déclaré **décédé**, l'autre devient **veuf ou veuve**.
+           Le statut marital du survivant suit donc le décès du conjoint : c'est
+           une conséquence, pas une saisie à refaire à la main — sinon deux
+           fiches se contrediraient jusqu'à ce que quelqu'un s'en aperçoive.
+         - **Le lien n'est jamais obligatoire**, même sur un croyant déclaré
+           marié : son conjoint peut très bien ne pas être croyant. « Marié »
+           sans conjoint renseigné est un état **normal**, pas une fiche
+           incomplète — rien ne doit le signaler comme une anomalie.
+
+         *(Reste ouvert : le divorce. Il n'a pas été tranché, et il ne se déduit
+         d'aucun autre champ — contrairement au veuvage, qui a le décès pour
+         cause visible.)*
       3. **Un conjoint hors périmètre.** La RLS le rendra invisible : la fiche
          doit afficher « conjoint hors de votre périmètre » et non un blanc
          (règle 15).
@@ -349,56 +359,94 @@ soldes consolidés — la décision a déjà été prise et tenue une fois.
       3. **Le spinner fait trembler le pop-up** et fait apparaître deux barres
          de défilement : il doit prendre la place de l'interrupteur, pas s'y
          ajouter.
-- [ ] **Hiérarchie intermédiaire dans l'organigramme des bureaux** — le cas du
-      vice-président, en violet sur l'image jointe — **sans toucher au design
-      actuel ni à l'impression PDF**.
-      ⚠ **L'image n'est pas arrivée** (`image.png`) : à redemander avant de
-      commencer. Rappel règle 33 : le PDF rend la **hiérarchie**, jamais les
-      coordonnées où l'utilisateur a posé ses blocs pour travailler.
+- [ ] **Hiérarchie intermédiaire dans l'organigramme des bureaux**, **sans
+      toucher au design actuel ni à l'impression PDF**.
+
+      **Ce que montre l'image reçue le 20 août 2026** — le modèle est clair :
+      « Directeur général » en tête, et « Vice-président adjoint » **accroché au
+      trait vertical** qui descend du DG, **décalé sur le côté**, au-dessus de
+      la rangée des autres subordonnés. Ce dernier n'est pas dans cette rangée :
+      il est **en dérivation** sur le tronc.
+
+      C'est le motif classique du **poste en dérivation** (adjoint, cabinet,
+      assistant de direction). Il se rattache au même parent que les autres,
+      mais il **ne se range pas avec eux**.
+
+      **Les deux décisions que cela impose :**
+      1. **Le rattachement reste un rattachement.** Le vice-président adjoint
+         est bien un enfant du DG — ce n'est pas un niveau de plus. Ajouter un
+         rang intermédiaire dans le modèle décalerait toute la descendance.
+         Ce qui change est le **placement**, pas la parenté.
+      2. **Donc un drapeau sur le poste**, du genre `en_derivation`, et non une
+         nouvelle table ni un `parent_id` détourné. La mise en page le lit ; la
+         composition tabulaire, qui reste la source des vacances, l'ignore.
+
+      ⚠ **Le PDF est le point délicat.** Règle 33 : il rend la **hiérarchie**,
+      jamais les coordonnées où l'utilisateur a posé ses blocs pour travailler.
+      Le poste en dérivation doit donc se dessiner **à partir du drapeau**, en
+      recalculant sa position dans `organigramme-svg.ts` — pas en recopiant la
+      position d'écran, qui rendrait le papier dépendant de la mise en page de
+      travail.
 
 ---
 
 ## 8. Anomalies signalées le 20 août 2026
 
-- [ ] **Une saisie possible là où l'habilitation manque — à trancher.**
-      *Signalé :* Hanitra Eugenie, rattachée à l'église **Antsahatsiresy**, sans
-      l'habilitation de saisir pour le compte d'une entité, peut malgré tout
-      saisir un mouvement pour la cellule **FITAHIANA (CEL-0002)** — cellule qui
-      n'a pas encore de bureau **et** qui a accès à l'application.
+- [x] **Une saisie refusée là où elle aurait dû aboutir.** *(20 août 2026 —
+      diagnostiqué, tranché, corrigé.)*
 
-      **Ce qui a été vérifié dans le code le 20 août 2026 :**
-      - Le garde-fou **serveur est correct**. `saisirMouvement` appelle
-        `requirePermission(session, 'finance.create', entite.path)`, qui passe
-        par `peut()` — donc avec la portée. `finance.create` est `PROPRE` depuis
-        `0050` : une portée sur l'église **ne couvre pas** sa cellule.
-      - La branche déléguée est correcte aussi : elle exige `finance.delegate`
-        **et** `sans_acces_application` sur l'entité visée (`0051`, `0052`).
-      - **L'écran, lui, ne filtre rien.** `app/(app)/finances/page.tsx` passe
-        `arbre.filter((e) => e.is_active)` au sélecteur d'entité : **toutes** les
-        entités actives du périmètre sont proposées, sans jamais consulter
-        `peut('finance.create', …)`.
+      *Signalé :* Hanitra Eugenie, rattachée à l'église **Antsahatsiresy**, ne
+      pouvait pas saisir un mouvement pour la cellule **FITAHIANA (CEL-0002)**.
+      L'écran répondait « Vous n'avez pas l'autorisation d'effectuer cette
+      action » — alors que l'autorisation était bien là.
 
-      **Trois hypothèses à départager, dans cet ordre :**
-      1. **L'écran promet ce que le serveur refuse.** Le plus probable : la
-         cellule est *sélectionnable*, et l'écriture échoue à l'enregistrement.
-         C'est un défaut réel — on ne propose pas un geste qu'on n'accorde
-         pas —, mais ce n'est pas un trou de sécurité.
-      2. **L'écriture aboutit vraiment.** Alors vérifier ses habilitations
-         réelles en base : détient-elle `finance.create` avec un `scope_path`
-         plus large que son église ? Est-elle `SUPERADMIN` — `estSuperAdmin`
-         court-circuite tout contrôle ?
-      3. **`0050` n'est pas active sur cette base** : `has_perm` testerait
-         encore l'inclusion de chemin pour tous les droits.
+      **Ce n'était donc pas un trou de sécurité mais son contraire : un blocage.**
+      La cellule a accès à l'application et n'a pas encore de bureau. Les deux
+      branches refusaient à la fois :
+      - la saisie **directe**, parce que `finance.create` est `PROPRE` depuis
+        `0050` — une portée sur l'église ne couvre pas sa cellule ;
+      - la saisie **déléguée**, parce qu'elle exigeait `sans_acces_application`,
+        et que la cellule a l'accès.
 
-      **Le correctif attendu dans tous les cas** : filtrer le sélecteur d'entité
-      par `peut('finance.create', path)`, et par `sans_acces_application` pour
-      la saisie déléguée.
+      L'argent de la cellule n'entrait donc **nulle part**.
+
+      **La règle posée par l'utilisateur, et pourquoi elle est la bonne.** Un
+      ascendant peut saisir pour un enfant qui n'a personne pour le faire, dans
+      la limite de ses propres habilitations. « Personne » couvre **deux** cas
+      que le code n'en voyait qu'un :
+      1. l'entité est **déclarée sans accès** — une décision, qui durera ;
+      2. l'entité a l'accès mais **aucun membre de bureau en fonction** — un
+         compte suppose un mandat en cours (lot 7), donc pas de bureau signifie
+         pas d'opérateur. C'est un état de fait, qui se résoudra tout seul.
+
+      Ils se ressemblent par ce qui compte : **il n'y a personne pour saisir**.
+
+      **Ce qui a été fait :**
+      - `motifDeDelegation` et `exigeDelegation` dans `lib/domain/finance.ts` —
+        purs, testés (`tests/unit/delegation.test.ts`). La condition se relit à
+        **chaque écriture** (règle 21) : le jour où un bureau s'ouvre, la
+        délégation se referme d'elle-même, sans rien à défaire.
+      - `compterTitulairesEnFonction` dans `lib/data/bureaux.ts` — une requête,
+        sur la seule entité visée, `head: true`.
+      - **La case à cocher a disparu.** Elle n'avait rien d'un choix : soit
+        l'entité a un opérateur et la délégation lui est refusée, soit elle n'en
+        a pas et c'est le seul mode possible. Laisser choisir, c'était laisser
+        se tromper — et c'est exactement l'erreur qui a été signalée. Le mode se
+        **déduit** de l'entité choisie, et le formulaire annonce ce qu'il va
+        faire, validation immédiate comprise.
+      - **Aucune migration** : `fn_chiffres_perimetre` (`0053`) rendait déjà le
+        nombre de titulaires par entité, en une passe, pour l'écran.
+
+      *Reste ouvert :* le **sélecteur d'entité n'est toujours pas filtré** par
+      `peut('finance.create', path)`. Il propose tout le périmètre actif. Le cas
+      signalé aboutit désormais, mais une entité pourvue d'un bureau et hors de
+      la portée du droit reste sélectionnable pour être refusée ensuite.
 
 - [ ] **Retirer un titulaire : demander le motif.** Deux cas se présentent, et
       ils ne laissent pas la même trace :
       1. **Erreur d'assignation** → **rien** n'est inscrit dans l'historique de
          la fiche croyant. Ce n'est pas un événement de sa vie, c'est une
-         correction de saisie.
+         correction de saisie. Ce menu doit disparaitre après 15 jours à compter de l'enregistrement. après cela, ce ne sara plus considéra comme erreur mais un retrait volontaire qu'il faut motivé dans le menu "motif obligatoire"
       2. **Retrait avant la fin du mandat** → **motif obligatoire**, en texte
          libre : décès, sanction pour faute lourde…
 
@@ -453,14 +501,10 @@ soldes consolidés — la décision a déjà été prise et tenue une fois.
 
 ## Ce qui attend une réponse de l'utilisateur
 
-- **L'image `image.png`** citée pour la **hiérarchie intermédiaire dans
-  l'organigramme des bureaux** (§7, cas du vice-président en violet) n'est pas
-  arrivée. Sans elle, on ne peut pas savoir si le vice-président se place
-  *entre* deux rangs, *à côté* du président, ou *en dérivation* — trois dessins
-  et trois modèles de données différents.
-- **Le comportement voulu au veuvage et au divorce** pour le lien conjugal
-  (§1) : effacer le lien perd l'histoire, le garder affiche un conjoint qui ne
-  l'est plus.
+- **Le divorce**, pour le lien conjugal (§1). Le décès est tranché — le
+  survivant devient veuf ou veuve — mais le divorce ne se déduit d'aucun autre
+  champ : il n'a pas d'événement qui le trahisse, contrairement au décès. Faut-il
+  effacer le lien, le conserver comme une union passée, ou ne rien prévoir ?
 - **`SMTP_PASS`** doit être posé dans les variables d'environnement de
   production : sans lui le serveur d'envoi est configuré mais aucun message ne
   part. Le bouton d'essai le dit sans détour.

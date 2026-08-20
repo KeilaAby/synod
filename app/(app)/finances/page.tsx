@@ -8,7 +8,7 @@ import { ClotureDialog } from '@/components/finances/cloture-dialog';
 import { WorkflowDialog } from '@/components/finances/workflow-dialog';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
-import { getArbrePerimetre } from '@/lib/data/entities';
+import { chargerChiffresPerimetre, getArbrePerimetre } from '@/lib/data/entities';
 import { versOptions } from '@/lib/data/entity-options';
 import {
   chargerMouvements,
@@ -19,7 +19,7 @@ import {
 } from '@/lib/data/finances';
 import { signerJustificatifs } from '@/lib/data/photos';
 import { getParametres } from '@/lib/data/settings';
-import { clePeriode } from '@/lib/domain/finance';
+import { clePeriode, exigeDelegation } from '@/lib/domain/finance';
 import type { EntityType } from '@/lib/domain/hierarchy';
 import { detient } from '@/lib/domain/permissions';
 import { getSession } from '@/lib/session';
@@ -43,15 +43,23 @@ export const metadata: Metadata = { title: 'Finances' };
 export default async function FinancesPage() {
   const session = await getSession();
 
-  const [mouvements, categories, arbre, parametres, closes] = await Promise.all([
-    chargerMouvements(),
-    listerCategoriesFinance(),
-    getArbrePerimetre(),
-    getParametres(),
-    // EF-FIN-26 — les periodes arretees. L'ecran ne fait que les annoncer :
-    // le verrou est tenu par `fn_finance_before_write`.
-    chargerPeriodesCloses(),
-  ]);
+  const [mouvements, categories, arbre, parametres, closes, chiffres] =
+    await Promise.all([
+      chargerMouvements(),
+      listerCategoriesFinance(),
+      getArbrePerimetre(),
+      getParametres(),
+      // EF-FIN-26 — les periodes arretees. L'ecran ne fait que les annoncer :
+      // le verrou est tenu par `fn_finance_before_write`.
+      chargerPeriodesCloses(),
+      /**
+       * ARB-2 / EF-FIN-05 — combien de titulaires en fonction dans CHAQUE
+       * entite. `fn_chiffres_perimetre` (0053) le rend deja pour tout le
+       * perimetre en une passe : demander entite par entite couterait un
+       * aller-retour par ligne du selecteur (regle 28).
+       */
+      chargerChiffresPerimetre(),
+    ]);
 
   /**
    * Le solde de l'entite de rattachement : la racine du perimetre (RG-20).
@@ -85,6 +93,27 @@ export default async function FinancesPage() {
   );
 
   const racine = arbre.find((e) => e.id === session?.entityId) ?? arbre[0] ?? null;
+
+  /**
+   * ARB-2 / EF-FIN-05 — QUI N'A PERSONNE POUR TENIR SES ECRITURES.
+   *
+   * Deux cas, reunis parce qu'ils se ressemblent par ce qui compte : l'entite
+   * declaree sans acces, et celle qui a l'acces mais dont aucun bureau n'est
+   * encore constitue — un compte suppose un mandat en cours (lot 7), donc pas
+   * de bureau signifie aucun operateur.
+   *
+   * REGLE 24 — un `Record`, pas une `Map` : seul du simple traverse la
+   * frontiere serveur → client.
+   */
+  const exigeDelegationParEntite = Object.fromEntries(
+    arbre.map((e) => [
+      e.id,
+      exigeDelegation({
+        sansAccesApplication: e.sans_acces_application,
+        membresBureauEnCours: chiffres.get(e.id)?.bureau?.membres ?? 0,
+      }),
+    ]),
+  );
 
   /**
    * EF-FIN-15 — le reglage du workflow, entite par entite.
@@ -218,6 +247,7 @@ export default async function FinancesPage() {
         // EF-FIN-26 — des CLÉS, pas des objets : seul du simple traverse la
         // frontière serveur → client (règle 24), et le client en fait un `Set`.
         periodesCloses={closes.map((c) => clePeriode(c.entityId, c.periode))}
+        exigeDelegationParEntite={exigeDelegationParEntite}
       />
     </div>
   );

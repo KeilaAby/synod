@@ -459,3 +459,57 @@ export function mouvementsEnAttenteDe(
       (m.statut === 'BROUILLON' || m.statut === 'SOUMIS'),
   ).length;
 }
+
+// -----------------------------------------------------------------------------
+// ARB-2 / EF-FIN-05 — qui saisit pour soi, et qui a besoin qu'on le fasse
+// -----------------------------------------------------------------------------
+
+/**
+ * CE QUI REND UNE ENTITE INCAPABLE DE TENIR SES PROPRES ECRITURES.
+ *
+ * Le critere etait « declaree sans acces a l'application », et il etait trop
+ * etroit. Une entite peut tres bien avoir l'acces et n'avoir PERSONNE pour s'en
+ * servir : une cellule ouverte hier, dont le bureau n'est pas encore constitue,
+ * n'a aucun compte — parce qu'un compte suppose un mandat en cours (lot 7). Elle
+ * encaisse pourtant des le premier jour.
+ *
+ * Les deux cas se ressemblent par ce qui compte : IL N'Y A PERSONNE POUR
+ * SAISIR. C'est cela, et non le reglage, qui justifie qu'un ascendant le fasse.
+ *
+ * LA DIFFERENCE ENTRE LES DEUX EST TEMPORELLE, et elle se voit dans le nom.
+ * `SANS_ACCES` est une decision : quelqu'un a declare que cette entite ne se
+ * connecte pas, et cela durera. `SANS_OPERATEUR` est un etat de fait qui se
+ * resout tout seul le jour ou un bureau est ouvert — la delegation se referme
+ * alors d'elle-meme, puisque la condition se relit a chaque ecriture (regle 21).
+ */
+export interface CapaciteDeSaisie {
+  readonly sansAccesApplication: boolean;
+  /** Titulaires dont le mandat COURT aujourd'hui. Zero : aucun operateur. */
+  readonly membresBureauEnCours: number;
+}
+
+export type MotifDeDelegation = 'SANS_ACCES' | 'SANS_OPERATEUR';
+
+/**
+ * Pourquoi cette entite a besoin qu'on saisisse pour elle — ou `null` si elle
+ * n'en a pas besoin, auquel cas la saisie deleguee doit lui etre REFUSEE.
+ *
+ * L'ordre des deux tests n'est pas indifferent : une entite sans acces n'a pas
+ * de compte, donc pas d'operateur, donc les deux motifs seraient vrais. On rend
+ * le plus explicatif — c'est une decision, pas une lacune passagere.
+ */
+export function motifDeDelegation(c: CapaciteDeSaisie): MotifDeDelegation | null {
+  if (c.sansAccesApplication) return 'SANS_ACCES';
+  if (c.membresBureauEnCours === 0) return 'SANS_OPERATEUR';
+  return null;
+}
+
+export function exigeDelegation(c: CapaciteDeSaisie): boolean {
+  return motifDeDelegation(c) !== null;
+}
+
+/** Formulations destinees a l'utilisateur — jamais le code du motif. */
+export const LIBELLES_MOTIF_DELEGATION: Record<MotifDeDelegation, string> = {
+  SANS_ACCES: 'n’accède pas à l’application',
+  SANS_OPERATEUR: 'n’a encore aucun membre de bureau en fonction',
+};

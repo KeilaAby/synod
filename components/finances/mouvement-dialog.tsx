@@ -14,7 +14,6 @@ import { StatusBadge } from '@/components/shared/status-badge';
 import { EntityPicker, type OptionEntite } from '@/components/structure/entity-picker';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -61,6 +60,7 @@ export function MouvementDialog({
   devise,
   declencheur,
   peutDeleguer,
+  exigeDelegationParEntite = {},
 }: {
   entites: OptionEntite[];
   categories: CategorieFinance[];
@@ -72,6 +72,13 @@ export function MouvementDialog({
   declencheur?: React.ReactNode;
   /** EF-FIN-05 — la case « pour le compte de » n'apparaît qu'avec le droit. */
   peutDeleguer: boolean;
+  /**
+   * ARB-2 / EF-FIN-05 — les entités qui n'ont PERSONNE pour tenir leurs
+   * écritures : déclarées sans accès à l'application, ou sans aucun membre de
+   * bureau en fonction. Pour elles, la saisie déléguée n'est pas une option,
+   * c'est le seul mode possible — et pour les autres elle est refusée.
+   */
+  exigeDelegationParEntite?: Record<string, boolean>;
 }) {
   const router = useRouter();
   const [ouvert, setOuvert] = useState(false);
@@ -103,6 +110,7 @@ export function MouvementDialog({
     control,
     reset,
     setError,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<SaisirMouvementInput>({
     resolver: zodResolver(saisirMouvementSchema),
@@ -115,11 +123,43 @@ export function MouvementDialog({
       dateOperation: mouvement?.date_operation ?? new Date().toISOString().slice(0, 10),
       libelle: mouvement?.libelle ?? '',
       reference: mouvement?.reference ?? '',
-      estDelegue: mouvement?.est_delegue ?? false,
+      /*
+        L'entité peut être PRÉSÉLECTIONNÉE — celle du filtre courant, ou le
+        rattachement. Le mode doit la suivre dès l'ouverture : le déduire
+        seulement au changement laisserait la première saisie en mode direct,
+        c'est-à-dire refusée, sans que rien n'ait été choisi.
+
+        En modification, on garde ce que le mouvement porte : c'est un fait
+        enregistré, pas une décision à reprendre.
+      */
+      estDelegue:
+        mouvement?.est_delegue ??
+        (categoriesParDefaut
+          ? (exigeDelegationParEntite[categoriesParDefaut] ?? false)
+          : false),
     } as Partial<SaisirMouvementInput> as SaisirMouvementInput,
   });
 
   const categorieChoisie = useWatch({ control, name: 'categorieId' });
+
+  /**
+   * ARB-2 / EF-FIN-05 — LA DÉLÉGATION N'EST PAS UN CHOIX, C'EST UN CONSTAT.
+   *
+   * Elle l'était : une case à cocher, que l'utilisateur devait penser à cocher.
+   * Or il n'y a rien à décider — soit l'entité a quelqu'un pour saisir, et la
+   * délégation lui est refusée ; soit elle n'a personne, et c'est le seul mode
+   * possible. Laisser choisir, c'était laisser se tromper : sélectionner une
+   * cellule sans cocher la case donnait « Vous n'avez pas l'autorisation
+   * d'effectuer cette action », alors que l'autorisation était bien là et que
+   * seule la case manquait (constaté le 20 août 2026).
+   *
+   * La valeur se dérive donc de l'entité choisie, et le serveur la revérifie —
+   * l'écran ne fait qu'éviter le faux pas.
+   */
+  const entiteChoisie = useWatch({ control, name: 'entiteId' });
+  const delegationRequise = entiteChoisie
+    ? (exigeDelegationParEntite[entiteChoisie] ?? false)
+    : false;
 
   /**
    * Le sens SE VOIT dès que la catégorie est choisie.
@@ -306,7 +346,19 @@ export function MouvementDialog({
                             {...aria}
                             options={entites}
                             value={field.value ?? null}
-                            onChange={field.onChange}
+                            onChange={(v) => {
+                              field.onChange(v);
+                              /*
+                                Le mode suit l'entité, dans le geste même qui la
+                                choisit — pas dans un effet. Un effet rendrait
+                                une première fois avec l'ancien mode, ce que
+                                l'utilisateur verrait clignoter.
+                              */
+                              setValue(
+                                'estDelegue',
+                                v ? (exigeDelegationParEntite[v] ?? false) : false,
+                              );
+                            }}
                             placeholder="Choisir une entité"
                             emptyMessage="Aucune entité dans votre périmètre."
                           />
@@ -373,42 +425,32 @@ export function MouvementDialog({
                   {/* EF-FIN-05/06 — la saisie déléguée se DÉCLARE et se voit
                       ensuite dans toutes les listes. Sans le droit, la case
                       n'existe pas. */}
-                  {peutDeleguer && !enModification && (
-                    <Controller
-                      control={control}
-                      name="estDelegue"
-                      render={({ field }) => (
-                        <label className="border-border flex items-start gap-3 rounded-lg border p-4">
-                          <Checkbox
-                            checked={Boolean(field.value)}
-                            onCheckedChange={field.onChange}
-                            className="mt-0.5"
-                          />
-                          <span className="space-y-1">
-                            <span className="block text-sm font-medium">
-                              Saisie pour le compte de cette entité
-                            </span>
-                            <span className="text-muted-foreground block text-xs">
-                              Réservé aux entités déclarées sans accès à
-                              l’application. Le mouvement leur est rattaché et
-                              porte la mention « déléguée » avec votre nom.
-                            </span>
-                            {/*
-                              Une écriture validée d'office sans que rien ne
-                              l'annonce serait une surprise : on le dit AVANT,
-                              là où la case se coche.
-                            */}
-                            {Boolean(field.value) && (
-                              <span className="text-muted-foreground block text-xs">
-                                Elle sera <strong>validée immédiatement</strong> :
-                                une entité qui ne se connecte pas n’a personne
-                                pour soumettre ni pour valider.
-                              </span>
-                            )}
-                          </span>
-                        </label>
-                      )}
-                    />
+                  {/*
+                    LE MODE SE CONSTATE, IL NE SE COCHE PLUS.
+
+                    Le bloc n'apparaît que lorsqu'il a quelque chose à dire :
+                    une entité qui n'a personne pour tenir ses écritures. Un
+                    encart permanent annonçant « saisie directe » répéterait à
+                    chaque fois ce qui est déjà le cas.
+                  */}
+                  {peutDeleguer && !enModification && delegationRequise && (
+                    <div className="border-border space-y-1 rounded-lg border p-4">
+                      <p className="text-sm font-medium">Saisie déléguée</p>
+                      <p className="text-muted-foreground text-xs">
+                        Cette entité n’a personne pour enregistrer ses propres
+                        mouvements. Celui-ci lui sera rattaché et portera la
+                        mention « déléguée » avec votre nom.
+                      </p>
+                      {/*
+                        Une écriture validée d'office sans que rien ne l'annonce
+                        serait une surprise : on le dit AVANT de le faire.
+                      */}
+                      <p className="text-muted-foreground text-xs">
+                        Elle sera <strong>validée immédiatement</strong> : sans
+                        titulaire sur place, personne ne pourrait la soumettre
+                        ni la valider, et elle attendrait indéfiniment.
+                      </p>
+                    </div>
                   )}
                 </section>
 

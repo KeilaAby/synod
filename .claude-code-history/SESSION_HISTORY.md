@@ -4739,3 +4739,46 @@ Et deux tests qui **affirmaient l'ancienne règle** — la ligne sans nom exclue
 la file, le mandat sans terme autorisé. Retournés en gardant ce qu'ils
 protégeaient, et en écrivant pourquoi l'avis a changé : ce n'est pas l'opinion
 qui a bougé, c'est la conséquence.
+
+### La saisie déléguée refusait le cas qu'elle existait pour couvrir
+
+**Le signalement disait l'inverse de ce qu'il était.** « Une personne qui n'a
+pas l'habilitation peut quand même saisir » — vérification faite, l'écriture
+n'aboutissait pas : elle était **refusée**, alors qu'elle aurait dû passer.
+
+Une cellule ouverte la veille a l'accès à l'application et n'a **aucun compte** :
+un compte suppose un mandat en cours (lot 7), et son bureau n'est pas constitué.
+Les deux branches refusaient donc à la fois — la saisie directe parce que
+`finance.create` est `PROPRE` depuis `0050`, la saisie déléguée parce qu'elle
+exigeait `sans_acces_application`. **L'argent de la cellule n'entrait nulle
+part.**
+
+Le critère était trop étroit. « Personne pour saisir » couvre **deux** cas que
+le code n'en voyait qu'un : l'entité **déclarée** sans accès — une décision, qui
+durera — et l'entité qui a l'accès mais **aucun titulaire en fonction** — un
+état de fait, qui se résoudra tout seul. Ils se ressemblent par ce qui compte.
+
+`motifDeDelegation` les distingue quand même, et nomme la **décision** avant la
+lacune : une entité sans accès n'a pas de compte, donc pas de titulaire, donc
+les deux motifs seraient vrais. On rend le plus explicatif.
+
+**La condition se relit à chaque écriture** (règle 21) : le jour où un bureau
+s'ouvre, la délégation se referme d'elle-même. Rien à défaire, rien à penser à
+retirer — c'est ce qui la distingue d'un réglage.
+
+**La case à cocher a disparu, et c'est le cœur de la correction.** Elle n'avait
+rien d'un choix : soit l'entité a un opérateur et la délégation lui est refusée,
+soit elle n'en a pas et c'est le seul mode possible. Laisser choisir, c'était
+laisser se tromper — et c'est exactement l'erreur qui a été signalée : la case
+non cochée donnait « Vous n'avez pas l'autorisation », alors que l'autorisation
+était là et que seule la case manquait. Le mode se **déduit** de l'entité, dans
+le geste qui la choisit et non dans un effet, qui aurait fait clignoter
+l'ancien mode.
+
+**Aucune migration** : `fn_chiffres_perimetre` (`0053`) rendait déjà le nombre
+de titulaires par entité, en une passe, pour l'écran. L'action, elle, ne compte
+que sur l'entité visée — charger cinquante entités pour en tester une serait
+payer un balayage pour un test.
+
+*Reste ouvert :* le sélecteur d'entité n'est toujours pas filtré par
+`peut('finance.create', path)`. Il propose tout le périmètre actif.

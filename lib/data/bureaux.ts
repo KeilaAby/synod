@@ -353,3 +353,43 @@ export async function listerCandidats(): Promise<CandidatCroyant[]> {
   if (error) throw new DataError('La liste des croyants est illisible.', error);
   return data ?? [];
 }
+
+/**
+ * ARB-2 / EF-FIN-05 — combien de titulaires EN FONCTION dans cette entite.
+ *
+ * Zero signifie « personne pour saisir » : ni bureau, ni bureau vide, ni bureau
+ * dont tous les mandats sont echus. Les trois se ressemblent par ce qui compte,
+ * et la question posee est bien celle-la — pas « existe-t-il un bureau ».
+ *
+ * UNE REQUETE, ET SUR LA SEULE ENTITE VISEE. `fn_chiffres_perimetre` (0053)
+ * rend deja ce nombre pour tout le perimetre, et c'est ce qui sert l'ECRAN ;
+ * ici on ecrit une ligne, et charger cinquante entites pour en lire une seule
+ * serait payer un balayage pour un test (regle 28).
+ *
+ * `head: true` : on demande le COMPTE, jamais les lignes.
+ */
+export async function compterTitulairesEnFonction(entityId: string): Promise<number> {
+  const sb = await createClient();
+
+  const aujourdhui = new Date().toISOString().slice(0, 10);
+
+  const { count, error } = await sb
+    .from('bureau_membres')
+    .select('id, bureau:bureaux!inner(entity_id, is_active, deleted_at)', {
+      count: 'exact',
+      head: true,
+    })
+    .eq('bureau.entity_id', entityId)
+    .eq('bureau.is_active', true)
+    .is('bureau.deleted_at', null)
+    .or(`date_fin.is.null,date_fin.gte.${aujourdhui}`);
+
+  if (error) {
+    throw new DataError(
+      'La composition du bureau de cette entite est momentanement illisible.',
+      error,
+    );
+  }
+
+  return count ?? 0;
+}

@@ -396,16 +396,30 @@ la nature de l'acte. La liste vit aux deux endroits, et un test lit le SQL pour
 les comparer — sinon l'écart serait **invisible** : l'écran refuserait pendant
 que la base accorderait.
 
-**La saisie déléguée exige `sans_acces_application`** (règle 21). Le drapeau ne
-décidait de rien : détenir `finance.delegate` suffisait à signer une écriture au
-nom de n'importe quelle entité du périmètre, y compris de celles qui saisissent
-elles-mêmes. Deux bornes cumulatives maintenant, toutes deux vérifiées côté
-serveur : la portée de l'octroi **et** l'entité déclarée sans accès. Le droit
+**La saisie déléguée exige qu'il n'y ait PERSONNE pour saisir** (règle 21).
+Le drapeau `sans_acces_application` ne décidait d'abord de rien : détenir
+`finance.delegate` suffisait à signer au nom de n'importe quelle entité du
+périmètre. Deux bornes cumulatives maintenant, toutes deux vérifiées côté
+serveur : la portée de l'octroi **et** l'incapacité de l'entité visée. Le droit
 devient de ce fait **délégable** (`0051`) — ce qui le rendait dangereux n'était
 pas le droit mais l'absence de la seconde borne. Le réglage a son écran, sur
 `/finances` : il vivait dans la fiche de chaque entité, où savoir lesquelles de
 ses vingt églises saisissent elles-mêmes demandait vingt ouvertures de fiche —
 une question de comparaison veut une réponse en tableau.
+
+**« Personne pour saisir » couvre DEUX cas, et le critère n'en voyait qu'un**
+(`lib/domain/finance.ts`, 20 août 2026). Une cellule ouverte la veille a l'accès
+et n'a **aucun compte** — un compte suppose un mandat en cours (lot 7). Les deux
+branches la refusaient alors : la saisie directe parce que `finance.create` est
+`PROPRE`, la déléguée parce qu'elle exigeait le drapeau. Son argent n'entrait
+nulle part. On regarde donc l'**état de fait** : entité déclarée sans accès —
+une décision, qui durera — **ou** aucun titulaire en fonction — un état qui se
+résoudra seul. `motifDeDelegation` nomme la décision avant la lacune, les deux
+étant vrais pour une entité sans accès. **La case à cocher a disparu** : ce
+n'était pas un choix — soit l'entité a un opérateur et la délégation lui est
+refusée, soit elle n'en a pas et c'est le seul mode. Laisser choisir, c'était
+laisser se tromper, et la case oubliée répondait « vous n'avez pas
+l'autorisation » quand l'autorisation était là.
 
 **Une saisie déléguée ne passe par AUCUN workflow** (`0052`). Ce n'est pas une
 commodité : c'est le seul état cohérent. `finance.validate` étant `PROPRE`

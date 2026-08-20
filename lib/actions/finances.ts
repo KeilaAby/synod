@@ -2,10 +2,12 @@
 
 import { revalidatePath } from 'next/cache';
 
+import { compterTitulairesEnFonction } from '@/lib/data/bureaux';
 import { getArbrePerimetre } from '@/lib/data/entities';
 import { getParametres } from '@/lib/data/settings';
 import {
   type StatutMouvement,
+  exigeDelegation,
   peutValider,
   transitionAutorisee,
 } from '@/lib/domain/finance';
@@ -117,24 +119,37 @@ export async function saisirMouvement(
       await requirePermission(session, 'finance.delegate', entite.path);
 
       /**
-       * ARB-2 / EF-STR-10 — LA SAISIE DELEGUEE SUPPOSE UNE ENTITE PRIVEE
-       * D'ACCES, et le drapeau ne le disait que dans sa description.
+       * ARB-2 / EF-STR-10 — LA SAISIE DELEGUEE SUPPOSE QU'IL N'Y AIT PERSONNE
+       * POUR SAISIR. Le critere etait « declaree sans acces », et il etait trop
+       * etroit (constate le 20 aout 2026).
        *
-       * Rien ne le verifiait : detenir `finance.delegate` suffisait a signer
-       * une ecriture du nom de n'importe quelle entite, y compris de celles
-       * qui saisissent tres bien les leurs. Un reglage qui ne decide de rien
-       * est decoratif (regle 21) — et celui-ci porte la seule raison pour
-       * laquelle la delegation existe.
+       * Une cellule ouverte hier a l'acces a l'application et n'a pourtant
+       * AUCUN compte : un compte suppose un mandat en cours (lot 7), et son
+       * bureau n'est pas encore constitue. Elle encaisse des le premier jour.
+       * Le refus tombait alors sur les deux branches a la fois — `finance.create`
+       * etant PROPRE depuis 0050, l'ascendant ne pouvait pas non plus saisir en
+       * direct. L'argent n'entrait nulle part.
        *
-       * Le refus NOMME l'entite et dit ou se change le reglage : « vous n'avez
-       * pas le droit » ferait chercher une habilitation qui, elle, est detenue.
+       * On regarde donc l'ETAT DE FAIT et non le seul reglage. Les deux motifs
+       * se relisent a chaque ecriture (regle 21) : le jour ou un bureau est
+       * ouvert, la delegation se referme d'elle-meme, sans qu'on ait rien a
+       * defaire.
+       *
+       * Le refus NOMME l'entite et dit ce qui manque : « vous n'avez pas le
+       * droit » ferait chercher une habilitation qui, elle, est detenue.
        */
-      if (!entite.sans_acces_application) {
+      const capacite = {
+        sansAccesApplication: entite.sans_acces_application,
+        membresBureauEnCours: entite.sans_acces_application
+          ? 0
+          : await compterTitulairesEnFonction(entite.id),
+      };
+
+      if (!exigeDelegation(capacite)) {
         return ko(
-          `${entite.nom} accède à l’application : ses mouvements se saisissent ` +
-            'depuis son propre compte. La saisie déléguée est réservée aux ' +
-            'entités déclarées sans accès — réglage « Accès à l’application », ' +
-            'sur l’écran des finances.',
+          `${entite.nom} accède à l’application et son bureau est constitué : ` +
+            'ses mouvements se saisissent depuis son propre compte. La saisie ' +
+            'déléguée est réservée aux entités qui n’ont personne pour le faire.',
         );
       }
     } else {
