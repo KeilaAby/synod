@@ -5130,3 +5130,31 @@ large, et un demi-parcours donnerait un écran où la moitié des notifications
 ignore le réglage. Et le contexte « erreur » de la capture **n'existe pas ici** :
 la règle 30 envoie tout refus dans un pop-up qu'on ferme. Lui donner une couleur
 ferait un réglage qui ne décide de rien.
+
+### Le geste de dérivation était indevinable
+
+Signalé après coup : ni le trait ni le menu « Poser en dérivation » ne se
+voyaient. Deux causes distinctes, cumulées.
+
+**La vue en LECTURE du pop-up de composition ignorait tout du drapeau.**
+`bureau-flow.tsx` — la représentation en lecture seule, distincte de l'éditeur —
+ne portait ni `enDerivation` sur les données du nœud, ni le `targetHandle`
+latéral sur l'arête. Un adjoint aurait donc été vertical dans le pop-up de
+consultation et latéral dans l'éditeur : deux dessins pour une même donnée.
+Corrigé en reprenant `place.enDerivation` dans `dessinerPlan`.
+
+**Le vrai défaut de conception : le menu ne proposait le geste qu'APRÈS avoir
+relié, et seulement une fois le bloc déjà rattaché.** Rien n'annonçait son
+existence — il fallait deviner qu'un menu ⋮ caché derrière un bloc déjà relié
+contiendrait l'option. Personne ne pouvait le trouver sans qu'on le lui montre.
+
+**La poignée de gauche devient elle-même le geste.** Déposer le trait dessus
+pose la dérivation directement, dans le même mouvement que le rattachement — au
+lieu d'un rattachement normal suivi d'un second geste dans un menu cherché à
+tâtons. Et elle est désormais **visible en permanence**, teintée en indigo, pas
+seulement une fois le bloc déjà en dérivation : masquer une poignée qui EST le
+geste revient à cacher le geste lui-même. Sa teinte plus soutenue quand le bloc
+est déjà en dérivation la distingue sans qu'on ait à cliquer pour savoir.
+
+Le menu ⋮ reste, pour défaire un rattachement déjà posé par erreur — mais ce
+n'est plus le seul chemin.

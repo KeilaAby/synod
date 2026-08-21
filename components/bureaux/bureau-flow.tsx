@@ -102,13 +102,19 @@ function dessinerPlan(
       id: place.fonctionId,
       type: 'poste',
       position: { x: place.x, y: place.y },
-      data: donnees(
-        poste,
-        poste.mandat ? parMandat.get(poste.mandat.id) : undefined,
-        photos,
-        peutGerer,
-        onDesigner,
-      ),
+      data: {
+        ...donnees(
+          poste,
+          poste.mandat ? parMandat.get(poste.mandat.id) : undefined,
+          photos,
+          peutGerer,
+          onDesigner,
+        ),
+        // EF-BUR-07 — la vue de LECTURE doit montrer le meme dessin que
+        // l editeur et que le papier. Sans cela, un adjoint apparaitrait
+        // lateral ici et vertical la, sans que rien ne dise lequel est vrai.
+        enDerivation: place.enDerivation ?? false,
+      },
     });
 
     if (place.parentFonctionId && parFonction.has(place.parentFonctionId)) {
@@ -116,6 +122,8 @@ function dessinerPlan(
         id: `${place.parentFonctionId}-${place.fonctionId}`,
         source: place.parentFonctionId,
         target: place.fonctionId,
+        // Un adjoint recoit le trait par le COTE, comme dans l editeur.
+        targetHandle: place.enDerivation ? 'gauche' : 'haut',
         type: 'smoothstep',
         style: { stroke: '#cbd5e1', strokeWidth: 1.5 },
       });

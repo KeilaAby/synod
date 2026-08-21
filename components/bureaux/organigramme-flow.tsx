@@ -510,7 +510,7 @@ function Editeur({
   );
 
   const relier = useCallback(
-    (fonctionId: string, parentId: string | null) => {
+    (fonctionId: string, parentId: string | null, parLaGauche = false) => {
       if (parentId !== null) {
         const verdict = validerLien(
           { id: fonctionId, libelle: libelleDe(fonctionId) },
@@ -523,11 +523,31 @@ function Editeur({
         }
       }
 
+      /**
+       * EF-BUR-07 — LA POIGNÉE DE GAUCHE **EST** LE GESTE.
+       *
+       * Le premier jet ne proposait « Poser en dérivation » qu'au menu ⋮, et
+       * seulement une fois le bloc relié. Personne ne pouvait le deviner : pour
+       * obtenir un adjoint il fallait relier normalement, puis chercher une
+       * entrée de menu dont rien n'annonçait l'existence.
+       *
+       * Déposer le trait sur le côté gauche pose donc la dérivation
+       * directement. Le menu reste, pour défaire — et pour ceux qui ont relié
+       * d'abord.
+       */
+      const noeudsSuivants = parLaGauche
+        ? noeuds.map((n) =>
+            n.id === fonctionId ? { ...n, data: { ...n.data, enDerivation: true } } : n,
+          )
+        : noeuds;
+
+      if (parLaGauche) setNoeuds(noeudsSuivants);
+
       const suivants = { ...liens, [fonctionId]: parentId };
       setLiens(suivants);
-      enregistrer(noeuds, suivants);
+      enregistrer(noeudsSuivants, suivants);
     },
-    [noeuds, liens, libelleDe, enregistrer],
+    [noeuds, liens, libelleDe, enregistrer, setNoeuds],
   );
 
   const connexionValide = useCallback(
@@ -764,7 +784,9 @@ function Editeur({
           onNodesChange={surChangementNoeuds}
           onNodeDragStop={surFinDeplacement}
           onEdgesChange={surChangementAretes}
-          onConnect={(c) => c.source && c.target && relier(c.target, c.source)}
+          onConnect={(c) =>
+            c.source && c.target && relier(c.target, c.source, c.targetHandle === 'gauche')
+          }
           isValidConnection={connexionValide}
           onBeforeDelete={surAvantSuppression}
           onNodesDelete={surSuppressionNoeuds}

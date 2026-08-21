@@ -178,30 +178,41 @@ export function NoeudPoste({ data }: NodeProps) {
         CÔTÉ, accroché au tronc. C'est ce qui produit le « T » couché du
         modèle, et ce qui le distingue d'un rang de plus.
 
-        Les deux existent toujours, même inutilisés : React Flow ne peut
+        Les deux existent toujours, même inutilisées : React Flow ne peut
         rattacher une arête qu'à une poignée qui est là. Elles portent un `id`
         pour que l'arête désigne celle qu'elle veut — sans identifiant, avec
         deux poignées du même type, le choix serait laissé au hasard.
 
-        Seule celle qui SERT se voit : une poignée visible sur un bloc qui n'en
-        a pas l'usage invite à un geste qui ne mène nulle part.
+        Les deux se VOIENT, et c'est une correction : masquer celle de gauche
+        tant que le bloc n'était pas déjà en dérivation rendait le geste
+        indevinable. Elles se distinguent par la teinte, pas par la présence.
       */}
       <Handle
         type="target"
         id="haut"
         position={Position.Top}
-        className={cn(
-          '!size-2 !border-2 !border-card !bg-slate-300',
-          d.enDerivation && '!opacity-0',
-        )}
+        className="!size-2 !border-2 !border-card !bg-slate-300"
       />
+      {/*
+        LA POIGNÉE DE GAUCHE **EST** LE GESTE, donc elle se voit.
+
+        Elle était masquée tant que le bloc n'était pas déjà en dérivation :
+        pour obtenir un adjoint, il fallait relier normalement puis trouver une
+        entrée de menu dont rien n'annonçait l'existence. Personne ne pouvait
+        le deviner.
+
+        Elle est donc visible, et déposer le trait dessus pose la dérivation
+        directement. Sa teinte la distingue de la poignée du haut — deux points
+        d'entrée identiques laisseraient croire qu'ils font la même chose.
+      */}
       <Handle
         type="target"
         id="gauche"
         position={Position.Left}
+        title="Rattacher comme adjoint, à côté du tronc"
         className={cn(
-          '!size-2 !border-2 !border-card !bg-slate-300',
-          !d.enDerivation && '!opacity-0',
+          '!size-2.5 !border-2 !border-card',
+          d.enDerivation ? '!bg-indigo-500' : '!bg-indigo-300',
         )}
       />
 

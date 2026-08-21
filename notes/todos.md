@@ -14,11 +14,7 @@
 
 ## ⚠ État de la base
 
-**Appliquées : `0001` à `0064`.**
-
-> ⏳ **`0065` attend d'être appliquée** : `toast_position`, le coin où
-> apparaissent les notifications. Sans elle, l'écran des paramètres échoue à la
-> lecture — la colonne n'existe pas.
+**Appliquées : `0001` à `0065`. Aucune migration n’attend.**
 
 C'est **cette ligne** qui fait foi — pas le numéro le plus élevé de
 `supabase/migrations/`, qui dit ce qui est *écrit* et non ce qui est *appliqué*.
@@ -385,20 +381,22 @@ soldes consolidés — la décision a déjà été prise et tenue une fois.
         Pas de **demi-seconde** : entre 2 et 5 s, là où le réglage se joue, la
         seconde est trop grossière.
 
-- [ ] **Styles de toast PAR CONTEXTE** — les quatre listes de la capture
-      Stratrack : création, modification, suppression, erreur.
-      ⚠ **Ce qui bloque n'est pas le réglage mais l'appel.** SYNOD compte
-      **57 appels `toast.success`**, sans contexte : leur donner une couleur
-      propre suppose de déclarer, à chacun, de quel geste il s'agit. C'est
-      mécanique mais large, et un demi-parcours donnerait un écran où la moitié
-      des notifications ignore le réglage.
-      ⚠ **Et le contexte « erreur » n'existe pas ici** : la règle 30 envoie tout
-      refus, avertissement ou panne dans un pop-up qu'on ferme, et ESLint refuse
-      les autres appels à `toast`. Lui donner une couleur ferait un réglage qui
-      ne décide de rien — exactement ce que cette liste reproche ailleurs.
-      **À trancher avec l'utilisateur** avant d'entreprendre : trois contextes
-      (création, modification, suppression) et la migration des 57 appels, ou
-      s'en tenir au style unique actuel.
+- [x] ~~**Styles de toast par contexte**~~ — les quatre listes de la capture
+      Stratrack (création, modification, suppression, erreur).
+      **Écarté le 20 août 2026, sur décision de l'utilisateur : « on s'en tient
+      au style unique ».** Écrit ici pour que la question ne se repose pas.
+
+      Ce qui l'a fait écarter, et qui reste vrai :
+      - **Ce n'est pas le réglage qui coûte, c'est l'appel.** SYNOD compte
+        **57 appels `toast.success`** sans contexte : leur donner une couleur
+        propre suppose de déclarer à chacun de quel geste il s'agit. Mécanique
+        mais large — et un demi-parcours donnerait un écran où la moitié des
+        notifications ignore le réglage.
+      - **Le contexte « erreur » n'existe pas ici.** La règle 30 envoie tout
+        refus, avertissement ou panne dans un pop-up qu'on ferme, et ESLint
+        refuse les autres appels à `toast`. Lui donner une couleur ferait un
+        réglage qui ne décide de rien — exactement ce que cette liste reproche
+        partout ailleurs.
 - [ ] **Référentiel « Événement ».** ⚠ **La demande est plus lourde que son
       énoncé, et l'estimation portée ici le 20 août était fausse.**
       Ce n'est **pas** une liste figée en TypeScript : `type_evenement_dime` est
