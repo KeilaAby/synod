@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
 import { PageHeader } from '@/components/shared/page-header';
+import { getParametres } from '@/lib/data/settings';
 import { chargerTransferts } from '@/lib/data/transferts';
 import { formatNombre } from '@/lib/utils/format';
 
@@ -20,7 +21,12 @@ export const metadata: Metadata = { title: 'Transferts' };
  * nature.
  */
 export default async function TransfertsPage() {
-  const transferts = await chargerTransferts();
+  // Deux lectures INDEPENDANTES, donc simultanees (regle 28). Le nom de
+  // l'organisation sert l'en-tete de l'attestation (EF-TRF-08).
+  const [transferts, parametres] = await Promise.all([
+    chargerTransferts(),
+    getParametres(),
+  ]);
 
   return (
     <div className="space-y-8">
@@ -34,7 +40,10 @@ export default async function TransfertsPage() {
         }
       />
 
-      <TransfertsClient transferts={transferts} />
+      <TransfertsClient
+        transferts={transferts}
+        organisation={parametres.nom_organisation}
+      />
     </div>
   );
 }

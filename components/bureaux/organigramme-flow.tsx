@@ -35,6 +35,7 @@ import {
 import type { BureauComplet, MembreBureau } from '@/lib/data/bureaux';
 import {
   type FonctionBureau,
+  type MotifRetrait,
   type PosteBureau,
   ancienneteMandat,
   composerBureau,
@@ -53,6 +54,7 @@ import { cn } from '@/lib/utils';
 import { NoeudPoste, TYPE_CROYANT_GLISSE, TYPE_FONCTION_GLISSE } from './bureau-node';
 import { imprimerOrganigramme } from './imprimer-organigramme';
 import { DesignationDialog, type CandidatOption } from './designation-dialog';
+import { RetraitDialog } from './retrait-dialog';
 
 import '@xyflow/react/dist/style.css';
 
@@ -175,6 +177,13 @@ function Editeur({
   const [recherche, setRecherche] = useState('');
   const [aretesSelectionnees, setAretesSelectionnees] = useState<string[]>([]);
   const [aDesigner, setADesigner] = useState<string | null>(null);
+  /** EF-BUR-08 — le titulaire qu'on s'apprête à retirer, et depuis quand il l'est. */
+  const [aRetirer, setARetirer] = useState<{
+    id: string;
+    nom: string;
+    fonction: string;
+    enregistreLe: string;
+  } | null>(null);
   /**
    * Ce qui est en train de se faire. Une désignation touche la base puis
    * attend le re-rendu : sans pop-up, le glisser-déposer se termine et rien ne
@@ -258,23 +267,67 @@ function Editeur({
     [bureau.id, lancer],
   );
 
-  /** EF-BUR-08 — le mandat se CLÔT ; il ne s'efface pas de l'historique. */
+  /**
+   * EF-BUR-08 — LE MÊME POP-UP QU'AILLEURS, ET C'EST TOUT L'OBJET DE LA
+   * RÈGLE 16.
+   *
+   * Il avait d'abord été posé ici un motif d'office — « retiré depuis
+   * l'organigramme » —, au prétexte que le choix appartenait à l'écran de
+   * composition. C'était l'inverse de ce que dit la règle : deux entrées pour
+   * la MÊME opération qui n'agissent pas pareil, c'est exactement la divergence
+   * qu'elle interdit. Une désignation fautive corrigée depuis le plan laissait
+   * un mandat d'un jour dans la frise du croyant, là où le même geste fait deux
+   * écrans plus loin l'effaçait.
+   *
+   * Un seul chemin : le pop-up décide, ici comme là-bas.
+   */
   const retirerTitulaire = useCallback(
     (fonctionId: string) => {
-      const membreId = parFonction.get(fonctionId)?.mandat?.id;
+      const poste = parFonction.get(fonctionId);
+      const membreId = poste?.mandat?.id;
       if (!membreId) return;
 
+      const membre = parMandat.get(membreId);
+      const croyant = membre?.croyant;
+
+      setARetirer({
+        id: membreId,
+        nom: croyant ? `${croyant.nom} ${croyant.prenom}`.trim() : 'ce membre',
+        fonction: poste!.fonction.libelle,
+        // La date d'ENREGISTREMENT, pas celle de début : elle seule ouvre — ou
+        // ferme — la fenêtre de quinze jours.
+        enregistreLe: membre?.created_at ?? '',
+      });
+    },
+    [parFonction, parMandat],
+  );
+
+  /** Ce que le pop-up a décidé — voir `RetraitDialog`. */
+  const confirmerRetrait = useCallback(
+    (nature: MotifRetrait, motif: string | null) => {
+      const cible = aRetirer;
+      if (!cible) return;
+
+      setARetirer(null);
       lancer(
-        {
-          titre: 'Retrait du titulaire…',
-          description:
-            'Son mandat est clos à ce jour et reste dans son historique ; la fonction redevient vacante.',
-        },
-        () => retirerMembre({ membreId }),
-        'Mandat clos. La fonction est vacante.',
+        nature === 'ERREUR'
+          ? {
+              titre: 'Effacement de la désignation…',
+              description:
+                'La désignation est retirée sans trace : rien n’entrera dans l’historique du croyant.',
+            }
+          : {
+              titre: 'Retrait du titulaire…',
+              description:
+                'Son mandat est clos à ce jour et reste dans son historique ; la fonction redevient vacante.',
+            },
+        () => retirerMembre({ membreId: cible.id, nature, motif }),
+        nature === 'ERREUR'
+          ? 'Désignation effacée. Rien n’a été inscrit dans l’historique du croyant.'
+          : 'Mandat clos. La fonction est vacante.',
       );
     },
-    [parFonction, lancer],
+    [aRetirer, lancer],
   );
 
   /**
@@ -912,6 +965,16 @@ function Editeur({
           onOuvertChange={(v) => !v && setADesigner(null)}
         />
       )}
+
+      {/* EF-BUR-08 — celui-là aussi est partagé : effacer une désignation
+          fautive ou clore un mandat motivé se décide au même endroit, quel que
+          soit l'écran d'où l'on part. */}
+      <RetraitDialog
+        cible={aRetirer}
+        enCours={operation !== null}
+        onAnnuler={() => setARetirer(null)}
+        onConfirmer={confirmerRetrait}
+      />
     </div>
   );
 }

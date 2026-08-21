@@ -9,6 +9,7 @@ import {
   estApprobateurCompetent,
   estEnAttente,
   niveauDeTransfert,
+  transfertAttestable,
   transitionAutorisee,
   validerDemandeTransfert,
 } from '@/lib/domain/transfert';
@@ -192,5 +193,45 @@ describe('Recevabilité d’une demande', () => {
     );
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toContain('cellule');
+  });
+});
+
+/**
+ * EF-TRF-08 — l'attestation de transfert.
+ *
+ * UN DOCUMENT SIGNE N'EST PAS UNE LECTURE DE LISTE. Il porte l'en-tete de
+ * l'entite, il sera presente ailleurs, et il vaut preuve — d'ou un droit a part
+ * (`transfer.certify`) et cette borne-ci sur ce qu'il peut affirmer.
+ */
+describe('transfertAttestable', () => {
+  /**
+   * DEUX STATUTS L'OUVRENT, et c'est voulu. `APPROUVE` dit que la decision est
+   * prise ; `EFFECTUE` que le rattachement a suivi. Entre les deux, le croyant
+   * a besoin de son papier — c'est meme le moment ou il le presente a l'eglise
+   * qui l'accueille.
+   */
+  it('EF-TRF-08 — atteste un transfert APPROUVE ou EFFECTUE', () => {
+    expect(transfertAttestable('APPROUVE')).toBe(true);
+    expect(transfertAttestable('EFFECTUE')).toBe(true);
+  });
+
+  /**
+   * Attester ce qui n'a pas abouti ferait circuler un document qui affirme un
+   * transfert qui n'a pas eu lieu — et personne, en le lisant, ne saurait
+   * qu'il ne vaut rien.
+   */
+  it('EF-TRF-08 — REFUSE tout ce qui n’a pas abouti', () => {
+    expect(transfertAttestable('DEMANDE')).toBe(false);
+    expect(transfertAttestable('REFUSE')).toBe(false);
+    expect(transfertAttestable('ANNULE')).toBe(false);
+  });
+
+  it('couvre explicitement les cinq statuts connus', () => {
+    // Un statut ajoute plus tard doit faire echouer ce test, pas passer en
+    // silence du cote permissif.
+    expect(STATUTS_TRANSFERT.filter(transfertAttestable)).toEqual([
+      'APPROUVE',
+      'EFFECTUE',
+    ]);
   });
 });

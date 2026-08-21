@@ -394,6 +394,23 @@ export interface VersementDuCroyant {
  * recus se reecrire sous un numero qu'ils n'ont jamais porte. C'est le recu
  * qu'il detient qui fait foi, et il ne change pas.
  *
+ * UN TRANSFERT NE REECRIT RIEN DE CET HISTORIQUE — verifie le 21 aout 2026,
+ * a la demande de l'utilisateur.
+ *
+ * L'eglise affichee est `entite_collecte_id`, FIGEE sur le mouvement au moment
+ * de la collecte : c'est celle qui a recu l'enveloppe, et elle le restera meme
+ * si le croyant part ailleurs demain. La lire par l'eglise COURANTE du croyant
+ * aurait retroactivement attribue ses anciennes dimes a sa nouvelle eglise —
+ * une reecriture silencieuse de ce qui a ete encaisse.
+ *
+ * La RLS suit la meme logique : `dime_versements` se voit a travers son
+ * mouvement, donc a travers l'entite collectrice. L'eglise d'origine continue
+ * de voir ce qu'elle a collecte apres le depart du croyant, ce qui est la seule
+ * lecture juste — c'est son argent qui a ete compte.
+ *
+ * `fn_appliquer_transfert` (migration `0014`) ne touche a aucune table de
+ * dimes : l'invariant tient par construction, pas par vigilance.
+ *
  * LE TRI SE FAIT ICI, sur la date de CULTE et non sur `created_at` : une
  * feuille importee un mois plus tard placerait sinon un vieux culte en tete.
  * Le volume est celui d'une personne — quelques dizaines de lignes.

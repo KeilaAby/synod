@@ -155,9 +155,36 @@ export const remplacerMembreSchema = z.object({
     .transform((v) => v ?? null),
 });
 
-export const retirerMembreSchema = z.object({
-  membreId: z.uuid(),
-});
+/**
+ * EF-BUR-08 — retirer un titulaire : une ERREUR, ou une DECISION.
+ *
+ * Les deux gestes ne laissent pas la meme trace — l'un efface la ligne, l'autre
+ * la clot avec son motif —, donc ils ne se devinent pas : le formulaire demande
+ * lequel avant d'agir.
+ *
+ * `motif` reste facultatif au niveau du schema et se verifie au `refine` : un
+ * texte exige inconditionnellement ferait echouer le cas ERREUR, qui n'en a pas
+ * et n'en veut pas. La fenetre de quinze jours, elle, ne peut PAS se verifier
+ * ici — elle depend de la date d'enregistrement du mandat, que seul le serveur
+ * connait (`retraitRecevable`).
+ */
+export const retirerMembreSchema = z
+  .object({
+    membreId: z.uuid(),
+    nature: z.enum(['ERREUR', 'DECISION']),
+    motif: z
+      .preprocess(
+        (v) => (v === '' || v === null || v === undefined ? undefined : v),
+        z.string().trim().max(300).optional(),
+      )
+      .transform((v) => v ?? null),
+  })
+  .refine((d) => d.nature !== 'DECISION' || (d.motif ?? '').length >= 3, {
+    message: 'Indiquez le motif du retrait : deces, demission, sanction…',
+    path: ['motif'],
+  });
+
+export type RetirerMembreInput = z.input<typeof retirerMembreSchema>;
 
 /**
  * EF-BUR-08 — suppression, a distinguer de la cloture.

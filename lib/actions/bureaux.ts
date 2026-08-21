@@ -16,6 +16,7 @@ import {
   aReconduire,
   candidatsEligibles,
   memeBureau,
+  retraitRecevable,
   validerDesignation,
 } from '@/lib/domain/bureau';
 import { nomComplet } from '@/lib/domain/croyant';
@@ -853,9 +854,15 @@ export async function retirerMembre(input: unknown): Promise<ActionResult<void>>
     const sb = await createClient();
     const { data: membre } = await sb
       .from('bureau_membres')
-      .select('id, bureau_id, croyant_id, date_fin')
+      .select('id, bureau_id, croyant_id, date_fin, created_at')
       .eq('id', analyse.data.membreId)
-      .maybeSingle<{ id: string; bureau_id: string; croyant_id: string; date_fin: string | null }>();
+      .maybeSingle<{
+        id: string;
+        bureau_id: string;
+        croyant_id: string;
+        date_fin: string | null;
+        created_at: string;
+      }>();
 
     if (!membre) return ko('Ce mandat est introuvable.');
     if (membre.date_fin) return ko('Ce mandat est deja clos.');
@@ -865,20 +872,66 @@ export async function retirerMembre(input: unknown): Promise<ActionResult<void>>
 
     await requirePermission(session, 'bureau.manage', contexte.entite!.path);
 
-    const { error } = await sb
-      .from('bureau_membres')
-      .update({ date_fin: new Date().toISOString().slice(0, 10) })
-      .eq('id', membre.id);
+    /**
+     * EF-BUR-08 — LA FENETRE DE QUINZE JOURS SE VERIFIE ICI.
+     *
+     * Le pop-up ne propose « erreur d'assignation » que dans le delai, mais un
+     * menu masque ne ferme rien : la Server Action s'appelle sans passer par
+     * l'ecran qui la propose. Et ce qui est en jeu est un EFFACEMENT — le
+     * refus se corrige, la ligne effacee non.
+     */
+    const recevable = retraitRecevable(
+      analyse.data.nature,
+      analyse.data.motif,
+      membre.created_at,
+    );
+    if (!recevable.ok) return ko(recevable.raison);
+
+    /**
+     * DEUX GESTES, DEUX ECRITURES DIFFERENTES.
+     *
+     * ERREUR -> la ligne est SUPPRIMEE. Rien n'entre dans l'historique du
+     * croyant, parce qu'il ne s'est rien passe dans sa vie : on a tape le
+     * mauvais nom. Un mandat d'un jour laisse dans sa frise se lirait un jour
+     * comme une destitution, et personne ne saurait dire le contraire.
+     *
+     * DECISION -> le mandat est CLOS, motif compris. La trace est le but.
+     */
+    const { error } =
+      analyse.data.nature === 'ERREUR'
+        ? await sb.from('bureau_membres').delete().eq('id', membre.id)
+        : await sb
+            .from('bureau_membres')
+            .update({
+              date_fin: new Date().toISOString().slice(0, 10),
+              motif_retrait: analyse.data.motif ? sanitize(analyse.data.motif) : null,
+            })
+            .eq('id', membre.id);
 
     if (error) return ko(messageErreurSql(error));
 
+    /**
+     * L'AUDIT GARDE CE QUE LA FICHE PERD.
+     *
+     * Un retrait pour erreur efface la ligne : le journal devient alors la
+     * SEULE trace que cette designation a existe, et qu'on l'a retiree. C'est
+     * exactement ce qu'on veut — rien sur la fiche du croyant, tout dans le
+     * journal, ou seul un administrateur va chercher.
+     */
     await auditer({
       session,
-      action: 'UPDATE',
+      action: analyse.data.nature === 'ERREUR' ? 'DELETE' : 'UPDATE',
       table: 'bureau_membres',
       recordId: membre.bureau_id,
       entityId: contexte.entity_id,
-      diff: { avant: { croyant: membre.croyant_id }, apres: { mandat: 'clos' } },
+      diff: {
+        avant: { croyant: membre.croyant_id },
+        apres:
+          analyse.data.nature === 'ERREUR'
+            ? { mandat: 'efface (erreur d assignation)' }
+            : { mandat: 'clos' },
+        motif: analyse.data.motif,
+      },
     });
 
     revalidatePath('/bureaux');

@@ -14,7 +14,11 @@
 
 ## ⚠ État de la base
 
-**Appliquées : `0001` à `0065`. Aucune migration n’attend.**
+**Appliquées : `0001` à `0065`.**
+
+| N° | Ce qu'elle apporte | Sans elle |
+|---|---|---|
+| `0066` | `bureau_membres.motif_retrait` — pourquoi un mandat a été **interrompu** avant son terme | Un retrait en cours de mandat reste sans raison écrite, et c'est exactement ce qu'on cherchera dans dix ans |
 
 C'est **cette ligne** qui fait foi — pas le numéro le plus élevé de
 `supabase/migrations/`, qui dit ce qui est *écrit* et non ce qui est *appliqué*.
@@ -28,9 +32,88 @@ l'éditeur SQL Supabase et le confirme.
 
 ## 1. `/croyants`
 
-- [ ] **Document d'attestation de transfert.** Dynamique comme les rapports,
-      avec l'en-tête de l'entité. Demande une habilitation fine et distincte —
-      un document signé n'est pas une lecture de liste.
+- [x] **Document d'attestation de transfert.** *(21 août 2026, **sans
+      migration** — une habilitation est une clé textuelle, il suffit de la
+      déclarer.)*
+      **Un droit à part**, `transfer.certify` : consulter un transfert dit ce
+      qui s'est passé, en délivrer l'attestation **engage l'entité** — le papier
+      porte son en-tête, il sera présenté ailleurs, et il vaut preuve. Délégable,
+      car une entité délivre les siennes.
+      **On n'atteste que ce qui a abouti** (`transfertAttestable`) : approuvé ou
+      effectué. Une demande en attente ou refusée n'a rien produit, et en
+      délivrer le papier ferait circuler un document qui affirme un transfert
+      qui n'a pas eu lieu. **Deux statuts et non un** : entre la décision et le
+      rattachement, c'est précisément le moment où le croyant présente son
+      papier.
+      **C'est l'entité d'accueil qui délivre** — elle reçoit le croyant, donc
+      elle signe ce qu'il présentera ; à défaut, l'origine.
+      **Aucun exemplaire n'est stocké** : le contenu étant figé à l'approbation,
+      réimprimer redonne le même document (même doctrine que les rapports).
+
+### Demandes du 21 août 2026 — sur l'attestation
+
+- [ ] **Le document doit être consulté par l'entité RÉCEPTRICE avant toute
+      approbation.**
+      Aujourd'hui l'attestation se délivre **après** la décision : elle constate.
+      La demande inverse l'ordre — l'entité d'accueil doit pouvoir **lire le
+      document avant de trancher**, puisque c'est sur lui qu'elle se prononce.
+
+      **Ce que cela change, et qui n'est pas cosmétique :** un document lu avant
+      décision n'est plus une attestation, c'est une **pièce de dossier**. Deux
+      questions à trancher avant d'écrire :
+      1. **Que porte-t-il à ce stade ?** Ni date de décision, ni approbateur —
+        ils n'existent pas encore. Le même gabarit rendrait des cartouches vides,
+        et un cartouche de signature vide sur un papier officiel se lit comme un
+        oubli, pas comme une étape.
+      2. **Comment se distingue-t-il de l'attestation définitive ?** S'ils se
+        ressemblent, quelqu'un présentera le brouillon comme la preuve. Une
+        mention visible — « demande en cours d'examen » — n'est pas une
+        décoration : c'est ce qui empêche la confusion.
+
+      À rapprocher de la doctrine des rapports : un aperçu et un document figé
+      passent par **un seul rendu** (règle 16), et c'est la présence du contenu
+      figé qui les distingue.
+
+- [ ] **Le document A4 doit être configurable par l'entité émettrice.**
+      *La version actuelle sert d'exemplaire de référence.*
+      **Ce que « configurable » recouvre**, à préciser avec l'utilisateur :
+      en-tête et logo, texte du corps, mentions légales, cartouche de signature.
+      **Le rapprochement s'impose** : le générateur de rapports (lot 6) fait
+      déjà exactement cela — un modèle composé par une entité, figé à la
+      production, rendu par `RenduRapport`. Réécrire un second moteur de
+      document serait le contre-exemple de la règle 16.
+      **La question à trancher d'abord** : l'attestation devient-elle un
+      **type de bloc** du générateur, ou garde-t-elle son propre gabarit avec
+      quelques champs réglables ? La première voie donne tout — logo, marges,
+      composition — au prix de l'entrée dans un modèle ; la seconde reste
+      simple mais figera ce qu'on n'aura pas prévu.
+
+
+- [x] **Un transfert d'église ne doit pas toucher l'historique des dîmes.**
+      *(Demandé le 21 août 2026 — **vérifié, c'est déjà le cas**, et consigné
+      pour que personne ne le défasse.)*
+
+      **Trois points, et l'invariant tient par construction :**
+      1. **L'église affichée est `entite_collecte_id`**, figée sur le mouvement
+        au moment de la collecte. La lire par l'église *courante* du croyant
+        aurait rétroactivement attribué ses anciennes dîmes à sa nouvelle
+        église — une réécriture silencieuse de ce qui a été encaissé.
+      2. **Le numéro d'enveloppe est recopié sur chaque versement** à la saisie
+        (migration `0027`), pas lu par jointure : c'est le reçu détenu qui fait
+        foi, et il ne change pas.
+      3. **`fn_appliquer_transfert` (`0014`) ne touche à aucune table de
+        dîmes.** Rien à défaire, donc rien à surveiller.
+
+      **La RLS suit la même logique** : un versement se voit à travers son
+      mouvement, donc à travers l'entité **collectrice**. L'église d'origine
+      continue de voir ce qu'elle a collecté après le départ du croyant — c'est
+      la seule lecture juste, cet argent est passé par elle.
+
+      *Consigné dans le commentaire de `chargerVersementsDuCroyant`.*
+
+
+### Suite `/croyants`
+
 - [x] **Tri des colonnes au clic**, avec chevrons indiquant le sens. *(20 août
       2026)* — `lib/domain/tri.ts` (pur, testé) et `EnteteTriable`, partagés :
       les autres tables n'auront qu'à s'y brancher. Les valeurs **absentes
@@ -298,6 +381,8 @@ soldes consolidés — la décision a déjà été prise et tenue une fois.
       et `DESCENDANTE` par droit, mais l'écran ne permet pas de choisir la
       portée d'un octroi.
 - [ ] **Profils locaux** — la colonne existe, aucun écran ne la renseigne.
+- [ ] La liste des habilitations fines des comptes doivent être mises à jour et 
+      configurées si une des mises à jour dans ce Todos.md est susceptibles d'impacter les habilitations fines d'un utilisateur 
 
 ## 6. Transversal
 
@@ -657,26 +742,61 @@ soldes consolidés — la décision a déjà été prise et tenue une fois.
       entité pourvue d'un bureau et hors de la portée du droit reste donc
       sélectionnable — mais elle est maintenant refusée **avec son motif**.
 
-- [ ] **Retirer un titulaire : demander le motif.** Deux cas se présentent, et
-      ils ne laissent pas la même trace :
-      1. **Erreur d'assignation** → **rien** n'est inscrit dans l'historique de
-         la fiche croyant. Ce n'est pas un événement de sa vie, c'est une
-         correction de saisie. Ce menu doit disparaitre après 15 jours à compter de l'enregistrement. après cela, ce ne sara plus considéra comme erreur mais un retrait volontaire qu'il faut motivé dans le menu "motif obligatoire"
-      2. **Retrait avant la fin du mandat** → **motif obligatoire**, en texte
-         libre : décès, sanction pour faute lourde…
+- [x] **Retirer un titulaire : demander le motif.** *(21 août 2026, migration
+      `0066`)* — **deux gestes que l'application confondait**, et qui ne
+      laissent pas la même trace :
+      - **Erreur d'assignation** → la ligne est **effacée**. Rien n'entre dans
+        l'historique du croyant, parce qu'il ne s'est rien passé dans sa vie : on
+        a tapé le mauvais nom. Un mandat d'un jour laissé dans sa frise se lirait
+        un jour comme une destitution, et personne ne saurait dire le contraire.
+      - **Retrait en cours de mandat** → le mandat est **clos**, motif
+        **obligatoire**. Un mandat interrompu sans raison écrite est exactement
+        ce qu'on cherchera dans dix ans.
 
-      Un pop-up doit donc demander lequel des deux avant d'agir.
+      **Le choix se demande, il ne se devine pas** : deviner à la place de
+      l'utilisateur ferait perdre une ligne d'historique qu'il croyait garder —
+      ou l'inverse. Chaque option affiche **sa conséquence**, pas seulement son
+      nom.
 
-- [ ] **« Gérer les modèles partagés » (rapports) : portée à vérifier.**
-      *Signalé :* un utilisateur habilité peut sélectionner **tous** les niveaux
-      d'organisation — Siège, Régional, District, Paroisse, Église, Cellule — et
-      donc fixer l'étendue d'un modèle **hors de son périmètre**.
+      **La fenêtre de 15 jours court depuis l'ENREGISTREMENT**, pas depuis le
+      début du mandat : un bureau peut être saisi en retard, avec un début
+      antérieur de six mois. Elle se vérifie **côté serveur** — un menu masqué ne
+      ferme rien, et ce qui est en jeu est un effacement : le refus se corrige,
+      la ligne effacée non.
 
-      À rapprocher de la doctrine du lot 6, déjà tranchée : *« une entité ne
-      compose que pour elle-même »*, l'entité propriétaire étant celle de
-      rattachement de l'auteur, lue dans la session — elle ne voyage pas dans le
-      formulaire, donc elle ne se choisit pas. Si l'étendue échappe au
-      périmètre, c'est la même règle qui fuit par une autre porte.
+      **La colonne reste nullable**, et c'est voulu : un mandat se clôt aussi
+      par la fermeture de son bureau ou par un remplacement, qui ne sont pas des
+      retraits — exiger un motif les ferait échouer.
+
+      **Depuis l'organigramme, le retrait est toujours une décision** : le choix
+      entre les deux gestes se fait dans la composition, où l'on voit la
+      personne et depuis quand elle est enregistrée. Deux endroits pour décider
+      d'un effacement divergeraient (règle 16).
+
+- [x] **« Gérer les modèles partagés » (rapports) : portée corrigée.**
+      *(21 août 2026, **sans migration** — l'étendue vit dans la ligne du
+      modèle, pas dans le schéma.)*
+
+      *Le défaut :* un district cochait « Siège » et son modèle s'annonçait à
+      une entité hors de son périmètre. C'est la doctrine du lot 6 — **« une
+      entité ne compose que pour elle-même »** — qui fuyait par une autre
+      porte : l'entité **propriétaire** ne se choisissait pas, donc ne pouvait
+      pas se refuser ; mais l'**étendue**, elle, se choisissait librement.
+
+      *La règle :* on propose **son propre niveau et ceux qui en dépendent**,
+      jamais au-dessus. Le Siège les obtient tous — non par exception mais par
+      application : il est au niveau 1, et tout est en dessous de lui. Un
+      modèle **officiel** échappe à la règle : il n'appartient à aucune entité,
+      et le contrôle de portée élargie l'a déjà borné au Siège.
+
+      *Trois points tenus :* le **serveur refuse** et **nomme les niveaux
+      fautifs** — un masquage à l'écran ne ferme rien, la Server Action
+      s'appelle sans passer par l'écran qui la propose ; l'écran **dit la
+      borne** plutôt que de la laisser deviner, sinon quatre pictogrammes sur
+      six se lisent comme un défaut d'affichage ; et un **niveau illisible rend
+      une liste vide**, pas complète — mieux vaut ne rien proposer qu'ouvrir
+      tout sur une valeur qu'on ne sait pas lire.
+
 
 ---
 

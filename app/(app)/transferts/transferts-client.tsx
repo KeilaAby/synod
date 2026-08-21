@@ -7,6 +7,7 @@ import {
   CircleCheck,
   CircleSlash,
   Clock,
+  FileText,
   Inbox,
   Loader2,
   Search,
@@ -23,6 +24,7 @@ import { EmptyState } from '@/components/shared/empty-state';
 import { FiltreIcone, GroupeFiltres } from '@/components/shared/filtre-icone';
 import { useSession } from '@/components/shared/session-provider';
 import { StatusBadge } from '@/components/shared/status-badge';
+import { imprimerAttestation } from '@/components/transferts/imprimer-attestation';
 import { TransfertDetail } from '@/components/transferts/transfert-detail';
 import { TypeBadge } from '@/components/structure/type-badge';
 import { Button } from '@/components/ui/button';
@@ -50,7 +52,9 @@ import { nomComplet, normaliserRecherche } from '@/lib/domain/croyant';
 import {
   LIBELLES_STATUT_TRANSFERT,
   PERMISSION_APPROBATION,
+  PERMISSION_ATTESTATION,
   type StatutTransfert,
+  transfertAttestable,
 } from '@/lib/domain/transfert';
 import { formatDate, formatNombre } from '@/lib/utils/format';
 
@@ -74,7 +78,14 @@ const TONS: Record<StatutTransfert, 'success' | 'warning' | 'danger' | 'neutral'
   ANNULE: 'neutral',
 };
 
-export function TransfertsClient({ transferts }: { transferts: TransfertListe[] }) {
+export function TransfertsClient({
+  transferts,
+  organisation,
+}: {
+  transferts: TransfertListe[];
+  /** EF-TRF-08 — l'en-tete de l'attestation. Lu a chaque rendu (regle 21). */
+  organisation: string;
+}) {
   const router = useRouter();
   const { peut, session } = useSession();
 
@@ -94,6 +105,48 @@ export function TransfertsClient({ transferts }: { transferts: TransfertListe[] 
       peut(PERMISSION_APPROBATION, t.arbitre.path),
     [peut],
   );
+
+  /**
+   * EF-TRF-08 — QUI PEUT ATTESTER, ET DE QUOI.
+   *
+   * Deux conditions, et la première n'est pas un droit : le transfert doit
+   * avoir ABOUTI. Attester d'une demande en attente ferait circuler un papier
+   * qui affirme ce qui n'est pas encore décidé.
+   *
+   * La portée est celle de l'entité d'ACCUEIL : c'est elle qui reçoit le
+   * croyant, c'est donc elle qui délivre le document qu'il présentera. À
+   * défaut, l'origine — un transfert dont la destination échappe au périmètre
+   * reste attestable par celui qui l'a laissé partir.
+   */
+  const peutAttester = useMemo(
+    () => (t: TransfertListe) => {
+      if (!transfertAttestable(t.statut)) return false;
+      const portee = t.destination?.path ?? t.origine?.path;
+      return portee ? peut(PERMISSION_ATTESTATION, portee) : false;
+    },
+    [peut],
+  );
+
+  function attester(t: TransfertListe) {
+    imprimerAttestation({
+      reference: t.id.slice(0, 8).toLocaleUpperCase('fr'),
+      nom: t.croyant?.nom ?? '',
+      prenom: t.croyant?.prenom ?? '',
+      matricule: t.croyant?.matricule ?? '',
+      origine: t.origine?.nom ?? '—',
+      destination: t.destination?.nom ?? '—',
+      celluleOrigine: t.celluleOrigine?.nom ?? null,
+      celluleDestination: t.celluleDestination?.nom ?? null,
+      dateDemande: t.date_demande,
+      dateDecision: t.date_decision,
+      dateEffet: t.date_effet,
+      motif: t.motif,
+      organisation,
+      // L'entité qui délivre est celle d'ACCUEIL : c'est elle qui reçoit.
+      entiteEmettrice: t.destination?.nom ?? t.origine?.nom ?? '—',
+      decideur: t.decideur?.nom_complet ?? null,
+    });
+  }
 
   const aDeciderParMoi = useMemo(
     () => transferts.filter(peutDecider),
@@ -368,6 +421,31 @@ export function TransfertsClient({ transferts }: { transferts: TransfertListe[] 
                         </TableCell>
 
                         <TableCell className="text-right">
+                          {/*
+                            EF-TRF-08 — L'ATTESTATION, ET SEULEMENT SUR UN
+                            TRANSFERT ABOUTI.
+
+                            Une demande en attente ou refusée n'a rien produit :
+                            en délivrer le papier ferait circuler un document
+                            qui affirme un transfert qui n'a pas eu lieu — et
+                            personne, en le lisant, ne saurait qu'il ne vaut
+                            rien.
+
+                            Le bouton précède l'action principale sans la
+                            remplacer : attester n'est pas décider, et le droit
+                            est distinct (`transfer.certify`).
+                          */}
+                          {peutAttester(t) && (
+                            <Button
+                              variant="ghost"
+                              className="mr-1 h-8"
+                              onClick={() => attester(t)}
+                            >
+                              <FileText className="mr-2 size-3.5" aria-hidden />
+                              Attestation
+                            </Button>
+                          )}
+
                           {peutDecider(t) ? (
                             <Button
                               variant="outline"

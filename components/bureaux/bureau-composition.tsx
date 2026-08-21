@@ -17,7 +17,6 @@ import { toast } from 'sonner';
 
 import { avertir } from '@/components/shared/messages';
 import { AvatarCroyant } from '@/components/croyants/avatar-croyant';
-import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { FiltreIcone, GroupeFiltres } from '@/components/shared/filtre-icone';
 import { OperationDialog } from '@/components/shared/operation-dialog';
 import { StatusBadge } from '@/components/shared/status-badge';
@@ -38,10 +37,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { RetraitDialog } from '@/components/bureaux/retrait-dialog';
 import { retirerMembre } from '@/lib/actions/bureaux';
 import type { BureauComplet } from '@/lib/data/bureaux';
 import {
   type FonctionBureau,
+  type MotifRetrait,
   composerBureau,
   comptePostes,
   libelleAffichage,
@@ -89,7 +90,7 @@ export function BureauComposition({
   onChange?: () => void;
 }) {
   const router = useRouter();
-  const [, demarrer] = useTransition();
+  const [enCours, demarrer] = useTransition();
 
   const [aDesigner, setADesigner] = useState<{ fonctionId: string } | null>(null);
   const [aRemplacer, setARemplacer] = useState<{
@@ -100,6 +101,8 @@ export function BureauComposition({
     id: string;
     nom: string;
     fonction: string;
+    /** EF-BUR-08 — c'est elle qui ouvre, ou ferme, la fenêtre de quinze jours. */
+    enregistreLe: string;
   } | null>(null);
   const [operation, setOperation] = useState<string | null>(null);
   /** EF-BUR-07 — le tableau d'abord : c'est lui qui sert à composer. */
@@ -145,17 +148,30 @@ export function BureauComposition({
     [bureau.membres],
   );
 
-  function retirer(membre: { id: string; nom: string }) {
+  function retirer(
+    membre: { id: string; nom: string },
+    nature: MotifRetrait,
+    motif: string | null,
+  ) {
+    const erreur = nature === 'ERREUR';
     setARetirer(null);
-    setOperation(`Clôture du mandat de ${membre.nom}…`);
+    setOperation(
+      erreur
+        ? `Effacement de la désignation de ${membre.nom}…`
+        : `Clôture du mandat de ${membre.nom}…`,
+    );
     demarrer(async () => {
-      const resultat = await retirerMembre({ membreId: membre.id });
+      const resultat = await retirerMembre({ membreId: membre.id, nature, motif });
       if (!resultat.ok) {
         setOperation(null);
         avertir(resultat.error);
         return;
       }
-      toast.success('Mandat clos. La fonction est vacante.');
+      toast.success(
+        erreur
+          ? 'Désignation effacée. Rien n’a été inscrit dans l’historique du croyant.'
+          : 'Mandat clos. La fonction est vacante.',
+      );
       router.refresh();
       onChange?.();
       setOperation(null);
@@ -371,6 +387,11 @@ export function BureauComposition({
                                           ? nomComplet(croyant.nom, croyant.prenom)
                                           : 'ce membre',
                                         fonction: poste.fonction.libelle,
+                                        // La date d'ENREGISTREMENT, pas celle de
+                                        // début : un bureau peut être saisi en
+                                        // retard, avec un début ancien.
+                                        enregistreLe:
+                                          parId.get(poste.mandat!.id)?.created_at ?? '',
                                       })
                                     }
                                   >
@@ -431,20 +452,23 @@ export function BureauComposition({
         />
       )}
 
-      {aRetirer && (
-        <ConfirmDialog
-          open
-          onOpenChange={(v) => !v && setARetirer(null)}
-          // ENF-UTI-04 — la confirmation NOMME la personne et la fonction.
-          title={`Retirer ${aRetirer.nom} du bureau ?`}
-          description={
-            `Son mandat de « ${aRetirer.fonction} » sera clos à ce jour et la fonction ` +
-            'deviendra vacante. Le mandat reste dans l’historique : il n’est pas effacé.'
-          }
-          confirmLabel="Retirer"
-          onConfirm={() => retirer({ id: aRetirer.id, nom: aRetirer.nom })}
-        />
-      )}
+      {/*
+        EF-BUR-08 — CE N'EST PLUS UNE SIMPLE CONFIRMATION.
+
+        Un `ConfirmDialog` demande « êtes-vous sûr ? » ; ici la question est
+        « lequel des deux gestes ? ». Une erreur d'assignation efface la ligne,
+        un retrait la clôt avec son motif : les deux n'ont pas le même résultat,
+        et deviner à la place de l'utilisateur ferait perdre une ligne
+        d'historique qu'il croyait garder — ou l'inverse.
+      */}
+      <RetraitDialog
+        cible={aRetirer}
+        enCours={enCours}
+        onAnnuler={() => setARetirer(null)}
+        onConfirmer={(nature, motif) =>
+          retirer({ id: aRetirer!.id, nom: aRetirer!.nom }, nature, motif)
+        }
+      />
 
       <OperationDialog
         // Ne depend QUE de `operation` : le retrait part de `ConfirmDialog`, qui

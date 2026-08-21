@@ -189,3 +189,26 @@ export function autoApprobationPossible(
   const commun = ancetreCommun(cheminOrigine, cheminDestination);
   return commun !== null && estApprobateurCompetent(session, commun);
 }
+
+/**
+ * EF-TRF-08 — DE QUOI PEUT-ON DELIVRER UNE ATTESTATION ?
+ *
+ * D'UN TRANSFERT QUI A ABOUTI, et de lui seul. Une demande en attente ou
+ * refusee n'a rien produit : en delivrer le papier ferait circuler un document
+ * qui affirme un transfert qui n'a pas eu lieu — et personne, en le lisant, ne
+ * saurait qu'il ne vaut rien.
+ *
+ * DEUX STATUTS L'OUVRENT, et c'est voulu. `APPROUVE` dit que la decision est
+ * prise ; `EFFECTUE` que le rattachement a suivi. Entre les deux, le croyant a
+ * besoin de son papier — c'est meme le moment ou il le presente a l'eglise qui
+ * l'accueille. Attendre `EFFECTUE` ferait dependre l'attestation d'une ecriture
+ * technique posterieure a la decision.
+ *
+ * `ANNULE` est exclu comme `REFUSE` : une demande retiree n'a pas abouti.
+ */
+export function transfertAttestable(statut: StatutTransfert): boolean {
+  return statut === 'APPROUVE' || statut === 'EFFECTUE';
+}
+
+/** Le droit qu'exige l'attestation — distinct de la demande et de la decision. */
+export const PERMISSION_ATTESTATION = 'transfer.certify' as const;

@@ -10,8 +10,8 @@
 --         pnpm db:bundle --depuis <derniere version appliquee>
 --     La derniere version appliquee se lit dans supabase/diagnostic.sql.
 --
--- Genere le 2026-08-20T12:43:10.792Z
--- Migrations : 60 + amorce
+-- Genere le 2026-08-21T11:00:45.829Z
+-- Migrations : 66 + amorce
 -- =============================================================================
 
 
@@ -9202,6 +9202,480 @@ comment on function fn_rapport_before_update is
 notify pgrst, 'reload schema';
 
 insert into schema_migrations (version) values ('0060')
+  on conflict (version) do nothing;
+
+-- #############################################################################
+-- ## 0061_ordre_protocolaire_des_fonctions.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0061 — L'ordre protocolaire des fonctions revient, pour une AUTRE raison
+-- =============================================================================
+-- Reference : EF-REF-02, EF-REF-03. Demande de l'utilisateur, 20 aout 2026.
+--
+-- CETTE MIGRATION DEFAIT LA 0022, ET IL FAUT DIRE POURQUOI CE N'EST PAS UN
+-- REVIREMENT.
+--
+-- La colonne a ete supprimee le 9 aout 2026 (migration 0022) parce qu'elle
+-- servait a DEDUIRE l'organigramme d'un bureau : rang 10 en racine, rang 20 en
+-- dessous. Depuis la 0021 l'organigramme se DESSINE — on pose les blocs, on
+-- tire les traits — et le rang ne decidait donc plus de rien. Un champ qui ne
+-- decide de rien devient un piege : quelqu'un finit par croire qu'il compte.
+--
+-- Ce raisonnement reste JUSTE, et il n'est pas remis en cause : la hierarchie
+-- d'un bureau vit dans `bureau_postes`, propre a chaque bureau, et nulle part
+-- ailleurs. Cette colonne-ci ne la touche pas.
+--
+-- CE QU'ELLE FAIT, ET RIEN D'AUTRE : elle donne son ORDRE D'AFFICHAGE a la
+-- liste des fonctions. L'ordre alphabetique qui l'avait remplacee presentait le
+-- tresorier avant le president dans la composition d'un bureau, ce qu'aucune
+-- assemblee ne fait. C'est une question de PRESENTATION, pas de deduction.
+--
+-- La distinction tient a un mot : la 0022 retirait un rang qui PRETENDAIT dire
+-- la hierarchie ; celle-ci pose un rang qui ne pretend rien de plus que l'ordre
+-- dans lequel on lit une liste.
+--
+-- LES VALEURS DE DEPART REPRENNENT L'ORDRE ALPHABETIQUE ACTUEL.
+--
+-- Un defaut uniforme a 100 laisserait l'ordre indefini : la liste changerait
+-- toute seule au premier rechargement, sans que personne n'ait rien demande.
+-- En partant de ce qui est deja a l'ecran, la migration ne DEPLACE rien — elle
+-- rend seulement l'ordre modifiable. Ce qui bouge ensuite bouge parce qu'on l'a
+-- voulu.
+--
+-- Espacement de dix, comme l'action de reordonnancement : il laisse la place a
+-- une insertion sans toucher aux voisines.
+--
+-- REJOUABLE (regle 23) : `add column if not exists`, et l'initialisation est
+-- bornee aux lignes restees au defaut — un rejeu ne defait donc pas un ordre
+-- pose entre-temps a l'ecran.
+-- =============================================================================
+
+alter table fonctions
+  add column if not exists ordre_protocolaire smallint not null default 100;
+
+comment on column fonctions.ordre_protocolaire is
+  'EF-REF-02 : ordre d''AFFICHAGE de la liste des fonctions, pose au '
+  'glisser-deposer. Ne decrit PAS la hierarchie d''un bureau — celle-ci vit '
+  'dans bureau_postes, propre a chaque bureau (voir 0021 et 0022).';
+
+/**
+ * Reprise : on numerote par ordre alphabetique, et SEULEMENT ce qui est reste
+ * au defaut. Le `where` est ce qui rend la migration rejouable sans degat.
+ */
+with rangs as (
+  select id, row_number() over (order by libelle) * 10 as rang
+  from fonctions
+)
+update fonctions f
+   set ordre_protocolaire = r.rang
+  from rangs r
+ where r.id = f.id
+   and f.ordre_protocolaire = 100;
+
+comment on table fonctions is
+  'Role occupe au sein d''un bureau — EF-REF-03. '
+  'La hierarchie ne vit pas ici : elle est propre a chaque bureau '
+  '(bureau_postes). ordre_protocolaire ne fixe que l''ordre d''affichage.';
+
+notify pgrst, 'reload schema';
+
+insert into schema_migrations (version) values ('0061')
+  on conflict (version) do nothing;
+
+-- #############################################################################
+-- ## 0062_reordonner_referentiel.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0062 — Reordonner un referentiel en UNE ecriture
+-- =============================================================================
+-- Reference : EF-REF-02, regle 20 (deux ecritures indissociables se font en
+--             base), regle 28 (le nombre d'allers-retours).
+--
+-- CE QUI NE MARCHAIT PAS, ET POURQUOI L'ERREUR ARRIVE LOIN DE SA CAUSE
+--
+-- L'action envoyait la liste reordonnee en un seul `upsert` :
+--
+--     upsert([{ id, ordre_protocolaire: 10 }, …], { onConflict: 'id' })
+--
+-- PostgREST le traduit en `insert … on conflict (id) do update`. Or PostgreSQL
+-- VALIDE LE TUPLE INSERE AVANT de resoudre le conflit : `code` et `libelle`
+-- sont `not null` SANS defaut, et l'ecriture echouait donc en 23502 —
+-- « null value in column "code" violates not-null constraint » — alors qu'on
+-- ne voulait rien inserer du tout.
+--
+-- Le message accuse une colonne a laquelle on ne touchait pas. C'est ce qui
+-- rend la panne difficile a lire : `upsert` ressemble a « mets a jour si ca
+-- existe », mais c'est un INSERT qui se rattrape, pas un UPDATE qui s'etend.
+--
+-- POURQUOI UNE FONCTION PLUTOT QUE N `update`
+--
+-- Reordonner dix fonctions par dix appels, c'est dix allers-retours a 0,5–4 s
+-- (regle 28) — et surtout, une interruption a mi-parcours laisserait un ordre
+-- A MOITIE APPLIQUE : deux fonctions au meme rang, ou un trou. L'etat
+-- intermediaire est faux ET indetectable, donc l'ecriture se fait en base
+-- (regle 20).
+--
+-- SECURITY INVOKER (le defaut) : les politiques `*_write` exigent
+-- `has_perm('referentiel.manage')`, et elles s'appliquent a l'appelant. La
+-- fonction n'accorde donc rien que l'appelant n'ait deja — elle ne fait que
+-- grouper.
+--
+-- LA LISTE BLANCHE N'EST PAS DECORATIVE. Le nom de table vient du client.
+-- `format(%I)` echappe l'identifiant, ce qui empeche l'injection mais PAS de
+-- viser une autre table — `profiles`, par exemple, n'a pas de colonne `ordre`,
+-- mais le raisonnement ne doit pas dependre de cela. On enumere donc ce qui est
+-- reordonnable, et le reste est refuse en le disant.
+--
+-- Cette liste DOIT rester alignee sur les entrees `colonneOrdre` de
+-- `lib/domain/referentiels.ts` ; un test lit ce fichier et compare.
+--
+-- REJOUABLE (regle 23) : `create or replace` sur une fonction dont la signature
+-- ne change pas.
+-- =============================================================================
+
+create or replace function fn_reordonner_referentiel(p_table text, p_ids uuid[])
+returns integer
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_colonne text;
+  v_touchees integer;
+begin
+  v_colonne := case p_table
+    when 'grades'             then 'ordre'
+    when 'finance_categories' then 'ordre'
+    when 'fonctions'          then 'ordre_protocolaire'
+    else null
+  end;
+
+  if v_colonne is null then
+    raise exception 'Ce referentiel ne se reordonne pas : %', p_table
+      using errcode = 'invalid_parameter_value';
+  end if;
+
+  /**
+   * `with ordinality` donne le rang SANS le calculer : c'est la position dans
+   * le tableau recu, donc exactement l'ordre pose a l'ecran.
+   *
+   * Espacement de dix : une valeur creee plus tard, ou par un import, doit
+   * pouvoir s'inserer entre deux voisines sans qu'on ait a les renumeroter.
+   */
+  execute format(
+    'update %I t
+        set %I = r.rang * 10
+       from unnest($1) with ordinality as r(id, rang)
+      where t.id = r.id',
+    p_table, v_colonne
+  ) using p_ids;
+
+  get diagnostics v_touchees = row_count;
+
+  /**
+   * On rend le NOMBRE DE LIGNES TOUCHEES plutot que rien.
+   *
+   * Un identifiant qui ne correspond a aucune ligne — supprimee entre-temps,
+   * ou hors de ce que la RLS laisse voir — ne fait pas echouer l'ordre : il est
+   * simplement ignore. L'appelant peut comparer au nombre envoye et le dire,
+   * au lieu d'annoncer une reussite complete sur une reussite partielle.
+   */
+  return v_touchees;
+end $$;
+
+comment on function fn_reordonner_referentiel is
+  'EF-REF-02 : pose l''ordre d''affichage d''un referentiel en UNE ecriture. '
+  'SECURITY INVOKER — les politiques *_write exigent referentiel.manage. '
+  'La liste blanche des tables doit rester alignee sur les entrees '
+  'colonneOrdre de lib/domain/referentiels.ts.';
+
+notify pgrst, 'reload schema';
+
+insert into schema_migrations (version) values ('0062')
+  on conflict (version) do nothing;
+
+-- #############################################################################
+-- ## 0063_apparence_et_notifications.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0063 — L'apparence et les notifications se reglent, au lieu d'etre ecrites
+-- =============================================================================
+-- Reference : EF-ADM-13 (les options configurables au meme endroit), regle 21
+--             (un parametre configurable se lit a chaque rendu).
+--
+-- CE QUI ETAIT FIGE
+--
+-- La couleur des boutons vivait dans `--primary` de `globals.css`, et la duree
+-- d'une notification dans les props du `Toaster`. Les deux se changent en
+-- editant du code et en redeployant — autant dire qu'elles ne se changent pas.
+--
+-- POURQUOI DES JETONS ET NON DES CLASSES
+--
+-- Regle 32, payee une fois : une classe Tailwind fabriquee a la volee n'existe
+-- dans aucune feuille — Tailwind lit le SOURCE, il ne devine pas ce que le
+-- serveur enverra. Une valeur arbitraire pointant une variable CSS casse la
+-- compilation de TOUTE la feuille. La couleur voyage donc comme une VALEUR, et
+-- se pose sur la variable `--primary` du document.
+--
+-- POURQUOI LE CONTRASTE N'EST PAS UN CHAMP
+--
+-- On ne demande PAS la couleur du texte des boutons : elle se deduit de la
+-- luminance du fond choisi. La laisser saisir permettrait de poser du blanc sur
+-- du jaune, et personne ne relit un bouton qu'il a lui-meme regle.
+--
+-- LES NOTIFICATIONS : CE QUI SE REGLE, ET CE QUI NE SE REGLE PAS
+--
+-- La regle 30 tient : seule une CONFIRMATION passe par une notification, tout
+-- le reste — refus, avertissement, panne — va dans un pop-up qu'on ferme.
+-- Ces reglages ne rouvrent pas ce que cette regle a ferme : ils ne decident que
+-- de la maniere dont s'affiche ce qui a DEJA le droit de s'y afficher.
+--
+-- REJOUABLE (regle 23) : `add column if not exists`.
+-- =============================================================================
+
+alter table organisation_settings
+  add column if not exists couleur_primaire text not null default '#0f172a',
+  add column if not exists toast_duree_ms integer not null default 4000,
+  add column if not exists toast_bouton_fermer boolean not null default true,
+  add column if not exists toast_couleurs_vives boolean not null default true;
+
+/**
+ * La couleur est une valeur QUE L'ON POSE DANS UNE FEUILLE DE STYLE : elle doit
+ * etre un hexadecimal, et rien d'autre. Sans cette contrainte, une chaine
+ * quelconque irait telle quelle dans un attribut `style` — la borne est ici,
+ * pas seulement dans le formulaire.
+ */
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'organisation_settings_couleur_valide'
+  ) then
+    alter table organisation_settings
+      add constraint organisation_settings_couleur_valide
+      check (couleur_primaire ~ '^#[0-9a-fA-F]{6}$');
+  end if;
+end $$;
+
+/**
+ * Bornes de la duree : ni trop courte pour etre lue, ni assez longue pour
+ * s'empiler. Deux secondes suffisent a « Croyant enregistre » ; au-dela de
+ * vingt, une notification cesse d'etre une notification.
+ */
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'organisation_settings_toast_duree'
+  ) then
+    alter table organisation_settings
+      add constraint organisation_settings_toast_duree
+      check (toast_duree_ms between 2000 and 20000);
+  end if;
+end $$;
+
+comment on column organisation_settings.couleur_primaire is
+  'EF-ADM-13 : couleur des boutons principaux. Posee sur --primary a chaque '
+  'rendu (regle 21). Le contraste du texte s''en DEDUIT, il ne se saisit pas.';
+
+comment on column organisation_settings.toast_duree_ms is
+  'EF-ADM-13 : duree d''affichage d''une notification de confirmation. La '
+  'regle 30 reste entiere — un refus ou une panne ne passe pas par la.';
+
+notify pgrst, 'reload schema';
+
+insert into schema_migrations (version) values ('0063')
+  on conflict (version) do nothing;
+
+-- #############################################################################
+-- ## 0064_poste_en_derivation.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0064 — Le poste en derivation : un adjoint sur le tronc
+-- =============================================================================
+-- Reference : EF-BUR-07. Demande de l'utilisateur, 20 aout 2026, sur modele
+--             fourni : « Directeur general » en tete, « Vice-president
+--             adjoint » accroche au trait vertical qui en descend, decale sur
+--             le cote, AU-DESSUS de la rangee des autres subordonnes.
+--
+-- CE QUE C'EST, ET CE QUE CE N'EST PAS
+--
+-- C'est le motif classique du poste EN DERIVATION : adjoint, cabinet, assistant
+-- de direction. Il depend du meme superieur que les autres, mais il ne se RANGE
+-- pas avec eux — il se pose a cote du tronc, entre le superieur et la rangee.
+--
+-- CE N'EST DONC PAS UN NIVEAU DE PLUS. Le vice-president adjoint est bien un
+-- enfant du directeur general : lui donner un rang intermediaire decalerait
+-- toute la descendance d'un cran, et changerait la hierarchie pour obtenir un
+-- effet de dessin. Ce qui change est le PLACEMENT, pas la parente.
+--
+-- D'OU UN DRAPEAU SUR LE POSTE, et non une table ni un `parent_fonction_id`
+-- detourne. `parent_fonction_id` continue de dire de qui l'on depend ;
+-- `en_derivation` dit seulement ou l'on se dessine.
+--
+-- CE QUE LE DRAPEAU NE TOUCHE PAS
+--
+-- La composition tabulaire reste la source des vacances (EF-BUR-04) : elle
+-- enumere les fonctions applicables, l'organigramme ne fait que les placer.
+-- Un poste en derivation est un poste comme un autre — il s'occupe, il se
+-- libere, il compte dans les effectifs de bureau.
+--
+-- UNE RACINE NE PEUT PAS ETRE EN DERIVATION : il n'y a pas de tronc au-dessus
+-- d'elle a quoi s'accrocher. Le cas se produirait en detachant un bloc deja
+-- marque, et le dessin n'aurait alors nulle part ou le poser. La contrainte
+-- l'interdit plutot que de laisser l'impression choisir a notre place.
+--
+-- REJOUABLE (regle 23) : `add column if not exists`, contrainte sous garde.
+-- =============================================================================
+
+alter table bureau_postes
+  add column if not exists en_derivation boolean not null default false;
+
+comment on column bureau_postes.en_derivation is
+  'EF-BUR-07 : le poste se dessine A COTE DU TRONC de son superieur, pas dans '
+  'la rangee de ses freres — adjoint, cabinet. Ne change NI la parente, NI le '
+  'niveau : seulement le placement, a l''ecran comme a l''impression.';
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'postes_derivation_a_un_parent'
+  ) then
+    alter table bureau_postes
+      add constraint postes_derivation_a_un_parent
+      check (not en_derivation or parent_fonction_id is not null);
+  end if;
+end $$;
+
+notify pgrst, 'reload schema';
+
+insert into schema_migrations (version) values ('0064')
+  on conflict (version) do nothing;
+
+-- #############################################################################
+-- ## 0065_position_des_notifications.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0065 — Ou apparaissent les notifications
+-- =============================================================================
+-- Reference : EF-ADM-13. Demande de l'utilisateur, 20 aout 2026, sur capture
+--             de l'ecran equivalent d'un autre de ses projets.
+--
+-- POURQUOI LA POSITION SE REGLE
+--
+-- Elle etait en dur, en haut a droite. C'est le mauvais coin sur les ecrans de
+-- cette application : le menu ⋮ d'une ligne de tableau, le bouton d'export et
+-- les actions d'en-tete y vivent tous. Une notification qui s'y pose recouvre
+-- exactement ce sur quoi on vient de cliquer, au moment ou l'on s'apprete a
+-- cliquer a nouveau.
+--
+-- CE QUE LA LISTE CONTIENT, ET POURQUOI ELLE EST CLOSE
+--
+-- Les six coins que Sonner accepte, pas un de plus. Ecrire une valeur libre
+-- ferait passer au composant une chaine qu'il ignorerait en silence — la
+-- notification reviendrait a son defaut, et personne ne comprendrait pourquoi
+-- le reglage « ne marche pas » (regle 18 : un ensemble clos et connu).
+--
+-- REJOUABLE (regle 23) : `add column if not exists`, contrainte sous garde.
+-- =============================================================================
+
+alter table organisation_settings
+  add column if not exists toast_position text not null default 'bottom-right';
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'organisation_settings_toast_position'
+  ) then
+    alter table organisation_settings
+      add constraint organisation_settings_toast_position
+      check (toast_position in (
+        'top-left', 'top-center', 'top-right',
+        'bottom-left', 'bottom-center', 'bottom-right'
+      ));
+  end if;
+end $$;
+
+comment on column organisation_settings.toast_position is
+  'EF-ADM-13 : coin ou apparaissent les notifications de confirmation. Les six '
+  'valeurs que Sonner accepte, et rien d''autre — une chaine inconnue serait '
+  'ignoree en silence et le reglage paraitrait sans effet.';
+
+-- LE DEFAUT EST `bottom-right`, et non l'ancien `top-right` code en dur.
+-- En haut a droite vivent le menu ⋮ des lignes, le bouton d'export et les
+-- actions d'en-tete : la notification s'y posait sur ce qu'on venait de
+-- cliquer. `add column` pose ce defaut sur la ligne existante — aucune reprise
+-- n'est necessaire.
+
+notify pgrst, 'reload schema';
+
+insert into schema_migrations (version) values ('0065')
+  on conflict (version) do nothing;
+
+-- #############################################################################
+-- ## 0066_motif_de_retrait.sql
+-- #############################################################################
+
+-- =============================================================================
+-- SYNOD — 0066 — Retirer un titulaire : une erreur, ou une decision
+-- =============================================================================
+-- Reference : EF-BUR-08, RG-08. Demande du 20 aout 2026.
+--
+-- DEUX GESTES QUE L'APPLICATION CONFONDAIT.
+--
+-- « Retirer » fermait le mandat du jour, sans rien demander. Or deux situations
+-- tres differentes passaient par ce meme bouton :
+--
+--   1. UNE ERREUR D'ASSIGNATION. On a designe Rakoto au lieu de Rabe, on s'en
+--      apercoit le lendemain. Ce n'est pas un evenement de la vie de Rakoto,
+--      c'est une faute de frappe. La fermer laissait pourtant dans sa frise un
+--      mandat d'un jour, que personne ne peut expliquer et que tout le monde
+--      lira un jour comme une destitution.
+--
+--   2. UN RETRAIT EN COURS DE MANDAT. Deces, demission, sanction. La, c'est un
+--      evenement, il compte, et il DOIT etre motive — un mandat interrompu sans
+--      raison ecrite est exactement ce qu'on cherchera dans dix ans.
+--
+-- CE QUE CETTE MIGRATION APPORTE : `motif_retrait`.
+--
+-- Nullable, et il le restera. Un mandat se clot aussi par la FERMETURE DE SON
+-- BUREAU (`fn_clore_bureau`) ou par un REMPLACEMENT : ni l'un ni l'autre n'est
+-- un retrait, et exiger un motif les ferait echouer. La colonne dit donc « ce
+-- mandat a ete interrompu, et voici pourquoi » — pas « tout mandat clos a un
+-- motif ».
+--
+-- L'OBLIGATION VIT DANS L'ACTION, pas dans une contrainte : elle depend du
+-- GESTE, que la base ne voit pas. Une contrainte ne saurait pas distinguer une
+-- cloture de bureau d'un retrait individuel.
+--
+-- LA FENETRE DE 15 JOURS N'EST PAS ICI NON PLUS. Elle porte sur la SUPPRESSION
+-- de la ligne — le cas 1 —, et une ligne supprimee ne laisse rien a contraindre.
+-- C'est l'action qui la tient, et le journal d'audit qui garde la trace : la
+-- fiche du croyant, elle, doit redevenir vierge, c'est tout l'objet du cas 1.
+--
+-- REJOUABLE (regle 23) : `add column if not exists`.
+-- =============================================================================
+
+alter table bureau_membres
+  add column if not exists motif_retrait text;
+
+comment on column bureau_membres.motif_retrait is
+  'EF-BUR-08 — pourquoi ce mandat a ete INTERROMPU avant son terme : deces, '
+  'demission, sanction. Reste NULL quand le mandat s''acheve normalement, par '
+  'la cloture de son bureau ou par un remplacement — ce ne sont pas des '
+  'retraits, et exiger un motif les ferait echouer.';
+
+
+/**
+ * PostgREST garde un CACHE DE SCHEMA : sans cette purge, la colonne resterait
+ * invisible a l'API et l'ecriture repondrait « column ... does not exist » sur
+ * du SQL pourtant en place.
+ */
+notify pgrst, 'reload schema';
+
+insert into schema_migrations (version) values ('0066')
   on conflict (version) do nothing;
 
 -- #############################################################################

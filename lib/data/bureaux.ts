@@ -18,7 +18,7 @@ const CHAMPS_MANDAT = `
   id, entity_id, libelle, date_debut, date_fin, is_active, created_at,
   entite:entities!bureaux_entity_id_fkey (id, nom, code, type, path),
   membres:bureau_membres!bureau_membres_bureau_id_fkey (
-    id, croyant_id, fonction_id, date_debut, date_fin, notes,
+    id, croyant_id, fonction_id, date_debut, date_fin, notes, motif_retrait, created_at,
     croyant:croyants!bureau_membres_croyant_id_fkey (
       id, nom, prenom, matricule, photo_key, statut,
       grade:grades!croyants_grade_id_fkey (id, libelle)
@@ -39,6 +39,14 @@ export interface MembreBureau {
   date_debut: string;
   date_fin: string | null;
   notes: string | null;
+  /** EF-BUR-08 — pourquoi ce mandat a ete INTERROMPU, s'il l'a ete (`0066`). */
+  motif_retrait: string | null;
+  /**
+   * Quand la designation a ete ENREGISTREE — c'est elle, et non `date_debut`,
+   * qui ouvre la fenetre de quinze jours du retrait pour erreur (EF-BUR-08).
+   * Un bureau peut etre saisi en retard, avec un debut anterieur de six mois.
+   */
+  created_at: string;
   croyant: {
     id: string;
     nom: string;

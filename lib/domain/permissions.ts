@@ -116,6 +116,21 @@ export const PERMISSIONS = {
     group: 'Croyants',
     description: 'Decider des demandes de transfert dont le perimetre vous revient.',
   },
+  /**
+   * UN DROIT A PART, ET C'EST LA DEMANDE (20 aout 2026) : « un document signe
+   * n'est pas une lecture de liste ».
+   *
+   * Consulter un transfert dit ce qui s'est passe ; en delivrer l'attestation
+   * ENGAGE l'entite — le papier porte son en-tete, il sera presente ailleurs, et
+   * il vaut preuve. Le confondre avec `croyant.transfer` donnerait le pouvoir
+   * d'attester a qui n'a que celui de demander.
+   */
+  'transfer.certify': {
+    label: 'Delivrer une attestation de transfert',
+    group: 'Croyants',
+    description:
+      "Editer le document officiel d'un transfert approuve, sous l'en-tete de l'entite.",
+  },
   'bapteme.create': {
     label: 'Saisir un nouveau baptise',
     group: 'Croyants',
@@ -485,6 +500,7 @@ export const ROLE_TEMPLATES: Record<UserRole, readonly Permission[]> = {
     'croyant.delete',
     'croyant.transfer',
     'transfer.approve',
+    'transfer.certify',
     'bapteme.create',
     'bureau.read',
     'bureau.manage',

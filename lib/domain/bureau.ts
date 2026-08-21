@@ -343,3 +343,90 @@ export function entreeBureauDeEntite(
   const titulaires = bureauxActifs.reduce((n, b) => n + b.nbMembres, 0);
   return titulaires === 0 ? 'composer' : 'consulter';
 }
+
+// ---------------------------------------------------------------------------
+// EF-BUR-08 — retirer un titulaire : une erreur, ou une decision
+// ---------------------------------------------------------------------------
+
+/**
+ * COMBIEN DE JOURS UNE DESIGNATION RESTE UNE ERREUR RATTRAPABLE.
+ *
+ * Passe ce delai, retirer quelqu'un n'est plus une correction de saisie : c'est
+ * une decision, et elle se motive. Quinze jours laissent le temps de s'apercevoir
+ * d'une faute de frappe — un bureau se compose sur une ou deux semaines — sans
+ * ouvrir une porte par laquelle on effacerait, six mois plus tard, un mandat
+ * qui a reellement eu lieu.
+ */
+export const JOURS_ERREUR_ASSIGNATION = 15;
+
+export type MotifRetrait = 'ERREUR' | 'DECISION';
+
+/**
+ * Peut-on encore retirer ce mandat comme une ERREUR D'ASSIGNATION ?
+ *
+ * LES DEUX GESTES NE LAISSENT PAS LA MEME TRACE, et c'est tout l'enjeu :
+ *
+ *   - ERREUR      -> la ligne est SUPPRIMEE. Rien n'entre dans l'historique du
+ *     croyant, parce qu'il ne s'est rien passe dans sa vie : on a tape le
+ *     mauvais nom. Un mandat d'un jour laisse dans sa frise se lirait un jour
+ *     comme une destitution, et personne ne saurait dire le contraire.
+ *   - DECISION    -> le mandat est CLOS, avec un motif obligatoire. Deces,
+ *     demission, sanction : cela compte, et un mandat interrompu sans raison
+ *     ecrite est exactement ce qu'on cherchera dans dix ans.
+ *
+ * LE DELAI COURT DEPUIS L'ENREGISTREMENT, pas depuis le debut du mandat. Un
+ * bureau peut etre saisi en retard, avec une date de debut anterieure de six
+ * mois : c'est le jour ou la ligne a ete CREEE qui dit depuis quand la faute
+ * etait visible et corrigeable.
+ *
+ * Les deux dates se comparent en JOURS entiers, sur l'horodatage : un mandat
+ * saisi le matin et corrige le soir du quinzieme jour reste rattrapable.
+ */
+export function retraitPourErreurPossible(
+  enregistreLe: string,
+  maintenant: Date = new Date(),
+): boolean {
+  const pose = Date.parse(enregistreLe);
+  // Une date illisible ne rouvre pas la fenetre : dans le doute, c'est une
+  // decision, qui se motive. Le refus se corrige, l'effacement non.
+  if (Number.isNaN(pose)) return false;
+
+  const jours = (maintenant.getTime() - pose) / 86_400_000;
+  return jours >= 0 && jours <= JOURS_ERREUR_ASSIGNATION;
+}
+
+/**
+ * Le motif demande est-il recevable pour ce mandat ?
+ *
+ * `ERREUR` hors delai est REFUSE, et pas silencieusement converti en decision :
+ * les deux gestes n'ont pas le meme resultat — l'un efface, l'autre conserve —
+ * et deviner a la place de l'utilisateur ferait perdre une ligne d'historique
+ * qu'il croyait garder, ou l'inverse.
+ */
+export function retraitRecevable(
+  motif: MotifRetrait,
+  texte: string | null,
+  enregistreLe: string,
+  maintenant: Date = new Date(),
+): { ok: true } | { ok: false; raison: string } {
+  if (motif === 'ERREUR') {
+    return retraitPourErreurPossible(enregistreLe, maintenant)
+      ? { ok: true }
+      : {
+          ok: false,
+          raison:
+            `Ce mandat a ete enregistre il y a plus de ${JOURS_ERREUR_ASSIGNATION} jours : `
+            + 'il ne peut plus etre efface comme une erreur de saisie. '
+            + 'Retirez le titulaire en indiquant le motif.',
+        };
+  }
+
+  return (texte ?? '').trim().length >= 3
+    ? { ok: true }
+    : {
+        ok: false,
+        raison:
+          'Indiquez le motif du retrait : deces, demission, sanction… '
+          + 'Un mandat interrompu sans raison ecrite reste inexplicable.',
+      };
+}

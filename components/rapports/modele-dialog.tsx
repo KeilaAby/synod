@@ -35,6 +35,7 @@ import {
   LIBELLES_VISIBILITE,
   VISIBILITES,
   type VisibiliteModele,
+  niveauxProposables,
   porteeReserveeAuSiege,
 } from '@/lib/domain/rapport';
 import { appelerAction } from '@/lib/utils/appeler-action';
@@ -122,6 +123,26 @@ export function ModeleDialog({
   const visibilitesOffertes = VISIBILITES.filter(
     (v) => peutSiege || !porteeReserveeAuSiege(v, false),
   );
+
+  /**
+   * EF-RAP-10 — LES NIVEAUX QU'ON PEUT VISER S'ARRÊTENT À SOI.
+   *
+   * L'écran offrait les SIX à tout le monde : un district cochait « Siège » et
+   * annonçait son modèle à une entité hors de son périmètre. C'est la règle du
+   * lot 6 — « une entité ne compose que pour elle-même » — qui fuyait par une
+   * autre porte : l'entité propriétaire ne se choisissait pas, mais l'étendue,
+   * elle, se choisissait librement.
+   *
+   * Un modèle OFFICIEL les récupère tous : il n'appartient à aucune entité, il
+   * est la trame de l'organisation — et il est déjà réservé au Siège.
+   *
+   * Le masquage reste un CONFORT : l'action revérifie et nomme les niveaux
+   * fautifs. Mais proposer une case qui produira un refus fait perdre du temps
+   * deux fois — à la cocher, puis à comprendre.
+   */
+  const niveauxOfferts = officiel
+    ? ENTITY_TYPES
+    : niveauxProposables(compte.entiteType as EntityType);
 
   function fermer() {
     if (pilote) {
@@ -326,7 +347,7 @@ export function ModeleDialog({
             <div className="flex flex-col gap-2">
               <p className="text-sm font-medium text-foreground">Niveaux concernés</p>
               <GroupeFiltres libelle="Niveaux auxquels ce modèle se propose">
-                {ENTITY_TYPES.map((type) => (
+                {niveauxOfferts.map((type) => (
                   <FiltreIcone
                     key={type}
                     icone={ICONES_NIVEAU[type]}
@@ -338,9 +359,24 @@ export function ModeleDialog({
               </GroupeFiltres>
               <p className="text-xs text-muted-foreground">
                 {niveaux.length === 0
-                  ? 'Aucun niveau coché : le modèle se propose à tous. Ne rien restreindre n’est pas tout refuser.'
+                  ? 'Aucun niveau coché : le modèle se propose à tous ceux que vous pouvez atteindre. Ne rien restreindre n’est pas tout refuser.'
                   : `Proposé aux ${niveaux.map((t) => ENTITY_LABELS[t].pluriel.toLowerCase()).join(', ')} uniquement.`}
               </p>
+
+              {/*
+                DIRE LA BORNE, PLUTÔT QUE DE LA LAISSER DEVINER.
+
+                Un district qui ne voit que quatre pictogrammes sur six pourrait
+                croire à un défaut d'affichage. La phrase dit que c'est une
+                règle, et laquelle — sans elle, on chercherait le Siège dans la
+                liste.
+              */}
+              {!officiel && niveauxOfferts.length < ENTITY_TYPES.length && (
+                <p className="text-muted-foreground text-xs">
+                  Un modèle se propose à votre niveau et à ceux qui en dépendent,
+                  jamais au-dessus.
+                </p>
+              )}
             </div>
           </div>
 

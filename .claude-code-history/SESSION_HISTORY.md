@@ -5158,3 +5158,55 @@ est déjà en dérivation la distingue sans qu'on ait à cliquer pour savoir.
 
 Le menu ⋮ reste, pour défaire un rattachement déjà posé par erreur — mais ce
 n'est plus le seul chemin.
+
+## 21 août 2026 — Deux anomalies fermées, et l'attestation de transfert
+
+**Journée du 21 août 2026 — les deux anomalies, puis l'attestation**
+(migration `0066`).
+
+**Les modèles de rapport ne débordent plus** (`niveauxProposables`, sans
+migration). Un district cochait « Siège » et son modèle s'annonçait à une entité
+hors de son périmètre : c'est la doctrine du lot 6 — *une entité ne compose que
+pour elle-même* — qui fuyait par une autre porte. L'entité **propriétaire** ne se
+choisissait pas, donc ne pouvait pas se refuser ; l'**étendue**, elle, se
+choisissait librement. On propose désormais **son niveau et ceux qui en
+dépendent**, jamais au-dessus — le Siège les obtient tous par application, pas
+par exception. Le serveur **nomme les niveaux fautifs**, l'écran **dit la
+borne** (quatre pictogrammes sur six se lisent sinon comme un défaut
+d'affichage), et un niveau illisible rend une liste **vide** plutôt que
+complète.
+
+**Retirer un titulaire demande lequel des deux gestes** (`0066`). L'application
+les confondait. **Erreur d'assignation** → la ligne est **effacée** : rien
+n'entre dans l'historique du croyant, parce qu'il ne s'est rien passé dans sa vie
+— un mandat d'un jour laissé dans sa frise se lirait un jour comme une
+destitution. **Retrait en cours de mandat** → le mandat est **clos**, motif
+**obligatoire**. Le choix **se demande** et chaque option affiche **sa
+conséquence** : deviner ferait perdre une ligne d'historique qu'on croyait
+garder, ou l'inverse. La fenêtre de **quinze jours** court depuis
+l'**enregistrement** — un bureau peut être saisi en retard — et se vérifie **côté
+serveur** : ce qui est en jeu est un effacement, le refus se corrige, la ligne
+effacée non. `motif_retrait` **reste nullable** : un mandat se clôt aussi par la
+fermeture de son bureau ou par un remplacement, qui ne sont pas des retraits.
+
+**Le même pop-up depuis les deux écrans.** Il avait d'abord été posé un motif
+d'office dans l'organigramme, au prétexte que le choix appartenait à la
+composition — c'était l'inverse de la règle 16 : deux entrées pour la MÊME
+opération qui n'agissent pas pareil, c'est exactement la divergence qu'elle
+interdit.
+
+**L'attestation de transfert** (EF-TRF-08, sans migration). **Un droit à part**,
+`transfer.certify` : consulter dit ce qui s'est passé, **attester engage
+l'entité**. **On n'atteste que ce qui a abouti** — approuvé ou effectué : deux
+statuts, parce qu'entre la décision et le rattachement c'est précisément le
+moment où le croyant présente son papier. **L'entité d'accueil délivre**, à
+défaut l'origine. **Aucun exemplaire n'est stocké** : le contenu étant figé à
+l'approbation, réimprimer redonne le même document.
+
+**Un transfert ne réécrit RIEN de l'historique des dîmes** — vérifié le 21 août à
+la demande de l'utilisateur, et consigné. L'église affichée est
+`entite_collecte_id`, **figée sur le mouvement** ; le numéro d'enveloppe est
+recopié sur chaque versement (`0027`) ; et `fn_appliquer_transfert` ne touche à
+aucune table de dîmes. La RLS suit : l'église d'origine continue de voir ce
+qu'elle a collecté après le départ du croyant — cet argent est passé par elle.
+

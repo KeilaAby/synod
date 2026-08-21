@@ -7,12 +7,15 @@ import { getArbrePerimetre } from '@/lib/data/entities';
 import { resoudreContenu } from '@/lib/data/rapport-generation';
 import { getParametres } from '@/lib/data/settings';
 import { type ActionResult, ko, ok } from '@/lib/domain/result';
+import { ENTITY_LABELS, type EntityType } from '@/lib/domain/hierarchy';
 import { detient } from '@/lib/domain/permissions';
 import {
   type StructureRapport,
   type VisibiliteModele,
   compositionAutorisee,
   modeleSApplique,
+  niveauxProposables,
+  niveauxTenables,
   resoudreStructure,
   nomDuplique,
   porteeReserveeAuSiege,
@@ -135,6 +138,42 @@ async function verifierPorteeElargie(
   return null;
 }
 
+/**
+ * EF-RAP-10 — LES NIVEAUX VISES NE REMONTENT PAS AU-DESSUS DE L'AUTEUR.
+ *
+ * Signale le 20 aout 2026 : l'ecran offrait les six niveaux a tout le monde, si
+ * bien qu'un district cochait « Siege » et annoncait son modele a une entite
+ * qui n'est pas dans son perimetre.
+ *
+ * LE MASQUAGE A L'ECRAN NE SUFFIT PAS. Un `FiltreIcone` retire du rendu ne
+ * ferme rien : la Server Action s'appelle sans passer par l'ecran qui la
+ * propose. C'est ici que le refus se pose, et il NOMME les niveaux fautifs —
+ * « votre modele ne peut pas viser le Siege » se comprend, « portee invalide »
+ * ne dit ni quoi corriger ni pourquoi.
+ *
+ * Un modele OFFICIEL echappe a cette regle, et c'est cohérent : il n'appartient
+ * a aucune entite, il est la trame de l'organisation. `verifierPorteeElargie`
+ * l'a deja borne au Siege juste avant.
+ */
+function verifierNiveaux(
+  session: Awaited<ReturnType<typeof requireSession>>,
+  niveaux: readonly EntityType[],
+  estOfficiel: boolean,
+): string | null {
+  if (estOfficiel) return null;
+
+  const niveauAuteur = session.entiteType as EntityType;
+  if (niveauxTenables(niveaux, niveauAuteur)) return null;
+
+  const permis = niveauxProposables(niveauAuteur);
+  const refuses = niveaux.filter((n) => !permis.includes(n));
+
+  return (
+    'Un modele ne se propose qu a votre niveau et a ceux qui en dependent. '
+    + `A retirer : ${refuses.map((n) => ENTITY_LABELS[n].pluriel).join(', ')}.`
+  );
+}
+
 // -----------------------------------------------------------------------------
 
 /** EF-RAP-07, EF-RAP-08, EF-RAP-09 — enregistrer une composition reutilisable. */
@@ -167,6 +206,9 @@ export async function creerModele(input: unknown): Promise<ActionResult<{ id: st
 
     const refus = await verifierPorteeElargie(session, valeurs.visibilite, valeurs.estOfficiel);
     if (refus) return ko(refus);
+
+    const refusNiveaux = verifierNiveaux(session, valeurs.niveauxApplicables, valeurs.estOfficiel);
+    if (refusNiveaux) return ko(refusNiveaux);
 
     const ligne = sanitizeAll({
       nom: valeurs.nom,
@@ -247,6 +289,9 @@ export async function modifierModele(input: unknown): Promise<ActionResult<void>
 
     const refus = await verifierPorteeElargie(session, valeurs.visibilite, modele.estOfficiel);
     if (refus) return ko(refus);
+
+    const refusNiveaux = verifierNiveaux(session, valeurs.niveauxApplicables, modele.estOfficiel);
+    if (refusNiveaux) return ko(refusNiveaux);
 
     /**
      * Regle 19 — QUATRE champs, ceux dont le formulaire est la source.

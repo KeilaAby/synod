@@ -1,3 +1,4 @@
+import { ENTITY_LEVELS, ENTITY_TYPES, type EntityType } from './hierarchy';
 import type { Permission } from './permissions';
 
 /**
@@ -934,6 +935,53 @@ export function porteeReserveeAuSiege(
   estOfficiel: boolean,
 ): boolean {
   return estOfficiel || visibilite === 'GLOBAL';
+}
+
+/**
+ * LES NIVEAUX AUXQUELS UNE ENTITE PEUT PROPOSER SON MODELE — EF-RAP-10.
+ *
+ * LE DEFAUT CORRIGE (signale le 20 aout 2026). L'ecran offrait les SIX niveaux
+ * a tout le monde : un district cochait « Siege » et « Regional », et son
+ * modele s'annoncait a des entites qui ne sont pas dans son perimetre.
+ *
+ * C'est la meme regle que le lot 6 avait deja tranchee — « une entite ne
+ * compose que pour elle-meme » — qui fuyait par une autre porte. L'entite
+ * PROPRIETAIRE ne se choisissait pas, donc elle ne pouvait pas se refuser ;
+ * mais l'ETENDUE, elle, se choisissait librement.
+ *
+ * CE QU'ON AUTORISE : son propre niveau, et ceux qui sont EN DESSOUS. Un
+ * district compose pour lui-meme et pour ses paroisses, ses eglises, ses
+ * cellules — jamais pour le Siege, qui ne lui doit rien.
+ *
+ * LE SIEGE LES OBTIENT TOUS, non par exception mais par application : il est au
+ * niveau 1, et tout est en dessous de lui.
+ *
+ * Un niveau INCONNU rend la liste vide plutot que complete : mieux vaut ne rien
+ * proposer qu'ouvrir tout sur une valeur qu'on ne sait pas lire.
+ */
+export function niveauxProposables(
+  niveauAuteur: EntityType | null | undefined,
+): readonly EntityType[] {
+  if (!niveauAuteur || !(niveauAuteur in ENTITY_LEVELS)) return [];
+
+  const plancher = ENTITY_LEVELS[niveauAuteur];
+  return ENTITY_TYPES.filter((t) => ENTITY_LEVELS[t] >= plancher);
+}
+
+/**
+ * La liste de niveaux demandee est-elle tenable pour cet auteur ?
+ *
+ * `true` sur une liste VIDE, et ce n'est pas un oubli : ne cocher aucun niveau
+ * signifie « a tous ceux que je peux atteindre », pas « a personne ». C'est deja
+ * ce que l'ecran annonce, et la RLS borne de toute facon la lecture au
+ * perimetre — ne rien restreindre n'ouvre donc rien de plus.
+ */
+export function niveauxTenables(
+  niveaux: readonly EntityType[],
+  niveauAuteur: EntityType | null | undefined,
+): boolean {
+  const permis = niveauxProposables(niveauAuteur);
+  return niveaux.every((n) => permis.includes(n));
 }
 
 // ---------------------------------------------------------------------------
