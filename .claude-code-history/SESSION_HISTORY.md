@@ -5210,3 +5210,76 @@ recopié sur chaque versement (`0027`) ; et `fn_appliquer_transfert` ne touche �
 aucune table de dîmes. La RLS suit : l'église d'origine continue de voir ce
 qu'elle a collecté après le départ du croyant — cet argent est passé par elle.
 
+
+## 21 août 2026 (suite) — Le circuit des promotions de grade, de bout en bout
+
+Migrations `0067` et `0068`. Une journée où le même sens a été écrit **à
+l'envers deux fois**, et où c'est un essai qui l'a tranché.
+
+### Le circuit
+
+**Le réglage est GLOBAL, pas par entité** — et c'est l'écart à signaler. Le
+workflow financier s'active entité par entité : chaque bureau gère ses comptes.
+Un grade ne se compare pas : il vaut dans **toute** l'organisation. Un circuit
+ouvert ici et fermé là produirait exactement l'inverse.
+
+**L'arbitre est le PARENT immédiat, figé à la demande.** Remonter plus haut
+ferait trancher le Siège des promotions de cellule ; s'arrêter à l'église ne
+serait plus une validation par un tiers.
+
+**L'anti-auto-approbation ne coûte aucune règle de plus** : le droit s'évalue
+sur l'arbitre, donc un compte borné à l'église ne le couvre pas. C'est ce qui la
+rend difficile à contourner par mégarde.
+
+### Deux gestes, comme pour le retrait d'un titulaire
+
+**Erreur de saisie** → rien n'entre dans l'historique : on a coché la mauvaise
+ligne, il ne s'est rien passé dans la vie du croyant. Un « Diacre » de trois
+jours dans la frise se lirait plus tard comme une dégradation.
+
+**Décision** → le changement s'inscrit, avec son opérateur et son validateur.
+Et **une descente se motive** : ce qui retire quelque chose à quelqu'un
+s'explique, ce qui lui en donne non.
+
+**La fenêtre de quinze jours empêche le contournement** — sans elle, « erreur
+de saisie » deviendrait la porte par laquelle on rétrograde sans rien écrire.
+
+### Le sens de l'ordre protocolaire, tranché par un essai
+
+Écrit d'abord d'après la liste, retourné sur une parole, puis **retourné à
+nouveau** : promouvoir un Croyant en Diacre déclenchait le pop-up de
+dégradation. Dans les données réelles, « Diacre » porte un `ordre` PLUS PETIT
+que « Croyant » tout en lui étant supérieur.
+
+**Sur une convention de tri, l'énoncé et la donnée peuvent diverger, et c'est la
+donnée qui a raison.** Le test verrouille désormais les DEUX directions : se
+tromper de sens exige un motif sur les promotions *et* laisse passer les
+rétrogradations sans rien — aucun des deux ne se remarque tant que personne
+n'essaie.
+
+### Un piège de typage déjà payé, et non reporté
+
+`0068` corrige `fn_decider_promotion` : `set statut = case … end` rend du
+**texte**, que PostgreSQL refuse d'affecter à une colonne énumérée. Le refus
+arrive à l'EXÉCUTION, jamais à l'écriture.
+
+Le projet le savait : `fn_saisir_collecte_dime` porte le commentaire « exige
+des types compatibles : les deux branches sont typées ». **La leçon n'avait pas
+été reportée.** Elle l'est maintenant, dans la migration : tout littéral destiné
+à une colonne énumérée se type explicitement.
+
+### La frise nomme le mouvement
+
+« Promotion de Croyant à Diacre », « Dégradation de Diacre à Croyant » — et non
+deux libellés côte à côte, qui supposeraient que le lecteur connaisse déjà la
+hiérarchie des grades. Or c'est exactement ce qu'on vient lire, des années plus
+tard, par quelqu'un qui n'était pas là.
+
+**Sans validation, la ligne « validée par » n'apparaît pas** : y écrire
+l'opérateur ferait croire à un contrôle qui n'a pas eu lieu.
+
+### L'attestation de transfert
+
+Un droit à part (`transfer.certify`), délivrée seulement sur un transfert
+**abouti**, par l'entité d'accueil. Aucun exemplaire n'est stocké : le contenu
+étant figé à l'approbation, réimprimer redonne le même document.

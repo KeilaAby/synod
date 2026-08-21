@@ -3,8 +3,17 @@
 import { revalidatePath } from 'next/cache';
 
 import { chercherDoublons, getCroyant } from '@/lib/data/croyants';
+import { listerGradesOrdonnes } from '@/lib/data/croyant-options';
 import { type NoeudEntite, getArbrePerimetre } from '@/lib/data/entities';
+import { getParametres } from '@/lib/data/settings';
 import { nomComplet, validerDatesCroyant } from '@/lib/domain/croyant';
+import {
+  JOURS_ERREUR_GRADE,
+  arbitreDePromotion,
+  correctionDeGradePossible,
+  motifDeRetrogradationManquant,
+  promotionSoumiseAValidation,
+} from '@/lib/domain/promotion';
 import { type ActionResult, ko, ok } from '@/lib/domain/result';
 import { auditer, requirePermission, requireSession } from '@/lib/session';
 import { executerAction } from './executer';
@@ -203,6 +212,100 @@ export async function modifierCroyant(input: unknown): Promise<ActionResult<void
     const dates = validerDatesCroyant(data.dateNaissance, data.dateBapteme);
     if (!dates.ok) return ko(dates.error);
 
+    /**
+     * EF-CRO-12 — LE GRADE NE SE POSE PLUS TOUJOURS ICI.
+     *
+     * Quand le circuit est ouvert, changer de grade devient une DEMANDE : elle
+     * part vers l'entite superieure, et la fiche garde son grade jusqu'a la
+     * decision. Le reste du formulaire — nom, adresse, cellule… — s'enregistre
+     * normalement dans le meme geste : bloquer toute la fiche pour un grade en
+     * attente ferait perdre une correction d'adresse.
+     *
+     * LE REGLAGE SE LIT ICI, A CHAQUE ECRITURE (regle 21). L'activer referme la
+     * porte immediatement, sans qu'aucun ecran n'ait a etre redemarre — et le
+     * lire au chargement d'un formulaire laisserait passer, pendant des heures,
+     * les onglets ouverts avant le changement.
+     */
+    const [parametres, arbre] = await Promise.all([getParametres(), getArbrePerimetre()]);
+
+    const arbitre = arbitreDePromotion(rattachement.eglise.path, arbre);
+    const promotionBrute = promotionSoumiseAValidation({
+      validationActive: parametres.promotion_grade_validation,
+      gradeActuelId: existant.grade_id,
+      gradeDemandeId: data.gradeId,
+      arbitreId: arbitre?.id ?? null,
+    });
+
+    /**
+     * EF-CRO-12 — UNE DESCENTE EN GRADE SE MOTIVE, UNE MONTEE NON.
+     *
+     * Meme principe que le retrait d'un titulaire : ce qui RETIRE quelque chose
+     * a quelqu'un se motive, ce qui lui en donne non. Une promotion se justifie
+     * d'elle-meme — on reconnait ce qui est deja la ; une retrogradation,
+     * jamais.
+     *
+     * LE CONTROLE EST ICI ET NON DANS LE SCHEMA : Zod ne connait pas le rang
+     * des grades, il faudrait charger le referentiel pour le savoir. Le rang
+     * s'evalue donc la ou l'arbre et les grades sont deja lus.
+     *
+     * Il s'applique QUE LE CIRCUIT SOIT OUVERT OU FERME : un grade descendu
+     * directement, sans validation, mérite autant son motif — c'est meme le cas
+     * ou personne d'autre ne le verra passer.
+     */
+    const grades = await listerGradesOrdonnes();
+    const changeDeGrade = existant.grade_id !== data.gradeId;
+
+    /**
+     * EF-CRO-12 — DEUX GESTES, comme pour le retrait d'un titulaire.
+     *
+     * `ERREUR` corrige une case cochee de travers : rien n'entre dans
+     * l'historique, aucune demande ne part. Un « Diacre » de trois jours
+     * inscrit au journal se lirait plus tard comme une degradation.
+     *
+     * LA FENETRE DE QUINZE JOURS EMPECHE LE CONTOURNEMENT — sans elle, « erreur
+     * de saisie » deviendrait la porte par laquelle on retrograde quelqu'un sans
+     * rien ecrire. Elle se verifie ICI : un choix masque a l'ecran ne ferme
+     * rien, la Server Action s'appelle sans passer par le formulaire.
+     *
+     * La reference est la creation de la FICHE, qui est bien le moment ou son
+     * grade a ete choisi la premiere fois.
+     */
+    const correction =
+      changeDeGrade &&
+      data.natureGrade === 'ERREUR' &&
+      correctionDeGradePossible(existant.created_at);
+
+    if (changeDeGrade && data.natureGrade === 'ERREUR' && !correction) {
+      return ko(
+        `Cette fiche a plus de ${JOURS_ERREUR_GRADE} jours : son grade ne se corrige `
+          + 'plus comme une erreur de saisie. Enregistrez le changement comme une '
+          + 'decision, en indiquant le motif s il s agit d une descente.',
+      );
+    }
+
+    if (
+      changeDeGrade &&
+      !correction &&
+      motifDeRetrogradationManquant({
+        ordreActuel: grades.get(existant.grade_id ?? ''),
+        ordreDemande: grades.get(data.gradeId),
+        motif: data.motifGrade,
+      })
+    ) {
+      return ko(
+        'Ce grade est inferieur a celui que porte la fiche : indiquez pourquoi. '
+          + 'Une montee en grade se justifie d elle-meme, une descente non.',
+        { motifGrade: ['Motif obligatoire pour une descente en grade.'] },
+      );
+    }
+
+    /**
+     * UNE CORRECTION NE PART JAMAIS EN VALIDATION. Demander à l'entité
+     * supérieure de trancher une case cochée de travers lui ferait juger une
+     * faute de frappe, et laisserait la fiche fausse en attendant.
+     */
+    const promotion = promotionBrute && !correction;
+
     const sb = await createClient();
     const { error } = await sb
       .from('croyants')
@@ -218,7 +321,9 @@ export async function modifierCroyant(input: unknown): Promise<ActionResult<void
         adresse: sanitize(data.adresse),
         // L'église ne change PAS ici : c'est un transfert (EF-TRF-01).
         cellule_id: data.celluleId ?? null,
-        grade_id: data.gradeId,
+        // EF-CRO-12 — le grade demandé attend sa décision : on laisse celui de
+        // la fiche en place, et la demande part juste après.
+        grade_id: promotion ? existant.grade_id : data.gradeId,
         nationalite_id: data.nationaliteId,
         statut: data.statut,
         // La PHOTO non plus : elle a ses propres actions (EF-CRO-09), et le
@@ -241,6 +346,84 @@ export async function modifierCroyant(input: unknown): Promise<ActionResult<void
         apres: { nom: data.nom, prenom: data.prenom, statut: data.statut },
       },
     });
+
+    /**
+     * LA DEMANDE PART APRES L'ENREGISTREMENT, et son echec n'annule rien.
+     *
+     * Regle 20 : l'etat intermediaire est-il *faux et indetectable*, ou *benin
+     * et rattrapable* ? Ici il est benin — la fiche est a jour, le grade n'a
+     * pas bouge, et il suffit de redemander. Une fonction en base serait plus
+     * lourde que le probleme.
+     *
+     * L'INDEX UNIQUE PARTIEL RATTRAPE LE RESTE : une seule demande en cours par
+     * croyant (RG-06). Renvoyer le formulaire deux fois ne cree pas deux
+     * demandes — la seconde est refusee par la base, et on le DIT plutot que
+     * de laisser croire a une promotion partie.
+     */
+    if (promotion) {
+      const { error: erreurDemande } = await sb.from('promotions_grade').insert({
+        croyant_id: data.id,
+        grade_actuel_id: existant.grade_id,
+        grade_demande_id: data.gradeId,
+        arbitre_id: arbitre!.id,
+        eglise_id: existant.eglise_id,
+        demande_par: session.profileId,
+        // Le motif de la DESCENTE, donné à la demande : l'entité supérieure se
+        // prononce SUR lui. Le lui demander à la décision la ferait juger sans
+        // savoir de quoi.
+        motif: data.motifGrade ? sanitize(data.motifGrade) : null,
+      });
+
+      if (erreurDemande) {
+        return ko(
+          erreurDemande.code === '23505'
+            ? 'Une demande de promotion est deja en attente pour ce croyant. '
+              + 'Le reste de la fiche a bien ete enregistre.'
+            : 'La fiche est enregistree, mais la demande de promotion n a pas pu partir. '
+              + 'Reessayez depuis la fiche.',
+        );
+      }
+
+      await auditer({
+        session,
+        action: 'SUBMIT',
+        table: 'promotions_grade',
+        recordId: data.id,
+        entityId: existant.eglise_id,
+        diff: { apres: { grade: data.gradeId, arbitre: arbitre!.nom } },
+      });
+    } else if (changeDeGrade && !correction) {
+      /**
+       * EF-CRO-12 — LE CHANGEMENT DIRECT S'INSCRIT AUSSI.
+       *
+       * Sans circuit de validation, le grade se pose immédiatement — mais il
+       * doit laisser la MÊME trace, sinon la fiche du croyant raconterait son
+       * parcours seulement dans les organisations qui ont activé le workflow.
+       *
+       * `decide_par` reste NULL, et c'est exact : personne n'a validé. L'y
+       * inscrire l'opérateur ferait croire à un contrôle qui n'a pas eu lieu —
+       * une signature inventée sur un registre est pire qu'une case vide.
+       *
+       * Son échec n'annule pas la fiche : le grade est posé, l'audit l'a
+       * enregistré, et il ne manque qu'une ligne de journal (règle 20 — bénin
+       * et rattrapable).
+       */
+      const { error: erreurJournal } = await sb.from('promotions_grade').insert({
+        croyant_id: data.id,
+        grade_actuel_id: existant.grade_id,
+        grade_demande_id: data.gradeId,
+        arbitre_id: arbitre?.id ?? existant.eglise_id,
+        eglise_id: existant.eglise_id,
+        demande_par: session.profileId,
+        motif: data.motifGrade ? sanitize(data.motifGrade) : null,
+        statut: 'APPROUVE',
+        date_decision: new Date().toISOString(),
+      });
+
+      if (erreurJournal) {
+        console.error('[croyants] changement de grade non journalise', erreurJournal);
+      }
+    }
 
     revalidatePath('/croyants');
     revalidatePath(`/croyants/${data.id}`);

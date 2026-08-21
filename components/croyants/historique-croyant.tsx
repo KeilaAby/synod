@@ -1,5 +1,6 @@
 import {
   ArrowRightLeft,
+  Award,
   Ban,
   Briefcase,
   Check,
@@ -38,6 +39,21 @@ function apparence(evenement: EvenementCroyant): { icone: LucideIcon; classe: st
   // n'est pas un mouvement dans la structure, c'est une responsabilite.
   if (evenement.type === 'MANDAT') {
     return { icone: Briefcase, classe: 'bg-violet-100 text-violet-700 ring-violet-200' };
+  }
+
+  /*
+    EF-CRO-12 — UN CHANGEMENT DE GRADE.
+
+    Sa TEINTE dit son issue, comme pour un transfert : ambre tant qu'on attend
+    la décision de l'entité supérieure, ardoise une fois qu'elle est prise. Un
+    refus, lui, garde l'icône du grade et non celle d'un rejet — c'est la
+    reconnaissance qui a été refusée, pas la personne, et la frise raconte un
+    parcours, pas un verdict.
+  */
+  if (evenement.type === 'GRADE') {
+    return evenement.enAttente
+      ? { icone: Award, classe: 'bg-amber-100 text-amber-700 ring-amber-200' }
+      : { icone: Award, classe: 'bg-teal-100 text-teal-700 ring-teal-200' };
   }
 
   switch (evenement.statut) {

@@ -79,6 +79,8 @@ export const parametresSchema = z.object({
 
   /** ARB-4 / EF-TRF-05 — auto-approbation des transferts internes. */
   transfertAutoApprobationInterne: z.boolean(),
+  /** EF-CRO-12 — le circuit de validation des promotions de grade. */
+  promotionGradeValidation: z.boolean(),
 
   /** EF-RAP-07 — les entites composent-elles leurs propres modeles ? */
   rapportCompositionLibre: z.boolean(),

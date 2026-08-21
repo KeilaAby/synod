@@ -2,12 +2,14 @@ import type { Metadata } from 'next';
 
 import { NouveauCroyantDialog } from '@/components/croyants/croyant-dialog';
 import { ImportCroyantsDialog } from '@/components/croyants/import-dialog';
+import { PromotionsEnAttente } from '@/components/croyants/promotions-en-attente';
 import { RapprochementsDimes } from '@/components/croyants/rapprochements-dimes';
 import { PageHeader } from '@/components/shared/page-header';
 import { chargerCroyants } from '@/lib/data/croyants';
 import { chargerPorteursDEnveloppe, chargerRapprochements } from '@/lib/data/dimes';
 import { getOptionsCroyant } from '@/lib/data/croyant-options';
 import { signerPhotos } from '@/lib/data/photos';
+import { chargerPromotionsEnAttente } from '@/lib/data/promotions';
 import { getParametres } from '@/lib/data/settings';
 import {
   FILTRES_LISTE_VIDES,
@@ -41,7 +43,8 @@ export default async function CroyantsPage({
 }) {
   const params = await searchParams;
 
-  const [lot, options, rapprochements, porteurs, parametres] = await Promise.all([
+  const [lot, options, rapprochements, porteurs, parametres, promotions] =
+    await Promise.all([
     // Le périmètre chargé se restreint à l'église choisie : c'est le seul
     // filtre qui change le VOLUME lu, et donc le seul qui reste côté serveur.
     chargerCroyants(params.eglise),
@@ -63,6 +66,13 @@ export default async function CroyantsPage({
      */
     chargerPorteursDEnveloppe(),
     getParametres(),
+    /**
+     * EF-CRO-12 — les promotions de grade qui attendent une décision.
+     *
+     * Elles sont ICI pour la même raison que les rapprochements : ce qui ATTEND
+     * passe avant ce qui se consulte, et une file invisible ne se traite jamais.
+     */
+    chargerPromotionsEnAttente(),
   ]);
 
   // EF-CRO-09 — une seule signature pour tout le lot ; aucune requête si
@@ -91,6 +101,11 @@ export default async function CroyantsPage({
 
       {/* Ce qui ATTEND passe avant ce qui se consulte : une file invisible ne
           se traite jamais. */}
+      <PromotionsEnAttente
+        promotions={promotions}
+        photos={Object.fromEntries(photos)}
+      />
+
       <RapprochementsDimes
         rapprochements={rapprochements}
         croyants={lot.lignes.map((c) => ({

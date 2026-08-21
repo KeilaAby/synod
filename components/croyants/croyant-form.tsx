@@ -33,6 +33,8 @@ import {
   STATUTS_MARITAUX,
   type StatutCroyant,
 } from '@/lib/domain/croyant';
+import { ChangementGradeDialog } from '@/components/croyants/changement-grade-dialog';
+import type { NatureChangementGrade } from '@/lib/domain/promotion';
 import { appelerAction } from '@/lib/utils/appeler-action';
 import { croyantSchema, type CroyantInput } from '@/lib/validation/croyant';
 
@@ -90,6 +92,8 @@ interface CroyantExistant {
   nationalite_id: string;
   statut: StatutCroyant;
   egliseNom: string;
+  /** EF-CRO-12 — ouvre, ou ferme, la fenetre de correction du grade. */
+  creeLe?: string;
 }
 
 /**
@@ -172,8 +176,44 @@ export function CroyantForm(props: Props) {
   const router = useRouter();
   const existant = props.mode === 'modification' ? props.croyant : null;
 
+  /**
+   * EF-CRO-12 — LE RANG D'UN GRADE EST SA POSITION DANS LA LISTE.
+   *
+   * Le referentiel arrive DEJA TRIE par `ordre` croissant (`lireGrades`), et
+   * le plus PETIT ordre est le grade le plus eleve : la liste va donc du plus
+   * haut au plus bas, et un INDICE plus grand designe un grade INFERIEUR.
+   *
+   * Le sens a ete tranche par un ESSAI, pas par un enonce — voir
+   * `estRetrogradation` dans `lib/domain/promotion.ts`.
+   *
+   * On compare des indices plutot que de faire voyager l'`ordre` jusqu'ici :
+   * la liste porte deja l'information, et un champ de plus serait un second
+   * endroit ou le meme classement pourrait diverger.
+   */
+  const rangDuGrade = (id: string | undefined) =>
+    id ? props.grades.findIndex((g) => g.id === id) : -1;
+
+  const libelleGrade = (id: string | undefined) =>
+    props.grades.find((g) => g.id === id)?.libelle ?? 'aucun grade';
+
+  /**
+   * UN GRADE INTROUVABLE NE CONCLUT A RIEN (regle 15) : il peut avoir ete
+   * retire du referentiel depuis. Exiger un motif sur une comparaison
+   * impossible ferait taper une justification pour rien.
+   */
+  const estDescente = (actuel: string | undefined, demande: string | undefined) => {
+    const a = rangDuGrade(actuel);
+    const b = rangDuGrade(demande);
+    return a >= 0 && b >= 0 && b > a;
+  };
+
   const [etape, setEtape] = useState(0);
   const [erreur, setErreur] = useState<string | null>(null);
+  /**
+   * EF-CRO-12 — la fiche qu'on s'apprete a enregistrer, en attente de savoir
+   * ce que vaut son changement de grade. Nul le reste du temps.
+   */
+  const [enAttenteGrade, setEnAttenteGrade] = useState<CroyantInput | null>(null);
   const [doublonSignale, setDoublonSignale] = useState<string | null>(null);
   const [statut, setStatut] = useState<StatutCroyant>(existant?.statut ?? 'ACTIF');
 
@@ -284,10 +324,34 @@ export function CroyantForm(props: Props) {
     avertir(echec.error);
   }
 
-  async function envoyer(valeurs: CroyantInput) {
+  async function envoyer(
+    valeurs: CroyantInput,
+    /**
+     * EF-CRO-12 — ce que le pop-up a décidé du changement de grade. Absent au
+     * premier passage : c'est justement ce qu'on va demander.
+     */
+    decisionGrade?: { nature: NatureChangementGrade; motif: string | null },
+  ) {
     setErreur(null);
 
     if (existant) {
+      /**
+       * UN CHANGEMENT DE GRADE DEMANDE D'ABORD DE QUOI IL S'AGIT.
+       *
+       * Erreur de saisie ou décision ? Les deux ne laissent pas la même trace,
+       * et deviner à la place de l'utilisateur ferait entrer dans l'historique
+       * d'un croyant une case cochée de travers — ou, à l'inverse, ferait
+       * disparaître une vraie rétrogradation.
+       *
+       * Le pop-up s'ouvre AVANT l'écriture, et c'est lui qui la relance. Sans
+       * lui, le serveur refusait une descente sans motif : un refus juste,
+       * mais devant lequel l'écran n'offrait aucun champ pour répondre.
+       */
+      if (valeurs.gradeId !== existant.grade_id && !decisionGrade) {
+        setEnAttenteGrade(valeurs);
+        return;
+      }
+
       const resultat = await appelerAction(() =>
         modifierCroyant({
           id: existant.id,
@@ -302,6 +366,8 @@ export function CroyantForm(props: Props) {
           adresse: valeurs.adresse,
           celluleId: valeurs.celluleId ?? null,
           gradeId: valeurs.gradeId,
+          natureGrade: decisionGrade?.nature ?? 'DECISION',
+          motifGrade: decisionGrade?.motif ?? null,
           nationaliteId: valeurs.nationaliteId,
           statut,
         }),
@@ -345,7 +411,7 @@ export function CroyantForm(props: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit(envoyer)} className="space-y-8" noValidate>
+    <form onSubmit={handleSubmit((v) => envoyer(v))} className="space-y-8" noValidate>
       <FriseEtapes
         etapes={ETAPES}
         courante={etape}
@@ -373,7 +439,7 @@ export function CroyantForm(props: Props) {
               onClick={() => {
                 setValue('doublonAccepte', true);
                 setDoublonSignale(null);
-                void handleSubmit(envoyer)();
+                void handleSubmit((v) => envoyer(v))();
               }}
             >
               Il s&apos;agit bien d&apos;une autre personne — créer quand même
@@ -758,6 +824,26 @@ export function CroyantForm(props: Props) {
           )}
         </div>
       </div>
+      {/*
+        EF-CRO-12 — LE POP-UP DECIDE, LE FORMULAIRE ENREGISTRE.
+
+        Il vit HORS du <form> : un <Dialog> monte a l'interieur poserait ses
+        boutons dans le formulaire, et le premier clic vaudrait soumission.
+      */}
+      <ChangementGradeDialog
+        ouvert={enAttenteGrade !== null}
+        gradeActuel={libelleGrade(existant?.grade_id)}
+        gradeDemande={libelleGrade(enAttenteGrade?.gradeId)}
+        descente={estDescente(existant?.grade_id, enAttenteGrade?.gradeId)}
+        ficheCreeeLe={existant?.creeLe ?? ''}
+        enCours={isSubmitting}
+        onAnnuler={() => setEnAttenteGrade(null)}
+        onConfirmer={(nature, motif) => {
+          const valeurs = enAttenteGrade;
+          setEnAttenteGrade(null);
+          if (valeurs) void envoyer(valeurs, { nature, motif });
+        }}
+      />
     </form>
   );
 }

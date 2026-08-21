@@ -121,6 +121,26 @@ export const modifierCroyantSchema = z.object({
   // Le rattachement se change par TRANSFERT (EF-TRF-01), pas par ce formulaire.
   celluleId: z.uuid().optional().nullable(),
   gradeId: z.uuid(),
+  /**
+   * EF-CRO-12 — POURQUOI LE GRADE DESCEND.
+   *
+   * Facultatif ICI, exige par le SERVEUR quand le nouveau grade est inferieur
+   * a l'ancien : le schema ne connait pas le rang des grades — il faudrait
+   * charger le referentiel pour le savoir, ce qu'un schema Zod ne fait pas.
+   *
+   * Le principe est celui du retrait d'un titulaire : ce qui RETIRE quelque
+   * chose a quelqu'un se motive, ce qui lui en donne non.
+   */
+  motifGrade: optionnel(z.string().trim().max(300)),
+  /**
+   * EF-CRO-12 — ERREUR DE SAISIE, OU DECISION ?
+   *
+   * `DECISION` par defaut : un formulaire ancien, ou un appel qui ne porte pas
+   * le champ, doit INSCRIRE le changement. Le defaut inverse ferait disparaitre
+   * des promotions de l'historique sans que personne ne l'ait demande — et
+   * c'est exactement ce qu'on ne rattrape pas.
+   */
+  natureGrade: z.enum(['ERREUR', 'DECISION']).default('DECISION'),
   nationaliteId: z.uuid(),
   statut: z.enum(STATUTS_CROYANT),
 });

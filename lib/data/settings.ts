@@ -25,6 +25,8 @@ export interface Parametres {
   fenetre_nouveaux_baptises_jours: number;
   /** ARB-3 — workflow de validation financiere. */
   finance_validation_active: boolean;
+  /** EF-CRO-12 — la promotion de grade passe-t-elle par l entite superieure ? */
+  promotion_grade_validation: boolean;
   separation_saisie_validation: boolean;
   /** ARB-4 / EF-TRF-05 — auto-approbation des transferts internes. */
   transfert_auto_approbation_interne: boolean;
@@ -60,6 +62,9 @@ const REPLI: Parametres = {
   fuseau_horaire: 'Indian/Antananarivo',
   fenetre_nouveaux_baptises_jours: 15,
   finance_validation_active: false,
+  // Ferme par defaut : une panne de lecture ne doit jamais OUVRIR un circuit
+  // qui n existait pas, ni le fermer pour ceux qui l ont voulu.
+  promotion_grade_validation: false,
   separation_saisie_validation: true,
   transfert_auto_approbation_interne: false,
   /**
@@ -104,6 +109,7 @@ export const getParametres = cache(async (): Promise<Parametres> => {
       'nom_organisation, devise, fuseau_horaire, fenetre_nouveaux_baptises_jours, ' +
         'finance_validation_active, separation_saisie_validation, ' +
         'transfert_auto_approbation_interne, rapport_composition_libre, ' +
+        'promotion_grade_validation, ' +
         'reinitialisation_par_email, couleur_primaire, toast_duree_ms, ' +
         'toast_bouton_fermer, toast_couleurs_vives, toast_position',
     )

@@ -76,3 +76,34 @@ export const getOptionsCroyant = cache(async () => {
     nationalites,
   };
 });
+
+/**
+ * Le RANG de chaque grade — EF-CRO-12.
+ *
+ * `ordre` est presente a l'ecran comme « ordre d'affichage », mais on range les
+ * grades comme on les nomme : Pasteur, Diacre, Evangeliste, Croyant. Cet ordre
+ * EST donc la hierarchie — un `ordre` plus petit designe un grade plus eleve.
+ * La lecture de ce champ est expliquee une seule fois, dans
+ * `lib/domain/promotion.ts` ; ici on ne fait que le rapporter.
+ *
+ * Une `Map` plutot qu'une liste : l'appelant cherche DEUX rangs precis — celui
+ * qu'on quitte et celui qu'on vise —, jamais l'ensemble.
+ *
+ * LES GRADES INACTIFS EN FONT PARTIE, et c'est voulu : la fiche d'un croyant
+ * peut porter un grade retire du referentiel depuis. L'omettre rendrait son
+ * rang inconnu, donc toute descente indetectable — exactement le cas ou le
+ * motif compte le plus.
+ */
+export async function listerGradesOrdonnes(): Promise<Map<string, number>> {
+  const sb = await createClient();
+
+  const { data, error } = await sb
+    .from('grades')
+    .select('id, ordre')
+    .returns<{ id: string; ordre: number }[]>();
+
+  // Une lecture manquee ne doit pas bloquer l'enregistrement d'une fiche : sans
+  // rang connu, aucune descente n'est detectee et rien n'est exige (regle 15).
+  if (error) return new Map();
+  return new Map((data ?? []).map((g) => [g.id, g.ordre]));
+}

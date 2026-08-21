@@ -30,7 +30,7 @@ import { DataError } from './errors';
  * changent pas le nombre de lignes lues — seulement leur largeur.
  */
 const CHAMPS_LISTE = `
-  id, matricule, nom, prenom, sexe, date_naissance, date_bapteme, statut,
+  id, matricule, nom, prenom, sexe, date_naissance, date_bapteme, statut, created_at,
   photo_key, eglise_id, cellule_id, grade_id, nationalite_id,
   statut_marital, email, telephone, adresse,
   eglise:entities!croyants_eglise_id_fkey (id, nom, code, path),
@@ -41,6 +41,14 @@ const CHAMPS_LISTE = `
 
 export interface CroyantListe {
   id: string;
+  /**
+   * EF-CRO-12 — ouvre, ou ferme, la fenêtre de correction du grade.
+   *
+   * Elle voyage avec la LISTE et pas seulement avec la fiche : sans elle, le
+   * pop-up ouvert depuis la liste n'offrirait pas la correction que la page
+   * pleine offre, pour le même geste (règle 16).
+   */
+  created_at: string;
   matricule: string;
   nom: string;
   prenom: string;

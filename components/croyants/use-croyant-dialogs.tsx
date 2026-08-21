@@ -115,6 +115,7 @@ export function useCroyantDialogs({
                   nationalite_id: aModifier.nationalite_id,
                   statut: aModifier.statut as 'ACTIF' | 'INACTIF' | 'TRANSFERE' | 'DECEDE',
                   egliseNom: aModifier.eglise?.nom ?? '—',
+                  creeLe: aModifier.created_at,
                 }}
                 urlPhoto={
                   aModifier.photo_key ? (photos[aModifier.photo_key] ?? null) : null

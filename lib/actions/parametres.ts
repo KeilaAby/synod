@@ -50,6 +50,7 @@ export async function reglerParametres(input: unknown): Promise<ActionResult<voi
       finance_validation_active: valeurs.financeValidationActive,
       separation_saisie_validation: valeurs.separationSaisieValidation,
       transfert_auto_approbation_interne: valeurs.transfertAutoApprobationInterne,
+      promotion_grade_validation: valeurs.promotionGradeValidation,
       rapport_composition_libre: valeurs.rapportCompositionLibre,
       reinitialisation_par_email: valeurs.reinitialisationParEmail,
       /**

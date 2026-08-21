@@ -18,13 +18,16 @@
 
 ## L'état de la base
 
-**Appliquées : `0001` à `0066`.** L'état qui fait foi est en tête de
+**Appliquées : `0001` à `0068`.** L'état qui fait foi est en tête de
 `notes/todos.md` — ce fichier-ci ne le répète pas deux fois.
 
-`0066` ajoute `bureau_membres.motif_retrait` : pourquoi un mandat a été
-**interrompu** avant son terme.
+- `0066` — `bureau_membres.motif_retrait` : pourquoi un mandat a été
+  **interrompu** avant son terme.
+- `0067` — le **circuit de validation des promotions de grade** : réglage
+  global, table `promotions_grade`, et `fn_decider_promotion`.
+- `0068` — corrige le typage du statut dans cette fonction.
 
-**810 tests unitaires, 40 fichiers.** `pnpm verify` vert.
+**835 tests unitaires, 41 fichiers.** `pnpm verify` vert.
 
 ---
 
@@ -38,6 +41,14 @@ propose désormais **son niveau et ceux qui en dépendent**, jamais au-dessus.
 
 **Retirer un titulaire demande lequel des deux gestes** — effacer une
 désignation fautive, ou clore un mandat avec son motif.
+
+### Promotions de grade — le circuit complet
+
+Réglage **global** (un grade vaut dans toute l'organisation), arbitre = le
+**parent immédiat** figé à la demande, deux gestes — **erreur de saisie** qui
+n'inscrit rien, **décision** qui inscrit avec opérateur et validateur —, une
+**descente motivée**, une file sur `/croyants`, et la frise du croyant qui nomme
+le mouvement : « Promotion de X à Y », « Dégradation de Y à X ».
 
 ### Attestation de transfert
 
@@ -68,6 +79,17 @@ avait d'abord été posé dans l'organigramme, au prétexte que le choix apparte
 à l'écran de composition — c'était l'inverse de la règle 16, et la conséquence
 était concrète : le même geste effaçait ici et conservait là.
 
+**Sur une convention de tri, l'énoncé et la donnée peuvent diverger, et c'est
+la donnée qui a raison.** Le sens de l'`ordre` des grades a été écrit à l'envers
+deux fois avant qu'un essai ne le tranche : le plus PETIT `ordre` est le grade
+le plus élevé. Le test verrouille les deux directions — se tromper exige un
+motif sur les promotions *et* laisse passer les rétrogradations sans rien.
+
+**Dans une fonction SQL, tout littéral destiné à une colonne énumérée se type
+explicitement.** Un `case` rend du `text`, et le refus n'arrive qu'à
+l'exécution. Le projet l'avait déjà payé sur les dîmes ; la leçon n'avait pas
+été reportée.
+
 **On n'atteste que ce qui a abouti.** Délivrer le papier d'une demande en
 attente ferait circuler un document qui affirme un transfert qui n'a pas eu
 lieu — et personne, en le lisant, ne saurait qu'il ne vaut rien.
@@ -83,9 +105,9 @@ attribuerait rétroactivement ses anciennes dîmes à sa nouvelle église.
 
 **La liste fait foi : [`notes/todos.md`](../notes/todos.md).** En tête de file :
 
-- **`/croyants`** — validation des promotions de grade ; impression de la liste
-  avec ses filtres ; **lien conjugal** époux ↔ épouse (le plus lourd : migration
-  et trigger, le lien devant rester symétrique).
+- **`/croyants`** — impression de la liste avec ses filtres ; **lien conjugal**
+  époux ↔ épouse (le plus lourd : migration et trigger, le lien devant rester
+  symétrique).
 - **Deux demandes du 21 août sur l'attestation** — qu'elle soit **consultable
   avant approbation** par l'entité réceptrice, et **configurable** par l'entité
   émettrice. Les deux sont détaillées dans la liste, avec les questions à
@@ -95,6 +117,11 @@ attribuerait rétroactivement ses anciennes dîmes à sa nouvelle église.
 - **`/administration`** — portée par droit ; profils locaux.
 - **Reporté en fin de liste** — le PDF d'un rapport, et les quatre marges
   réglables séparément.
+- **Cinq demandes du 21 août au soir**, détaillées dans la liste : l ordre
+  protocolaire de la palette de l organigramme, la **centralisation du délai
+  de 15 jours** (aujourd hui écrit à DEUX endroits), « erreur d assignation »
+  en option par défaut, la fluidité du glisser-déposer des pop-up, et l
+  épaisseur du contour de focus.
 - **Lot 8** — portabilité, recette et mise en production. Pas entamé.
 
 ### À décider par vous
@@ -112,7 +139,7 @@ attribuerait rétroactivement ses anciennes dîmes à sa nouvelle église.
 pnpm install      # installe aussi le hook pre-commit de détection de secrets
 cp .env.example .env.local   # puis renseigner : les valeurs sont dans Supabase
 pnpm exec next typegen       # sur un clone frais, AVANT le premier typecheck
-pnpm verify       # secrets + lint + types + 810 tests + build
+pnpm verify       # secrets + lint + types + 835 tests + build
 pnpm dev:propre   # cache Turbopack vidé — après toute série de modifications
 ```
 

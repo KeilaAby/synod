@@ -18,6 +18,7 @@ import { signerPhotos } from '@/lib/data/photos';
 import { getParametres } from '@/lib/data/settings';
 import { fonctionsDuCroyant } from '@/lib/data/bureaux';
 import { transfertsDuCroyant } from '@/lib/data/transferts';
+import { historiqueGradesDuCroyant } from '@/lib/data/promotions';
 import { construireHistorique } from '@/lib/domain/historique';
 import {
   LIBELLES_SEXE,
@@ -50,7 +51,7 @@ export default async function FicheCroyantPage({ params }: Params) {
 
   // Six lectures INDÉPENDANTES, donc une seule attente : ce qui coûte, c'est
   // le nombre d'allers-retours, pas leur durée (règle 28).
-  const [arbre, options, photos, transferts, mandats, versements, parametres] =
+  const [arbre, options, photos, transferts, mandats, versements, parametres, grades] =
     await Promise.all([
       getArbrePerimetre(),
       getOptionsCroyant(),
@@ -62,9 +63,13 @@ export default async function FicheCroyantPage({ params }: Params) {
       // EF-FIN-35 — ses versements de dime, avec le numero d'enveloppe du jour.
       chargerVersementsDuCroyant(croyantId),
       getParametres(),
+      // EF-CRO-12 — les changements de grade, avec leur operateur et leur
+      // validateur. Une correction de saisie ne figure pas ici : elle n a
+      // rien inscrit.
+      historiqueGradesDuCroyant(croyantId),
     ]);
 
-  const evenements = construireHistorique(croyant, transferts, mandats);
+  const evenements = construireHistorique(croyant, transferts, mandats, grades);
   const index = indexerParChemin(arbre);
   const eglise = arbre.find((e) => e.id === croyant.eglise_id);
 

@@ -14,10 +14,12 @@
 
 ## ⚠ État de la base
 
-**Appliquées : `0001` à `0065`.**
+**Appliquées : `0001` à `0067`.**
 
 | N° | Ce qu'elle apporte | Sans elle |
 |---|---|---|
+| `0068` | **Corrige `fn_decider_promotion`** : le statut passe par une variable **typée**. Dans une fonction, un `case` rend du `text` — le type de la colonne n'entre pas dans la résolution — et PostgreSQL refuse de l'affecter à une colonne énumérée. Le refus arrive à l'**exécution**, jamais à l'écriture. | Le bouton « Approuver » échoue : « column statut is of type statut_promotion but expression is of type text » |
+| `0067` | Le **circuit de validation des promotions de grade** : réglage global, table `promotions_grade`, et `fn_decider_promotion` qui pose le grade en approuvant | Un grade se pose seul, sans que personne au-dessus ne le confirme — alors qu il vaut dans toute l organisation |
 | `0066` | `bureau_membres.motif_retrait` — pourquoi un mandat a été **interrompu** avant son terme | Un retrait en cours de mandat reste sans raison écrite, et c'est exactement ce qu'on cherchera dans dix ans |
 
 C'est **cette ligne** qui fait foi — pas le numéro le plus élevé de
@@ -120,9 +122,59 @@ l'éditeur SQL Supabase et le confirme.
       restent en queue dans les deux sens** — une cellule vide n'est pas une
       petite valeur. Deux états seulement, pas trois : un « aucun tri » rendrait
       un ordre qu'aucun chevron n'explique.
-- [ ] **Validation de la promotion de grade par une entité supérieure.**
-      Workflow à activer ou non dans les paramètres généraux (règle 21 : le
-      réglage se lit à chaque rendu, jamais codé en dur).
+- [x] **Validation de la promotion de grade par une entité supérieure.**
+      *(21 août 2026, migration `0067` — socle et circuit livrés.)*
+
+      **Le réglage est GLOBAL, pas par entité**, et c'est l'écart à signaler.
+      Le workflow financier s'active entité par entité (chaque bureau gère ses
+      comptes) ; un grade ne se compare pas : il vaut dans **toute**
+      l'organisation. « Pasteur à Antananarivo » et « Pasteur à Toamasina »
+      doivent désigner la même chose. Un circuit ouvert ici et fermé là
+      produirait exactement l'inverse.
+
+      **Fermé par défaut** : cette règle n'invalide pas les organisations qui
+      n'en veulent pas. Et le réglage se lit **à chaque écriture** (règle 21) —
+      l'activer referme la porte immédiatement, sans qu'aucun écran n'ait à
+      être redémarré ; le lire au chargement d'un formulaire laisserait passer,
+      pendant des heures, les onglets ouverts avant le changement.
+
+      **L'arbitre est le PARENT immédiat, figé à la demande.** Remonter plus
+      haut ferait trancher le Siège des promotions de cellule ; s'arrêter à
+      l'église ne serait plus une validation par un tiers. Le figer évite qu'une
+      réorganisation change, après coup, qui était compétent.
+
+      **L'anti-auto-approbation ne coûte aucune règle de plus** : le droit
+      s'évalue sur l'arbitre, donc un compte borné à l'église ne le couvre pas.
+      C'est ce qui la rend difficile à contourner par mégarde.
+
+      **`croyant.grade.approve` est un droit distinct** — mais *demander* reste
+      sous `croyant.update` : c'est le même geste qu'avant le circuit, seul
+      change qui tranche. On ne crée pas un droit pour un geste inchangé.
+
+      **La fiche s'enregistre quand même** : seul le grade attend. Bloquer toute
+      la fiche pour une promotion en attente ferait perdre une correction
+      d'adresse.
+
+      **Une seule demande en cours par croyant** (index partiel, RG-06) : deux
+      demandes ouvertes laisseraient trancher deux fois, et le second verdict
+      écraserait le premier.
+
+      **Approuver POSE le grade dans la même transaction** (`fn_decider_promotion`,
+      règle 20) : l'un sans l'autre laisserait une promotion accordée qui n'a
+      rien changé, ou un grade posé dont la demande reste ouverte.
+
+      **Un refus se motive, une approbation non** : approuver confirme ce que la
+      demande disait déjà ; refuser dit le contraire.
+
+      **Reste à faire — l'écran de la file.** Le socle est complet et testé
+      (domaine, migration, actions `deciderPromotion` et `retirerPromotion`,
+      réglage monté dans les paramètres généraux), mais **aucun écran ne
+      présente encore les demandes en attente** à l'entité supérieure. Le patron
+      existe : la file des transferts (`/transferts`) fait exactement cela — le
+      journal restreint à ce que l'utilisateur peut réellement trancher.
+      À prévoir aussi : la fiche du croyant doit **dire qu'une promotion est en
+      attente**, sinon on croira que le changement n'a pas été enregistré.
+
 - [x] **La liste des versements sans fiche** devient la base des croyants non
       rattachés, et se replie. *(20 août 2026)* — le bandeau porte désormais
       « N personnes non rattachées » et **ne se replie jamais** : replier
@@ -833,6 +885,67 @@ soldes consolidés — la décision a déjà été prise et tenue une fois.
       rouvert.
 
 ---
+
+---
+
+## 10. Demandes du 21 août 2026 (soir)
+
+- [ ] **Organigramme d'un bureau : la palette « Fonctions à poser » ignore
+      l'ordre protocolaire.** Elle doit suivre celui configuré dans les
+      référentiels — le même que la composition tabulaire.
+      *À vérifier avant d'écrire :* la colonne existe
+      (`fonctions.ordre_protocolaire`, migration `0061`) et le référentiel se
+      range au glisser-déposer. Le défaut est donc probablement dans la lecture
+      ou dans un tri appliqué après coup, pas dans le schéma. **Ne pas retrier
+      en mémoire dans le composant** si la requête peut le faire : deux ordres,
+      l'un dans la requête l'autre dans l'écran, finissent par diverger.
+
+- [ ] **Centraliser le délai de 15 jours dans Administration.**
+      Il vaut aujourd'hui pour **deux** gestes, écrits chacun de leur côté :
+      `JOURS_ERREUR_ASSIGNATION` (retrait d'un titulaire, `lib/domain/bureau.ts`)
+      et `JOURS_ERREUR_GRADE` (changement de grade, `lib/domain/promotion.ts`).
+      **C'est déjà une règle écrite à deux endroits** — exactement ce que le
+      projet a payé avec `bureau.delete`, non délégable en TypeScript et
+      délégable en SQL.
+      *Ce que cela demande :* une colonne
+      `organisation_settings.jours_correction_saisie`, un réglage à l'écran, et
+      les deux constantes qui disparaissent au profit du paramètre **lu à chaque
+      rendu** (règle 21).
+      *Le point à ne pas manquer :* le délai borne un **effacement**. Une valeur
+      lue au chargement d'un formulaire laisserait, pendant des heures, des
+      onglets ouverts avant le changement continuer d'effacer sous l'ancienne
+      règle.
+
+- [ ] **« Erreur d'assignation » devient l'option PAR DÉFAUT.**
+      Elle n'est proposée que dans la limite du délai : quand elle apparaît,
+      c'est qu'on est encore dans la fenêtre de correction, et la correction est
+      alors le cas le plus probable.
+      *Vaut pour les deux pop-up* — retrait d'un titulaire
+      (`retrait-dialog.tsx`) et changement de grade
+      (`changement-grade-dialog.tsx`), qui initialisent tous deux `DECISION`.
+      *Le risque à peser :* le défaut actuel est le plus **conservateur** —
+      `DECISION` conserve l'historique, `ERREUR` l'efface. Basculer le défaut
+      fait qu'un clic distrait efface au lieu d'inscrire. La fenêtre de quinze
+      jours est ce qui rend le pari acceptable ; si le délai devient réglable et
+      qu'on le porte à six mois, **il faudra rouvrir cette décision**.
+
+- [ ] **Le glisser-déposer des pop-up n'est pas fluide : la souris « lâche ».**
+      *Piste à vérifier en premier :* le geste s'appuie-t-il sur
+      `setPointerCapture` ? Sans capture, le navigateur perd le pointeur dès
+      qu'il sort de l'élément — c'est exactement le symptôme décrit. Le projet
+      s'en sert déjà ailleurs (poignée de redimensionnement de l'aperçu A4).
+      *Et vérifier ensuite :* un `setState` par image de déplacement fait
+      re-rendre tout le pop-up à chaque pixel. C'est le défaut qui avait été
+      corrigé sur l'organigramme — *ce qui bouge en continu appartient à la
+      bibliothèque qui l'anime ; on ne le lui reprend qu'à la fin du geste.*
+
+- [ ] **Réduire l'épaisseur du contour de focus des champs.**
+      Il vit dans `globals.css` (jeton `--ring`, et l'épaisseur posée par les
+      classes `focus-visible:ring-*`). **Un seul endroit**, pas écran par écran.
+      *La borne à ne pas franchir :* le contour doit rester **visible au
+      clavier** — c'est lui qui dit où l'on est quand on navigue sans souris, et
+      §18.3 l'exige. L'amincir, oui ; le supprimer, non.
+
 
 ## Ce qui attend une réponse de l'utilisateur
 

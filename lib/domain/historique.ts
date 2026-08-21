@@ -1,4 +1,5 @@
 import { type EntityType, designerEntite } from './hierarchy';
+import { estRetrogradation } from './promotion';
 import type { StatutTransfert } from './transfert';
 
 /**
@@ -15,7 +16,7 @@ import type { StatutTransfert } from './transfert';
  * frappe.
  */
 
-export type TypeEvenement = 'CREATION' | 'BAPTEME' | 'TRANSFERT' | 'MANDAT';
+export type TypeEvenement = 'CREATION' | 'BAPTEME' | 'TRANSFERT' | 'MANDAT' | 'GRADE';
 
 export interface EvenementCroyant {
   readonly cle: string;
@@ -56,6 +57,38 @@ export interface CroyantHistorique {
 }
 
 /** EF-BUR-10 — une fonction occupee, telle qu'elle se lit sur la frise. */
+/**
+ * EF-CRO-12 — un changement de grade, tel que la frise le lit.
+ *
+ * LES DEUX GRADES SONT LA, pas seulement le nouveau : « Diacre » seul ne dit
+ * pas si c'est une montee, une correction ou une descente. Les deux ensemble
+ * se lisent des annees plus tard, quand la fiche porte deja autre chose.
+ *
+ * L'OPERATEUR ET LE VALIDATEUR SONT DEUX PERSONNES DIFFERENTES, et la frise
+ * les nomme toutes les deux : c'est tout l'objet du circuit. `decideur` reste
+ * nul quand aucune validation n'a eu lieu — l'y mettre l'operateur ferait
+ * croire a un controle qui ne s'est pas produit.
+ */
+export interface GradeHistorique {
+  id: string;
+  statut: string;
+  date_demande: string;
+  date_decision: string | null;
+  motif: string | null;
+  motif_refus: string | null;
+  /**
+   * `ordre` accompagne le libelle, et il n'est pas decoratif : sans lui, la
+   * frise dirait « Grade : Croyant vers Diacre » sans pouvoir nommer le
+   * MOUVEMENT. Or c'est le mouvement qu'on lit — promotion ou degradation —,
+   * et deux libelles cote a cote ne le disent qu'a qui connait deja la
+   * hierarchie des grades.
+   */
+  gradeActuel: { libelle: string; ordre: number } | null;
+  gradeDemande: { libelle: string; ordre: number } | null;
+  demandeur: { nom_complet: string } | null;
+  decideur: { nom_complet: string } | null;
+}
+
 export interface MandatHistorique {
   id: string;
   date_debut: string;
@@ -135,6 +168,8 @@ export function construireHistorique(
   croyant: CroyantHistorique,
   transferts: readonly TransfertHistorique[],
   mandats: readonly MandatHistorique[] = [],
+  /** EF-CRO-12 — les changements de grade DÉCIDÉS. Voir plus bas. */
+  grades: readonly GradeHistorique[] = [],
 ): EvenementCroyant[] {
   const evenements: EvenementCroyant[] = [
     {
@@ -213,6 +248,76 @@ export function construireHistorique(
         : `depuis le ${jour(m.date_debut)} : ${fonction}`,
       // Un mandat clos n'est pas « en attente » : il a bien eu lieu.
       enAttente: false,
+    });
+  }
+
+  /**
+   * EF-CRO-12 — LES CHANGEMENTS DE GRADE.
+   *
+   * ILS NE FIGURENT QUE S'ILS ONT ETE DECIDES. Une correction de saisie ne
+   * s'inscrit jamais : il ne s'est rien passe dans la vie du croyant, on a
+   * coche la mauvaise ligne. Un « Diacre » de trois jours dans cette frise se
+   * lirait plus tard comme une degradation, et personne ne saurait dire le
+   * contraire.
+   *
+   * UN REFUS S'INSCRIT AUSSI, et c'est voulu : une promotion demandee puis
+   * refusee fait partie du parcours, et son motif explique la suite. La
+   * taire donnerait une frise ou il ne s'est jamais rien passe entre deux
+   * grades.
+   */
+  for (const g of grades) {
+    if (g.statut === 'ANNULE') continue;
+
+    const de = g.gradeActuel?.libelle ?? 'aucun grade';
+    const vers = g.gradeDemande?.libelle ?? 'un grade';
+    const decide = g.statut === 'APPROUVE';
+    const attente = g.statut === 'DEMANDE';
+
+    /**
+     * LA FRISE NOMME LE MOUVEMENT, PAS SEULEMENT LES DEUX GRADES.
+     *
+     * « Croyant vers Diacre » suppose que le lecteur connaisse la hierarchie
+     * des grades pour savoir si la personne est montee ou descendue. Or c'est
+     * exactement ce qu'on vient lire, et cela se lit des annees plus tard, par
+     * quelqu'un qui n'etait pas la.
+     *
+     * `estRetrogradation` porte la comparaison, une seule fois pour toute
+     * l'application : le sens de l'`ordre` a deja ete tranche la-bas, par un
+     * essai, et le redire ici le ferait diverger le jour ou il change.
+     */
+    const descente = estRetrogradation(g.gradeActuel?.ordre, g.gradeDemande?.ordre);
+    const mouvement = descente ? 'Dégradation' : 'Promotion';
+
+    /**
+     * QUI A FAIT QUOI — la question du circuit.
+     *
+     * L'operateur a demande, le validateur a tranche. Quand personne n'a
+     * valide — circuit ferme —, on ne nomme QUE l'operateur : ecrire
+     * « validee par » son propre nom ferait croire a un controle qui
+     * n'a pas eu lieu.
+     */
+    const parQui = [
+      g.demandeur ? `demandee par ${g.demandeur.nom_complet}` : null,
+      g.decideur ? `validee par ${g.decideur.nom_complet}` : null,
+    ]
+      .filter(Boolean)
+      .join(', ');
+
+    evenements.push({
+      cle: `grade:${g.id}`,
+      // La date de DECISION situe le changement : le grade a change ce
+      // jour-la. Une demande en attente n'a que sa date de demande.
+      date: g.date_decision ?? g.date_demande,
+      type: 'GRADE',
+      titre: attente
+        ? `${mouvement} demandée : de ${de} à ${vers}`
+        : decide
+          ? `${mouvement} de ${de} à ${vers}`
+          : `${mouvement} refusée : de ${de} à ${vers}`,
+      detail: parQui || undefined,
+      // Le motif du REFUS prime : c est lui qui explique l issue.
+      note: g.motif_refus ?? g.motif ?? undefined,
+      enAttente: attente,
     });
   }
 

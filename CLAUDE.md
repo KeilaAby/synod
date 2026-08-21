@@ -591,7 +591,7 @@ aucune table de dîmes. La RLS suit : l'église d'origine continue de voir ce
 qu'elle a collecté après le départ du croyant — cet argent est passé par elle.
 
 
-Base à jour jusqu'à la migration `0066`. Fuseau
+Base à jour jusqu'à la migration `0068`. Fuseau
 `Indian/Antananarivo` (UTC+3).
 **Toute migration qui crée ou remplace
 une fonction doit finir par `notify pgrst, 'reload schema'`** : sans lui, l'API

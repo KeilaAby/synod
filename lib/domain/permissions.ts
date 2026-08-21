@@ -131,6 +131,24 @@ export const PERMISSIONS = {
     description:
       "Editer le document officiel d'un transfert approuve, sous l'en-tete de l'entite.",
   },
+  /**
+   * EF-CRO-12 — DECIDER N'EST PAS DEMANDER.
+   *
+   * Demander une promotion reste sous `croyant.update` : c'est le meme geste
+   * qu'avant le circuit, seul change qui tranche. Approuver, en revanche,
+   * engage l'organisation entiere — un grade vaut partout, « Pasteur » doit
+   * designer la meme chose d'une eglise a l'autre.
+   *
+   * La PORTEE fait le reste : ce droit s'evalue sur l'entite SUPERIEURE figee a
+   * la demande, si bien qu'un compte borne a l'eglise ne peut pas s'approuver
+   * lui-meme. Aucune regle de plus a ecrire pour cela.
+   */
+  'croyant.grade.approve': {
+    label: 'Approuver une promotion de grade',
+    group: 'Croyants',
+    description:
+      "Trancher les demandes de changement de grade des entites qui dependent de vous.",
+  },
   'bapteme.create': {
     label: 'Saisir un nouveau baptise',
     group: 'Croyants',
@@ -501,6 +519,7 @@ export const ROLE_TEMPLATES: Record<UserRole, readonly Permission[]> = {
     'croyant.transfer',
     'transfer.approve',
     'transfer.certify',
+    'croyant.grade.approve',
     'bapteme.create',
     'bureau.read',
     'bureau.manage',

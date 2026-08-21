@@ -100,6 +100,7 @@ export function ParametresClient({ parametres }: { parametres: Parametres }) {
     financeValidationActive: parametres.finance_validation_active,
     separationSaisieValidation: parametres.separation_saisie_validation,
     transfertAutoApprobationInterne: parametres.transfert_auto_approbation_interne,
+    promotionGradeValidation: parametres.promotion_grade_validation,
     rapportCompositionLibre: parametres.rapport_composition_libre,
     reinitialisationParEmail: parametres.reinitialisation_par_email,
     couleurPrimaire: parametres.couleur_primaire,
@@ -266,6 +267,22 @@ export function ParametresClient({ parametres }: { parametres: Parametres }) {
             onBascule={(v) => poser({ transfertAutoApprobationInterne: v })}
             titre="Auto-approbation des transferts internes"
             texte="Un transfert entre deux églises d’une même paroisse est approuvé sans décision. Les autres passent toujours par le circuit."
+          />
+
+          {/*
+            EF-CRO-12 — LE RÉGLAGE EST GLOBAL, PAS PAR ENTITÉ.
+
+            Le workflow financier s'active entité par entité : chaque bureau
+            gère ses comptes. Un grade ne se compare pas — il vaut dans TOUTE
+            l'organisation. « Pasteur » doit désigner la même chose d'une église
+            à l'autre, et un circuit ouvert ici, fermé là, produirait exactement
+            l'inverse.
+          */}
+          <Bascule
+            coche={valeurs.promotionGradeValidation}
+            onBascule={(v) => poser({ promotionGradeValidation: v })}
+            titre="Validation des promotions de grade"
+            texte="Changer le grade d’un croyant devient une demande, tranchée par l’entité immédiatement supérieure. Fermé, le grade se pose directement."
           />
         </Groupe>
 
