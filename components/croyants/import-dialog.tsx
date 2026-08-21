@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 
 import { Field } from '@/components/shared/field';
 import { PermissionGate } from '@/components/shared/permission-gate';
+import { TelechargerCanevas } from '@/components/shared/telecharger-canevas';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -41,6 +42,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { importerCroyants, type ResultatImport } from '@/lib/actions/import-croyants';
+import { CANEVAS_CROYANTS } from '@/lib/domain/canevas-import';
 import { lireCsv, separerEntetes } from '@/lib/domain/csv';
 import {
   type Correspondance,
@@ -226,11 +228,35 @@ export function ImportCroyantsDialog() {
                 <Alert>
                   <Download className="size-4" aria-hidden />
                   <AlertTitle>Aucun modèle à respecter</AlertTitle>
-                  <AlertDescription>
-                    Vos colonnes peuvent être dans n’importe quel ordre et porter vos
-                    propres intitulés : l’étape suivante vous demandera à quoi elles
-                    correspondent. Les églises, grades et nationalités se reconnaissent
-                    par leur nom ou par leur code.
+                  <AlertDescription className="space-y-3">
+                    <span className="block">
+                      Vos colonnes peuvent être dans n’importe quel ordre et porter vos
+                      propres intitulés : l’étape suivante vous demandera à quoi elles
+                      correspondent. Les églises, grades et nationalités se reconnaissent
+                      par leur nom ou par leur code.
+                    </span>
+
+                    {/*
+                      LE CANEVAS EST UNE AMORCE, PAS UNE CONTRAINTE — et l'encart
+                      le dit dans cet ordre : « aucun modèle à respecter »
+                      d'abord, le canevas ensuite.
+
+                      L'inverse ferait croire à un format imposé, et quelqu'un
+                      qui possède déjà son fichier le recopierait colonne par
+                      colonne dans le nôtre — exactement le travail que
+                      l'import a été conçu pour lui épargner.
+
+                      Il sert le cas où le fichier N'EXISTE PAS ENCORE : là,
+                      « aucun modèle » ne dit pas par où commencer.
+                    */}
+                    <span className="block">
+                      <TelechargerCanevas canevas={CANEVAS_CROYANTS} />
+                      <span className="text-muted-foreground mt-2 block text-xs">
+                        Si vous partez de zéro : les colonnes attendues, les
+                        obligatoires marquées d’une étoile, deux lignes d’exemple et
+                        un guide de remplissage.
+                      </span>
+                    </span>
                   </AlertDescription>
                 </Alert>
               </div>

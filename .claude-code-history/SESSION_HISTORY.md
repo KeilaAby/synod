@@ -5283,3 +5283,65 @@ l'opérateur ferait croire à un contrôle qui n'a pas eu lieu.
 Un droit à part (`transfer.certify`), délivrée seulement sur un transfert
 **abouti**, par l'entité d'accueil. Aucun exemplaire n'est stocké : le contenu
 étant figé à l'approbation, réimprimer redonne le même document.
+
+## 21 août 2026 (fin) — Les canevas d'import
+
+Deux classeurs Excel téléchargeables depuis les pop-up d'import, pour répondre à
+une question que « aucun modèle à respecter » laissait sans réponse : **par où
+commencer quand le fichier n'existe pas encore ?**
+
+### Ce que le canevas ne doit pas devenir
+
+Une contrainte. L'import a été conçu pour lire le fichier que l'utilisateur
+**possède déjà**, dans ses colonnes et son ordre — et proposer un modèle risque
+exactement de défaire cela : quelqu'un qui tient sa feuille depuis dix ans la
+recopierait colonne par colonne dans la nôtre.
+
+D'où l'ordre du texte dans l'encart : « aucun modèle à respecter » **d'abord**,
+le canevas ensuite, sous « si vous partez de zéro ».
+
+### Deux feuilles, et l'ordre est une règle
+
+« Saisie » d'abord — en-têtes en première ligne, rien au-dessus. Le lecteur
+d'import prend la **première feuille déclarée** et sa première ligne pour les
+en-têtes : un titre posé là deviendrait le nom des colonnes, et poser le guide
+en tête importerait le mode d'emploi à la place des données.
+
+Le guide vit donc dans la seconde feuille, où le lecteur ne le voit pas.
+
+### L'étoile est dans l'en-tête, pas seulement dans le guide
+
+Le saisiste travaille dans la feuille de saisie : c'est là qu'il doit voir ce
+qui est exigé. Une consigne rangée ailleurs demande de se souvenir qu'elle
+existe.
+
+Le risque était réel et il est testé : si « Nom * » cessait d'être reconnu comme
+« Nom », le canevas imposerait treize choix manuels à chaque import — il aurait
+rendu l'import plus pénible qu'un fichier quelconque. Vérifié : **13 sur 13** et
+**5 sur 5**.
+
+### Fabriqué au clic, jamais servi depuis `public/`
+
+Un `.xlsx` déposé dans `public/` est une copie. Le jour où une colonne devient
+facultative, le code le sait et le fichier l'ignore — et c'est le fichier que le
+saisiste remplit.
+
+Le classeur est donc construit à partir des **mêmes registres** que l'import,
+`DESCRIPTION_CHAMPS` et `DESCRIPTION_VERSEMENT`. Un test compare les deux
+listes : il a immédiatement attrapé une divergence réelle — une apostrophe
+typographique dans « N° d'enveloppe » là où le registre en porte une droite.
+C'est le genre d'écart qui ne se voit pas et qui fait échouer un import de trois
+cents lignes.
+
+### Un premier jet dupliquait ce qu'il devait servir
+
+Le script `pnpm canevas` avait d'abord recopié les colonnes, l'aide et les notes
+— un **troisième endroit** où vivaient les règles d'import, après le domaine qui
+les applique et l'écran qui les annonce. Le contenu est descendu dans
+`lib/domain/canevas-import.ts`, et le script comme les deux pop-up le lisent.
+Le test a suivi : il compare des objets au lieu de gratter une chaîne de
+caractères.
+
+`ecrireClasseurXlsx` a été ajouté à l'écrivain XLSX pour les feuilles multiples ;
+`ecrireXlsx` en devient un appel à une seule feuille, et aucun appelant existant
+ne change.

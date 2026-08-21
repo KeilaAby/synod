@@ -52,6 +52,33 @@ l'éditeur SQL Supabase et le confirme.
       **Aucun exemplaire n'est stocké** : le contenu étant figé à l'approbation,
       réimprimer redonne le même document (même doctrine que les rapports).
 
+- [x] **Canevas Excel téléchargeables depuis les deux pop-up d'import.**
+      *(21 août 2026, sans migration.)*
+      Un bouton dans « Importer des croyants » et dans « Importer une feuille de
+      versements ». Le classeur porte **deux feuilles** : « Saisie » —
+      importable telle quelle, en-têtes en première ligne — et « Guide de
+      remplissage ». L'ordre n'est pas décoratif : le lecteur d'import prend la
+      **première feuille déclarée**, et poser le guide en tête importerait le
+      mode d'emploi à la place des données.
+      **L'étoile marque l'obligatoire DANS L'EN-TÊTE**, pas seulement dans le
+      guide : le saisiste travaille dans la feuille de saisie, et une consigne
+      rangée ailleurs demande de se souvenir qu'elle existe. Un test vérifie
+      qu'elle ne casse pas la reconnaissance automatique des colonnes — sinon le
+      canevas imposerait treize choix manuels à chaque import, et il aurait rendu
+      l'import plus pénible qu'un fichier quelconque.
+      **Le classeur se fabrique au clic**, il n'est pas servi depuis `public/` :
+      un fichier déposé là serait une copie que le code ne met pas à jour — et
+      c'est le fichier que le saisiste remplit. Il est construit à partir des
+      **mêmes registres** que l'import, et un test compare les deux listes.
+      **Le canevas reste une AMORCE, jamais une contrainte** : l'encart dit
+      « aucun modèle à respecter » AVANT de proposer le fichier. L'ordre inverse
+      ferait croire à un format imposé, et quelqu'un qui possède déjà sa feuille
+      la recopierait colonne par colonne — le travail exact que cet import lui
+      épargne.
+      `pnpm canevas` les écrit aussi sur disque, pour les joindre à un courriel
+      sans ouvrir l'application. Ils ne sont **pas versionnés**, pour la même
+      raison qu'ils ne vivent pas dans `public/`.
+
 ### Demandes du 21 août 2026 — sur l'attestation
 
 - [ ] **Le document doit être consulté par l'entité RÉCEPTRICE avant toute

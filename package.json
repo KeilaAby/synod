@@ -19,7 +19,8 @@
     "format:check": "prettier --check .",
     "verify": "pnpm check:secrets && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "check:secrets": "node scripts/check-secrets.mjs --all",
-    "prepare": "git config core.hooksPath .githooks || exit 0"
+    "prepare": "git config core.hooksPath .githooks || exit 0",
+    "canevas": "tsx scripts/generer-canevas-import.ts"
   },
   "dependencies": {
     "@dagrejs/dagre": "^3.1.0",

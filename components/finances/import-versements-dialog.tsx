@@ -1,12 +1,20 @@
 'use client';
 
-import { AlertCircle, CircleCheck, FileSpreadsheet, Loader2, Upload } from 'lucide-react';
+import {
+  AlertCircle,
+  CircleCheck,
+  Download,
+  FileSpreadsheet,
+  Loader2,
+  Upload,
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Field } from '@/components/shared/field';
 import { avertir } from '@/components/shared/messages';
+import { TelechargerCanevas } from '@/components/shared/telecharger-canevas';
 import { EntityPicker, type OptionEntite } from '@/components/structure/entity-picker';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -38,6 +46,7 @@ import {
   type ResultatImportVersements,
   importerVersementsDime,
 } from '@/lib/actions/dimes';
+import { CANEVAS_DIMES } from '@/lib/domain/canevas-import';
 import { lireCsv, separerEntetes } from '@/lib/domain/csv';
 import { EVENEMENTS_DIME, LIBELLES_EVENEMENT } from '@/lib/domain/dime';
 import {
@@ -231,24 +240,61 @@ export function ImportVersementsDialog({
 
             {/* --- 1. Le dépôt --- */}
             {etape === 'depot' && (
-              <Field
-                label="Fichier"
-                required
-                hint="CSV, ou XLSX à une seule feuille. Rien n’est écrit à ce stade."
-              >
-                {(aria) => (
-                  <Input
-                    {...aria}
-                    type="file"
-                    accept=".csv,.xlsx,text/csv"
-                    className="h-10"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) void deposer(f);
-                    }}
-                  />
-                )}
-              </Field>
+              <div className="space-y-6">
+                <Field
+                  label="Fichier"
+                  required
+                  hint="CSV, ou XLSX à une seule feuille. Rien n’est écrit à ce stade."
+                >
+                  {(aria) => (
+                    <Input
+                      {...aria}
+                      type="file"
+                      accept=".csv,.xlsx,text/csv"
+                      className="h-10"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) void deposer(f);
+                      }}
+                    />
+                  )}
+                </Field>
+
+                {/*
+                  LE CANEVAS EST UNE AMORCE, PAS UNE CONTRAINTE — et l'ordre du
+                  texte le dit : « aucun modèle imposé » d'abord, le canevas
+                  ensuite. L'inverse ferait croire à un format obligatoire, et
+                  quelqu'un qui tient déjà sa feuille la recopierait colonne par
+                  colonne — exactement le travail que cet import lui épargne.
+
+                  ICI PLUS QU'AILLEURS, la règle mérite d'être annoncée : le
+                  MONTANT est le seul champ obligatoire, parce qu'une ligne
+                  représente de l'argent déjà reçu. Un trésorier qui croit devoir
+                  remplir chaque colonne écarte des enveloppes anonymes qui
+                  auraient dû compter.
+                */}
+                <Alert>
+                  <Download className="size-4" aria-hidden />
+                  <AlertTitle>Aucun modèle imposé</AlertTitle>
+                  <AlertDescription className="space-y-3">
+                    <span className="block">
+                      Vos colonnes peuvent être dans n’importe quel ordre : l’étape
+                      suivante vous demandera à quoi elles correspondent. Le{' '}
+                      <strong>montant est le seul champ obligatoire</strong> — une
+                      enveloppe sans nom compte quand même, et un nom inconnu part en
+                      rapprochement plutôt que d’être rejeté.
+                    </span>
+
+                    <span className="block">
+                      <TelechargerCanevas canevas={CANEVAS_DIMES} />
+                      <span className="text-muted-foreground mt-2 block text-xs">
+                        Si vous partez de zéro : les colonnes attendues, quatre lignes
+                        d’exemple et un guide de remplissage.
+                      </span>
+                    </span>
+                  </AlertDescription>
+                </Alert>
+              </div>
             )}
 
             {/* --- 2. La correspondance, et l'en-tête de la collecte --- */}

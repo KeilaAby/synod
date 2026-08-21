@@ -66,3 +66,10 @@ next-env.d.ts
 # `git add -A` les y emmene sans qu'on le remarque.
 /*.csv
 /*.xlsx
+
+# Canevas d import ECRITS PAR pnpm canevas.
+# Ils sont GENERES a partir de lib/domain/canevas-import.ts, et l application
+# les fabrique deja au clic. Les versionner en ferait une copie qui vieillit :
+# le jour ou une colonne devient facultative, le depot servirait encore
+# l ancienne — et c est le fichier que le saisiste remplit.
+/canevas/
