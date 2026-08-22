@@ -18,7 +18,7 @@ import { signerPhotos } from '@/lib/data/photos';
 import { getParametres } from '@/lib/data/settings';
 import { fonctionsDuCroyant } from '@/lib/data/bureaux';
 import { transfertsDuCroyant } from '@/lib/data/transferts';
-import { historiqueGradesDuCroyant } from '@/lib/data/promotions';
+import { historiqueGradesDuCroyant, promotionDuCroyant } from '@/lib/data/promotions';
 import { construireHistorique } from '@/lib/domain/historique';
 import {
   LIBELLES_SEXE,
@@ -49,9 +49,9 @@ export default async function FicheCroyantPage({ params }: Params) {
   const croyant = await getCroyant(croyantId);
   if (!croyant) notFound();
 
-  // Six lectures INDÉPENDANTES, donc une seule attente : ce qui coûte, c'est
+  // Sept lectures INDÉPENDANTES, donc une seule attente : ce qui coûte, c'est
   // le nombre d'allers-retours, pas leur durée (règle 28).
-  const [arbre, options, photos, transferts, mandats, versements, parametres, grades] =
+  const [arbre, options, photos, transferts, mandats, versements, parametres, grades, promotion] =
     await Promise.all([
       getArbrePerimetre(),
       getOptionsCroyant(),
@@ -67,6 +67,9 @@ export default async function FicheCroyantPage({ params }: Params) {
       // validateur. Une correction de saisie ne figure pas ici : elle n a
       // rien inscrit.
       historiqueGradesDuCroyant(croyantId),
+      // EF-CRO-12 — sans elle, le circuit est incomprehensible : on change le
+      // grade, on enregistre, et la fiche affiche toujours l'ancien.
+      promotionDuCroyant(croyantId),
     ]);
 
   const evenements = construireHistorique(croyant, transferts, mandats, grades);
@@ -214,7 +217,24 @@ export default async function FicheCroyantPage({ params }: Params) {
                 libelle="Cellule de prière"
                 valeur={croyant.cellule?.nom ?? 'Aucune'}
               />
-              <Donnee libelle="Grade" valeur={croyant.grade?.libelle ?? '—'} />
+              <div className="space-y-1">
+                <dt className="text-xs text-muted-foreground">Grade</dt>
+                <dd className="text-sm text-foreground">
+                  {croyant.grade?.libelle ?? '—'}
+                  {/*
+                    EF-CRO-12 — SANS CETTE LIGNE, LE CIRCUIT EST
+                    INCOMPRÉHENSIBLE. On demande un changement de grade, on
+                    enregistre, et la fiche affiche toujours l'ancien : sans
+                    dire qu'une décision est attendue, on croit que
+                    l'enregistrement a échoué, et on recommence.
+                  */}
+                  {promotion && (
+                    <StatusBadge tone="warning" className="ml-2 align-middle">
+                      → {promotion.gradeDemande?.libelle ?? '—'} en attente
+                    </StatusBadge>
+                  )}
+                </dd>
+              </div>
               <Donnee
                 libelle="Date de baptême"
                 valeur={

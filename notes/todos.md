@@ -252,16 +252,28 @@ l'éditeur SQL Supabase.)*
       elle — invisible à qui ne lit pas jusqu'au bout. Sortie en item séparé
       ci-dessous pour qu'elle ne se reperde pas.)*
 
-- [ ] **L'écran de la file des promotions de grade en attente**, pendant côté
-      croyants du socle livré le 21 août (voir l'item juste au-dessus). Sans
-      lui, `croyant.grade.approve` est un droit qu'il n'existe **aucun moyen
-      d'exercer** : la demande s'écrit en base et n'y meurt jamais.
-      *Le patron existe déjà* : `/transferts` fait exactement ce travail — un
-      journal restreint à ce que l'utilisateur peut réellement trancher,
-      approuver/refuser en un geste, motif exigé pour un refus.
-      *Et sur la fiche du croyant* : dire qu'une promotion est **en attente**,
-      sinon un changement de grade demandé se lira comme un changement de
-      grade oublié.
+- [x] **L'écran de la file des promotions de grade en attente.**
+      *(22 août 2026 — moitié DÉJÀ livrée, en réalité, moitié terminée
+      aujourd'hui. La note ci-dessus, écrite le 21 août, était devenue
+      trompeuse : le socle avait continué d'avancer sans qu'elle soit
+      corrigée. À retenir — une note qui décrit un manque doit être vérifiée,
+      pas recopiée, à chaque reprise de `notes/todos.md`.)*
+
+      **La file existait déjà** : `PromotionsEnAttente`
+      (`components/croyants/promotions-en-attente.tsx`), montée sur
+      `/croyants` en tête d'écran — même patron que `/transferts`, filtrée sur
+      la COMPÉTENCE (`peutDeciderPromotion`) et non sur la seule visibilité,
+      approuver en un geste, motif exigé pour un refus. Rien à faire ici.
+
+      **Ce qui manquait vraiment** : la fiche du croyant ne disait pas qu'une
+      promotion était en attente. `promotionDuCroyant` (`lib/data/
+      promotions.ts`) existait pourtant déjà, avec son commentaire d'intention
+      explicite (« sans elle, le circuit est incompréhensible ») — mais
+      **aucun appelant nulle part**, exactement la classe de défaut que ce
+      projet a déjà payée plusieurs fois : une fonction écrite avec la bonne
+      intention, jamais branchée à l'écran qui en avait besoin. Enfilée dans
+      `app/(app)/croyants/[croyantId]/page.tsx`, elle pose désormais un badge
+      « → *Grade demandé* en attente » à côté du grade courant.
 
 - [x] **La liste des versements sans fiche** devient la base des croyants non
       rattachés, et se replie. *(20 août 2026)* — le bandeau porte désormais

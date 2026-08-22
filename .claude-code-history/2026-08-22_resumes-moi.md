@@ -153,13 +153,16 @@ garde reste fixe. Écran : nouvel onglet « Attestation » dans
 
 `pnpm verify` : 43 fichiers de test, 872 tests, build compris — vert.
 
-### Une découverte en chemin, sortie en item séparé
+### Une découverte en chemin, à moitié fausse
 
 Une note enterrée dans un item déjà coché (« validation de la promotion de
-grade », 21 août) signalait que le socle est complet et testé, mais
-**qu'aucun écran ne présente les demandes en attente** — `croyant.grade.
-approve` est un droit qu'il n'existe aujourd'hui aucun moyen d'exercer. Sortie
-en item séparé dans `notes/todos.md` §1 pour ne plus se reperdre.
+grade », 21 août) signalait qu'aucun écran ne présente les demandes en
+attente. Sortie en item séparé — puis, en le reprenant, la file s'est révélée
+**déjà construite** : `PromotionsEnAttente` tourne sur `/croyants` depuis le
+21 août, la note était simplement restée non corrigée. Ce qui manquait
+vraiment : `promotionDuCroyant` (`lib/data/promotions.ts`) existait, avec son
+intention écrite, mais **aucun appelant nulle part** — enfilée dans la fiche
+du croyant, qui affiche désormais « → *grade demandé* en attente ».
 
 ---
 
@@ -193,9 +196,6 @@ valables ; voir
 **La liste fait foi : [`notes/todos.md`](../notes/todos.md).** Les **sections
 10 et l'attestation de §1 sont closes**. En tête de ce qui reste :
 
-- **L'écran de la file des promotions de grade en attente** — le socle (lot
-  du 21 août) est complet, mais `croyant.grade.approve` n'a aujourd'hui aucun
-  moyen d'être exercé. Le patron existe déjà (`/transferts`).
 - **Impression PDF de la liste des croyants**, filtres appliqués respectés.
 - **Relier deux croyants mariés** (époux ↔ épouse) — le plus lourd : migration
   et trigger, le lien devant rester symétrique.

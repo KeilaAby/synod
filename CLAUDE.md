@@ -676,6 +676,14 @@ ligne de réglages porte un seul logo. **La pièce de dossier n'y puise
 rien** : ni logo, ni texte réglé, ni mentions légales — son texte de mise en
 garde reste fixe, pour ne jamais pouvoir être atténué par un réglage.
 
+**Une note qui décrit un manque se vérifie, elle ne se recopie pas.** La
+demande « aucun écran pour les promotions de grade en attente » (21 août)
+était devenue fausse à moitié : `PromotionsEnAttente` tournait déjà sur
+`/croyants`. Ce qui manquait vraiment était plus discret — `promotionDuCroyant`
+(`lib/data/promotions.ts`) existait, intention écrite en toutes lettres, sans
+**aucun appelant nulle part**. Enfilée dans la fiche du croyant : un badge
+« → *grade demandé* en attente » à côté du grade courant.
+
 Base à jour jusqu'à la migration `0068` — `0069` et `0070` sont **écrites et
 n'attendent qu'une confirmation** dans l'éditeur SQL Supabase. Fuseau
 `Indian/Antananarivo` (UTC+3).

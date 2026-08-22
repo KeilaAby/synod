@@ -5580,3 +5580,24 @@ le socle est complet et testé, mais **qu'aucun écran ne présente les
 demandes en attente** à l'entité supérieure — `croyant.grade.approve` est un
 droit qu'il n'existe aujourd'hui aucun moyen d'exercer. Sortie en item séparé
 pour ne plus se reperdre dans le détail d'un item coché.
+
+### Cette découverte était à moitié fausse — vérifier avant de recopier
+
+En reprenant l'item séparé, la file elle-même s'est révélée déjà construite :
+`PromotionsEnAttente` (`components/croyants/promotions-en-attente.tsx`) est
+montée sur `/croyants` depuis le 21 août, même patron que `/transferts`,
+filtrée sur la compétence réelle. La note du 21 août avait simplement cessé
+d'être à jour sans que personne ne la corrige — leçon retenue et écrite dans
+`notes/todos.md` : une note qui décrit un manque se vérifie, elle ne se
+recopie pas, à chaque reprise.
+
+Ce qui manquait réellement : `promotionDuCroyant` (`lib/data/promotions.ts`)
+existait déjà, avec son intention écrite en toutes lettres — « sans elle, le
+circuit est incompréhensible » — mais **aucun appelant nulle part**. La même
+classe de défaut payée plusieurs fois dans ce projet : une fonction écrite
+avec la bonne intention, jamais branchée à l'écran qui en avait besoin.
+Enfilée dans la fiche du croyant (`app/(app)/croyants/[croyantId]/page.tsx`) :
+un badge « → *grade demandé* en attente » apparaît maintenant à côté du grade
+courant dès qu'une décision est pendante.
+
+`pnpm verify` : vert.
