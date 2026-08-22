@@ -5746,3 +5746,26 @@ l'écran pour distinguer « non renseigné » de « hors périmètre ».
 `pnpm verify` : 44 fichiers, 883 tests, build compris — vert. Confirmé
 fonctionnel par l'utilisateur en conditions réelles après le second
 correctif.
+
+## 22 août 2026 (suite) — Un niveau de navigation de plus sur `/bureaux`
+
+Demande du 20 août, reprise dans l'ordre : `Onglet de niveau → liste des
+entités → clic → liste des bureaux → menu ⋮`. Un seul état nouveau,
+`entiteId`, ajouté à `BureauxClient` — `null` renvoie soit la liste des
+entités du niveau choisi, soit (sans niveau) la vue groupée d'aujourd'hui,
+inchangée comme demandé ; posé, `filtres` (déjà mémoïsé) se borne aux
+bureaux de cette entité par UN critère de plus, sans dupliquer la logique de
+regroupement déjà en place.
+
+**Une entité sans bureau figure et le dit** (règle 15) : la nouvelle liste
+part de `entites` — l'arbre complet, déjà chargé par la page — et non de
+`groupes`, qui ne connaît que les entités en possédant déjà un. Badge
+« Aucun bureau » en ton `warning`. Cliquer une telle entité ouvre un état
+vide qui connaît son nom et propose `MandatDialog` avec l'entité
+**imposée** (`entiteImposee`, prop déjà existante dans le composant) — pas
+un formulaire vierge à re-remplir.
+
+Changer de niveau, ou revenir sur « Tous », referme l'entité ouverte : elle
+n'aurait plus de sens sous un niveau différent.
+
+`pnpm verify` : 44 fichiers, 883 tests, build compris — vert.

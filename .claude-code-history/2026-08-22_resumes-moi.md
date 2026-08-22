@@ -200,10 +200,36 @@ l'union d'un tiers en silence.
 construit son payload champ par champ, contrairement à `creerCroyant`) —
 repéré en relisant, corrigé, et gardé par un test dédié qui lit le fichier
 source. La fiche distingue « non renseigné » de « hors périmètre » (règle
-15) via l'embed `conjoint` de `getCroyant`.
+15) — via une seconde requête ciblée dans `getCroyant`, pas une auto-jointure
+(voir la correction ci-dessous, trouvée en testant avec l'utilisateur).
 
 Un test flaky rencontré à répétition aujourd'hui (`apparence.test.ts`,
 timeout à 5000 ms sous charge parallèle) a reçu un délai porté à 15 s.
+
+`pnpm verify` : 44 fichiers, 883 tests, build compris — vert.
+
+### Deux défauts trouvés en testant `0071` en conditions réelles
+
+Assigner un conjoint puis consulter la fiche faisait planter l'écran.
+**Sur une table qui se référence elle-même, PostgREST ne sait pas déduire la
+direction de la relation** : le hint de contrainte
+(`croyants!croyants_conjoint_id_fkey`) échouait (nom auto-généré différent
+de l'hypothèse) ; le hint de colonne (`croyants!conjoint_id`) réussissait la
+requête mais rendait un TABLEAU au lieu d'un objet. `getCroyant` lit
+désormais le conjoint par une seconde requête ciblée, pas une auto-jointure
+— une fiche se lit une à la fois, l'aller-retour de plus ne coûte rien ici
+(à distinguer d'une LISTE, où ce serait du N+1, règle 28). Confirmé
+fonctionnel par l'utilisateur après ce correctif.
+
+### Un niveau de navigation de plus sur `/bureaux`
+
+Demande du 20 août : `Onglet de niveau → liste des entités → clic → liste
+des bureaux → menu ⋮`. Un seul état nouveau, `entiteId` — posé, `filtres`
+(déjà mémoïsé) se borne aux bureaux de cette entité par un critère de plus.
+**Une entité sans bureau figure et le dit** (règle 15) : la liste part de
+l'arbre complet, pas des entités qui ont déjà un bureau. Cliquer une entité
+sans bureau ouvre un état vide qui connaît son nom et propose `MandatDialog`
+avec l'entité **imposée**, pas un formulaire vierge.
 
 `pnpm verify` : 44 fichiers, 883 tests, build compris — vert.
 
@@ -254,8 +280,9 @@ valables ; voir
 ## Ce qu'il reste
 
 **La liste fait foi : [`notes/todos.md`](../notes/todos.md).** Les **sections
-10, l'attestation de §1, l'impression PDF de §1 (20 août) et le lien conjugal
-de §1 sont closes**. En tête de ce qui reste :
+10, l'attestation de §1, l'impression PDF de §1 (20 août), le lien conjugal de
+§1 et la navigation de `/bureaux` de §2 (20 août) sont closes**. En tête de ce
+qui reste :
 
 - **`/finances`** — le rapprochement des dîmes rendu à l'église (six points).
 - **`/rapports`** — logo téléversé (peut réutiliser `PREFIXES.logos` et le

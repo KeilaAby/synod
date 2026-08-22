@@ -441,17 +441,31 @@ correction de deux défauts trouvés en test, voir l'item du lien conjugal.)*
 
 ### Demande du 20 août 2026
 
-- [ ] **Un niveau de navigation de plus : entité, puis bureaux.**
-      Le classement actuel est bon, mais l'onglet doit d'abord afficher **toutes
-      les entités du niveau sélectionné**. Le clic sur une entité ouvre alors sa
-      liste de bureaux — celle d'aujourd'hui, inchangée —, puis le menu ⋮ d'un
-      bureau fonctionne comme actuellement.
+- [x] **Un niveau de navigation de plus : entité, puis bureaux.**
+      *(22 août 2026, sans migration — `app/(app)/bureaux/bureaux-client.tsx`.)*
 
-      `Onglet de niveau → liste des entités → clic → liste des bureaux → menu ⋮`
+      `Onglet de niveau → liste des entités → clic → liste des bureaux → menu ⋮`,
+      exactement le parcours demandé. Un seul état nouveau, `entiteId` : `null`
+      = on est sur la liste des entités du niveau choisi (ou, sans niveau
+      choisi, sur la vue groupée d'aujourd'hui — **inchangée**, comme demandé) ;
+      posé, on est **dans** une entité, et `filtres` (déjà mémoïsé) se borne à
+      ses bureaux par un critère de plus, sans dupliquer la logique de
+      regroupement existante.
 
-      À vérifier en chemin : une entité **sans aucun bureau** doit figurer dans
-      la liste et le dire, pas disparaître (règle 15) — c'est justement celle
-      sur laquelle il y a quelque chose à faire.
+      **Une entité sans bureau figure et le dit** (règle 15) : `entitesDuNiveau`
+      part de `entites` — l'arbre complet, déjà chargé — et non de `groupes`,
+      qui ne connaît que les entités en possédant déjà un. Badge « Aucun
+      bureau » (ton `warning`, pour qu'il attire l'œil) plutôt qu'une carte
+      muette ou une absence. Cliquer une telle entité ouvre un état vide qui
+      **connaît son nom** (« Ouvrez le premier bureau de *Église* ») et propose
+      directement `MandatDialog` avec l'entité **imposée** (`entiteImposee`,
+      prop déjà existante) — pas un formulaire vierge où la rechoisir.
+
+      Le compte de bureaux par entité, comme les onglets de niveau eux-mêmes,
+      suit le filtre de **statut** (actifs / clos / tous) mais ignore la
+      recherche : un badge dont le nombre change à chaque frappe ne se lit
+      plus. Changer de niveau, ou choisir « Tous », referme l'entité ouverte —
+      elle n'aurait plus de sens sous un autre niveau.
 
 ## 3. `/finances`
 

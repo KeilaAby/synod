@@ -733,6 +733,14 @@ livraison. Une dérive de citation sans impact fonctionnel, hors périmètre
 d'une correction immédiate ; `EF-CRO-14` a été ajoutée proprement pour ne
 pas reproduire l'erreur sur cette nouvelle demande.
 
+**`/bureaux` gagne un niveau de navigation** (demande du 20 août) : onglet de
+niveau → liste des **entités** (toutes, y compris **sans bureau** — règle
+15, badge « Aucun bureau ») → clic → liste de ses bureaux → menu ⋮, inchangé.
+Un seul état nouveau, `entiteId` : posé, le filtre déjà mémoïsé s'y borne par
+un critère de plus, sans dupliquer le regroupement existant. Une entité sans
+bureau ouvre un état vide qui propose `MandatDialog` avec l'entité
+**imposée** — pas un formulaire vierge à re-remplir.
+
 Base à jour jusqu'à la migration `0071`, confirmée appliquée par
 l'utilisateur et vérifiée en conditions réelles. Fuseau
 `Indian/Antananarivo` (UTC+3).

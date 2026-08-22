@@ -122,6 +122,15 @@ export function BureauxClient({
    * filtré cache une partie de ce qu'on vient voir.
    */
   const [niveau, setNiveau] = useState<EntityType | null>(null);
+  /**
+   * EF-BUR-01 — le niveau de navigation de plus, demandé le 20 août 2026 :
+   * « onglet de niveau → liste des entités → clic → liste des bureaux ».
+   *
+   * `null` = on est sur la LISTE DES ENTITÉS du niveau (ou, sans niveau
+   * choisi, sur la vue groupée d'aujourd'hui, inchangée). Posé, on est
+   * DANS une entité : ses bureaux, et eux seuls.
+   */
+  const [entiteId, setEntiteId] = useState<string | null>(null);
   const [ouvert, setOuvert] = useState<BureauComplet | null>(null);
 
   const rechercheDifferee = useDeferredValue(recherche);
@@ -133,6 +142,8 @@ export function BureauxClient({
       if (statut === 'actifs' && !b.is_active) return false;
       if (statut === 'clos' && b.is_active) return false;
       if (niveau && b.entite?.type !== niveau) return false;
+      // Dans une entité : ses bureaux, et eux seuls.
+      if (entiteId && b.entity_id !== entiteId) return false;
       if (!terme) return true;
 
       const texte = normaliserRecherche(
@@ -140,7 +151,7 @@ export function BureauxClient({
       );
       return terme.split(' ').every((mot) => texte.includes(mot));
     });
-  }, [bureaux, rechercheDifferee, statut, niveau]);
+  }, [bureaux, rechercheDifferee, statut, niveau, entiteId]);
 
   /**
    * Les niveaux qui portent VRAIMENT un bureau, et combien.
@@ -201,6 +212,43 @@ export function BureauxClient({
 
     return [...table.values()].sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
   }, [filtres]);
+
+  /**
+   * TOUTES LES ENTITÉS DU NIVEAU CHOISI, y compris celles qui n'ont AUCUN
+   * bureau — c'est justement sur elles qu'il y a quelque chose à faire
+   * (règle 15 : une entité sans bureau doit figurer et le dire, pas
+   * disparaître). `groupes`, lui, ne connaît que les entités qui EN ONT
+   * déjà un : il ne peut donc pas servir cette liste-ci.
+   *
+   * Le compte suit le filtre de STATUT, comme les onglets de niveau — un
+   * bureau clos ne doit pas gonfler « 3 bureaux » quand seul « Mandats en
+   * cours » est demandé.
+   */
+  const entitesDuNiveau = useMemo(() => {
+    if (!niveau) return [];
+
+    const compteParEntite = new Map<string, number>();
+    for (const b of bureaux) {
+      if (statut === 'actifs' && !b.is_active) continue;
+      if (statut === 'clos' && b.is_active) continue;
+      if (b.entite?.type !== niveau) continue;
+      compteParEntite.set(b.entity_id, (compteParEntite.get(b.entity_id) ?? 0) + 1);
+    }
+
+    const terme = normaliserRecherche(rechercheDifferee);
+
+    return entites
+      .filter((e) => e.type === niveau)
+      .filter((e) => !terme || normaliserRecherche(`${e.nom} ${e.code}`).includes(terme))
+      .map((e) => ({ ...e, nombreBureaux: compteParEntite.get(e.id) ?? 0 }))
+      .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+  }, [niveau, bureaux, statut, entites, rechercheDifferee]);
+
+  /** L'entité dans laquelle on est descendu — pour l'en-tête « ← Retour ». */
+  const entiteOuverte = useMemo(
+    () => (entiteId ? (entites.find((e) => e.id === entiteId) ?? null) : null),
+    [entiteId, entites],
+  );
 
   const comptes = useMemo(
     () => ({
@@ -334,6 +382,7 @@ export function BureauxClient({
                 setRecherche('');
                 setStatut('actifs');
                 setNiveau(null);
+                setEntiteId(null);
               }}
             >
               <X className="mr-2 size-4" aria-hidden />
@@ -368,7 +417,10 @@ export function BureauxClient({
               libelle="Tous"
               nombre={niveaux.reduce((s, n) => s + n.nombre, 0)}
               actif={niveau === null}
-              onClick={() => setNiveau(null)}
+              onClick={() => {
+                setNiveau(null);
+                setEntiteId(null);
+              }}
             />
             {niveaux.map((n) => (
               <BoutonNiveau
@@ -376,40 +428,125 @@ export function BureauxClient({
                 libelle={n.libelle}
                 nombre={n.nombre}
                 actif={niveau === n.type}
-                onClick={() => setNiveau(n.type)}
+                onClick={() => {
+                  // Changer de niveau referme l'entité ouverte : celle
+                  // qu'on quittait n'a plus de sens sous le nouveau niveau.
+                  setNiveau(n.type);
+                  setEntiteId(null);
+                }}
               />
             ))}
           </div>
         )}
 
-        {filtres.length === 0 ? (
-          <EmptyState
-            icon={Briefcase}
-            title={
-              bureaux.length === 0
-                ? 'Aucun bureau enregistré'
-                : 'Aucun bureau ne correspond'
-            }
-            description={
-              bureaux.length === 0
-                ? 'Ouvrez un bureau pour une entité de votre périmètre : vous composerez ensuite ses fonctions.'
-                : 'Élargissez les filtres.'
-            }
-            action={
-              bureaux.length === 0 ? (
-                <MandatDialog
-                  entites={entites}
-                  bureauxActifsParEntite={bureauxActifsParEntite}
-                  libelle="Ouvrir le premier bureau"
-                />
-              ) : undefined
-            }
-          />
+        {/*
+          EF-BUR-01 — LE NIVEAU DE NAVIGATION DE PLUS : un onglet de niveau
+          s'ouvre d'abord sur la LISTE DES ENTITÉS, jamais directement sur des
+          bureaux. Une entité SANS bureau y figure et le dit (règle 15) : elle
+          n'a nulle part ailleurs où apparaître, et c'est justement celle sur
+          laquelle il y a quelque chose à faire.
+        */}
+        {niveau && !entiteId ? (
+          entitesDuNiveau.length === 0 ? (
+            <EmptyState
+              icon={Briefcase}
+              title="Aucune entité ne correspond"
+              description="Élargissez la recherche."
+            />
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {entitesDuNiveau.map((e) => (
+                <button
+                  key={e.id}
+                  type="button"
+                  onClick={() => setEntiteId(e.id)}
+                  className="text-left"
+                >
+                  <Card className="transition-colors hover:border-slate-300">
+                    <CardContent className="space-y-2 p-6">
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="min-w-0 space-y-1">
+                          <span className="text-foreground block max-w-full truncate text-sm font-semibold">
+                            {e.nom}
+                          </span>
+                          {e.code && (
+                            <span className="text-muted-foreground block font-mono text-xs">
+                              {e.code}
+                            </span>
+                          )}
+                        </span>
+                      </div>
+
+                      {/* Règle 15 — « Aucun bureau » se DIT, l'entité ne
+                          disparaît pas : c'est elle qui manque d'un bureau. */}
+                      {e.nombreBureaux > 0 ? (
+                        <StatusBadge tone="neutral">
+                          {formatNombre(e.nombreBureaux)} bureau
+                          {e.nombreBureaux > 1 ? 'x' : ''}
+                        </StatusBadge>
+                      ) : (
+                        <StatusBadge tone="warning">Aucun bureau</StatusBadge>
+                      )}
+                    </CardContent>
+                  </Card>
+                </button>
+              ))}
+            </div>
+          )
         ) : (
-          <div className="space-y-8">
-            {groupes.map((groupe) => (
-              <section key={groupe.nom + groupe.code} className="space-y-3">
-                {/*
+          <>
+            {/*
+              On est DANS une entité : le chemin du retour à la liste —
+              jamais une navigation sans retour. Le NOM de l'entité n'est pas
+              répété ici : le titre de section ci-dessous le porte déjà
+              (avec son code et son compte de bureaux) quand elle en a, et
+              l'état vide le porte sinon.
+            */}
+            {entiteOuverte && (
+              <Button variant="ghost" className="h-9" onClick={() => setEntiteId(null)}>
+                ← Retour aux entités
+              </Button>
+            )}
+
+            {filtres.length === 0 ? (
+              <EmptyState
+                icon={Briefcase}
+                title={
+                  entiteOuverte
+                    ? 'Aucun bureau pour cette entité'
+                    : bureaux.length === 0
+                      ? 'Aucun bureau enregistré'
+                      : 'Aucun bureau ne correspond'
+                }
+                description={
+                  entiteOuverte
+                    ? `Ouvrez le premier bureau de « ${entiteOuverte.nom} » : vous composerez ensuite ses fonctions.`
+                    : bureaux.length === 0
+                      ? 'Ouvrez un bureau pour une entité de votre périmètre : vous composerez ensuite ses fonctions.'
+                      : 'Élargissez les filtres.'
+                }
+                action={
+                  entiteOuverte ? (
+                    <MandatDialog
+                      entites={entites}
+                      bureauxActifsParEntite={bureauxActifsParEntite}
+                      entiteImposee={{ id: entiteOuverte.id, nom: entiteOuverte.nom }}
+                      libelle="Ouvrir le premier bureau"
+                    />
+                  ) : bureaux.length === 0 ? (
+                    <MandatDialog
+                      entites={entites}
+                      bureauxActifsParEntite={bureauxActifsParEntite}
+                      libelle="Ouvrir le premier bureau"
+                    />
+                  ) : undefined
+                }
+              />
+            ) : (
+              <div className="space-y-8">
+                {groupes.map((groupe) => (
+                  <section key={groupe.nom + groupe.code} className="space-y-3">
+                    {/*
               LE TITRE D'ENTITÉ PORTE LE NOM UNE FOIS.
 
               Une entité peut avoir plusieurs bureaux — le mandat en cours et
@@ -417,128 +554,140 @@ export function BureauxClient({
               sous-titre de chaque carte pour reconstituer à qui elle
               appartient ; le titre le dit une fois, et les cartes suivent.
             */}
-                <div className="flex items-baseline gap-3">
-                  <h2 className="text-sm font-semibold">{groupe.nom}</h2>
-                  {groupe.code && (
-                    <span className="text-muted-foreground font-mono text-xs">
-                      {groupe.code}
-                    </span>
-                  )}
-                  <span className="text-muted-foreground text-xs tabular-nums">
-                    {formatNombre(groupe.bureaux.length)} bureau
-                    {groupe.bureaux.length > 1 ? 'x' : ''}
-                  </span>
-                </div>
+                    <div className="flex items-baseline gap-3">
+                      <h2 className="text-sm font-semibold">{groupe.nom}</h2>
+                      {groupe.code && (
+                        <span className="text-muted-foreground font-mono text-xs">
+                          {groupe.code}
+                        </span>
+                      )}
+                      <span className="text-muted-foreground text-xs tabular-nums">
+                        {formatNombre(groupe.bureaux.length)} bureau
+                        {groupe.bureaux.length > 1 ? 'x' : ''}
+                      </span>
+                    </div>
 
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {groupe.bureaux.map((bureau) => {
-                    const niveau = (bureau.entite?.type ?? 'EGLISE') as EntityType;
-                    const compte = comptePostes(
-                      composerBureau(
-                        fonctions,
-                        bureau.membres.map((m) => ({
-                          id: m.id,
-                          croyantId: m.croyant_id,
-                          fonctionId: m.fonction_id,
-                          dateDebut: m.date_debut,
-                          dateFin: m.date_fin,
-                        })),
-                        niveau,
-                      ),
-                    );
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {groupe.bureaux.map((bureau) => {
+                        const niveau = (bureau.entite?.type ?? 'EGLISE') as EntityType;
+                        const compte = comptePostes(
+                          composerBureau(
+                            fonctions,
+                            bureau.membres.map((m) => ({
+                              id: m.id,
+                              croyantId: m.croyant_id,
+                              fonctionId: m.fonction_id,
+                              dateDebut: m.date_debut,
+                              dateFin: m.date_fin,
+                            })),
+                            niveau,
+                          ),
+                        );
 
-                    return (
-                      <Card
-                        key={bureau.id}
-                        className={
-                          bureau.is_active
-                            ? 'transition-colors hover:border-slate-300'
-                            : 'opacity-70 transition-colors hover:border-slate-300'
-                        }
-                      >
-                        <CardContent className="space-y-4 p-6">
-                          {/*
+                        return (
+                          <Card
+                            key={bureau.id}
+                            className={
+                              bureau.is_active
+                                ? 'transition-colors hover:border-slate-300'
+                                : 'opacity-70 transition-colors hover:border-slate-300'
+                            }
+                          >
+                            <CardContent className="space-y-4 p-6">
+                              {/*
                       La carte n'est plus un bouton géant : le menu ⋮ en porte
                       un, et un bouton dans un bouton est un HTML invalide que
                       les lecteurs d'écran ne restituent pas. Seul le TITRE
                       ouvre la composition.
                     */}
-                          <div className="space-y-3">
-                            <div className="flex items-start justify-between gap-3">
-                              <span className="min-w-0 space-y-1">
-                                <button
-                                  type="button"
-                                  onClick={() => setOuvert(bureau)}
-                                  className="text-foreground block max-w-full truncate text-left text-sm font-semibold transition-colors hover:text-indigo-700"
-                                >
-                                  {bureau.libelle}
-                                </button>
-                                <span className="text-muted-foreground block truncate text-xs">
-                                  {bureau.entite?.nom}
-                                </span>
-                              </span>
-
-                              <span className="flex shrink-0 items-center gap-2">
-                                {bureau.entite && <TypeBadge type={bureau.entite.type} />}
-
-                                {/* Le même menu ⋮ que partout ailleurs. */}
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
+                              <div className="space-y-3">
+                                <div className="flex items-start justify-between gap-3">
+                                  <span className="min-w-0 space-y-1">
                                     <button
                                       type="button"
-                                      aria-label={`Actions sur ${bureau.libelle}`}
-                                      className="text-muted-foreground hover:text-foreground flex size-6 items-center justify-center rounded-md transition-colors hover:bg-slate-100"
+                                      onClick={() => setOuvert(bureau)}
+                                      className="text-foreground block max-w-full truncate text-left text-sm font-semibold transition-colors hover:text-indigo-700"
                                     >
-                                      <MoreVertical className="size-4" aria-hidden />
+                                      {bureau.libelle}
                                     </button>
-                                  </DropdownMenuTrigger>
+                                    <span className="text-muted-foreground block truncate text-xs">
+                                      {bureau.entite?.nom}
+                                    </span>
+                                  </span>
 
-                                  <DropdownMenuContent align="end" className="w-64">
-                                    <DropdownMenuItem onSelect={() => setOuvert(bureau)}>
-                                      <List className="mr-2 size-4" aria-hidden />
-                                      Voir la composition
-                                    </DropdownMenuItem>
+                                  <span className="flex shrink-0 items-center gap-2">
+                                    {bureau.entite && (
+                                      <TypeBadge type={bureau.entite.type} />
+                                    )}
 
-                                    {/* EF-BUR-07 — un plan de travail, pas un
+                                    {/* Le même menu ⋮ que partout ailleurs. */}
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <button
+                                          type="button"
+                                          aria-label={`Actions sur ${bureau.libelle}`}
+                                          className="text-muted-foreground hover:text-foreground flex size-6 items-center justify-center rounded-md transition-colors hover:bg-slate-100"
+                                        >
+                                          <MoreVertical className="size-4" aria-hidden />
+                                        </button>
+                                      </DropdownMenuTrigger>
+
+                                      <DropdownMenuContent align="end" className="w-64">
+                                        <DropdownMenuItem
+                                          onSelect={() => setOuvert(bureau)}
+                                        >
+                                          <List className="mr-2 size-4" aria-hidden />
+                                          Voir la composition
+                                        </DropdownMenuItem>
+
+                                        {/* EF-BUR-07 — un plan de travail, pas un
                                   formulaire : il lui faut la page entière. */}
-                                    <DropdownMenuItem asChild>
-                                      <Link href={`/bureaux/${bureau.id}/organigramme`}>
-                                        <Network className="mr-2 size-4" aria-hidden />
-                                        Définir l&apos;organigramme
-                                      </Link>
-                                    </DropdownMenuItem>
-
-                                    {bureau.entite &&
-                                      peut('bureau.manage', bureau.entite.path) && (
-                                        <>
-                                          {/* Règle 16 — la modification rouvre le
-                                        pop-up de création, pré-rempli. */}
-                                          <DropdownMenuItem
-                                            onSelect={() => setAModifier(bureau)}
+                                        <DropdownMenuItem asChild>
+                                          <Link
+                                            href={`/bureaux/${bureau.id}/organigramme`}
                                           >
-                                            <Pencil className="mr-2 size-4" aria-hidden />
-                                            Modifier le bureau
-                                          </DropdownMenuItem>
+                                            <Network
+                                              className="mr-2 size-4"
+                                              aria-hidden
+                                            />
+                                            Définir l&apos;organigramme
+                                          </Link>
+                                        </DropdownMenuItem>
 
-                                          {bureau.is_active && (
-                                            <DropdownMenuItem
-                                              onSelect={() => setAClore(bureau)}
-                                              disabled={enCours}
-                                            >
-                                              <SquarePen
-                                                className="mr-2 size-4"
-                                                aria-hidden
-                                              />
-                                              Clore le mandat
-                                              <span className="text-muted-foreground ml-auto text-xs">
-                                                conserve
-                                              </span>
-                                            </DropdownMenuItem>
+                                        {bureau.entite &&
+                                          peut('bureau.manage', bureau.entite.path) && (
+                                            <>
+                                              {/* Règle 16 — la modification rouvre le
+                                        pop-up de création, pré-rempli. */}
+                                              <DropdownMenuItem
+                                                onSelect={() => setAModifier(bureau)}
+                                              >
+                                                <Pencil
+                                                  className="mr-2 size-4"
+                                                  aria-hidden
+                                                />
+                                                Modifier le bureau
+                                              </DropdownMenuItem>
+
+                                              {bureau.is_active && (
+                                                <DropdownMenuItem
+                                                  onSelect={() => setAClore(bureau)}
+                                                  disabled={enCours}
+                                                >
+                                                  <SquarePen
+                                                    className="mr-2 size-4"
+                                                    aria-hidden
+                                                  />
+                                                  Clore le mandat
+                                                  <span className="text-muted-foreground ml-auto text-xs">
+                                                    conserve
+                                                  </span>
+                                                </DropdownMenuItem>
+                                              )}
+                                            </>
                                           )}
-                                        </>
-                                      )}
 
-                                    {/*
+                                        {/*
                                 EF-BUR-08 — droit DISTINCT : clore conserve,
                                 supprimer efface l'historique des titulaires.
 
@@ -556,55 +705,60 @@ export function BureauxClient({
                                 une entrée masquée se contourne par un appel
                                 direct à l'API.
                               */}
-                                    {bureau.is_active &&
-                                      bureau.entite &&
-                                      peut('bureau.delete', bureau.entite.path) && (
-                                        <>
-                                          <DropdownMenuSeparator />
-                                          <DropdownMenuItem
-                                            className="text-destructive focus:text-destructive"
-                                            onSelect={() => setASupprimer(bureau)}
-                                          >
-                                            <Trash2 className="mr-2 size-4" aria-hidden />
-                                            Supprimer le bureau
-                                          </DropdownMenuItem>
-                                        </>
-                                      )}
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </span>
-                            </div>
+                                        {bureau.is_active &&
+                                          bureau.entite &&
+                                          peut('bureau.delete', bureau.entite.path) && (
+                                            <>
+                                              <DropdownMenuSeparator />
+                                              <DropdownMenuItem
+                                                className="text-destructive focus:text-destructive"
+                                                onSelect={() => setASupprimer(bureau)}
+                                              >
+                                                <Trash2
+                                                  className="mr-2 size-4"
+                                                  aria-hidden
+                                                />
+                                                Supprimer le bureau
+                                              </DropdownMenuItem>
+                                            </>
+                                          )}
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  </span>
+                                </div>
 
-                            <div className="flex flex-wrap items-center gap-2">
-                              <StatusBadge
-                                tone={bureau.is_active ? 'success' : 'neutral'}
-                              >
-                                {bureau.is_active ? 'En cours' : 'Clos'}
-                              </StatusBadge>
-                              {/* Le manque avant le reste : c'est ce qu'on cherche. */}
-                              {compte.vacants > 0 && bureau.is_active && (
-                                <StatusBadge tone="warning">
-                                  {formatNombre(compte.vacants)} vacant
-                                  {compte.vacants > 1 ? 's' : ''}
-                                </StatusBadge>
-                              )}
-                            </div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <StatusBadge
+                                    tone={bureau.is_active ? 'success' : 'neutral'}
+                                  >
+                                    {bureau.is_active ? 'En cours' : 'Clos'}
+                                  </StatusBadge>
+                                  {/* Le manque avant le reste : c'est ce qu'on cherche. */}
+                                  {compte.vacants > 0 && bureau.is_active && (
+                                    <StatusBadge tone="warning">
+                                      {formatNombre(compte.vacants)} vacant
+                                      {compte.vacants > 1 ? 's' : ''}
+                                    </StatusBadge>
+                                  )}
+                                </div>
 
-                            <p className="text-muted-foreground font-mono text-xs tabular-nums">
-                              {formatNombre(compte.pourvus)} /{' '}
-                              {formatNombre(compte.total)} ·{' '}
-                              {formatDate(bureau.date_debut)}
-                              {bureau.date_fin && ` → ${formatDate(bureau.date_fin)}`}
-                            </p>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              </section>
-            ))}
-          </div>
+                                <p className="text-muted-foreground font-mono text-xs tabular-nums">
+                                  {formatNombre(compte.pourvus)} /{' '}
+                                  {formatNombre(compte.total)} ·{' '}
+                                  {formatDate(bureau.date_debut)}
+                                  {bureau.date_fin && ` → ${formatDate(bureau.date_fin)}`}
+                                </p>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            )}
+          </>
         )}
 
         {/* Règle 16 — UN SEUL chemin par opération : la modification passe par
