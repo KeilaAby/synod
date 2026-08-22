@@ -466,6 +466,21 @@ donnée déjà là, sans appelant.
 migration : la colonne existait, seul le chemin UI → Server Action → colonne
 manquait.
 
+**Piège trouvé en testant le jour même : les Cellules disparaissaient du
+sélecteur de portée.** La liste passée au sélecteur était `ouvrables`
+(`page.tsx`) — les entités où l'on peut *ouvrir un compte*, qui écarte les
+Cellules (RG-21). Mais restreindre un droit déjà accordé n'est pas ouvrir un
+compte : rien n'empêche de borner `croyant.read` à une seule cellule de
+prière. Une petite église dont les seules sous-entités sont des cellules
+voyait donc le sélecteur **disparaître entièrement**, même sur un droit
+actif — `optionsRestriction.length > 0` valait toujours faux. Corrigé par un
+second prop distinct, `entitesPourPortee` (le périmètre entier de
+l'administrateur, Cellules comprises), qui traverse `page.tsx` →
+`comptes-client.tsx` → `compte-dialog.tsx` sans toucher à `entites` (réservé
+au champ « Entité de rattachement », qui doit lui rester restreint).
+`resoudrePortee` bornait déjà tout côté serveur : élargir la liste à l'écran
+n'ouvrait aucune porte qu'il n'aurait pas fermée si nécessaire.
+
 ---
 
 ## Les décisions à ne pas défaire
@@ -528,6 +543,16 @@ sans hiérarchie à escalader ? — ont évité une troisième réécriture. Un
 réglage qui touche le STOCKAGE (clé fixe vs clé par enregistrement) coûte
 cher à refaire une fois livré ; la question qui l'aurait évité ne coûte
 qu'un aller-retour.
+
+**« Où peut-on OUVRIR X » et « où peut-on RESTREINDRE X » ne sont pas la
+même liste, même quand les deux parlent d'entités.** `ouvrables` (RG-21 :
+pas de compte sur une Cellule) a fui dans le sélecteur de portée d'un
+DROIT, où la contrainte n'a pourtant aucune raison de s'appliquer — rien
+n'interdit de borner un droit déjà accordé à une cellule de prière. Réutiliser
+une liste filtrée pour SA question d'origine, dans un contexte qui pose une
+question différente, fait disparaître des options valides sans qu'aucune
+erreur ne le signale — la liste est juste plus courte que prévu, et rien ne
+le dit.
 
 *(Les décisions du 21 août — l'étendue d'un modèle, erreur/décision, la fenêtre
 de 15 jours vérifiée côté serveur, le sens de l'`ordre` des grades — restent

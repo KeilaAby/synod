@@ -820,6 +820,17 @@ sous-arbre. **Deux contrôles distincts, nécessaires l'un et l'autre** :
 (RG-24, inchangée) vérifie ensuite que la portée reste dans ce que le
 DÉLÉGANT détient lui-même.
 
+**« Où peut-on ouvrir un compte » et « où peut-on restreindre un droit » ne
+sont pas la même liste.** Trouvé en testant le jour même : le sélecteur de
+portée réutilisait `ouvrables` (RG-21, pas de compte sur une Cellule), et
+disparaissait donc entièrement chez une petite église dont les seules
+sous-entités sont des cellules — alors que borner un droit à une cellule a
+un sens. Second prop distinct, `entitesPourPortee` (le périmètre entier,
+Cellules comprises), qui ne touche pas `entites` (réservé au champ « Entité
+de rattachement »). `resoudrePortee` bornait déjà tout côté serveur :
+élargir la liste à l'écran n'ouvrait aucune porte qu'il n'aurait pas
+refermée si nécessaire.
+
 Base à jour jusqu'à la migration `0073`, confirmée appliquée par
 l'utilisateur et vérifiée en conditions réelles. Fuseau
 `Indian/Antananarivo` (UTC+3).

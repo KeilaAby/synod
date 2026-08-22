@@ -6009,3 +6009,30 @@ habilitation — `comptes-client.tsx` le jetait en reconstruisant
 `pnpm verify` : 44 fichiers, 889 tests (+6), build compris — vert. Aucune
 migration : la colonne existait depuis l'origine, seul le chemin écran →
 Server Action → colonne manquait.
+
+## 22 août 2026 (suite) — Les Cellules disparaissaient du sélecteur de portée
+
+L'utilisateur a testé la portée par droit et signalé (avec capture d'écran)
+ne voir aucun sélecteur d'entité sous les droits actifs. Diagnostic : la
+liste d'entités passée à `SelecteurHabilitations` était `ouvrables`
+(`app/(app)/administration/comptes/page.tsx`) — les entités où l'on peut
+OUVRIR UN COMPTE, qui écarte les Cellules parce que RG-21 interdit d'y
+rattacher un compte. Mais RESTREINDRE UN DROIT DÉJÀ ACCORDÉ n'est pas ouvrir
+un compte : rien n'interdit de borner `croyant.read` à une seule cellule de
+prière. Une petite église dont les seules sous-entités sont des cellules
+voyait donc le sélecteur de portée disparaître ENTIÈREMENT sur tout droit
+actif, `optionsRestriction.length > 0` valant toujours faux.
+
+Corrigé par un second prop distinct, `entitesPourPortee` — le périmètre
+ENTIER de l'administrateur, Cellules comprises (`versOptions(arbre, arbre)`,
+sans le filtre `type !== 'CELLULE'` ni `peut(session, 'user.manage', ...)`)
+— qui traverse `page.tsx` → `comptes-client.tsx` (les DEUX montages de
+`CompteDialog`, création et édition) → `compte-dialog.tsx`, sans toucher à
+`entites` (réservé au champ « Entité de rattachement », qui doit lui rester
+restreint aux entités où l'on peut effectivement ouvrir un compte).
+`resoudrePortee` (`lib/domain/permissions.ts`) bornait déjà tout côté
+serveur au sous-arbre du compte bénéficiaire : élargir la liste à l'écran
+n'ouvrait donc aucune porte que le serveur n'aurait pas refermée si
+nécessaire — seule l'option manquait à l'affichage.
+
+`pnpm verify` : 44 fichiers, 889 tests, build compris — vert.

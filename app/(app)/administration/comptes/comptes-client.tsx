@@ -62,6 +62,7 @@ export function ComptesClient({
   photos,
   profils,
   entites,
+  entitesPourPortee,
   rechercheInitiale,
 }: {
   comptes: CompteListe[];
@@ -69,6 +70,8 @@ export function ComptesClient({
   photos: Record<string, string>;
   profils: ProfilEnregistre[];
   entites: OptionEntite[];
+  /** EF-ADM-03 — le périmètre ENTIER, Cellules comprises, pour restreindre un droit. */
+  entitesPourPortee: OptionEntite[];
   rechercheInitiale: string;
 }) {
   const router = useRouter();
@@ -204,6 +207,7 @@ export function ComptesClient({
         {peutOuvrir && (
           <CompteDialog
             entites={entites}
+            entitesPourPortee={entitesPourPortee}
             croyants={croyants}
             photos={photos}
             profils={profils}
@@ -249,6 +253,7 @@ export function ComptesClient({
         <CompteDialog
           key={enEdition.id}
           entites={entites}
+          entitesPourPortee={entitesPourPortee}
           croyants={croyants}
           photos={photos}
           profils={profils}
