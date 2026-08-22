@@ -5428,3 +5428,53 @@ appelaient les fonctions avec l'ancienne signature (`Date` là où
 jour pour passer `JOURS_CORRECTION_SAISIE_DEFAUT` explicitement.
 
 `pnpm verify` : 42 fichiers de test, 866 tests, build compris — vert.
+
+### Le glisser-déposer des pop-up « lâchait » — ce n'était pas la capture
+
+Les deux dernières pistes de `notes/todos.md` §10 ne demandaient aucune
+décision, seulement une correction : le glisser-déposer des pop-up, et
+l'épaisseur du contour de focus.
+
+`components/ui/dialog.tsx` utilisait déjà `setPointerCapture` depuis le 20
+août — la première piste suggérée par la demande était donc déjà couverte.
+C'était la seconde qui restait vraie : `auMouvement` posait un `setState` à
+CHAQUE `pointermove`, re-rendant tout le contenu du pop-up (formulaire,
+tableau) à chaque pixel parcouru. Sur un pop-up chargé, le fil d'événements
+pointeur s'engorge et la souris semble lâcher la prise, même sous capture.
+Même diagnostic que celui déjà posé sur l'organigramme : ce qui bouge en
+continu n'a pas sa place dans l'état React.
+
+Le décalage mute maintenant le DOM directement — `ref.current.style.transform`
+— sans passer par `setState`. La position ne se mémorisant de toute façon pas
+à la fermeture du pop-up, rien n'a besoin d'être *su* du composant entre deux
+gestes ; seule la classe `animate-none`, pour empêcher l'animation d'ouverture
+de reprendre la main sur `transform` pendant le geste, est encore posée — au
+`pointerdown`, une seule fois, pas à chaque `pointermove`.
+
+### L'épaisseur du contour de focus, en un seul endroit — via les Cascade Layers
+
+Le contour vit à deux endroits distincts : un `outline` par défaut, déjà
+centralisé dans une seule règle `@layer base`, et un `box-shadow` que chaque
+composant shadcn (input, select, case à cocher, interrupteur, badge...) pose
+lui-même via sa propre classe `ring-2`/`ring-3`/`ring-[3px]`. Tailwind grave
+cette largeur en dur dans chaque classe générée — `calc(2px + ...)`,
+`calc(3px + ...)` — sans variable partagée entre elles : la retoucher aurait
+demandé de réécrire plus d'une dizaine de fichiers, exactement ce que la
+demande interdisait (« un seul endroit, pas écran par écran »).
+
+La solution est passée par les **Cascade Layers**, une fonctionnalité CSS déjà
+utilisée implicitement par Tailwind v4 (`@layer theme, base, components,
+utilities`) : une déclaration posée HORS de tout `@layer` l'emporte TOUJOURS
+sur une déclaration de calque, quelle que soit sa spécificité — c'est ce
+mécanisme, et non `!important`, qui permet à une seule règle
+`:focus-visible { --tw-ring-shadow: ... }`, écrite au niveau racine de
+`app/globals.css`, de reprendre la largeur effective de CHAQUE `ring-*` du
+projet sans toucher un seul des fichiers qui les posent, ni leur couleur —
+seule la partie largeur du `calc()` est redéfinie, via un jeton unique,
+`--epaisseur-focus` (2px, contre 3px sur les champs). Vérifié en inspectant la
+feuille compilée (`.next/static/chunks/*.css`) : la règle apparaît bien hors
+de tout bloc `@layer`.
+
+`pnpm verify` : vert (un test, `apparence.test.ts`, s'est révélé flaky sous
+charge — passe seul et en isolation, timeout intermittent à 5000 ms quand les
+42 fichiers tournent en parallèle ; sans lien avec ces deux changements).

@@ -617,6 +617,25 @@ du pop-up — ce que celui-ci reçoit en prop n'est qu'un hint d'affichage, et l
 serveur peut refuser une saisie que l'écran annonçait encore recevable si le
 réglage a changé entre-temps.
 
+**Le glisser-déposer des pop-up ne « lâchait » plus la capture — mais le
+rendu.** `setPointerCapture` était déjà en place (`components/ui/dialog.tsx`,
+20 août) ; le défaut restant était un `setState` à CHAQUE `pointermove`, qui
+re-rendait tout le contenu du pop-up a chaque pixel parcouru et engorgeait le
+fil d'événements pointeur. Le décalage mute maintenant `ref.current.style.
+transform` **directement**, sans passer par l'état React — même diagnostic
+que celui déjà posé sur l'organigramme : ce qui bouge en continu n'a pas sa
+place dans le rendu.
+
+**Le contour de focus, en un seul endroit — via les Cascade Layers.** Il vit à
+deux endroits : un `outline` déjà centralisé (`@layer base`), et un
+`box-shadow` que chaque composant shadcn pose lui-même via sa propre classe
+`ring-2`/`ring-3`/`ring-[3px]`, largeur gravée en dur par Tailwind sans
+variable partagée. Une seule règle, écrite **hors de tout `@layer`** dans
+`app/globals.css`, l'emporte sur `@layer utilities` quelle que soit sa
+spécificité (Cascade Layers) et reprend la largeur effective de tous les
+`ring-*` du projet via un jeton unique, `--epaisseur-focus` (2px), sans
+toucher un seul fichier ni une seule couleur.
+
 Base à jour jusqu'à la migration `0068` — `0069` est **écrite et n'attend
 qu'une confirmation** dans l'éditeur SQL Supabase. Fuseau
 `Indian/Antananarivo` (UTC+3).

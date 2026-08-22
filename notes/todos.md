@@ -975,22 +975,42 @@ soldes consolidés — la décision a déjà été prise et tenue une fois.
       jours est ce qui rend le pari acceptable ; si le délai devient réglable et
       qu'on le porte à six mois, **il faudra rouvrir cette décision**.
 
-- [ ] **Le glisser-déposer des pop-up n'est pas fluide : la souris « lâche ».**
-      *Piste à vérifier en premier :* le geste s'appuie-t-il sur
-      `setPointerCapture` ? Sans capture, le navigateur perd le pointeur dès
-      qu'il sort de l'élément — c'est exactement le symptôme décrit. Le projet
-      s'en sert déjà ailleurs (poignée de redimensionnement de l'aperçu A4).
-      *Et vérifier ensuite :* un `setState` par image de déplacement fait
-      re-rendre tout le pop-up à chaque pixel. C'est le défaut qui avait été
-      corrigé sur l'organigramme — *ce qui bouge en continu appartient à la
-      bibliothèque qui l'anime ; on ne le lui reprend qu'à la fin du geste.*
+- [x] **Le glisser-déposer des pop-up n'est pas fluide : la souris « lâche ».**
+      *(22 août 2026, sans migration.)*
+      `setPointerCapture` était bien déjà en place (`components/ui/dialog.tsx`,
+      depuis le 20 août) — ce n'était donc pas la première piste. C'était la
+      seconde : `auMouvement` posait un `setState` à **chaque** `pointermove`,
+      qui re-rendait tout le contenu du pop-up — formulaire, tableau — à chaque
+      pixel parcouru. Sur un pop-up chargé, le fil d'événements pointeur
+      s'engorge et la souris semble « lâcher » la prise, même sous capture.
+      **Le décalage mute désormais le DOM directement** (`ref.current.style.
+      transform`), sans passer par l'état React — même principe que la
+      correction déjà apportée à l'organigramme, cité par la demande elle-même :
+      ce qui bouge en continu appartient au geste, pas au rendu. La position ne
+      se mémorisant de toute façon pas (RG déjà en place), rien n'a besoin
+      d'être *su* du composant entre deux gestes.
 
-- [ ] **Réduire l'épaisseur du contour de focus des champs.**
-      Il vit dans `globals.css` (jeton `--ring`, et l'épaisseur posée par les
-      classes `focus-visible:ring-*`). **Un seul endroit**, pas écran par écran.
-      *La borne à ne pas franchir :* le contour doit rester **visible au
-      clavier** — c'est lui qui dit où l'on est quand on navigue sans souris, et
-      §18.3 l'exige. L'amincir, oui ; le supprimer, non.
+- [x] **Réduire l'épaisseur du contour de focus des champs.**
+      *(22 août 2026, sans migration.)*
+      Un **seul jeton**, `--epaisseur-focus` (`app/globals.css`), pour les DEUX
+      mécanismes de focus de l'écran : l'`outline` par défaut (`@layer base`,
+      déjà centralisé) et le `box-shadow` que les composants shadcn posent
+      chacun via leur propre classe `ring-2`/`ring-3`/`ring-[3px]` — Tailwind
+      grave cette largeur en dur dans chaque classe générée, sans variable
+      commune à leur redonner ; la retoucher aurait exigé de réécrire plus
+      d'une dizaine de fichiers, exactement ce que la demande refusait.
+      **La résolution passe par les couches de cascade (Cascade Layers)** :
+      les classes `ring-*` vivent dans `@layer utilities`, et une déclaration
+      posée HORS de tout `@layer` l'emporte toujours sur une déclaration de
+      calque, quelle que soit sa spécificité. Une seule règle non calquée,
+      `:focus-visible { --tw-ring-shadow: … calc(var(--epaisseur-focus) + …) … }`,
+      reprend donc la largeur effective partout où `box-shadow:
+      var(--tw-ring-shadow)` la lit — sans toucher à la couleur de chaque
+      composant, ni à un seul des fichiers qui posent `ring-*`.
+      Valeur retenue : **2px** (contre 3px sur les champs — input, select,
+      case à cocher, interrupteur —, et déjà 2px sur le contour générique).
+      Le contour **reste visible au clavier**, borne de §18.3 : on l'amenuise,
+      on ne le supprime pas.
 
 
 ## Ce qui attend une réponse de l'utilisateur

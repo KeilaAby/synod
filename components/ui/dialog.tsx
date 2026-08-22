@@ -72,10 +72,20 @@ function DialogOverlay({
  *
  * Le decalage passe par `transform`, quand Tailwind v4 centre par la propriete
  * `translate` : les deux se composent au lieu de s'ecraser.
+ *
+ * LE DECALAGE MUTE LE DOM DIRECTEMENT — 22 aout 2026. Un `setState` a chaque
+ * `pointermove` re-rend tout le contenu du pop-up (formulaire, tableau...) a
+ * chaque pixel parcouru : sur un pop-up charge, le fil d'evenements pointeur
+ * s'engorge et la souris semble « lacher » la prise, meme sous
+ * `setPointerCapture`. Meme principe que la correction apportee a
+ * l'organigramme : ce qui bouge en continu appartient au geste, pas au rendu
+ * React — la position ne se memorise de toute facon pas, rien n'a donc besoin
+ * d'etre su du composant.
  */
 function useDeplacement() {
-  const [decalage, setDecalage] = React.useState({ x: 0, y: 0 })
+  const ref = React.useRef<HTMLDivElement>(null)
   const origine = React.useRef<{ x: number; y: number } | null>(null)
+  const decalage = React.useRef({ x: 0, y: 0 })
 
   function auPointeur(evenement: React.PointerEvent<HTMLDivElement>) {
     const cible = evenement.target as HTMLElement
@@ -85,18 +95,24 @@ function useDeplacement() {
     if (cible.closest("button, a, input, textarea, select, [role='button']")) return
 
     origine.current = {
-      x: evenement.clientX - decalage.x,
-      y: evenement.clientY - decalage.y,
+      x: evenement.clientX - decalage.current.x,
+      y: evenement.clientY - decalage.current.y,
     }
     evenement.currentTarget.setPointerCapture(evenement.pointerId)
+    // L'animation d'ouverture ne doit pas reprendre la main sur `transform`
+    // pendant le geste : elle ferait sauter le pop-up sous le doigt.
+    evenement.currentTarget.classList.add("animate-none")
   }
 
   function auMouvement(evenement: React.PointerEvent<HTMLDivElement>) {
     if (!origine.current) return
-    setDecalage({
+    decalage.current = {
       x: evenement.clientX - origine.current.x,
       y: evenement.clientY - origine.current.y,
-    })
+    }
+    if (ref.current) {
+      ref.current.style.transform = `translate(${decalage.current.x}px, ${decalage.current.y}px)`
+    }
   }
 
   function auRelachement(evenement: React.PointerEvent<HTMLDivElement>) {
@@ -105,13 +121,8 @@ function useDeplacement() {
     evenement.currentTarget.releasePointerCapture(evenement.pointerId)
   }
 
-  const deplace = decalage.x !== 0 || decalage.y !== 0
-
   return {
-    deplace,
-    style: deplace
-      ? { transform: `translate(${decalage.x}px, ${decalage.y}px)` }
-      : undefined,
+    ref,
     poignee: {
       onPointerDown: auPointeur,
       onPointerMove: auMouvement,
@@ -130,22 +141,20 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
 }) {
-  const { deplace, style: styleDeplacement, poignee } = useDeplacement()
+  const { ref, poignee } = useDeplacement()
 
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
+        ref={ref}
         data-slot="dialog-content"
         {...poignee}
-        style={{ ...style, ...styleDeplacement }}
+        style={style}
         className={cn(
           "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           // L'en-tete ANNONCE qu'il est saisissable, et seulement lui.
           "[&_[data-slot=dialog-header]]:cursor-grab",
-          // Pendant le geste, l'animation d'ouverture ne doit pas reprendre la
-          // main sur `transform` : elle ferait sauter le pop-up sous le doigt.
-          deplace && "animate-none",
           className
         )}
         {...props}

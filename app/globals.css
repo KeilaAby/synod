@@ -130,6 +130,15 @@
   --chart-5: #f43f5e; /* Rose-500   */
 
   --radius: 0.75rem; /* UI-02 — rayon de reference : la carte */
+
+  /* §18.3 — le contour de focus doit rester visible au clavier, amenuisi mais
+     jamais supprime. Un seul jeton : les composants shadcn (input, select,
+     checkbox, switch...) gravent chacun leur propre epaisseur dans une classe
+     `ring-2`/`ring-3`/`ring-[3px]` generee, sans variable partagee entre elles
+     — la retoucher classe par classe, dans plus d'une dizaine de fichiers,
+     ecrirait la meme regle a plusieurs endroits. Voir la regle juste avant
+     `@layer base` ci-dessous, qui la reprend pour tous en une fois. */
+  --epaisseur-focus: 2px;
 }
 
 /* -----------------------------------------------------------------------------
@@ -167,6 +176,31 @@
   --sidebar-ring: #f8fafc;
 }
 
+/* -----------------------------------------------------------------------------
+   L'epaisseur du contour de focus, EN UN SEUL ENDROIT — 22 aout 2026.
+
+   Tailwind grave la largeur en dur dans chaque classe `ring-N` qu'il genere
+   (`--tw-ring-shadow: ... calc(2px + ...) ...`, `calc(3px + ...)` pour
+   `ring-3`/`ring-[3px]`) : il n'existe aucune variable commune a leur
+   redonner. La retoucher exigerait de reecrire chaque `focus-visible:ring-*`
+   dans chaque composant shadcn (input, select, checkbox, switch, badge...) et
+   chaque ecran qui s'en inspire — la meme largeur a plus d'une dizaine
+   d'endroits, qui finirait par diverger au premier oubli.
+
+   CETTE REGLE N'EST DELIBEREMENT DANS AUCUN `@layer`. Les classes `ring-*`
+   vivent, elles, dans `@layer utilities` — et une declaration hors calque
+   l'emporte TOUJOURS sur une declaration de calque, quelle que soit sa
+   specificite (Cascade Layers). `--tw-ring-shadow` est une variable comme une
+   autre pour la cascade : la redefinir ici pour `:focus-visible` suffit a
+   changer la largeur EFFECTIVE du contour partout ou `box-shadow:
+   var(--tw-ring-shadow)` la lit, sans toucher a sa couleur
+   (`var(--tw-ring-color, ...)`, laissee intacte) ni au fichier qui la pose. */
+:focus-visible {
+  --tw-ring-shadow: var(--tw-ring-inset, ) 0 0 0
+    calc(var(--epaisseur-focus) + var(--tw-ring-offset-width))
+    var(--tw-ring-color, currentcolor);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -191,6 +225,12 @@
   /* ENF-UTI-03 — le focus doit rester visible partout, y compris au clavier. */
   :focus-visible {
     @apply outline-ring outline-2 outline-offset-2;
+    /* Le meme jeton que le contour `ring-*` des champs, defini plus haut —
+       une seule epaisseur pour les deux mecanismes de focus de l'ecran.
+       `outline-2` reste dans le `@apply` : lui seul pose `outline-style`
+       (sans quoi une largeur seule ne s'affiche pas, `none` etant la valeur
+       initiale) — cette ligne ne fait que reecrire sa largeur, APRES lui. */
+    outline-width: var(--epaisseur-focus);
   }
 }
 

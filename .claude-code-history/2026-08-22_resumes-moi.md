@@ -76,6 +76,36 @@ trois chaînes indépendantes pour `RetraitDialog` (`/bureaux`, le menu ⋮ de
 `CroyantForm` (montée à quatre endroits, unifiées par `getOptionsCroyant()`
 qui porte désormais aussi ce réglage).
 
+### Le glisser-déposer des pop-up « lâchait » — ce n'était pas la capture
+
+`setPointerCapture` était déjà en place dans `components/ui/dialog.tsx`
+(depuis le 20 août) : la première piste suggérée par la demande était donc
+déjà couverte. C'était la seconde qui restait vraie — `auMouvement` posait un
+`setState` à CHAQUE `pointermove`, re-rendant tout le contenu du pop-up
+(formulaire, tableau) à chaque pixel parcouru ; sur un pop-up chargé, le fil
+d'événements pointeur s'engorge et la souris semble lâcher la prise, même sous
+capture. Corrigé en mutant `ref.current.style.transform` **directement**, sans
+passer par l'état React — même diagnostic que celui déjà posé sur
+l'organigramme.
+
+### Le contour de focus, en un seul endroit — via les Cascade Layers
+
+Le contour vit à deux endroits : un `outline` par défaut déjà centralisé
+(`@layer base`), et un `box-shadow` que chaque composant shadcn (input,
+select, case à cocher, interrupteur, badge...) pose lui-même via sa propre
+classe `ring-2`/`ring-3`/`ring-[3px]` — largeur gravée en dur par Tailwind,
+sans variable partagée entre elles. La retoucher aurait demandé de réécrire
+plus d'une dizaine de fichiers, exactement ce que la demande refusait.
+
+Résolu via les **Cascade Layers** : les classes `ring-*` vivent dans
+`@layer utilities`, et une déclaration posée HORS de tout `@layer` l'emporte
+TOUJOURS sur une déclaration de calque, quelle que soit sa spécificité. Une
+seule règle non calquée dans `app/globals.css` reprend donc la largeur
+effective de tous les `ring-*` du projet via un jeton unique,
+`--epaisseur-focus` (2px, contre 3px sur les champs), sans toucher ni un
+fichier ni une couleur. Vérifié en inspectant la feuille CSS compilée : la
+règle apparaît bien hors de tout bloc `@layer`.
+
 ---
 
 ## Les décisions à ne pas défaire
@@ -105,18 +135,16 @@ valables ; voir
 
 ## Ce qu'il reste
 
-**La liste fait foi : [`notes/todos.md`](../notes/todos.md).** En tête de file,
-dans la section 10 :
+**La liste fait foi : [`notes/todos.md`](../notes/todos.md).** La section 10
+est close à une exception près :
 
-- **« Erreur d'assignation » en option par défaut** — décision explicitement
-  laissée à l'utilisateur, pas tranchée en silence : le défaut actuel est le
-  plus conservateur, et la fenêtre de correction est maintenant réglable, ce
-  qui rouvre la question posée dans la demande d'origine.
-- **Le glisser-déposer des pop-up « lâche »** — piste à vérifier en premier :
-  `setPointerCapture`, déjà utilisé ailleurs dans le projet.
-- **L'épaisseur du contour de focus** — jeton `--ring` et classes
-  `focus-visible:ring-*` dans `globals.css`, à amincir sans le rendre
-  invisible au clavier.
+- **« Erreur d'assignation » en option par défaut** — SEUL point encore
+  ouvert de la section, laissé **délibérément** à l'utilisateur : le défaut
+  actuel est le plus conservateur (`DECISION` conserve l'historique, `ERREUR`
+  l'efface), et la fenêtre de correction étant maintenant réglable jusqu'à un
+  an, le pari qui rendait le défaut acceptable à 15 jours fixes ne vaut plus
+  tel quel — c'est exactement la question que `notes/todos.md` demandait de
+  rouvrir une fois le délai configurable.
 - **Deux demandes du 21 août sur l'attestation de transfert** — consultable
   avant approbation, et configurable par l'entité émettrice.
 - **`/finances`** — le rapprochement des dîmes rendu à l'église (six points).
