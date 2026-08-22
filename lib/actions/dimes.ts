@@ -621,3 +621,51 @@ export async function resoudreRapprochement(
     return ok({ recu: String(recu ?? '') });
   });
 }
+
+// -----------------------------------------------------------------------------
+// Basculer une enveloppe en anonyme — EF-FIN-34
+// -----------------------------------------------------------------------------
+
+const marquerAnonymeSchema = z.object({ rapprochementId: z.uuid() });
+
+/**
+ * Le porteur d'une enveloppe numérotée reste introuvable — EF-FIN-34.
+ *
+ * `fn_marquer_enveloppe_anonyme` fait les DEUX écritures (règle 20) : le
+ * versement passe en `ENVELOPPE_ANONYME` ET la ligne se ferme. La ligne se
+ * ferme SANS jamais recevoir de croyant : contrairement à
+ * `resoudreRapprochement`, il n'y a ici personne à qui l'attribuer — c'est
+ * `resolu_le` qui porte seul la fermeture (migration `0072`).
+ */
+export async function marquerEnveloppeAnonyme(
+  input: unknown,
+): Promise<ActionResult<void>> {
+  return executerAction('marquerEnveloppeAnonyme', async () => {
+    const session = await requireSession();
+
+    const analyse = marquerAnonymeSchema.safeParse(input);
+    if (!analyse.success) return ko('Demande invalide.');
+    const data = analyse.data;
+
+    const sb = await createClient();
+
+    const { error } = await sb.rpc('fn_marquer_enveloppe_anonyme', {
+      p_rapprochement: data.rapprochementId,
+    });
+
+    if (error) return ko(messageErreurSql(error));
+
+    await auditer({
+      session,
+      action: 'UPDATE',
+      table: 'dime_rapprochements',
+      recordId: data.rapprochementId,
+      diff: { apres: { nature: 'ENVELOPPE_ANONYME' } },
+    });
+
+    revalidatePath('/croyants');
+    revalidatePath('/finances/dimes');
+
+    return ok();
+  });
+}

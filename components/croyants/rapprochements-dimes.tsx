@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, Loader2, UserCheck, UserPlus, UserSearch } from 'lucide-react';
+import { ChevronDown, Loader2, UserCheck, UserPlus, UserSearch, UserX } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -14,7 +14,9 @@ import {
   SuggestionsEnveloppe,
   type PorteurSuggere,
 } from '@/components/finances/suggestions-enveloppe';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { avertir } from '@/components/shared/messages';
+import { EntityPicker } from '@/components/structure/entity-picker';
 import { Button } from '@/components/ui/button';
 import {
   Collapsible,
@@ -29,11 +31,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { resoudreRapprochement } from '@/lib/actions/dimes';
+import { marquerEnveloppeAnonyme, resoudreRapprochement } from '@/lib/actions/dimes';
 import type { RapprochementEnAttente } from '@/lib/data/dimes';
 import { suggestionsPourEnveloppe } from '@/lib/domain/dime';
 import { cn } from '@/lib/utils';
 import { formatDate, formatMontant, formatNombre } from '@/lib/utils/format';
+
+import type { RattachementImpose } from './croyant-form';
 
 /**
  * Les noms d'un import que rien n'a reconnu — EF-FIN-34.
@@ -77,6 +81,14 @@ export function RapprochementsDimes({
   /** La ligne dont on est en train d'ouvrir la fiche, ou `null`. */
   const [creation, setCreation] = useState<RapprochementEnAttente | null>(null);
   /**
+   * Le choix EXPLICITE de l'utilisateur, par ligne — distinct de l'amorce
+   * automatique d'`egliseProbable`. `null` est un choix (« aucune »),
+   * `undefined` (absence de clé) signifie qu'on n'a encore rien décidé.
+   */
+  const [eglisesChoisies, setEglisesChoisies] = useState<Record<string, string | null>>({});
+  /** La ligne dont on demande la confirmation « marquer anonyme », ou `null`. */
+  const [aAnonymiser, setAAnonymiser] = useState<string | null>(null);
+  /**
    * Replié par défaut : on vient sur cet écran pour la liste des croyants, pas
    * pour le rapprochement. Le bandeau, lui, reste toujours visible et porte le
    * compte — c'est lui qui alerte, pas la table.
@@ -115,6 +127,22 @@ export function RapprochementsDimes({
   }
 
   /**
+   * EF-FIN-34 — une enveloppe sans nom ni fiche à créer : elle ne se
+   * rattachera jamais, et rester en attente dirait le contraire. `resolu_le`
+   * ferme la ligne (migration `0072`) sans jamais poser de `croyant_id`.
+   */
+  async function anonymiser() {
+    if (!aAnonymiser) return;
+    const resultat = await marquerEnveloppeAnonyme({ rapprochementId: aAnonymiser });
+    if (!resultat.ok) {
+      avertir(resultat.error, { ton: 'refus', titre: 'Rapprochement refusé' });
+      return;
+    }
+    toast.success('Enveloppe déclarée anonyme. Elle ne reste plus en attente.');
+    router.refresh();
+  }
+
+  /**
    * L'église la plus PROBABLE, dans cet ordre :
    *
    *   1. CELLE QUE LE FICHIER ANNONÇAIT (`eglise_id`, migration `0058`). C'est
@@ -136,6 +164,30 @@ export function RapprochementsDimes({
       return r.eglise_id;
     }
     return options.eglises.some((e) => e.id === r.entite_id) ? r.entite_id : undefined;
+  }
+
+  /**
+   * L'église RETENUE pour la ligne : le choix explicite de l'utilisateur
+   * s'il existe (même « aucune », posé en effaçant le picker), sinon
+   * l'amorce d'`egliseProbable`. C'est elle qui verrouille « Créer la
+   * fiche » — jamais `egliseProbable` seule, qui reste une suggestion.
+   */
+  function egliseRetenue(r: RapprochementEnAttente): string | undefined {
+    const choisie = eglisesChoisies[r.id];
+    return choisie !== undefined ? (choisie ?? undefined) : egliseProbable(r);
+  }
+
+  /**
+   * Le rattachement LOCKED de la fiche à créer (`RattachementImpose`) : la
+   * fiche naît à l'église retenue pour cette ligne, elle ne se choisit pas
+   * une seconde fois dans le formulaire — sans quoi le geste fait ici, sur
+   * cette ligne précise, pourrait être défait par inattention.
+   */
+  function rattachementPour(r: RapprochementEnAttente | null): RattachementImpose | undefined {
+    if (!r) return undefined;
+    const id = egliseRetenue(r);
+    const nom = id ? options.eglises.find((e) => e.id === id)?.nom : undefined;
+    return id && nom ? { egliseId: id, egliseNom: nom } : undefined;
   }
 
   if (rapprochements.length === 0) return null;
@@ -269,6 +321,27 @@ export function RapprochementsDimes({
                             </span>
                           )
                         )}
+
+                        {/*
+                          RIEN NE L'A RECONNUE : ON LA CHOISIT ICI. La fiche
+                          qui naîtra de « Créer la fiche » se rattachera à
+                          cette église, verrouillée (`RattachementImpose`) —
+                          jamais à celle, éventuellement fausse, que le
+                          formulaire aurait laissé libre.
+                        */}
+                        {!r.eglise_id && (
+                          <div className="mt-1 max-w-56">
+                            <EntityPicker
+                              options={options.eglises}
+                              value={egliseRetenue(r) ?? null}
+                              onChange={(id) =>
+                                setEglisesChoisies((c) => ({ ...c, [r.id]: id }))
+                              }
+                              placeholder="Choisir l’église"
+                              compact
+                            />
+                          </div>
+                        )}
                       </TableCell>
 
                       <TableCell className="text-muted-foreground align-top font-mono text-xs">
@@ -351,14 +424,38 @@ export function RapprochementsDimes({
                         vérité.
                       */}
                           {r.nom_source && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                className="text-muted-foreground h-8 text-xs"
+                                disabled={enCours !== null || !egliseRetenue(r)}
+                                onClick={() => setCreation(r)}
+                              >
+                                <UserPlus className="mr-2 size-3.5" aria-hidden />
+                                Créer la fiche
+                              </Button>
+                              {!egliseRetenue(r) && (
+                                <p className="text-muted-foreground px-1 text-[11px] italic">
+                                  Choisir l’église d’abord.
+                                </p>
+                              )}
+                            </>
+                          )}
+
+                          {/*
+                        RÈGLE C, DANS L'AUTRE SENS — sans nom mais avec un
+                        numéro d'enveloppe (migration `0072`) : ce ne sera
+                        jamais une fiche. Rester en attente le dirait faux.
+                      */}
+                          {!r.nom_source && r.enveloppe_source && (
                             <Button
                               variant="ghost"
                               className="text-muted-foreground h-8 text-xs"
                               disabled={enCours !== null}
-                              onClick={() => setCreation(r)}
+                              onClick={() => setAAnonymiser(r.id)}
                             >
-                              <UserPlus className="mr-2 size-3.5" aria-hidden />
-                              Créer la fiche
+                              <UserX className="mr-2 size-3.5" aria-hidden />
+                              Marquer anonyme
                             </Button>
                           )}
                         </div>
@@ -390,7 +487,7 @@ export function RapprochementsDimes({
               ? { nom: creation.nom_source, prenom: creation.prenom_source ?? '' }
               : undefined
           }
-          eglisePreselectionnee={creation ? egliseProbable(creation) : undefined}
+          rattachement={rattachementPour(creation)}
           onCree={(id) => {
             const ligne = creation;
             setCreation(null);
@@ -398,6 +495,17 @@ export function RapprochementsDimes({
             // rechercher ensuite ferait refaire un geste déjà fait.
             if (ligne) void resoudre(ligne.id, id);
           }}
+        />
+
+        <ConfirmDialog
+          open={aAnonymiser !== null}
+          onOpenChange={(v) => {
+            if (!v) setAAnonymiser(null);
+          }}
+          title="Déclarer cette enveloppe anonyme ?"
+          description="Le montant reste compté, mais la ligne ne demandera plus de nom : personne ne pourra plus s’en voir attribuer le reçu."
+          confirmLabel="Déclarer anonyme"
+          onConfirm={anonymiser}
         />
       </section>
     </Collapsible>

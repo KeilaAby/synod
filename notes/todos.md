@@ -1,6 +1,6 @@
 # TODO — demandes en attente
 
-> Liste tenue à jour au **20 août 2026**, pour la reprise sur une autre machine.
+> Liste tenue à jour au **22 août 2026**, pour la reprise sur une autre machine.
 >
 > Elle porte les demandes **et** ce qui a déjà été tranché, avec le motif : une
 > décision dont on a perdu la raison se redéfait. Ce qui est livré passe en
@@ -14,10 +14,12 @@
 
 ## ⚠ État de la base
 
-**Appliquées : `0001` à `0071`.** Aucune migration n'attend.
+**Appliquées : `0001` à `0071`. `0072` est écrite et attend une confirmation
+dans l'éditeur SQL Supabase.**
 
 | N° | Ce qu'elle apporte | Sans elle |
 |---|---|---|
+| `0072` | Élargit `dime_rapprochements` à l'**église résolue** (`select`/`write` RLS, `fn_resoudre_rapprochement`, nouvelle `fn_marquer_enveloppe_anonyme`) en plus de l'entité collectrice ; « en attente » se lit désormais à `resolu_le is null`, plus à `croyant_id is null` | Une église qui n'a rien collecté ne peut ni rapprocher, ni créer une fiche, ni déclarer anonyme une ligne que le fichier lui attribue ; une enveloppe anonymisée resterait indéfiniment dans la file |
 | `0071` | `croyants.conjoint_id` — le lien conjugal symétrique (EF-CRO-14), maintenu par `fn_conjoint_symetrique()` et `fn_conjoint_veuvage()`, tous deux `SECURITY DEFINER` | Le formulaire propose un conjoint, mais rien ne le relie ni ne le relâche : deux fiches se contrediraient dès la première saisie |
 | `0070` | `attestation_transfert_settings` — le gabarit réglable de l'attestation de transfert (logo, texte du corps, mentions légales, cartouche de signature), une seule ligne, lecture libre / écriture `settings.manage` | L'attestation reste figée au texte de référence codé en dur, sans écran pour le personnaliser |
 | `0069` | `organisation_settings.jours_correction_saisie` — le délai de correction (15 jours par défaut) devient un réglage, plus une constante dupliquée dans deux fichiers | Le retrait d'un titulaire et le changement de grade continuent de lire chacun leur propre `JOURS_ERREUR_*` codé en dur, sans écran pour le régler |
@@ -33,7 +35,9 @@ l'éditeur SQL Supabase et le confirme.
 `0068` l'était aussi. Confirmé par l'utilisateur et corrigé le 21 août au
 soir. `0069`, `0070` et `0071` ont été confirmées appliquées par
 l'utilisateur le 22 août — `0071` vérifiée en conditions réelles après
-correction de deux défauts trouvés en test, voir l'item du lien conjugal.)*
+correction de deux défauts trouvés en test, voir l'item du lien conjugal.
+`0072`, écrite le 22 août pour le bloc dîmes ci-dessous, attend la même
+confirmation avant d'être vérifiée en conditions réelles.)*
 
 ---
 
@@ -508,32 +512,51 @@ réponse demandée n'est *pas* d'améliorer le rapprochement automatique mais de
 > l'entité, résolue **une fois** à l'import. Ce qui suit peut donc être en
 > partie de l'affichage, pas du schéma.
 
-- [ ] **Afficher le nom d'église issu du fichier** dans la liste des dîmes, sur
-      les lignes à rapprocher. C'est lui qui permet d'associer la personne à la
-      bonne église sans deviner.
-- [ ] **Le pop-up de rapprochement propose de choisir l'église.** Si la personne
-      n'existe pas en base, on propose de **créer la fiche au niveau de cette
-      église** — la proposition arrive alors dans **sa** liste de croyants sans
-      rattachement. Si la personne existe, la procédure de rapprochement
-      actuelle s'applique sans changement.
-- [ ] **Même traitement pour un nom renseigné sans correspondance en base**,
-      sans enveloppe, église connue.
-- [ ] **En conséquence, la liste des croyants sans rattachement s'élargit.**
-      Elle doit désormais porter :
-      - les **propositions de création** faites par les opérateurs de la
-        finance et adressées à cette église ;
-      - les **enveloppes numérotées dont l'église est connue**, à charge pour
-        l'église de retrouver le porteur du numéro.
-
-      Le travail de l'église devient donc triple : **rapprocher**, **créer une
-      fiche**, ou **retrouver le propriétaire d'une enveloppe**.
-- [ ] **Basculer une enveloppe en anonyme.** Si le propriétaire reste
-      introuvable, l'église peut déclarer l'enveloppe anonyme, ce qui **met à
-      jour la ligne dans la liste des dîmes**.
-
-      À ne pas manquer : c'est une écriture qui touche **deux** endroits — la
-      file de rapprochement et le versement. Si l'état intermédiaire est faux et
-      indétectable, elle se fait **en base** dans une fonction (règle 20).
+- [x] **Afficher le nom d'église issu du fichier** dans la liste des dîmes, sur
+      les lignes à rapprocher. *(22 août 2026 — sans migration côté affichage :
+      `eglise_source`/`eglise_id` existaient depuis `0058`, il manquait
+      l'appelant.)* Ajouté à `dimes-client.tsx`, sur le même patron que
+      `rapprochements-dimes.tsx` qui le portait déjà : le libellé lu s'affiche
+      **même sans reconnaissance**, avec la mention « — église non reconnue ».
+- [x] **Le pop-up de rapprochement propose de choisir l'église.** *(22 août
+      2026, migration `0072`.)* `rapprochements-dimes.tsx` pose un
+      `EntityPicker` (église seule, `compact`) sous le libellé lu, mais
+      **seulement quand `eglise_id` est absent** — une église déjà reconnue ne
+      se laisse pas recontredire par erreur. Le choix retenu (`egliseRetenue`)
+      préfère le choix EXPLICITE de l'utilisateur à l'amorce automatique
+      d'`egliseProbable`, puis **verrouille** « Créer la fiche » :
+      `NouveauCroyantDialog` reçoit désormais `rattachement`
+      (`RattachementImpose`, LOCKED) et non plus `eglisePreselectionnee`
+      (libre) — la fiche naît à l'église choisie sur cette ligne précise, elle
+      ne se rechoisit pas une seconde fois dans le formulaire. Le bouton reste
+      désactivé, avec l'explication « Choisir l'église d'abord. », tant
+      qu'aucune église n'est retenue.
+- [x] **Même traitement pour un nom renseigné sans correspondance en base**,
+      sans enveloppe, église connue. *(22 août 2026.)* Couvert par le même
+      `EntityPicker` : il s'affiche pour toute ligne dont l'église n'est pas
+      reconnue, qu'il y ait ou non un numéro d'enveloppe.
+- [x] **En conséquence, la liste des croyants sans rattachement s'élargit.**
+      *(22 août 2026, migration `0072`.)* La RLS de `dime_rapprochements` (both
+      `select` et `write`) accepte désormais **soit** l'entité collectrice
+      (`entite_id`, déjà en place), **soit** l'église résolue (`eglise_id`) —
+      `fn_resoudre_rapprochement` et `fn_marquer_enveloppe_anonyme` vérifient
+      `finance.dime.collect` sur l'une **ou** l'autre. Une église qui n'a rien
+      collecté peut donc rapprocher, créer une fiche, ou déclarer anonyme une
+      ligne que le fichier lui attribue.
+- [x] **Basculer une enveloppe en anonyme.** *(22 août 2026, migration
+      `0072`.)* `fn_marquer_enveloppe_anonyme`, `SECURITY DEFINER`, écrit les
+      **deux** tables en une fonction (règle 20 : l'état intermédiaire — un
+      versement anonymisé dont la file resterait ouverte, ou l'inverse — serait
+      faux et indétectable) : `dime_versements.nature = 'ENVELOPPE_ANONYME'`
+      **et** `dime_rapprochements.resolu_le = now()`. Disponible depuis les
+      deux écrans (`/finances/dimes` en menu ⋮ par versement, `/croyants` en
+      bouton sur la ligne), réservé aux lignes **sans nom** porteuses d'un
+      numéro — une ligne nommée a une fiche à créer, pas une anonymisation à
+      déclarer. **`resolu_le`, pas `croyant_id`, devient le signal canonique
+      de « encore en attente »** : une ligne anonymisée ne prend jamais de
+      `croyant_id`, donc `.is('croyant_id', null)` la aurait laissée
+      indéfiniment dans la file après l'avoir close. `chargerRapprochements`
+      et l'index partiel `dime_rapprochements_attente_idx` ont suivi.
 
 **Le point de vigilance de tout ce bloc** — RG-33 : une dîme appartient au
 **Siège**, jamais à l'église qui la collecte. `entity_id = <Siège>`,
@@ -543,11 +566,14 @@ montant vers l'église, sous peine de compter le même argent deux fois. Et
 la structure, recevrait un code, apparaîtrait dans chaque sélecteur et dans les
 soldes consolidés — la décision a déjà été prise et tenue une fois.
 
-- [ ] **Menu de versement individuel sur chaque ligne** de `/finances/dimes`.
-      Le pop-up s'ouvre avec le champ entité **verrouillé** sur celle de la
-      ligne — même principe que l'enregistrement d'un croyant depuis la
-      structure, où le rattachement est imposé et n'a donc rien à se faire
-      choisir (règle 16).
+- [x] **Menu de versement individuel sur chaque ligne** de `/finances/dimes`.
+      *(22 août 2026.)* `CollecteDialog` gagne le mode piloté déjà rodé sur
+      `MandatDialog` (`entiteImposee`, `open`/`onOpenChange`, propre bouton
+      déclencheur masqué) : l'entité collectrice s'affiche en bloc verrouillé
+      (`bg-muted/40`) au lieu de l'`EntityPicker` habituel — même principe que
+      l'enregistrement d'un croyant depuis la structure (règle 16). Un menu ⋮
+      par collecte, gardé par `finance.dime.collect` sur l'entité de la ligne,
+      ouvre « Nouveau versement » ainsi verrouillé.
 
 ## 4. `/rapports`
 

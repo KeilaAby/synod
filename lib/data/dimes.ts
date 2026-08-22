@@ -43,7 +43,8 @@ const CHAMPS = `
     id, croyant_id, enveloppe_numero, montant, recu_numero, nature,
     croyant:croyants!dime_versements_croyant_id_fkey (id, nom, prenom, matricule),
     rapprochement:dime_rapprochements!dime_rapprochements_versement_id_fkey (
-      id, nom_source, prenom_source, enveloppe_source, croyant_id
+      id, nom_source, prenom_source, enveloppe_source, croyant_id,
+      eglise_source, eglise_id, resolu_le
     )
   )
 ` as const;
@@ -71,6 +72,16 @@ export interface VersementListe {
     prenom_source: string | null;
     enveloppe_source: string | null;
     croyant_id: string | null;
+    /** Ce que le fichier disait de l'eglise — EF-FIN-34, migration 0058. */
+    eglise_source: string | null;
+    /** L'entite reconnue a l'import, ou `null`. */
+    eglise_id: string | null;
+    /**
+     * `null` = encore en attente. Migration 0072 — une ligne peut se fermer
+     * SANS `croyant_id` (enveloppe basculee en anonyme) : c'est ce champ, et
+     * lui seul, qui dit si une ligne reste a traiter.
+     */
+    resolu_le: string | null;
   }[];
 }
 
@@ -355,7 +366,11 @@ export const chargerRapprochements = cache(
           '), ' +
           'entite:entities!dime_rapprochements_entite_id_fkey (id, nom)',
       )
-      .is('croyant_id', null)
+      // EF-FIN-34, migration 0072 — « resolu » se lit sur `resolu_le`, pas sur
+      // `croyant_id` : une enveloppe basculee en anonyme ferme la ligne SANS
+      // jamais lui donner de croyant, et resterait sinon dans la file pour
+      // toujours.
+      .is('resolu_le', null)
       .order('created_at', { ascending: true })
       .limit(2000)
       .returns<RapprochementEnAttente[]>();

@@ -10,8 +10,11 @@ import {
   Search,
   Truck,
   UserSearch,
+  UserX,
 } from 'lucide-react';
 import { Fragment, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 import {
   CollecteDialog,
@@ -21,8 +24,11 @@ import { ImportVersementsDialog } from '@/components/finances/import-versements-
 import { imprimerRecus } from '@/components/finances/imprimer-recus';
 import { RapprocherDialog } from '@/components/finances/rapprocher-dialog';
 import { RemiseDialog } from '@/components/finances/remise-dialog';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { EmptyState } from '@/components/shared/empty-state';
 import { FiltreIcone, GroupeFiltres } from '@/components/shared/filtre-icone';
+import { avertir } from '@/components/shared/messages';
+import { useSession } from '@/components/shared/session-provider';
 import { StatusBadge } from '@/components/shared/status-badge';
 import type { OptionEntite } from '@/components/structure/entity-picker';
 import { Button } from '@/components/ui/button';
@@ -41,6 +47,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { marquerEnveloppeAnonyme } from '@/lib/actions/dimes';
 import type { CollecteListe } from '@/lib/data/dimes';
 import { normaliserRecherche } from '@/lib/domain/croyant';
 import {
@@ -91,6 +98,8 @@ export function DimesClient({
   /** N° d'enveloppe -> ceux qui l'ont déjà portée (EF-FIN-27). */
   porteurs: Record<string, { croyantId: string; nom: string; prenom: string }[]>;
 }) {
+  const { peut } = useSession();
+  const router = useRouter();
   const [recherche, setRecherche] = useState('');
   const [aRemettre, setARemettre] = useState(false);
   const [deplies, setDeplies] = useState<Set<string>>(new Set());
@@ -101,6 +110,14 @@ export function DimesClient({
     prenom_source: string | null;
     enveloppe_source: string | null;
   } | null>(null);
+  /**
+   * L'entité pour laquelle on ajoute UN versement individuel, ou `null` —
+   * demande du 20 août 2026. Un seul pop-up partagé (règle 16), piloté par
+   * cette ligne plutôt qu'un par collecte.
+   */
+  const [aAjouter, setAAjouter] = useState<{ id: string; nom: string } | null>(null);
+  /** La ligne qu'on s'apprête à déclarer anonyme — EF-FIN-34, migration 0072. */
+  const [aAnonymiser, setAAnonymiser] = useState<string | null>(null);
 
   const aujourdhui = new Date().toISOString().slice(0, 10);
 
@@ -174,6 +191,19 @@ export function DimesClient({
       else suivant.add(id);
       return suivant;
     });
+
+  async function anonymiser() {
+    if (!aAnonymiser) return;
+
+    const resultat = await marquerEnveloppeAnonyme({ rapprochementId: aAnonymiser });
+
+    if (!resultat.ok) {
+      avertir(resultat.error);
+      return;
+    }
+    toast.success('Enveloppe déclarée anonyme. Elle ne reste plus en attente.');
+    router.refresh();
+  }
 
   return (
     <div className="space-y-4">
@@ -307,6 +337,9 @@ export function DimesClient({
                 <TableHead className="w-24 text-right">Versements</TableHead>
                 <TableHead className="text-right">Montant</TableHead>
                 <TableHead className="w-32">Remise</TableHead>
+                <TableHead className="w-10">
+                  <span className="sr-only">Actions</span>
+                </TableHead>
               </TableRow>
             </TableHeader>
 
@@ -419,6 +452,43 @@ export function DimesClient({
                           <StatusBadge tone="warning">À remettre</StatusBadge>
                         )}
                       </TableCell>
+
+                      {/*
+                        EF-FIN-34, demande du 20 août 2026 — un versement
+                        individuel, entité VERROUILLÉE sur celle de la ligne :
+                        même principe que l'enregistrement d'un croyant depuis
+                        le menu ⋮ de la structure, où le rattachement est
+                        imposé (règle 16).
+                      */}
+                      <TableCell className="text-right">
+                        {c.entite_collecte_id && peut('finance.dime.collect', c.entite_collecte_id) && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-8"
+                                aria-label={`Actions sur la collecte de ${c.collecteur?.nom ?? 'cette entité'}`}
+                              >
+                                <MoreVertical className="size-4" aria-hidden />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onSelect={() =>
+                                  setAAjouter({
+                                    id: c.entite_collecte_id!,
+                                    nom: c.collecteur?.nom ?? '—',
+                                  })
+                                }
+                              >
+                                <Coins className="mr-2 size-4" aria-hidden />
+                                Nouveau versement
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
+                      </TableCell>
                     </TableRow>
 
                     {/*
@@ -431,7 +501,7 @@ export function DimesClient({
                     {ouvert && detail && (
                       <TableRow className="bg-muted/40 hover:bg-muted/40">
                         <TableCell />
-                        <TableCell colSpan={6} className="py-4">
+                        <TableCell colSpan={7} className="py-4">
                           {/*
                             EF-FIN-27 — LE TALON S'IMPRIME.
 
@@ -492,8 +562,26 @@ export function DimesClient({
                                * résolue garde son rapprochement — c'est la
                                * trace de ce que le fichier disait — mais il n'y
                                * a plus rien à y faire.
+                               *
+                               * `resolu_le`, PAS `croyant_id` (migration 0072) :
+                               * une enveloppe basculée en anonyme ferme la
+                               * ligne SANS jamais lui donner de croyant, et
+                               * `croyant_id === null` resterait vrai pour
+                               * toujours.
                                */
-                              const rapprochable = rappr !== null && rappr.croyant_id === null;
+                              const rapprochable = rappr !== null && rappr.resolu_le === null;
+
+                              /**
+                               * EF-FIN-34, migration 0072 — le porteur d'une
+                               * enveloppe reste introuvable : l'église peut
+                               * renoncer plutôt que de laisser la ligne trainer
+                               * indéfiniment. Réservé aux lignes SANS nom lu :
+                               * un nom lu mérite d'abord la recherche.
+                               */
+                              const anonymisable =
+                                rapprochable &&
+                                !rappr.nom_source &&
+                                Boolean(v.enveloppe_numero);
 
                               /**
                                * IMPRIMABLE DÈS QU'IL Y A UN NOM, fiche ou pas.
@@ -545,6 +633,24 @@ export function DimesClient({
                                       <span className="ml-1 font-sans italic">
                                         (habituelle)
                                       </span>
+                                    </span>
+                                  )}
+                                  {/*
+                                    EF-FIN-34, migration 0072 — CE QUE LE
+                                    FICHIER DISAIT DE L'ÉGLISE, même quand
+                                    rien ne l'a reconnue : c'est elle qui
+                                    permet d'associer la personne à la bonne
+                                    église sans deviner, la seule raison
+                                    d'être de cette colonne (`0058`).
+                                  */}
+                                  {rappr?.eglise_source && (
+                                    <span className="text-muted-foreground block text-xs">
+                                      {rappr.eglise_source}
+                                      {!rappr.eglise_id && (
+                                        <span className="ml-1 italic">
+                                          — église non reconnue
+                                        </span>
+                                      )}
                                     </span>
                                   )}
                                 </span>
@@ -643,6 +749,24 @@ export function DimesClient({
                                               Rapprocher
                                             </DropdownMenuItem>
                                           )}
+
+                                          {/*
+                                            EF-FIN-34, migration 0072 — LE
+                                            PORTEUR RESTE INTROUVABLE. L'argent
+                                            est déjà compté (nature
+                                            ENVELOPPE_ANONYME dès l'import) ;
+                                            ce geste ferme seulement la ligne
+                                            qui attendait un nom, pour qu'elle
+                                            cesse de trainer indéfiniment.
+                                          */}
+                                          {anonymisable && (
+                                            <DropdownMenuItem
+                                              onSelect={() => setAAnonymiser(rappr.id)}
+                                            >
+                                              <UserX className="mr-2 size-4" aria-hidden />
+                                              Marquer anonyme
+                                            </DropdownMenuItem>
+                                          )}
                                         </DropdownMenuContent>
                                       </DropdownMenu>
                                     )}
@@ -685,6 +809,41 @@ export function DimesClient({
         onOpenChange={(ouvert) => {
           if (!ouvert) setARapprocher(null);
         }}
+      />
+
+      {/*
+        UN VERSEMENT INDIVIDUEL, entité VERROUILLÉE — demande du 20 août 2026.
+        Même `CollecteDialog` que « Nouvelle collecte » (règle 16) : piloté
+        ici, il ne rend pas son propre bouton et reçoit l'entité de la ligne
+        d'où le geste est parti.
+      */}
+      <CollecteDialog
+        entites={entites}
+        devise={devise}
+        modes={modes}
+        croyants={croyants}
+        croyantsTronques={croyantsTronques}
+        enveloppes={enveloppes}
+        photos={photos}
+        porteurs={porteurs}
+        entiteImposee={aAjouter ?? undefined}
+        open={aAjouter !== null}
+        onOpenChange={(ouvert) => {
+          if (!ouvert) setAAjouter(null);
+        }}
+      />
+
+      {/*
+        EF-FIN-34, migration 0072 — la ligne ne revient pas dans la file une
+        fois fermée : une confirmation, comme pour clore ou supprimer.
+      */}
+      <ConfirmDialog
+        open={aAnonymiser !== null}
+        onOpenChange={(v) => !v && setAAnonymiser(null)}
+        title="Déclarer cette enveloppe anonyme ?"
+        description="Le montant reste compté, mais la ligne ne demandera plus de nom : personne ne pourra plus s’en voir attribuer le reçu."
+        confirmLabel="Déclarer anonyme"
+        onConfirm={anonymiser}
       />
     </div>
   );

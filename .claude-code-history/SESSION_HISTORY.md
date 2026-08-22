@@ -5769,3 +5769,75 @@ Changer de niveau, ou revenir sur « Tous », referme l'entité ouverte : elle
 n'aurait plus de sens sous un niveau différent.
 
 `pnpm verify` : 44 fichiers, 883 tests, build compris — vert.
+
+## 22 août 2026 (suite) — Les dîmes rendues à l'église, migration `0072`
+
+Reprise de `notes/todos.md` §3 (« Demandes du 20 août 2026 — l'église lue, et
+le travail rendu à l'église »), six points. Recherche préalable par un agent
+Explore sur tout le circuit existant (`lib/data/dimes.ts`,
+`lib/actions/dimes.ts`, `rapprochements-dimes.tsx`, `rapprocher-dialog.tsx`,
+`dimes-client.tsx`, migrations `0056`-`0058`) avant d'écrire une ligne.
+
+**1 — L'église s'affiche dans `/finances/dimes`.** `eglise_source`/
+`eglise_id` existaient depuis `0058` ; `rapprochements-dimes.tsx` les
+affichait déjà, `dimes-client.tsx` non. Étendu `CHAMPS`/`VersementListe`
+(`lib/data/dimes.ts`) et le rendu, sur le même patron : le libellé lu
+s'affiche même sans reconnaissance, avec « — église non reconnue ».
+
+**2 et 3 — le pop-up de rapprochement propose l'église, et VERROUILLE la
+fiche à créer sur elle.** `rapprochements-dimes.tsx` pose un `EntityPicker`
+(église seule, `compact`) sous le libellé lu, uniquement quand `eglise_id`
+est absent. Nouvelle fonction `egliseRetenue` : préfère le choix EXPLICITE de
+l'utilisateur (état `eglisesChoisies`, où `null` est un choix — « aucune » —
+et `undefined` une absence de décision) à l'amorce automatique
+d'`egliseProbable`, déjà en place. « Créer la fiche » lui est désormais
+subordonné — désactivé tant qu'aucune église n'est retenue, avec l'aide
+« Choisir l'église d'abord. » — et `NouveauCroyantDialog` reçoit `rattachement`
+(`RattachementImpose`, le mécanisme déjà utilisé pour l'enregistrement d'un
+croyant depuis la structure) au lieu d'`eglisePreselectionnee`, libre : la
+fiche naît à l'église choisie sur CETTE ligne, elle ne se rechoisit pas une
+seconde fois dans le formulaire.
+
+**4 — la file s'élargit par la RLS.** Migration `0072` :
+`dime_rapprochements_select`/`..._write` acceptent l'entité collectrice **ou**
+l'église résolue (`entity_in_scope`/`can('finance.dime.collect', …)` sur
+l'une ou l'autre) ; `fn_resoudre_rapprochement` reçoit la même disjonction.
+Le compte reste au Siège (RG-33) : seuls la VISIBILITÉ et le droit d'agir
+s'étendent, aucun montant ne change d'entité.
+
+**5 — basculer une enveloppe en anonyme.** Nouvelle fonction
+`fn_marquer_enveloppe_anonyme`, `SECURITY DEFINER`, écrit
+`dime_versements.nature = 'ENVELOPPE_ANONYME'` **et**
+`dime_rapprochements.resolu_le = now()` dans la MÊME fonction (règle 20 :
+l'état intermédiaire — anonymisé mais toujours « en attente » — serait faux
+et indétectable). Réservée aux lignes SANS nom porteuses d'un numéro,
+proposée sur les deux écrans (menu ⋮ de `/finances/dimes`, bouton de
+`/croyants`). **`resolu_le`, et non `croyant_id`, devient le critère
+canonique de « en attente »** dans `chargerRapprochements` et dans l'index
+partiel `dime_rapprochements_attente_idx` : une ligne anonymisée ne prend
+jamais de `croyant_id`, et l'ancien critère l'aurait laissée pour toujours
+dans la file après l'avoir close.
+
+**Bug trouvé en écrivant le point 5, corrigé avant tout signalement** : le
+drapeau `rapprochable` de `dimes-client.tsx` testait encore
+`croyant_id === null`, qui serait resté vrai sur une ligne anonymisée —
+« Rapprocher » aurait continué de s'afficher après la clôture de la ligne.
+Corrigé en `resolu_le === null`.
+
+**6 — un menu de versement individuel sur chaque collecte de
+`/finances/dimes`.** `CollecteDialog` gagne le mode piloté déjà rodé sur
+`MandatDialog` : `entiteImposee`, `open`/`onOpenChange`, bouton déclencheur
+propre masqué en mode piloté — l'entité collectrice s'affiche verrouillée
+(`bg-muted/40`) au lieu de l'`EntityPicker` habituel (règle 16). Un menu ⋮
+par collecte, gardé par `finance.dime.collect` sur l'entité de la ligne,
+ouvre « Nouveau versement » ainsi verrouillé.
+
+`pnpm verify` : 44 fichiers, 883 tests, build compris — vert. Aucun test
+neuf : aucune Server Action de dîmes n'en portait déjà (`resoudreRapprochement`
+non plus), et `marquerEnveloppeAnonyme` est un passe-plat validation → RPC →
+audit, sans logique de complétude de champs à couvrir par un test dédié.
+
+Migration `0072` écrite, **pas encore appliquée** par l'utilisateur au moment
+du commit — le code est en place et vert, mais le comportement réel (RLS
+élargie, fonction d'anonymisation) reste à vérifier une fois la migration
+confirmée dans l'éditeur SQL Supabase.

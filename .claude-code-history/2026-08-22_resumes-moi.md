@@ -20,7 +20,8 @@
 
 **Appliquées : `0001` à `0071`**, confirmé par l'utilisateur — `0071` de
 surcroît vérifiée en conditions réelles, après correction de deux défauts
-trouvés en test (voir plus bas). L'état qui fait foi est en tête de
+trouvés en test (voir plus bas). **`0072` est écrite et attend la même
+confirmation** dans l'éditeur SQL Supabase. L'état qui fait foi est en tête de
 `notes/todos.md` — ce fichier-ci ne le répète pas deux fois.
 
 - `0069` — `organisation_settings.jours_correction_saisie` : le délai de
@@ -32,9 +33,14 @@ trouvés en test (voir plus bas). L'état qui fait foi est en tête de
   `settings.manage`.
 - `0071` — `croyants.conjoint_id` : le lien conjugal symétrique (EF-CRO-14),
   maintenu par deux triggers `SECURITY DEFINER`.
+- `0072` — **écrite, pas encore appliquée** : élargit `dime_rapprochements` à
+  l'église résolue (RLS `select`/`write`, `fn_resoudre_rapprochement`) et
+  ajoute `fn_marquer_enveloppe_anonyme`, `SECURITY DEFINER`. « En attente » se
+  lit désormais à `resolu_le is null`, plus à `croyant_id is null`.
 
 **883 tests unitaires, 44 fichiers.** `pnpm verify` vert (lint, typecheck,
-tests, build).
+tests, build) — y compris après le bloc dîmes décrit plus bas, dont le code
+est écrit mais dont la migration `0072` n'est pas encore confirmée en base.
 
 ---
 
@@ -233,6 +239,77 @@ avec l'entité **imposée**, pas un formulaire vierge.
 
 `pnpm verify` : 44 fichiers, 883 tests, build compris — vert.
 
+### Les dîmes rendues à l'église — six points, migration `0072`
+
+Reprise de `notes/todos.md` §3 (« Demandes du 20 août 2026 — l'église lue, et
+le travail rendu à l'église »). Le constat de départ : l'import ne reconnaît
+pas toujours le nom d'église écrit dans le fichier, et jusqu'ici seule
+l'entité qui a **collecté** pouvait travailler la file de rapprochement — pas
+l'église à qui le fichier attribue la personne, quand elle diffère (un
+rassemblement de district réunit des donateurs de plusieurs églises).
+
+**1. L'église s'affiche dans `/finances/dimes`.** Le libellé lu
+(`eglise_source`) apparaît sous chaque versement, avec « — église non
+reconnue » quand `eglise_id` est vide — `rapprochements-dimes.tsx` le
+portait déjà depuis la migration `0058`, il manquait l'appelant côté
+finances.
+
+**2 et 3. Le pop-up de rapprochement propose l'église, et verrouille la
+fiche à créer sur elle.** `rapprochements-dimes.tsx` pose un `EntityPicker`
+(église seule, `compact`) sous le libellé lu, seulement quand `eglise_id` est
+absent. `egliseRetenue` préfère le choix EXPLICITE de l'utilisateur à
+l'amorce automatique d'`egliseProbable` (déjà en place). « Créer la fiche »
+lui est désormais **subordonné** : `NouveauCroyantDialog` reçoit
+`rattachement` (`RattachementImpose`, verrouillé — le même mécanisme que
+l'enregistrement d'un croyant depuis la structure) et non plus
+`eglisePreselectionnee` (libre, amendable) ; le bouton reste désactivé tant
+qu'aucune église n'est retenue, avec l'explication « Choisir l'église
+d'abord. ».
+
+**4. La file s'élargit par la RLS, pas par une nouvelle requête.** Migration
+`0072` : `dime_rapprochements_select` et `..._write` acceptent désormais
+`entity_in_scope`/`can('finance.dime.collect', …)` sur l'entité collectrice
+**ou** sur l'église résolue. `fn_resoudre_rapprochement` et la nouvelle
+`fn_marquer_enveloppe_anonyme` vérifient l'habilitation sur l'une ou l'autre.
+Une église qui n'a rien collecté peut donc désormais rapprocher, créer une
+fiche, ou déclarer anonyme une ligne que le fichier lui attribue — le compte
+reste au Siège (RG-33), seule la VISIBILITÉ et le DROIT D'AGIR s'étendent.
+
+**5. Basculer une enveloppe en anonyme.** `fn_marquer_enveloppe_anonyme`,
+`SECURITY DEFINER`, écrit `dime_versements.nature = 'ENVELOPPE_ANONYME'` et
+`dime_rapprochements.resolu_le = now()` dans la MÊME fonction (règle 20 :
+l'état intermédiaire — anonymisé mais toujours « en attente », ou l'inverse —
+serait faux et indétectable). Réservé aux lignes **sans nom** porteuses d'un
+numéro, disponible depuis les deux écrans (menu ⋮ sur `/finances/dimes`,
+bouton sur `/croyants`). **`resolu_le` devient le signal canonique de « en
+attente »**, remplaçant `croyant_id is null` : une ligne anonymisée ne prend
+jamais de `croyant_id`, et l'ancien critère l'aurait laissée pour toujours
+dans la file après l'avoir close. `chargerRapprochements` et l'index partiel
+`dime_rapprochements_attente_idx` ont suivi ce changement de critère — trouvé
+en écrivant le point 5, propagé au point 4 pour rester cohérent.
+
+**6. Un menu de versement individuel sur chaque collecte de
+`/finances/dimes`.** `CollecteDialog` gagne le mode piloté déjà rodé sur
+`MandatDialog` (`entiteImposee`, `open`/`onOpenChange`, bouton déclencheur
+propre masqué) : l'entité collectrice s'affiche verrouillée au lieu de
+l'`EntityPicker` habituel (règle 16 — même geste que l'enregistrement d'un
+croyant depuis la structure). Un menu ⋮ par collecte, gardé par
+`finance.dime.collect` sur l'entité de la ligne, ouvre « Nouveau versement »
+ainsi verrouillé.
+
+**Bug trouvé et corrigé en chemin, non signalé par l'utilisateur :** le
+drapeau `rapprochable` de `dimes-client.tsx` testait encore
+`croyant_id === null`, qui serait resté vrai sur une ligne anonymisée — elle
+aurait continué de proposer « Rapprocher » après sa clôture. Corrigé en
+`resolu_le === null`, avant même que la migration ne soit appliquée.
+
+`pnpm verify` : 44 fichiers, 883 tests, build compris — vert. **Aucun test
+neuf** : aucune Server Action de dîmes n'en avait jusqu'ici (le précédent le
+plus proche, `resoudreRapprochement`, n'en porte pas non plus), et
+`marquerEnveloppeAnonyme` est un passe-plat sans logique de complétude de
+champs à couvrir — contrairement au lien conjugal, où `conjointId` avait
+failli manquer dans un payload construit champ par champ.
+
 ---
 
 ## Les décisions à ne pas défaire
@@ -270,6 +347,14 @@ conjoint par une seconde requête ciblée, pas une auto-jointure. Une fiche se
 lit une à la fois : l'aller-retour de plus ne coûte rien ici (à distinguer
 d'une LISTE, où ce serait du N+1, règle 28).
 
+**Le signal de « en attente » dans une file de rapprochement doit couvrir
+TOUTES les façons de la clore, pas seulement la plus fréquente.**
+`croyant_id is null` suffisait tant que la seule clôture possible était un
+rattachement. Dès qu'un second chemin de clôture apparaît (« anonymiser ») qui
+n'écrit jamais `croyant_id`, le critère se trompe silencieusement — la ligne
+close reste visible comme si elle attendait encore. `resolu_le`, posé à CHAQUE
+clôture quel qu'en soit le chemin, est le seul critère qui reste vrai.
+
 *(Les décisions du 21 août — l'étendue d'un modèle, erreur/décision, la fenêtre
 de 15 jours vérifiée côté serveur, le sens de l'`ordre` des grades — restent
 valables ; voir
@@ -281,10 +366,11 @@ valables ; voir
 
 **La liste fait foi : [`notes/todos.md`](../notes/todos.md).** Les **sections
 10, l'attestation de §1, l'impression PDF de §1 (20 août), le lien conjugal de
-§1 et la navigation de `/bureaux` de §2 (20 août) sont closes**. En tête de ce
-qui reste :
+§1, la navigation de `/bureaux` de §2 (20 août) et les six points des dîmes de
+§3 (20 août, code écrit le 22) sont closes**. Ce dernier bloc attend la
+confirmation de la migration `0072` avant d'être vérifié en conditions
+réelles. En tête de ce qui reste :
 
-- **`/finances`** — le rapprochement des dîmes rendu à l'église (six points).
 - **`/rapports`** — logo téléversé (peut réutiliser `PREFIXES.logos` et le
   patron d'upload posés aujourd'hui pour l'attestation).
 - **`/administration`** — portée par droit ; profils locaux.

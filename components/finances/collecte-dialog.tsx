@@ -94,6 +94,10 @@ export function CollecteDialog({
   enveloppes = {},
   photos = {},
   porteurs = {},
+  entiteImposee,
+  libelle = 'Nouvelle collecte',
+  open,
+  onOpenChange,
 }: {
   entites: OptionEntite[];
   devise: string;
@@ -108,9 +112,22 @@ export function CollecteDialog({
   photos?: Record<string, string>;
   /** N° d'enveloppe -> ceux qui l'ont déjà portée, du plus récent au plus ancien. */
   porteurs?: Record<string, { croyantId: string; nom: string; prenom: string }[]>;
+  /**
+   * EF-FIN-34 — ouverture depuis le menu ⋮ d'une ligne de `/finances/dimes` :
+   * l'entité collectrice se LIT au lieu de se choisir, même principe que
+   * `MandatDialog` depuis l'organigramme — elle est déjà désignée par la
+   * ligne d'où part le geste.
+   */
+  entiteImposee?: { id: string; nom: string };
+  libelle?: string;
+  /** Mode PILOTÉ : le déclencheur est ailleurs, le pop-up ne rend pas son bouton. */
+  open?: boolean;
+  onOpenChange?: (ouvert: boolean) => void;
 }) {
   const router = useRouter();
-  const [ouvert, setOuvert] = useState(false);
+  const pilote = open !== undefined;
+  const [ouvertInterne, setOuvertInterne] = useState(false);
+  const ouvert = pilote ? open : ouvertInterne;
   const [erreur, setErreur] = useState<string | null>(null);
 
   const {
@@ -123,6 +140,7 @@ export function CollecteDialog({
   } = useForm<SaisirCollecteInput>({
     resolver: zodResolver(saisirCollecteSchema),
     defaultValues: {
+      entiteCollecteId: entiteImposee?.id ?? undefined,
       dateOperation: new Date().toISOString().slice(0, 10),
       evenement: 'CULTE',
       libelle: '',
@@ -259,7 +277,8 @@ export function CollecteDialog({
   function fermer() {
     reset();
     setErreur(null);
-    setOuvert(false);
+    if (pilote) onOpenChange?.(false);
+    else setOuvertInterne(false);
   }
 
   async function envoyer(valeurs: SaisirCollecteInput) {
@@ -309,14 +328,20 @@ export function CollecteDialog({
 
   return (
     <>
-      <PermissionGate perm="finance.dime.collect">
-        <Button className="h-10" onClick={() => setOuvert(true)}>
-          <Plus className="mr-2 size-4" aria-hidden />
-          Nouvelle collecte
-        </Button>
-      </PermissionGate>
+      {/* Piloté par le parent : le déclencheur est ailleurs (le menu ⋮ d'une ligne). */}
+      {!pilote && (
+        <PermissionGate perm="finance.dime.collect">
+          <Button className="h-10" onClick={() => setOuvertInterne(true)}>
+            <Plus className="mr-2 size-4" aria-hidden />
+            {libelle}
+          </Button>
+        </PermissionGate>
+      )}
 
-      <Dialog open={ouvert} onOpenChange={(v) => (v ? setOuvert(true) : fermer())}>
+      <Dialog
+        open={ouvert}
+        onOpenChange={(v) => (v ? (pilote ? onOpenChange?.(true) : setOuvertInterne(true)) : fermer())}
+      >
         <DialogContent className="max-h-[92vh] w-[min(98vw,72rem)] overflow-x-hidden overflow-y-auto sm:max-w-none">
           <DialogHeader>
             <DialogTitle className="text-2xl">Nouvelle collecte de dîmes</DialogTitle>
@@ -343,47 +368,71 @@ export function CollecteDialog({
                 <section className="space-y-6">
                   <p className="eyebrow">La collecte</p>
 
-                  <Field
-                    label="Entité collectrice"
-                    required
-                    error={errors.entiteCollecteId?.message}
-                    hint="Celle qui reçoit les enveloppes — église, paroisse, district…"
-                  >
-                    {(aria) => (
-                      <Controller
-                        control={control}
-                        name="entiteCollecteId"
-                        render={({ field }) => (
-                          <EntityPicker
-                            {...aria}
-                            options={entites}
-                            value={field.value ?? null}
-                            onChange={(v) => {
-                              /**
-                               * CHANGER D'ENTITÉ VIDE LES VERSEMENTS.
-                               *
-                               * Les croyants déjà saisis appartiennent à
-                               * l'entité précédente : les garder enverrait des
-                               * versements de croyants qui n'ont pas le droit
-                               * de verser ici (EF-FIN-30), et le refus
-                               * n'arriverait qu'à l'enregistrement, une fois
-                               * trente lignes remplies.
-                               *
-                               * Seule la GRILLE est vidée : la date, le
-                               * libellé, l'événement et la catégorie n'ont rien
-                               * à voir avec l'entité et se ressaisiraient pour
-                               * rien.
-                               */
-                              if (v !== field.value) replace([]);
-                              field.onChange(v);
-                            }}
-                            placeholder="Choisir une entité"
-                            emptyMessage="Aucune entité dans votre périmètre."
-                          />
-                        )}
-                      />
-                    )}
-                  </Field>
+                  {/*
+                    L'ENTITÉ SE LIT PLUTÔT QUE DE SE CHOISIR quand elle est
+                    imposée : le geste part d'une ligne précise de
+                    `/finances/dimes`, qui l'a déjà désignée (règle 16, même
+                    principe que `MandatDialog` depuis l'organigramme). La
+                    proposer quand même permettrait d'en changer par
+                    inadvertance, et le pop-up ouvert depuis une ligne
+                    enregistrerait alors pour une AUTRE église que celle
+                    annoncée.
+                  */}
+                  {entiteImposee ? (
+                    <div className="flex flex-col gap-2">
+                      <p className="text-foreground text-sm font-medium">
+                        Entité collectrice
+                      </p>
+                      <p className="border-input bg-muted/40 text-muted-foreground flex h-10 items-center rounded-md border px-3 text-sm">
+                        {entiteImposee.nom}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        Celle de la ligne d’où part cet enregistrement.
+                      </p>
+                    </div>
+                  ) : (
+                    <Field
+                      label="Entité collectrice"
+                      required
+                      error={errors.entiteCollecteId?.message}
+                      hint="Celle qui reçoit les enveloppes — église, paroisse, district…"
+                    >
+                      {(aria) => (
+                        <Controller
+                          control={control}
+                          name="entiteCollecteId"
+                          render={({ field }) => (
+                            <EntityPicker
+                              {...aria}
+                              options={entites}
+                              value={field.value ?? null}
+                              onChange={(v) => {
+                                /**
+                                 * CHANGER D'ENTITÉ VIDE LES VERSEMENTS.
+                                 *
+                                 * Les croyants déjà saisis appartiennent à
+                                 * l'entité précédente : les garder enverrait des
+                                 * versements de croyants qui n'ont pas le droit
+                                 * de verser ici (EF-FIN-30), et le refus
+                                 * n'arriverait qu'à l'enregistrement, une fois
+                                 * trente lignes remplies.
+                                 *
+                                 * Seule la GRILLE est vidée : la date, le
+                                 * libellé, l'événement et la catégorie n'ont rien
+                                 * à voir avec l'entité et se ressaisiraient pour
+                                 * rien.
+                                 */
+                                if (v !== field.value) replace([]);
+                                field.onChange(v);
+                              }}
+                              placeholder="Choisir une entité"
+                              emptyMessage="Aucune entité dans votre périmètre."
+                            />
+                          )}
+                        />
+                      )}
+                    </Field>
+                  )}
 
                   <Field
                     label="Événement"

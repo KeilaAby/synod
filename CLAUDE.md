@@ -741,9 +741,33 @@ un critère de plus, sans dupliquer le regroupement existant. Une entité sans
 bureau ouvre un état vide qui propose `MandatDialog` avec l'entité
 **imposée** — pas un formulaire vierge à re-remplir.
 
+**Les dîmes rendues à l'église — six points, migration `0072`.** La file de
+rapprochement n'était travaillable que par l'entité qui avait **collecté** ;
+un rassemblement de district réunit pourtant des donateurs de plusieurs
+églises, et c'est l'**église**, pas le collecteur, qui connaît ses gens.
+`dime_rapprochements_select`/`..._write` acceptent désormais l'entité
+collectrice **ou** l'église résolue (`eglise_id`) — le compte reste au Siège
+(RG-33), seuls la visibilité et le droit d'agir s'étendent. Le pop-up de
+rapprochement (`rapprochements-dimes.tsx`) pose un `EntityPicker` quand
+`eglise_id` est vide, et **verrouille** « Créer la fiche » sur l'église
+retenue : `NouveauCroyantDialog` reçoit `rattachement` (`RattachementImpose`,
+déjà le mécanisme de l'enregistrement d'un croyant depuis la structure) au
+lieu d'`eglisePreselectionnee`, libre — le bouton reste désactivé tant
+qu'aucune église n'est déterminée, jamais une fiche créée à une église
+choisie au hasard. **Basculer une enveloppe en anonyme** écrit
+`dime_versements.nature` et `dime_rapprochements.resolu_le` dans une seule
+fonction `SECURITY DEFINER`, `fn_marquer_enveloppe_anonyme` (règle 20).
+**`resolu_le`, pas `croyant_id`, est désormais le signal de « en attente »** :
+une ligne anonymisée ne prend jamais de `croyant_id`, et l'ancien critère
+l'aurait gardée éternellement dans la file après sa clôture —
+`chargerRapprochements` et l'index partiel ont suivi. Un menu ⋮ par collecte
+de `/finances/dimes` ouvre un nouveau versement à entité **verrouillée**
+(`CollecteDialog` gagne le mode piloté déjà rodé sur `MandatDialog`, règle
+16).
+
 Base à jour jusqu'à la migration `0071`, confirmée appliquée par
-l'utilisateur et vérifiée en conditions réelles. Fuseau
-`Indian/Antananarivo` (UTC+3).
+l'utilisateur et vérifiée en conditions réelles — `0072` est **écrite et
+attend la même confirmation**. Fuseau `Indian/Antananarivo` (UTC+3).
 **Toute migration qui crée ou remplace
 une fonction doit finir par `notify pgrst, 'reload schema'`** : sans lui, l'API
 répond « fonction inconnue » sur du SQL pourtant en place — constaté deux fois,
