@@ -286,10 +286,10 @@ function BlocRendu({ bloc, contenu }: { bloc: BlocRapport; contenu: ContenuRappo
        * `contenu === null` : composition — rien n'est encore résolu, le
        * cadre NOMME ce qui viendra plutôt que de rien montrer (même principe
        * que `BlocDeDonnees`). `contenu[bloc.id]` absent APRÈS génération :
-       * l'organisation n'a réglé aucun logo — le dire, pas laisser un cadre
-       * qu'on prendrait pour une panne d'affichage (règle 15). Présent : le
-       * logo réglé dans Administration → Paramètres généraux, embarqué en
-       * `data:` à la génération (RG-27).
+       * NI l'entité NI l'organisation n'ont réglé de logo — le dire, pas
+       * laisser un cadre qu'on prendrait pour une panne d'affichage
+       * (règle 15). Présent : l'en-tête de l'entité, ou à défaut celui de
+       * l'organisation, embarqué en `data:` à la génération (RG-27).
        */
       const resolu = contenu ? contenu[bloc.id] : undefined;
       const image = resolu?.genre === 'IMAGE' ? resolu.dataUri : null;
@@ -301,7 +301,7 @@ function BlocRendu({ bloc, contenu }: { bloc: BlocRapport; contenu: ContenuRappo
             <img src={image} alt="" className="max-h-32 max-w-full object-contain" />
           ) : (
             <div className="flex h-24 w-full items-center justify-center border border-dashed border-slate-300 text-[8pt] text-slate-500">
-              {contenu ? 'Aucun logo réglé pour l’organisation' : 'Image posée à la génération'}
+              {contenu ? 'Aucun logo réglé' : 'Image posée à la génération'}
             </div>
           )}
           {texte('legende') && (

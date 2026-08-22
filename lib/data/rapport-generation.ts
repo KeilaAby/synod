@@ -137,7 +137,7 @@ export async function resoudreContenu(
 
   const [recoltes, logo] = await Promise.all([
     sources.size > 0 ? recolter(sources, contexte) : Promise.resolve(VIDE),
-    contientImage ? logoOrganisation() : Promise.resolve(null),
+    contientImage ? logoPourEntite(contexte.entite) : Promise.resolve(null),
   ]);
 
   const contenu: ContenuRapport = {};
@@ -168,20 +168,29 @@ export async function resoudreContenu(
 }
 
 /**
- * Le logo de l'organisation, embarque en `data:` — ou `null` si l'organisation
- * n'en a regle aucun (`organisation_settings.logo_key`, Administration ->
- * Parametres generaux).
+ * Le logo du bloc Image, embarque en `data:` — ou `null` si NI l'entite NI
+ * l'organisation n'en ont regle un.
+ *
+ * DEUX NIVEAUX, PAS UNE HIERARCHIE A ESCALADER (migration `0073`, demande de
+ * l'utilisateur le 22 aout apres avoir teste le premier jet — celui-ci ne
+ * connaissait que le logo de l'organisation). L'entite VISEE par le rapport
+ * porte peut-etre son propre `logo_key` ; a defaut, celui de l'organisation
+ * (`organisation_settings.logo_key`) prend le relais. Rien ne remonte par les
+ * ancetres : une eglise sans en-tete n'emprunte pas celui de sa paroisse,
+ * elle prend directement celui de l'ORGANISATION — un parcours de l'arbre a
+ * la generation coûterait une lecture de plus par niveau, pour un resultat
+ * moins previsible qu'un simple « le sien, sinon celui de tous ».
  *
  * UNE SEULE LECTURE MEME AVEC PLUSIEURS BLOCS IMAGE : `resoudreContenu` ne
  * l'appelle qu'une fois, avant la boucle, et chaque bloc y puise (regle 28).
  * Un stockage indisponible degrade comme les autres sources — le bloc
  * disparait de `contenu`, il ne fait pas echouer toute la generation.
  */
-async function logoOrganisation(): Promise<string | null> {
-  const parametres = await getParametres();
-  if (!parametres.logo_key) return null;
+async function logoPourEntite(entite: NoeudEntite): Promise<string | null> {
+  const cle = entite.logo_key ?? (await getParametres()).logo_key;
+  if (!cle) return null;
 
-  const telechargement = await storage().download(parametres.logo_key);
+  const telechargement = await storage().download(cle);
   if (!telechargement.ok) {
     console.error('[rapport] logo illisible', telechargement.error);
     return null;

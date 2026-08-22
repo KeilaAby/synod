@@ -258,7 +258,7 @@ export function PanneauReglages({
       {bloc.type === 'IMAGE' && (
         <TextField
           label="Légende"
-          hint="L’image est celle réglée dans Administration → Paramètres généraux : le logo de l’organisation."
+          hint="L’image est l’en-tête de l’entité pour laquelle le rapport est généré (réglé sur sa fiche), ou à défaut le logo de l’organisation (Administration → Paramètres généraux)."
           value={texte('legende')}
           onChange={(e) => onReglerBloc({ legende: e.target.value })}
         />

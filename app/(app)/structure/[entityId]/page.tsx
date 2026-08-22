@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/shared/empty-state';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { ChiffresEntiteBloc } from '@/components/structure/chiffres-entite';
+import { EntiteLogo } from '@/components/structure/entite-logo';
 import { EntityActions } from '@/components/structure/entity-actions';
 import { NouvelleEntiteBouton } from '@/components/structure/nouvelle-entite-bouton';
 import { TypeBadge } from '@/components/structure/type-badge';
@@ -19,6 +20,7 @@ import {
 } from '@/lib/data/entities';
 import { versOptions } from '@/lib/data/entity-options';
 import { chargerSoldesPerimetre } from '@/lib/data/finances';
+import { signerPhotos } from '@/lib/data/photos';
 import { getParametres } from '@/lib/data/settings';
 import {
   ENTITY_LABELS,
@@ -65,12 +67,15 @@ export default async function FicheEntitePage({ params }: Params) {
    * ici : deux calculs du même nombre finissent par différer (règle 16).
    */
   const session = await getSession();
-  const [arbre, chiffres, soldes, parametres] = await Promise.all([
+  const [arbre, chiffres, soldes, parametres, logos] = await Promise.all([
     getArbrePerimetre(),
     chargerChiffresPerimetre(),
     chargerSoldesPerimetre(),
     getParametres(),
+    signerPhotos([entite.logo_key]),
   ]);
+
+  const peutModifierEntite = session ? peut(session, 'entity.update', entite.path) : false;
 
   /**
    * RÈGLE 15 — un bloc non habilité DISPARAÎT, il ne s'affiche pas à zéro.
@@ -210,6 +215,31 @@ export default async function FicheEntitePage({ params }: Params) {
                 </dl>
               </CardContent>
             </Card>
+
+            {/*
+              EF-RAP-02 — l'en-tête propre à l'entité, source du bloc Image
+              d'un rapport. N'apparaît pas du tout pour un lecteur sans
+              `entity.update` qui n'en verrait aucun (règle 15 : pas de cadre
+              vide promettant un geste hors de portée).
+            */}
+            {(peutModifierEntite || entite.logo_key) && (
+              <Card>
+                <CardContent className="space-y-4 p-6">
+                  <div>
+                    <p className="eyebrow">En-tête</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Utilisé comme logo par défaut du bloc Image des rapports générés
+                      pour « {entite.nom} ».
+                    </p>
+                  </div>
+                  <EntiteLogo
+                    entiteId={entite.id}
+                    logoUrl={entite.logo_key ? (logos.get(entite.logo_key) ?? null) : null}
+                    peutModifier={peutModifierEntite}
+                  />
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
 

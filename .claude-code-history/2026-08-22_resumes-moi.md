@@ -20,8 +20,9 @@
 
 **Appliquées : `0001` à `0072`**, confirmé par l'utilisateur — `0071` et
 `0072` de surcroît vérifiées en conditions réelles, `0071` après correction de
-deux défauts trouvés en test (voir plus bas). L'état qui fait foi est en tête
-de `notes/todos.md` — ce fichier-ci ne le répète pas deux fois.
+deux défauts trouvés en test (voir plus bas). **`0073` est écrite et attend
+la même confirmation.** L'état qui fait foi est en tête de `notes/todos.md`
+— ce fichier-ci ne le répète pas deux fois.
 
 - `0069` — `organisation_settings.jours_correction_saisie` : le délai de
   correction (15 jours par défaut, borné 1–365) devient un réglage
@@ -36,9 +37,14 @@ de `notes/todos.md` — ce fichier-ci ne le répète pas deux fois.
   `select`/`write`, `fn_resoudre_rapprochement`) et ajoute
   `fn_marquer_enveloppe_anonyme`, `SECURITY DEFINER`. « En attente » se lit
   désormais à `resolu_le is null`, plus à `croyant_id is null`.
+- `0073` — **écrite, pas encore appliquée** : `entities.logo_key`, l'en-tête
+  propre à chaque entité, source du bloc Image d'un rapport (EF-RAP-02) ; à
+  défaut, le logo de l'organisation le remplace.
 
 **883 tests unitaires, 44 fichiers.** `pnpm verify` vert (lint, typecheck,
-tests, build).
+tests, build) — y compris après la correction du bloc Image décrite plus
+bas, dont le code est écrit mais dont la migration `0073` n'est pas encore
+confirmée en base.
 
 ---
 
@@ -358,6 +364,53 @@ neuf : ni le logo de l'attestation (livré la veille) ni les actions miroir
 n'en avaient — cohérent avec l'existant plutôt qu'un standard inventé pour
 l'occasion.
 
+### Un seul logo pour toute l'organisation ne suffisait pas — corrigé en testant
+
+L'utilisateur a téléversé le logo de l'organisation, généré un rapport, et
+constaté qu'aucun logo n'apparaissait — ni à l'aperçu ni sur le rapport
+généré. Investigation en base (requête directe via le client de service) :
+le rapport ouvert datait du **18 août**, avant même que le bloc Image existe
+— RG-27 le fige pour toujours, aucune fonctionnalité arrivée après lui ne
+peut le rattraper. Aucun rapport n'avait en réalité été généré le 22 août ;
+le logo, lui, était bien enregistré côté serveur (téléchargement vérifié,
+10 Ko).
+
+Mais la question posée en retour — « le bloc Image ne permet pas non plus de
+téléverser un logo » — a révélé que le premier jet ne répondait pas au
+vrai besoin : **« les entités auront peut-être leur propre entête. Si
+l'entité n'a pas d'entête alors le logo de l'organisation se placera. »**
+Posé avant d'écrire (deux questions ciblées) plutôt que deviné : la portée
+est **par entité**, pas par bloc composé dans le modèle — un bloc fixe
+aurait de toute façon mal marché pour un modèle **officiel** du Siège,
+partagé par des dizaines d'entités qui n'ont pas la même en-tête.
+
+**Migration `0073`, `entities.logo_key` — DEUX niveaux, pas une hiérarchie à
+escalader.** L'entité visée par le rapport porte peut-être son propre
+en-tête ; à défaut, celui de l'organisation prend le relais. Une église sans
+en-tête n'emprunte **pas** celui de sa paroisse : remonter par les ancêtres
+coûterait une lecture de plus par niveau pour un résultat moins prévisible
+qu'un simple « le sien, sinon celui de tous ». `logoPourEntite` (renommée
+depuis `logoOrganisation`, `lib/data/rapport-generation.ts`) fait les deux
+lectures en cascade — la seconde uniquement si la première est vide.
+
+**`televerserLogoEntite`/`supprimerLogoEntite` (`lib/actions/entities.ts`)
+— gardées par `entity.update`, pas une habilitation nouvelle.** Même patron
+que la photo d'un croyant (`lib/actions/photos.ts`) plutôt que celui du
+logo de l'organisation : clé construite sur l'ID de l'entité
+(`logos/<entity-id>.<ext>`), pas une clé fixe — chaque entité a la SIENNE.
+`entity.update` est DESCENDANTE par défaut (RG-25) : le même droit qui
+modifie le nom ou le code d'une entité règle aussi son en-tête. Écran :
+carte « En-tête » sur `/structure/[entityId]`, onglet Informations —
+visible en LECTURE même sans le droit de le changer (règle 15 : un logo
+déjà réglé reste visible ; un visiteur sans `entity.update` ne voit
+simplement aucun bouton lui promettant un geste hors de portée).
+`components/structure/entite-logo.tsx` réutilise `LogoUploader`, déjà
+générique côté props malgré son premier usage à clé fixe — confirmé en le
+lisant avant d'écrire un troisième composant.
+
+`pnpm verify` : 44 fichiers, 883 tests, build compris — vert. Migration
+`0073` écrite, **pas encore appliquée** au moment du commit.
+
 ---
 
 ## Les décisions à ne pas défaire
@@ -410,6 +463,16 @@ rattachement. Dès qu'un second chemin de clôture apparaît (« anonymiser ») 
 n'écrit jamais `croyant_id`, le critère se trompe silencieusement — la ligne
 close reste visible comme si elle attendait encore. `resolu_le`, posé à CHAQUE
 clôture quel qu'en soit le chemin, est le seul critère qui reste vrai.
+
+**Une portée mal devinée se corrige en une question, pas en code écrit deux
+fois.** Le premier jet du logo (un seul, pour toute l'organisation)
+compilait, passait `pnpm verify`, et ne répondait pourtant pas au besoin :
+« les entités auront peut-être leur propre entête ». Deux questions ciblées
+avant d'écrire la seconde version — portée par bloc ou par entité ? avec ou
+sans hiérarchie à escalader ? — ont évité une troisième réécriture. Un
+réglage qui touche le STOCKAGE (clé fixe vs clé par enregistrement) coûte
+cher à refaire une fois livré ; la question qui l'aurait évité ne coûte
+qu'un aller-retour.
 
 *(Les décisions du 21 août — l'étendue d'un modèle, erreur/décision, la fenêtre
 de 15 jours vérifiée côté serveur, le sens de l'`ordre` des grades — restent

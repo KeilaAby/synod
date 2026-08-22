@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 
 import { getArbrePerimetre } from '@/lib/data/entities';
 import {
@@ -11,6 +12,7 @@ import {
 } from '@/lib/domain/hierarchy';
 import { type ActionResult, ko, ok } from '@/lib/domain/result';
 import { auditer, requirePermission, requireSession } from '@/lib/session';
+import { construireCle, storage, verifierFichier } from '@/lib/storage';
 import { executerAction } from './executer';
 import { createClient } from '@/lib/supabase/server';
 import { sanitize } from '@/lib/utils/sanitize';
@@ -160,6 +162,122 @@ export async function modifierEntite(input: unknown): Promise<ActionResult<void>
 
     revalidatePath('/structure');
     revalidatePath(`/structure/${data.id}`);
+    return ok();
+  });
+}
+
+// -----------------------------------------------------------------------------
+
+/**
+ * EF-RAP-02 — l'en-tete propre a une entite, source du bloc Image d'un
+ * rapport (migration `0073`).
+ *
+ * MEME CONTROLE QUE LA PHOTO D'UN CROYANT (`lib/actions/photos.ts`) : le
+ * type reel se deduit des premiers octets, jamais de l'extension ni du
+ * `Content-Type` annonce (ENF-SEC-06). Cle construite sur l'ID de l'entite,
+ * comme `photos/<croyant-id>` — contrairement au logo de l'organisation ou
+ * de l'attestation (cle FIXE, une seule ligne de reglages), chaque entite a
+ * la SIENNE.
+ *
+ * `entity.update` (RG-25, DESCENDANTE par defaut) : le meme droit qui
+ * modifie le nom ou le code d'une entite regle aussi son en-tete — ce n'est
+ * pas une habilitation a part, c'est un champ de plus de la meme fiche.
+ */
+const cibleLogoEntiteSchema = z.object({ entityId: z.uuid() });
+
+export async function televerserLogoEntite(
+  formulaire: FormData,
+): Promise<ActionResult<{ logoKey: string }>> {
+  return executerAction('televerserLogoEntite', async () => {
+    const session = await requireSession();
+
+    const analyse = cibleLogoEntiteSchema.safeParse({ entityId: formulaire.get('entityId') });
+    if (!analyse.success) return ko('Requete invalide.');
+
+    const arbre = await getArbrePerimetre();
+    const entite = arbre.find((e) => e.id === analyse.data.entityId);
+    if (!entite) return ko("Cette entite est introuvable ou hors de votre perimetre.");
+
+    await requirePermission(session, 'entity.update', entite.path);
+
+    const fichier = formulaire.get('logo');
+    if (!(fichier instanceof File) || fichier.size === 0) {
+      return ko('Aucun fichier reçu.');
+    }
+
+    const octets = new Uint8Array(await fichier.arrayBuffer());
+
+    const verdict = verifierFichier('photo', octets.slice(0, 16), octets.byteLength);
+    if (!verdict.ok) return ko(verdict.error);
+
+    const extension = verdict.data.split('/')[1] ?? 'webp';
+    const cle = construireCle('logos', entite.id, extension);
+
+    const depot = await storage().put(cle, octets, {
+      contentType: verdict.data,
+      upsert: true,
+    });
+    if (!depot.ok) return ko(depot.error);
+
+    const sb = await createClient();
+    const { error } = await sb.from('entities').update({ logo_key: depot.data }).eq('id', entite.id);
+
+    if (error) {
+      // L'objet est depose mais le reglage ne le reference pas : on le retire
+      // plutot que de laisser un orphelin dans le stockage.
+      await storage().delete(depot.data);
+      return ko("Le logo n'a pas pu être enregistré.");
+    }
+
+    await auditer({
+      session,
+      action: 'UPDATE',
+      table: 'entities',
+      recordId: entite.id,
+      entityId: entite.id,
+      diff: { apres: { logo_key: depot.data } },
+    });
+
+    revalidatePath(`/structure/${entite.id}`);
+    return ok({ logoKey: depot.data });
+  });
+}
+
+export async function supprimerLogoEntite(input: unknown): Promise<ActionResult<void>> {
+  return executerAction('supprimerLogoEntite', async () => {
+    const session = await requireSession();
+
+    const analyse = cibleLogoEntiteSchema.safeParse(input);
+    if (!analyse.success) return ko('Requete invalide.');
+
+    const arbre = await getArbrePerimetre();
+    const entite = arbre.find((e) => e.id === analyse.data.entityId);
+    if (!entite) return ko("Cette entite est introuvable ou hors de votre perimetre.");
+
+    await requirePermission(session, 'entity.update', entite.path);
+
+    if (!entite.logo_key) return ok();
+
+    const sb = await createClient();
+    const { error } = await sb.from('entities').update({ logo_key: null }).eq('id', entite.id);
+
+    if (error) return ko("Le logo n'a pas pu être retiré.");
+
+    // L'objet part APRES le reglage : si sa suppression echoue, il reste un
+    // orphelin dans le stockage, sans consequence — l'inverse laisserait le
+    // reglage pointer vers un objet disparu.
+    await storage().delete(entite.logo_key);
+
+    await auditer({
+      session,
+      action: 'UPDATE',
+      table: 'entities',
+      recordId: entite.id,
+      entityId: entite.id,
+      diff: { avant: { logo_key: entite.logo_key }, apres: { logo_key: null } },
+    });
+
+    revalidatePath(`/structure/${entite.id}`);
     return ok();
   });
 }

@@ -24,7 +24,7 @@ import { DataError } from './errors';
 
 const CHAMPS = `
   id, type, code, nom, parent_id, niveau, path, description,
-  sans_acces_application, finance_validation_active, dime_mode,
+  sans_acces_application, finance_validation_active, dime_mode, logo_key,
   is_active, created_at, updated_at
 ` as const;
 
@@ -45,6 +45,12 @@ export interface Entite {
    * `null` = defaut de l'organisation. Aucun heritage depuis le parent.
    */
   dime_mode?: 'DETAILLE' | 'GLOBAL' | null;
+  /**
+   * EF-RAP-02 — en-tete propre a l'entite (migration `0073`), source du bloc
+   * Image d'un rapport. `null` : le logo de l'organisation prend sa place,
+   * SANS remonter par les ancetres.
+   */
+  logo_key: string | null;
   path: string;
   description: string | null;
   sans_acces_application: boolean;

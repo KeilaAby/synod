@@ -5905,3 +5905,48 @@ retouche de l'une sans penser à l'autre (le même principe déjà payé sur
 neuf : ni le logo de l'attestation (livré la veille) ni les actions miroir
 n'en avaient — cohérence avec l'existant plutôt qu'un standard inventé pour
 l'occasion.
+
+## 22 août 2026 (suite) — Un seul logo pour toute l'organisation ne suffisait pas
+
+L'utilisateur a testé le bloc Image : logo téléversé dans les paramètres
+généraux, un rapport généré, aucun logo visible ni à l'aperçu ni sur le
+document. Investigation en base par requête directe (client de service) :
+le rapport ouvert datait du 18 août, avant même que le bloc Image existe —
+RG-27 le fige pour toujours, rien de plus récent ne peut le rattraper.
+Aucun rapport n'avait en réalité été généré le jour même ; le logo, lui,
+était bien enregistré côté serveur (téléchargement vérifié, 10 Ko).
+
+Mais la seconde remarque de l'utilisateur — « le bloc Image ne permet pas
+non plus de téléverser un logo » — a révélé que le premier jet ne
+répondait pas au vrai besoin. Deux questions ciblées avant d'écrire une
+seconde fois : « les entités auront peut-être leur propre entête. Si
+l'entité n'a pas d'entête alors le logo de l'organisation se placera. »
+La portée est donc **par entité**, pas par bloc composé dans le modèle —
+un bloc fixe aurait mal marché pour un modèle **officiel** du Siège,
+partagé par des dizaines d'entités sans la même en-tête.
+
+**Migration `0073`, `entities.logo_key` — deux niveaux, pas une hiérarchie
+à escalader.** L'entité visée par le rapport porte peut-être son propre
+en-tête ; à défaut, celui de l'organisation prend le relais. Rien ne
+remonte par les ancêtres : une église sans en-tête n'emprunte pas celui de
+sa paroisse, elle prend directement celui de l'organisation — un parcours
+de l'arbre à la génération coûterait une lecture de plus par niveau pour un
+résultat moins prévisible. `logoOrganisation` (`lib/data/rapport-generation.ts`)
+devient `logoPourEntite`, deux lectures en cascade, la seconde uniquement si
+la première est vide.
+
+**`televerserLogoEntite`/`supprimerLogoEntite` (`lib/actions/entities.ts`)
+suivent le patron de la photo d'un croyant, pas celui du logo de
+l'organisation.** Clé construite sur l'ID de l'entité
+(`logos/<entity-id>.<ext>`), pas une clé fixe — chaque entité a la sienne.
+Gardées par `entity.update` (RG-25, DESCENDANTE) : pas une habilitation
+nouvelle, le même droit qui modifie le nom ou le code d'une entité règle
+aussi son en-tête. Écran : carte « En-tête » sur `/structure/[entityId]`,
+onglet Informations — visible en lecture même sans le droit de le changer
+(règle 15 : un logo déjà réglé reste visible ; sans `entity.update`, aucun
+bouton ne promet un geste hors de portée). `entite-logo.tsx` réutilise
+`LogoUploader` (déjà générique côté props malgré son premier usage à clé
+fixe, confirmé en le relisant avant d'écrire un troisième composant).
+
+`pnpm verify` : 44 fichiers, 883 tests, build compris — vert. Migration
+`0073` écrite, pas encore appliquée au moment du commit.

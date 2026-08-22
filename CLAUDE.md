@@ -765,27 +765,44 @@ de `/finances/dimes` ouvre un nouveau versement à entité **verrouillée**
 (`CollecteDialog` gagne le mode piloté déjà rodé sur `MandatDialog`, règle
 16).
 
-**Le logo de l'organisation, et le bloc Image des rapports** (sans
-migration) : `organisation_settings.logo_key` existait depuis la toute
+**Le logo de l'organisation, et le bloc Image des rapports.** Premier jet
+sans migration : `organisation_settings.logo_key` existait depuis la toute
 première migration de réglages (`0006`), posé en schéma et jamais lu ni
 écrit par aucun écran — même défaut que `promotionDuCroyant` la veille. Deux
-actions (`televerserLogoOrganisation`, `supprimerLogoOrganisation`) lui
-donnent enfin un écran, groupe « Identité » de l'onglet Général. **Un
-document FIGÉ (RG-27) ne peut embarquer qu'un OCTET, jamais une référence
-qui se résout ailleurs** : `StorageAdapter` gagne `download()` (des octets,
-pas une URL) — le même raisonnement que les portraits de l'organigramme
-imprimé (règle 33), transposé d'une fenêtre de `print()` à une ligne de base
-censée durer. Le logo est téléchargé UNE SEULE fois à la génération et
-embarqué en `data:` dans chaque bloc Image. `RenduRapport` distingue TROIS
-états : composition, généré sans logo réglé (« Aucun logo réglé pour
-l'organisation », règle 15), généré avec logo. `components/shared/
-logo-uploader.tsx` — extrait en écrivant le SECOND appelant : le geste
-existait déjà pour le logo de l'attestation de transfert (`0070`), refaite
-sur ce composant partagé au passage.
+actions (`televerserLogoOrganisation`, `supprimerLogoOrganisation`) lui ont
+donné un écran, groupe « Identité » de l'onglet Général.
+
+**Corrigé le jour même, en testant avec l'utilisateur : un seul logo pour
+toute l'organisation ne répondait pas au vrai besoin** — « les entités
+auront peut-être leur propre entête. Si l'entité n'a pas d'entête alors le
+logo de l'organisation se placera. » Migration `0073`, `entities.logo_key` :
+**deux niveaux, pas une hiérarchie à escalader** — l'entité visée par le
+rapport porte peut-être son propre en-tête, sinon celui de l'organisation
+prend le relais, SANS remonter par les ancêtres (une église sans en-tête
+n'emprunte pas celui de sa paroisse). `televerserLogoEntite`/
+`supprimerLogoEntite` (`lib/actions/entities.ts`) suivent le patron de la
+photo d'un croyant — clé construite sur l'ID de l'entité, pas une clé fixe —
+et sont gardées par `entity.update` (RG-25, DESCENDANTE), pas une
+habilitation nouvelle. Écran : carte « En-tête » sur `/structure/[entityId]`,
+visible en lecture même sans le droit de le changer (règle 15).
+
+**Un document FIGÉ (RG-27) ne peut embarquer qu'un OCTET, jamais une
+référence qui se résout ailleurs** : `StorageAdapter` gagne `download()`
+(des octets, pas une URL) — le même raisonnement que les portraits de
+l'organigramme imprimé (règle 33), transposé d'une fenêtre de `print()` à
+une ligne de base censée durer. Le logo retenu (entité, sinon organisation)
+est téléchargé UNE SEULE fois à la génération et embarqué en `data:` dans
+chaque bloc Image. `RenduRapport` distingue TROIS états : composition,
+généré sans logo réglé nulle part (« Aucun logo réglé », règle 15), généré
+avec logo. `components/shared/logo-uploader.tsx` — extrait en écrivant le
+SECOND appelant : le geste existait déjà pour le logo de l'attestation de
+transfert (`0070`), refaite sur ce composant partagé, et
+`components/structure/entite-logo.tsx` s'en sert à son tour pour la clé
+variable.
 
 Base à jour jusqu'à la migration `0072`, confirmée appliquée par
-l'utilisateur et vérifiée en conditions réelles. Fuseau
-`Indian/Antananarivo` (UTC+3).
+l'utilisateur et vérifiée en conditions réelles — `0073` est **écrite et
+attend la même confirmation**. Fuseau `Indian/Antananarivo` (UTC+3).
 **Toute migration qui crée ou remplace
 une fonction doit finir par `notify pgrst, 'reload schema'`** : sans lui, l'API
 répond « fonction inconnue » sur du SQL pourtant en place — constaté deux fois,

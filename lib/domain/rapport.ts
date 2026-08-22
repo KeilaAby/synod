@@ -195,7 +195,7 @@ export const BLOCS_RAPPORT: readonly DefinitionBloc[] = [
   {
     type: 'IMAGE',
     libelle: 'Image',
-    description: 'Le logo de l’organisation, réglé dans Administration.',
+    description: 'L’en-tête de l’entité visée, ou le logo de l’organisation à défaut.',
     groupe: 'CONTENU',
     source: null,
     largeurParDefaut: 'DEMI',
