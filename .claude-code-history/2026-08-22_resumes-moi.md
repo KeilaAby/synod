@@ -106,6 +106,22 @@ effective de tous les `ring-*` du projet via un jeton unique,
 fichier ni une couleur. Vérifié en inspectant la feuille CSS compilée : la
 règle apparaît bien hors de tout bloc `@layer`.
 
+### « Erreur d'assignation » devient le défaut — sur décision de l'utilisateur
+
+Dernier point de la section 10, volontairement laissé de côté : la demande
+d'origine posait elle-même le risque d'un tel changement — `DECISION` est le
+défaut le plus conservateur (motif obligatoire, historique conservé),
+`ERREUR` efface la ligne. Question posée avec une recommandation (garder
+`DECISION`, le délai étant maintenant réglable jusqu'à un an) ; réponse de
+l'utilisateur : basculer vers `ERREUR`.
+
+Fait dans les deux pop-up (`retrait-dialog.tsx`, `changement-grade-dialog.tsx`)
+: l'état initial et la réinitialisation à la fermeture passent de `'DECISION'`
+à `'ERREUR'`. La garde qui retombe sur `DECISION` hors du délai de correction
+n'a pas bougé — `ERREUR` n'est de toute façon jamais proposée au-delà.
+
+**La section 10 de `notes/todos.md` est maintenant close en entier.**
+
 ---
 
 ## Les décisions à ne pas défaire
@@ -135,16 +151,9 @@ valables ; voir
 
 ## Ce qu'il reste
 
-**La liste fait foi : [`notes/todos.md`](../notes/todos.md).** La section 10
-est close à une exception près :
+**La liste fait foi : [`notes/todos.md`](../notes/todos.md).** La **section 10
+est close en entier**. En tête de ce qui reste :
 
-- **« Erreur d'assignation » en option par défaut** — SEUL point encore
-  ouvert de la section, laissé **délibérément** à l'utilisateur : le défaut
-  actuel est le plus conservateur (`DECISION` conserve l'historique, `ERREUR`
-  l'efface), et la fenêtre de correction étant maintenant réglable jusqu'à un
-  an, le pari qui rendait le défaut acceptable à 15 jours fixes ne vaut plus
-  tel quel — c'est exactement la question que `notes/todos.md` demandait de
-  rouvrir une fois le délai configurable.
 - **Deux demandes du 21 août sur l'attestation de transfert** — consultable
   avant approbation, et configurable par l'entité émettrice.
 - **`/finances`** — le rapprochement des dîmes rendu à l'église (six points).

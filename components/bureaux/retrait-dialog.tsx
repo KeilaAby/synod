@@ -37,10 +37,15 @@ import { cn } from '@/lib/utils';
  * l'un efface, l'autre conserve — et choisir à la place de l'utilisateur ferait
  * perdre une ligne d'historique qu'il croyait garder, ou l'inverse.
  *
- * L'ERREUR SE FERME AU BOUT DE QUINZE JOURS. Passé ce délai, ce n'est plus une
- * correction de saisie mais une décision. Le choix disparaît alors de l'écran,
- * et le serveur le refuserait de toute façon : ce qui est en jeu est un
- * effacement, et un refus se corrige là où une ligne effacée ne revient pas.
+ * L'ERREUR SE FERME AU BOUT DU DÉLAI DE CORRECTION. Passé ce délai, ce n'est
+ * plus une correction de saisie mais une décision. Le choix disparaît alors de
+ * l'écran, et le serveur le refuserait de toute façon : ce qui est en jeu est
+ * un effacement, et un refus se corrige là où une ligne effacée ne revient pas.
+ *
+ * « ERREUR » EST LE DÉFAUT QUAND ELLE EST PROPOSÉE — 22 août 2026, décision de
+ * l'utilisateur. Elle n'apparaît que DANS la fenêtre de correction : quand elle
+ * est là, une faute de saisie récente est le cas le plus probable, et forcer un
+ * second clic pour le cas courant n'aidait personne.
  */
 export function RetraitDialog({
   cible,
@@ -69,7 +74,7 @@ export function RetraitDialog({
    */
   joursDelai: number;
 }) {
-  const [nature, setNature] = useState<MotifRetrait>('DECISION');
+  const [nature, setNature] = useState<MotifRetrait>('ERREUR');
   const [motif, setMotif] = useState('');
 
   if (!cible) return null;
@@ -79,7 +84,7 @@ export function RetraitDialog({
   const pretAValider = choix === 'ERREUR' || motif.trim().length >= 3;
 
   function fermer() {
-    setNature('DECISION');
+    setNature('ERREUR');
     setMotif('');
     onAnnuler();
   }

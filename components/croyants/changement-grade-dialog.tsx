@@ -38,8 +38,13 @@ import { cn } from '@/lib/utils';
  * pourquoi ; l'entité supérieure se prononce **sur** ce motif. L'inverse lui
  * ferait juger sans savoir de quoi.
  *
- * L'ERREUR SE FERME AU BOUT DE QUINZE JOURS — sans ce délai, « erreur de
+ * L'ERREUR SE FERME AU BOUT DU DÉLAI DE CORRECTION — sans lui, « erreur de
  * saisie » deviendrait la porte par laquelle on rétrograde sans rien écrire.
+ *
+ * « ERREUR » EST LE DÉFAUT QUAND ELLE EST PROPOSÉE — 22 août 2026, décision de
+ * l'utilisateur, symétrique à celle prise sur le retrait d'un titulaire de
+ * bureau (EF-BUR-08) : dans la fenêtre de correction, une faute de saisie
+ * récente est le cas le plus probable.
  */
 export function ChangementGradeDialog({
   ouvert,
@@ -70,7 +75,7 @@ export function ChangementGradeDialog({
    */
   joursDelai: number;
 }) {
-  const [nature, setNature] = useState<NatureChangementGrade>('DECISION');
+  const [nature, setNature] = useState<NatureChangementGrade>('ERREUR');
   const [motif, setMotif] = useState('');
 
   const erreurPossible = correctionDeGradePossible(ficheCreeeLe, joursDelai);
@@ -82,7 +87,7 @@ export function ChangementGradeDialog({
   const pret = !motifRequis || motif.trim().length >= 3;
 
   function fermer() {
-    setNature('DECISION');
+    setNature('ERREUR');
     setMotif('');
     onAnnuler();
   }

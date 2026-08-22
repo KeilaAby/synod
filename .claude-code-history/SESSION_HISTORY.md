@@ -5478,3 +5478,22 @@ de tout bloc `@layer`.
 `pnpm verify` : vert (un test, `apparence.test.ts`, s'est révélé flaky sous
 charge — passe seul et en isolation, timeout intermittent à 5000 ms quand les
 42 fichiers tournent en parallèle ; sans lien avec ces deux changements).
+
+### « Erreur d'assignation » devient le défaut — sur décision de l'utilisateur
+
+Dernier point de `notes/todos.md` §10, volontairement laissé de côté jusque-là
+: la demande d'origine posait elle-même le risque — le défaut actuel
+(`DECISION`) est le plus conservateur, et le faire basculer vers `ERREUR` fait
+qu'un clic distrait EFFACE une ligne au lieu de l'INSCRIRE. Question posée à
+l'utilisateur avec une recommandation (garder `DECISION`, le délai étant
+maintenant réglable jusqu'à un an) ; réponse : basculer quand même vers
+`ERREUR`.
+
+Changement mécanique dans les deux pop-up (`retrait-dialog.tsx`,
+`changement-grade-dialog.tsx`) : l'état initial et la réinitialisation à la
+fermeture passent de `'DECISION'` à `'ERREUR'`. Rien d'autre ne change — la
+garde qui retombe sur `DECISION` hors du délai de correction
+(`erreurPossible ? nature : 'DECISION'`) n'a pas bougé, puisque `ERREUR` n'est
+de toute façon jamais proposée ni sélectionnable au-delà du délai.
+
+**La section 10 de `notes/todos.md` est maintenant close en entier.**

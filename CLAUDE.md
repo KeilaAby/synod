@@ -636,6 +636,17 @@ spécificité (Cascade Layers) et reprend la largeur effective de tous les
 `ring-*` du projet via un jeton unique, `--epaisseur-focus` (2px), sans
 toucher un seul fichier ni une seule couleur.
 
+**« Erreur d'assignation » devient le défaut, sur décision de l'utilisateur.**
+La demande d'origine posait elle-même le risque du changement — `DECISION`
+est le défaut le plus conservateur, `ERREUR` efface la ligne au lieu de
+l'inscrire — et le délai étant maintenant réglable jusqu'à un an, la question a
+été reposée avant d'y toucher plutôt que tranchée en silence. Réponse :
+basculer quand même. Les deux pop-up (`retrait-dialog.tsx`,
+`changement-grade-dialog.tsx`) initialisent désormais leur état à `'ERREUR'`
+et le réinitialisent ainsi à la fermeture ; la garde qui retombe sur
+`DECISION` hors du délai de correction n'a pas bougé. **La section 10 de
+`notes/todos.md` est close en entier.**
+
 Base à jour jusqu'à la migration `0068` — `0069` est **écrite et n'attend
 qu'une confirmation** dans l'éditeur SQL Supabase. Fuseau
 `Indian/Antananarivo` (UTC+3).

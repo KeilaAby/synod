@@ -962,18 +962,21 @@ soldes consolidés — la décision a déjà été prise et tenue une fois.
       `JOURS_CORRECTION_SAISIE_DEFAUT` (15 jours) là où il n'a pas encore de
       valeur réelle à offrir (`useEntityDialogs`).
 
-- [ ] **« Erreur d'assignation » devient l'option PAR DÉFAUT.**
-      Elle n'est proposée que dans la limite du délai : quand elle apparaît,
-      c'est qu'on est encore dans la fenêtre de correction, et la correction est
-      alors le cas le plus probable.
-      *Vaut pour les deux pop-up* — retrait d'un titulaire
-      (`retrait-dialog.tsx`) et changement de grade
-      (`changement-grade-dialog.tsx`), qui initialisent tous deux `DECISION`.
-      *Le risque à peser :* le défaut actuel est le plus **conservateur** —
-      `DECISION` conserve l'historique, `ERREUR` l'efface. Basculer le défaut
-      fait qu'un clic distrait efface au lieu d'inscrire. La fenêtre de quinze
-      jours est ce qui rend le pari acceptable ; si le délai devient réglable et
-      qu'on le porte à six mois, **il faudra rouvrir cette décision**.
+- [x] **« Erreur d'assignation » devient l'option PAR DÉFAUT.**
+      *(22 août 2026, sans migration — décision explicitement demandée à
+      l'utilisateur avant d'y toucher, le risque étant nommé dans la demande
+      elle-même.)*
+      Les deux pop-up — retrait d'un titulaire (`retrait-dialog.tsx`) et
+      changement de grade (`changement-grade-dialog.tsx`) — initialisent
+      désormais leur état à `'ERREUR'` (au lieu de `'DECISION'`), et le
+      réinitialisent à `'ERREUR'` à la fermeture plutôt qu'à `'DECISION'` : ils
+      ne se démontent pas entre deux ouvertures, c'est cette réinitialisation
+      qui fixe le défaut vu à la prochaine ouverture.
+      **Rien ne change à la garde qui protège `DECISION`** : `choix` reste
+      calculé comme `erreurPossible ? nature : 'DECISION'` — hors du délai,
+      l'option `ERREUR` n'est de toute façon jamais proposée ni sélectionnable,
+      donc l'écran retombe automatiquement sur `DECISION` (motif obligatoire)
+      sans code supplémentaire.
 
 - [x] **Le glisser-déposer des pop-up n'est pas fluide : la souris « lâche ».**
       *(22 août 2026, sans migration.)*
