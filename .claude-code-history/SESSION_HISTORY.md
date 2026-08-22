@@ -5601,3 +5601,31 @@ un badge « → *grade demandé* en attente » apparaît maintenant à côté du
 courant dès qu'une décision est pendante.
 
 `pnpm verify` : vert.
+
+## 22 août 2026 (suite) — Impression PDF de la liste des croyants
+
+Prochain point de `notes/todos.md`, demande du 20 août. **Aucun second
+moteur de PDF** : `exporterPdf`/`TableauExportable`
+(`components/finances/exporter.ts`) sont entièrement génériques malgré leur
+emplacement — construits pour le registre financier (EF-FIN-25), ils ne
+contiennent rien de spécifique aux finances. La liste des croyants les
+réutilise tels quels, sans en toucher une ligne.
+
+**On exporte ce qu'on voit** : `construireTableau()` part du résultat filtré
+et trié dans son ENTIER (pas seulement la page affichée), construit AU CLIC
+plutôt qu'à chaque rendu — recalculer plusieurs milliers de lignes à chaque
+frappe dans la recherche aurait ralenti la saisie pour un document que
+personne n'a encore demandé.
+
+**Le document dit quels filtres il porte** (règle 33) : nouvelle fonction
+pure, `libellesFiltresCroyants` (`lib/domain/croyant.ts`), qui traduit chaque
+filtre actif en phrase lisible en résolvant l'identifiant contre son
+référentiel — un identifiant seul ne se lit pas sur une feuille imprimée.
+Testée pour ignorer un identifiant introuvable plutôt que d'inventer une
+phrase fausse.
+
+Le bouton d'impression rejoint `FiltresCroyants` via un slot
+(`imprimer: React.ReactNode`) plutôt qu'une action câblée dans le composant :
+les filtres restent sans état ni connaissance des données affichées.
+
+`pnpm verify` : 43 fichiers, 877 tests, build compris — vert.

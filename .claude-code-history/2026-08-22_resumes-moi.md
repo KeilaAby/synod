@@ -31,7 +31,7 @@ dans l'éditeur SQL Supabase. L'état qui fait foi est en tête de
   cartouche de signature), une seule ligne, lecture libre / écriture
   `settings.manage`.
 
-**872 tests unitaires, 43 fichiers.** `pnpm verify` vert (lint, typecheck,
+**877 tests unitaires, 43 fichiers.** `pnpm verify` vert (lint, typecheck,
 tests, build).
 
 ---
@@ -164,6 +164,18 @@ vraiment : `promotionDuCroyant` (`lib/data/promotions.ts`) existait, avec son
 intention écrite, mais **aucun appelant nulle part** — enfilée dans la fiche
 du croyant, qui affiche désormais « → *grade demandé* en attente ».
 
+### Impression PDF de la liste des croyants
+
+Aucun second moteur de PDF : `exporterPdf`/`TableauExportable`, construits
+pour le registre financier (EF-FIN-25), sont entièrement génériques et
+réutilisés tels quels. On exporte ce qu'on voit — le résultat filtré et
+trié dans son entier, construit au clic. Nouvelle fonction pure,
+`libellesFiltresCroyants` (`lib/domain/croyant.ts`), qui traduit chaque
+filtre actif en phrase lisible pour que le document dise ce qu'il porte
+(règle 33). Le bouton rejoint `FiltresCroyants` via un slot.
+
+`pnpm verify` : 43 fichiers, 877 tests, build compris — vert.
+
 ---
 
 ## Les décisions à ne pas défaire
@@ -194,9 +206,9 @@ valables ; voir
 ## Ce qu'il reste
 
 **La liste fait foi : [`notes/todos.md`](../notes/todos.md).** Les **sections
-10 et l'attestation de §1 sont closes**. En tête de ce qui reste :
+10, l'attestation de §1 et l'impression PDF de §1 (20 août) sont closes**. En
+tête de ce qui reste :
 
-- **Impression PDF de la liste des croyants**, filtres appliqués respectés.
 - **Relier deux croyants mariés** (époux ↔ épouse) — le plus lourd : migration
   et trigger, le lien devant rester symétrique.
 - **`/finances`** — le rapprochement des dîmes rendu à l'église (six points).
@@ -223,7 +235,7 @@ valables ; voir
 pnpm install      # installe aussi le hook pre-commit de détection de secrets
 cp .env.example .env.local   # puis renseigner : les valeurs sont dans Supabase
 pnpm exec next typegen       # sur un clone frais, AVANT le premier typecheck
-pnpm verify       # secrets + lint + types + 872 tests + build
+pnpm verify       # secrets + lint + types + 877 tests + build
 pnpm dev:propre   # cache Turbopack vidé — après toute série de modifications
 ```
 

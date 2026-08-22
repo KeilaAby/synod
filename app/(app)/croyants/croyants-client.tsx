@@ -1,6 +1,6 @@
 'use client';
 
-import { TriangleAlert, Users } from 'lucide-react';
+import { Printer, TriangleAlert, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
@@ -12,6 +12,7 @@ import {
 } from '@/components/croyants/croyant-dialog';
 import { CroyantMenu } from '@/components/croyants/croyant-menu';
 import { useCroyantDialogs } from '@/components/croyants/use-croyant-dialogs';
+import { type TableauExportable, exporterPdf } from '@/components/finances/exporter';
 import { EmptyState } from '@/components/shared/empty-state';
 import { EnteteTriable } from '@/components/shared/entete-triable';
 import { useSession } from '@/components/shared/session-provider';
@@ -33,9 +34,12 @@ import {
   FILTRES_LISTE_VIDES,
   type FiltresListeCroyants,
   LIBELLES_SEXE,
+  LIBELLES_STATUT_CROYANT,
+  type StatutCroyant,
   aDesFiltres,
   calculerAge,
   filtrerCroyants,
+  libellesFiltresCroyants,
   nomComplet,
   valeurTriCroyant,
 } from '@/lib/domain/croyant';
@@ -116,6 +120,51 @@ export function CroyantsClient({
     [croyants, filtresDifferes, tri],
   );
 
+  /**
+   * EF-CRO-04 — impression PDF de la liste, ON EXPORTE CE QU'ON VOIT (EF-FIN-25).
+   *
+   * CONSTRUIT AU CLIC, pas à chaque rendu : recalculer plusieurs milliers de
+   * lignes à chaque frappe dans la recherche ferait ramer la saisie pour un
+   * document que personne n'a encore demandé.
+   *
+   * LE SOUS-TITRE DIT QUELS FILTRES IL PORTE (règle 33) : sur une feuille
+   * imprimée, personne ne peut rouvrir les filtres pour comprendre pourquoi
+   * le total ne correspond pas à ce qu'on attendait.
+   */
+  function construireTableau(): TableauExportable {
+    const filtresActifs = libellesFiltresCroyants(filtresDifferes, options);
+
+    return {
+      titre: 'Liste des croyants',
+      sousTitre:
+        filtresActifs.length > 0
+          ? `${resultats.length} croyant${resultats.length > 1 ? 's' : ''} — ${filtresActifs.join(' · ')}`
+          : `${resultats.length} croyant${resultats.length > 1 ? 's' : ''} — périmètre entier`,
+      entetes: [
+        'Nom',
+        'Matricule',
+        'Sexe',
+        'Âge',
+        'Église',
+        'Cellule',
+        'Grade',
+        'Baptême',
+        'Statut',
+      ],
+      lignes: resultats.map((c) => [
+        nomComplet(c.nom, c.prenom),
+        c.matricule,
+        LIBELLES_SEXE[c.sexe],
+        calculerAge(new Date(c.date_naissance)),
+        c.eglise?.nom ?? '—',
+        c.cellule?.nom ?? '—',
+        c.grade?.libelle ?? '—',
+        formatDate(c.date_bapteme),
+        LIBELLES_STATUT_CROYANT[c.statut as StatutCroyant] ?? c.statut,
+      ]),
+    };
+  }
+
   const nbPages = Math.max(1, Math.ceil(resultats.length / TAILLE_PAGE));
   const pageBornee = Math.min(page, nbPages);
   const visibles = resultats.slice(
@@ -183,6 +232,17 @@ export function CroyantsClient({
         nationalites={options.nationalites}
         affiches={resultats.length}
         total={croyants.length}
+        imprimer={
+          <Button
+            variant="outline"
+            className="h-10"
+            disabled={resultats.length === 0}
+            onClick={() => exporterPdf(construireTableau())}
+          >
+            <Printer className="mr-2 size-4" aria-hidden />
+            Imprimer
+          </Button>
+        }
       />
 
       {/* ENF-PRF-05 — au-delà du plafond, la recherche ne porte plus sur tout

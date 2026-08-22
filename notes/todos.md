@@ -285,13 +285,36 @@ l'éditeur SQL Supabase.)*
 
 ### Demandes du 20 août 2026
 
-- [ ] **Impression PDF de la liste**, respectant **les filtres appliqués**.
-      Ce qui s'imprime doit être ce qu'on voit — même doctrine que l'export
-      XLSX/CSV d'EF-FIN-25, dont la sélection filtrée et son nombre de lignes
-      sont annoncés sur le menu. Attention règle 33 : sur une feuille, un
-      libellé tronqué est perdu — on replie entre les mots, on réduit la police,
-      on ne coupe pas. Et le document doit **dire quels filtres il porte**,
-      sinon un total qui ne correspond pas reste inexplicable au lecteur.
+- [x] **Impression PDF de la liste**, respectant **les filtres appliqués**.
+      *(22 août 2026, sans migration.)*
+
+      **Aucun second moteur de PDF** (règle 16) : `exporterPdf` et
+      `TableauExportable` existaient déjà pour le registre financier
+      (EF-FIN-25) et sont entièrement génériques malgré leur emplacement dans
+      `components/finances/`. La liste des croyants les réutilise tels quels —
+      un `<table>` HTML imprimé par la fenêtre du navigateur, sans
+      bibliothèque de rendu (règle 29). Rien n'a changé dans `exporter.ts`.
+
+      **On exporte ce qu'on voit** : `construireTableau()` part de `resultats`
+      — filtré, trié, TOUT le résultat et pas seulement la page affichée —
+      construit **au clic**, pas à chaque rendu (une recherche qui recalculait
+      plusieurs milliers de lignes à chaque frappe aurait ralenti la saisie
+      pour un document que personne n'a encore demandé).
+
+      **Le document dit quels filtres il porte** — nouvelle fonction pure,
+      `libellesFiltresCroyants` (`lib/domain/croyant.ts`), qui traduit chaque
+      filtre actif en phrase lisible (« Église : Ambohipo », « Âge : de 18 à
+      35 ans »...) en résolvant l'identifiant contre son référentiel : un
+      identifiant seul ne se lit pas sur une feuille imprimée. Testée pour
+      ignorer un identifiant introuvable plutôt que d'inventer une phrase
+      fausse, et pour ne jamais compter le statut `ACTIF` par défaut comme un
+      filtre actif — exactement le même choix que `aDesFiltres`.
+
+      **Le bouton vit dans `FiltresCroyants`**, via un slot (`imprimer:
+      React.ReactNode`) plutôt qu'une action câblée dans le composant : les
+      filtres restent un composant sans état ni connaissance des données
+      affichées, seul `CroyantsClient` sait construire le tableau exporté —
+      même séparation que `BoutonExport`/`finances-client.tsx`.
 - [ ] **Relier deux croyants mariés** (époux ↔ épouse).
       - Dans le formulaire, si le statut marital est « marié », proposer une
         liste de croyants **de sexe opposé** — même sélecteur que la liste des

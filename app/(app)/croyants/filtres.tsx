@@ -57,6 +57,7 @@ export function FiltresCroyants({
   nationalites,
   affiches,
   total,
+  imprimer,
 }: {
   filtres: FiltresListeCroyants;
   onChange: (modifs: Partial<FiltresListeCroyants>) => void;
@@ -66,6 +67,12 @@ export function FiltresCroyants({
   nationalites: OptionReferentiel[];
   affiches: number;
   total: number;
+  /**
+   * Le bouton d'impression PDF — un slot, pas une action câblée ici : ce
+   * composant reste sans état ni connaissance des données affichées, et
+   * `CroyantsClient` est seul à savoir construire le tableau exporté.
+   */
+  imprimer?: React.ReactNode;
 }) {
   const [avance, setAvance] = useState(false);
 
@@ -207,6 +214,8 @@ export function FiltresCroyants({
               Effacer
             </Button>
           )}
+
+          {imprimer}
 
           <span
             className="ml-auto font-mono text-xs tabular-nums text-muted-foreground"

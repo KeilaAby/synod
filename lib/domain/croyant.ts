@@ -323,6 +323,63 @@ export function aDesFiltres(filtres: FiltresListeCroyants): boolean {
 }
 
 /**
+ * Les filtres actifs, en phrases lisibles — pour l'impression (règle 33).
+ *
+ * UN DOCUMENT DOIT DIRE CE QU'IL PORTE. Sur une feuille imprimée, personne ne
+ * peut rouvrir les filtres pour comprendre pourquoi le total ne correspond
+ * pas à ce qu'on attendait — même doctrine que le registre financier
+ * (EF-FIN-22) et l'export XLSX/CSV (EF-FIN-25).
+ *
+ * PREND LES RÉFÉRENTIELS EN PARAMÈTRE, contrairement à `aDesFiltres` : un
+ * identifiant seul ne se lit pas, il faut le nom de l'église ou le libellé du
+ * grade qu'il désigne.
+ */
+export function libellesFiltresCroyants(
+  filtres: FiltresListeCroyants,
+  referentiels: {
+    eglises: readonly { id: string; nom: string }[];
+    grades: readonly { id: string; libelle: string }[];
+    nationalites: readonly { id: string; libelle: string }[];
+  },
+): string[] {
+  const libelles: string[] = [];
+
+  if (filtres.recherche.trim()) {
+    libelles.push(`Recherche « ${filtres.recherche.trim()} »`);
+  }
+  if (filtres.egliseId) {
+    const eglise = referentiels.eglises.find((e) => e.id === filtres.egliseId);
+    if (eglise) libelles.push(`Église : ${eglise.nom}`);
+  }
+  if (filtres.sexe) {
+    libelles.push(`Sexe : ${LIBELLES_SEXE[filtres.sexe]}`);
+  }
+  if (filtres.statut !== FILTRES_LISTE_VIDES.statut) {
+    libelles.push(`Statut : ${LIBELLES_STATUT_CROYANT[filtres.statut]}`);
+  }
+  if (filtres.enCellule !== null) {
+    libelles.push(filtres.enCellule ? 'En cellule de prière' : 'Sans cellule de prière');
+  }
+  if (filtres.gradeId) {
+    const grade = referentiels.grades.find((g) => g.id === filtres.gradeId);
+    if (grade) libelles.push(`Grade : ${grade.libelle}`);
+  }
+  if (filtres.nationaliteId) {
+    const nationalite = referentiels.nationalites.find((n) => n.id === filtres.nationaliteId);
+    if (nationalite) libelles.push(`Nationalité : ${nationalite.libelle}`);
+  }
+  if (filtres.ageMin !== null && filtres.ageMax !== null) {
+    libelles.push(`Âge : de ${filtres.ageMin} à ${filtres.ageMax} ans`);
+  } else if (filtres.ageMin !== null) {
+    libelles.push(`Âge : ${filtres.ageMin} ans ou plus`);
+  } else if (filtres.ageMax !== null) {
+    libelles.push(`Âge : ${filtres.ageMax} ans ou moins`);
+  }
+
+  return libelles;
+}
+
+/**
  * EF-CRO-05 — recherche libre sur nom, prenom, matricule, telephone, e-mail.
  *
  * Chaque MOT de la requete doit se retrouver quelque part : taper

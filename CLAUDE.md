@@ -684,6 +684,17 @@ demande « aucun écran pour les promotions de grade en attente » (21 août)
 **aucun appelant nulle part**. Enfilée dans la fiche du croyant : un badge
 « → *grade demandé* en attente » à côté du grade courant.
 
+**L'impression PDF de la liste des croyants réutilise le PDF des finances
+sans en changer une ligne.** `exporterPdf`/`TableauExportable`
+(`components/finances/exporter.ts`), construits pour EF-FIN-25, se sont
+révélés entièrement génériques malgré leur emplacement — un `<table>` HTML
+imprimé par le navigateur, sans bibliothèque de rendu (règle 29). On exporte
+ce qu'on voit : le résultat filtré et trié dans son entier, construit AU CLIC
+pour ne pas ralentir la frappe dans la recherche. Nouvelle fonction pure,
+`libellesFiltresCroyants` (`lib/domain/croyant.ts`), qui traduit chaque
+filtre en phrase lisible — « Église : Ambohipo » plutôt qu'un identifiant —
+pour que le document dise ce qu'il porte (règle 33).
+
 Base à jour jusqu'à la migration `0068` — `0069` et `0070` sont **écrites et
 n'attendent qu'une confirmation** dans l'éditeur SQL Supabase. Fuseau
 `Indian/Antananarivo` (UTC+3).

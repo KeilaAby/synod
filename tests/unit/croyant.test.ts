@@ -14,6 +14,7 @@ import {
   filtrerCroyants,
   initialesAvatar,
   initialesMatricule,
+  libellesFiltresCroyants,
   nomComplet,
   trancheAge,
   validerDatesCroyant,
@@ -382,5 +383,60 @@ describe('EF-CRO-04 — filtres de la liste des croyants', () => {
     expect(aDesFiltres(FILTRES_LISTE_VIDES)).toBe(false);
     expect(aDesFiltres({ ...FILTRES_LISTE_VIDES, recherche: 'a' })).toBe(true);
     expect(aDesFiltres({ ...FILTRES_LISTE_VIDES, statut: 'DECEDE' })).toBe(true);
+  });
+});
+
+/**
+ * EF-CRO-04 — les filtres actifs, en phrases lisibles pour l'impression
+ * (règle 33) : un document doit dire ce qu'il porte.
+ */
+describe('libellesFiltresCroyants', () => {
+  const referentiels = {
+    eglises: [{ id: 'e1', nom: 'Ambohipo' }],
+    grades: [{ id: 'g1', libelle: 'Diacre' }],
+    nationalites: [{ id: 'n1', libelle: 'Malgache' }],
+  };
+
+  it('ne rend rien sans filtre', () => {
+    expect(libellesFiltresCroyants(FILTRES_LISTE_VIDES, referentiels)).toEqual([]);
+  });
+
+  it('nomme chaque filtre par SON référentiel, pas par son identifiant', () => {
+    const libelles = libellesFiltresCroyants(
+      { ...FILTRES_LISTE_VIDES, egliseId: 'e1', gradeId: 'g1', nationaliteId: 'n1' },
+      referentiels,
+    );
+    expect(libelles).toEqual([
+      'Église : Ambohipo',
+      'Grade : Diacre',
+      'Nationalité : Malgache',
+    ]);
+  });
+
+  it('le statut ACTIF par défaut ne compte pas comme un filtre', () => {
+    expect(
+      libellesFiltresCroyants({ ...FILTRES_LISTE_VIDES, statut: 'ACTIF' }, referentiels),
+    ).toEqual([]);
+    expect(
+      libellesFiltresCroyants({ ...FILTRES_LISTE_VIDES, statut: 'DECEDE' }, referentiels),
+    ).toEqual(['Statut : Décédé']);
+  });
+
+  it('décrit une tranche d’âge, une borne seule, ou l’autre', () => {
+    expect(
+      libellesFiltresCroyants({ ...FILTRES_LISTE_VIDES, ageMin: 18, ageMax: 35 }, referentiels),
+    ).toEqual(['Âge : de 18 à 35 ans']);
+    expect(
+      libellesFiltresCroyants({ ...FILTRES_LISTE_VIDES, ageMin: 18 }, referentiels),
+    ).toEqual(['Âge : 18 ans ou plus']);
+    expect(
+      libellesFiltresCroyants({ ...FILTRES_LISTE_VIDES, ageMax: 17 }, referentiels),
+    ).toEqual(['Âge : 17 ans ou moins']);
+  });
+
+  it('un identifiant introuvable dans le référentiel ne produit aucune phrase fausse', () => {
+    expect(
+      libellesFiltresCroyants({ ...FILTRES_LISTE_VIDES, egliseId: 'disparue' }, referentiels),
+    ).toEqual([]);
   });
 });
