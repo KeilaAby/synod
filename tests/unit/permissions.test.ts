@@ -14,6 +14,7 @@ import {
   permissionsDuGroupe,
   porteeDe,
   porteeEffective,
+  resoudrePortee,
 } from '@/lib/domain/permissions';
 
 /**
@@ -372,6 +373,58 @@ describe('RG-24 — delegation : on ne delegue que ce que l on detient', () => {
     const cotes = [...tableau.matchAll(/'([a-z_]+(?:\.[a-z_]+)+)'/g)].map((m) => m[1]!);
 
     expect(cotes.sort()).toEqual([...NON_DELEGABLES].sort());
+  });
+});
+
+describe('resoudrePortee — EF-ADM-03, RG-25 : restreindre un octroi a une sous-structure', () => {
+  const arbre = [
+    { id: 'id-siege', path: P.siege },
+    { id: 'id-regional', path: P.regional },
+    { id: 'id-districtA', path: P.districtA },
+    { id: 'id-paroisse1', path: P.paroisse1 },
+    { id: 'id-eglise1', path: P.eglise1 },
+    { id: 'id-paroisse2', path: P.paroisse2 },
+    { id: 'id-districtB', path: P.districtB },
+  ];
+  const cible = { id: 'id-districtA', path: P.districtA };
+
+  it('rend null quand aucune restriction n est demandee', () => {
+    const r = resoudrePortee(null, cible, arbre);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data).toEqual({ scopeEntityId: null, cheminPortee: null });
+  });
+
+  it('normalise en null quand l entite choisie est celle du compte lui-meme', () => {
+    // Equivalent a « aucune restriction » : l'ecrire quand meme figerait la
+    // portee si le compte etait un jour re-rattache.
+    const r = resoudrePortee('id-districtA', cible, arbre);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data).toEqual({ scopeEntityId: null, cheminPortee: null });
+  });
+
+  it('accepte une descendante de l entite de rattachement', () => {
+    const r = resoudrePortee('id-eglise1', cible, arbre);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.data).toEqual({ scopeEntityId: 'id-eglise1', cheminPortee: P.eglise1 });
+    }
+  });
+
+  it('refuse une entite hors du sous-arbre du compte (une soeur)', () => {
+    const r = resoudrePortee('id-districtB', cible, arbre);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain('rester dans');
+  });
+
+  it('refuse un ANCETRE du compte : ce n est pas une restriction', () => {
+    const r = resoudrePortee('id-regional', cible, arbre);
+    expect(r.ok).toBe(false);
+  });
+
+  it('refuse une entite introuvable dans l arbre', () => {
+    const r = resoudrePortee('id-inconnue', cible, arbre);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain('introuvable');
   });
 });
 

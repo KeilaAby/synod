@@ -10,6 +10,7 @@ import {
   type Permission,
   peutDeleguer,
   permissionsDeleguables,
+  resoudrePortee,
 } from '@/lib/domain/permissions';
 import { type ActionResult, ko, ok } from '@/lib/domain/result';
 import { auditer, requirePermission, requireSession } from '@/lib/session';
@@ -116,17 +117,26 @@ export async function creerCompte(input: unknown): Promise<ActionResult<CompteOu
     // dans la sienne. Le refus est verifie AVANT toute ecriture : accorder
     // d'abord et corriger ensuite laisserait un compte trop puissant entre les
     // deux.
-    const demandees = valeurs.permissions.filter((p): p is Permission =>
-      (ALL_PERMISSIONS as readonly string[]).includes(p),
-    );
+    const demandees: { permission: Permission; scopeEntityId: string | null }[] = [];
+    for (const demande of valeurs.permissions) {
+      if (!(ALL_PERMISSIONS as readonly string[]).includes(demande.permission)) continue;
+      const permission = demande.permission as Permission;
 
-    for (const permission of demandees) {
+      const portee = resoudrePortee(
+        demande.scopeEntityId,
+        { id: valeurs.entityId, path: entite.path },
+        arbre,
+      );
+      if (!portee.ok) return portee;
+
       const verdict = peutDeleguer(
         session,
         { cheminEntite: entite.path },
-        { permission, cheminPortee: entite.path },
+        { permission, cheminPortee: portee.data.cheminPortee },
       );
       if (!verdict.ok) return verdict;
+
+      demandees.push({ permission, scopeEntityId: portee.data.scopeEntityId });
     }
 
     const motDePasse = genererMotDePasse();
@@ -179,10 +189,10 @@ export async function creerCompte(input: unknown): Promise<ActionResult<CompteOu
      */
     if (demandees.length > 0) {
       const { error: erreurDroits } = await sb.from('user_permissions').insert(
-        demandees.map((permission) => ({
+        demandees.map(({ permission, scopeEntityId }) => ({
           user_id: data.id,
           permission,
-          scope_entity_id: valeurs.entityId,
+          scope_entity_id: scopeEntityId,
           source: 'INDIVIDUEL',
           granted_by: session.profileId,
         })),
@@ -238,18 +248,28 @@ export async function modifierCompte(input: unknown): Promise<ActionResult<void>
     if (!cible.ok) return ko(cible.error);
 
     const chemin = cible.data.entite!.path;
+    const arbre = await getArbrePerimetre();
 
-    const demandees = valeurs.permissions.filter((p): p is Permission =>
-      (ALL_PERMISSIONS as readonly string[]).includes(p),
-    );
+    const demandees: { permission: Permission; scopeEntityId: string | null }[] = [];
+    for (const demande of valeurs.permissions) {
+      if (!(ALL_PERMISSIONS as readonly string[]).includes(demande.permission)) continue;
+      const permission = demande.permission as Permission;
 
-    for (const permission of demandees) {
+      const portee = resoudrePortee(
+        demande.scopeEntityId,
+        { id: cible.data.entity_id, path: chemin },
+        arbre,
+      );
+      if (!portee.ok) return portee;
+
       const verdict = peutDeleguer(
         session,
         { cheminEntite: chemin },
-        { permission, cheminPortee: chemin },
+        { permission, cheminPortee: portee.data.cheminPortee },
       );
       if (!verdict.ok) return verdict;
+
+      demandees.push({ permission, scopeEntityId: portee.data.scopeEntityId });
     }
 
     const sb = await createClient();
@@ -290,10 +310,10 @@ export async function modifierCompte(input: unknown): Promise<ActionResult<void>
 
     if (demandees.length > 0) {
       await sb.from('user_permissions').insert(
-        demandees.map((permission) => ({
+        demandees.map(({ permission, scopeEntityId }) => ({
           user_id: valeurs.profileId,
           permission,
-          scope_entity_id: cible.data.entity_id,
+          scope_entity_id: scopeEntityId,
           source: 'INDIVIDUEL',
           granted_by: session.profileId,
         })),

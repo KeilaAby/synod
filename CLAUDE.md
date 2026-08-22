@@ -800,9 +800,29 @@ transfert (`0070`), refaite sur ce composant partagé, et
 `components/structure/entite-logo.tsx` s'en sert à son tour pour la clé
 variable.
 
-Base à jour jusqu'à la migration `0072`, confirmée appliquée par
-l'utilisateur et vérifiée en conditions réelles — `0073` est **écrite et
-attend la même confirmation**. Fuseau `Indian/Antananarivo` (UTC+3).
+**RG-25 précisé de nouveau — la portée par droit dans l'octroi, EF-ADM-03,
+sans migration.** `user_permissions.scope_entity_id` existait depuis la
+toute première migration (`0005`) et `has_perm`/`peut()` savaient déjà le
+lire ; seul l'écran forçait toujours la portée à l'entité de rattachement du
+compte, dans `creerCompte` et `modifierCompte`. **Un sélecteur par droit
+coché, pas une portée globale pour tout l'octroi** — décidé avec
+l'utilisateur : la base autorise une portée différente par ligne, un compte
+porte souvent une vingtaine de droits actifs, et une portée unique aurait
+interdit de restreindre deux droits différemment en un seul passage.
+`SelecteurHabilitations` gagne un prop `portee` **optionnel**, absent pour
+`reglages-profils.tsx` (un profil est un jeu de clés commun à
+l'organisation, sans entité à restreindre). `resoudrePortee`
+(`lib/domain/permissions.ts`, testée) NORMALISE en `null` l'entité choisie
+quand c'est celle du compte lui-même — un id explicite figerait la portée
+si le compte était un jour re-rattaché — et REFUSE toute entité hors de son
+sous-arbre. **Deux contrôles distincts, nécessaires l'un et l'autre** :
+`resoudrePortee` borne au sous-arbre du compte BÉNÉFICIAIRE, `peutDeleguer`
+(RG-24, inchangée) vérifie ensuite que la portée reste dans ce que le
+DÉLÉGANT détient lui-même.
+
+Base à jour jusqu'à la migration `0073`, confirmée appliquée par
+l'utilisateur et vérifiée en conditions réelles. Fuseau
+`Indian/Antananarivo` (UTC+3).
 **Toute migration qui crée ou remplace
 une fonction doit finir par `notify pgrst, 'reload schema'`** : sans lui, l'API
 répond « fonction inconnue » sur du SQL pourtant en place — constaté deux fois,

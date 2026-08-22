@@ -18,11 +18,11 @@
 
 ## L'état de la base
 
-**Appliquées : `0001` à `0072`**, confirmé par l'utilisateur — `0071` et
-`0072` de surcroît vérifiées en conditions réelles, `0071` après correction de
-deux défauts trouvés en test (voir plus bas). **`0073` est écrite et attend
-la même confirmation.** L'état qui fait foi est en tête de `notes/todos.md`
-— ce fichier-ci ne le répète pas deux fois.
+**Appliquées : `0001` à `0073`**, confirmé par l'utilisateur — `0071`, `0072`
+et `0073` de surcroît vérifiées en conditions réelles, `0071` après
+correction de deux défauts trouvés en test (voir plus bas). L'état qui fait
+foi est en tête de `notes/todos.md` — ce fichier-ci ne le répète pas deux
+fois.
 
 - `0069` — `organisation_settings.jours_correction_saisie` : le délai de
   correction (15 jours par défaut, borné 1–365) devient un réglage
@@ -37,14 +37,16 @@ la même confirmation.** L'état qui fait foi est en tête de `notes/todos.md`
   `select`/`write`, `fn_resoudre_rapprochement`) et ajoute
   `fn_marquer_enveloppe_anonyme`, `SECURITY DEFINER`. « En attente » se lit
   désormais à `resolu_le is null`, plus à `croyant_id is null`.
-- `0073` — **écrite, pas encore appliquée** : `entities.logo_key`, l'en-tête
-  propre à chaque entité, source du bloc Image d'un rapport (EF-RAP-02) ; à
-  défaut, le logo de l'organisation le remplace.
+- `0073` — `entities.logo_key`, l'en-tête propre à chaque entité, source du
+  bloc Image d'un rapport (EF-RAP-02) ; à défaut, le logo de l'organisation
+  le remplace.
 
-**883 tests unitaires, 44 fichiers.** `pnpm verify` vert (lint, typecheck,
-tests, build) — y compris après la correction du bloc Image décrite plus
-bas, dont le code est écrit mais dont la migration `0073` n'est pas encore
-confirmée en base.
+**La portée par droit dans l'octroi d'habilitations (EF-ADM-03) est livrée
+SANS migration** : `user_permissions.scope_entity_id` existait déjà depuis
+`0005`, voir plus bas.
+
+**889 tests unitaires, 44 fichiers.** `pnpm verify` vert (lint, typecheck,
+tests, build).
 
 ---
 
@@ -409,7 +411,60 @@ générique côté props malgré son premier usage à clé fixe — confirmé en
 lisant avant d'écrire un troisième composant.
 
 `pnpm verify` : 44 fichiers, 883 tests, build compris — vert. Migration
-`0073` écrite, **pas encore appliquée** au moment du commit.
+`0073` confirmée appliquée par l'utilisateur le même jour.
+
+### La portée par droit dans l'octroi — EF-ADM-03, sans migration
+
+Reprise de `notes/todos.md` §5 : « Portée par droit dans l'octroi. » Avant
+d'écrire, exploration du mécanisme existant plutôt qu'une supposition : la
+base était déjà prête. `user_permissions.scope_entity_id` existe depuis la
+TOUTE PREMIÈRE migration (`0005`), `has_perm()` (SQL) et `peut()`/
+`porteeCouvre()` (TypeScript, `lib/domain/permissions.ts`) savent déjà le
+lire — seul l'écran n'a jamais posé autre chose que l'entité de rattachement
+du compte, dans les deux Server Actions (`creerCompte`, `modifierCompte`).
+Le formulaire lui-même le promettait déjà, sans le tenir : « une portée plus
+fine se règle ensuite » (`compte-dialog.tsx`, texte inchangé depuis son
+écriture d'origine).
+
+**Question posée avant d'écrire : un sélecteur de portée par droit coché, ou
+une portée unique pour tout l'octroi ?** La base permet une portée
+DIFFÉRENTE par ligne de `user_permissions` ; un compte porte souvent une
+vingtaine de droits actifs à la fois. Réponse — un sélecteur par droit,
+malgré le coût à l'écran, pour ne pas perdre cette flexibilité.
+`SelecteurHabilitations` reçoit un prop `portee` **optionnel** : absent pour
+`reglages-profils.tsx` (un profil est un jeu de clés commun à
+l'organisation, sans entité à restreindre — lui passer `portee` n'aurait
+aucun sens), fourni par `compte-dialog.tsx` pour l'écran de compte. Un
+`EntityPicker` compact apparaît sous chaque droit **actif** (restreindre un
+droit qu'on n'accorde pas ne voudrait rien dire), borné au sous-arbre de
+l'entité de rattachement du compte — l'entité elle-même exclue, puisque la
+resélectionner équivaut à l'absence de restriction (`null`).
+
+**`resoudrePortee`, nouvelle fonction PURE dans `lib/domain/permissions.ts`,
+testée (6 cas).** Elle NORMALISE en `null` quand l'entité choisie est celle
+du compte lui-même — les deux sont équivalents, et écrire l'id explicite
+quand même figerait la portée si le compte était un jour re-rattaché, là où
+`null` suit toujours son entité courante. Elle REFUSE une entité hors du
+sous-arbre du compte bénéficiaire (une sœur, un ancêtre) : « restreint à
+cette sous-structure », le commentaire d'origine de `0005`, devient une
+vraie contrainte plutôt qu'une simple promesse de commentaire. **Deux
+contrôles distincts, et les deux nécessaires** : `resoudrePortee` borne la
+portée au sous-arbre du COMPTE bénéficiaire ; `peutDeleguer` (RG-24,
+inchangée) vérifie ensuite que cette portée reste dans ce que le DÉLÉGANT
+détient lui-même. L'un ne remplace pas l'autre — un délégant pourrait
+détenir un droit largement, mais vouloir l'accorder plus étroit que ce qu'il
+détient ; le compte bénéficiaire, lui, ne doit jamais recevoir une portée
+qui déborde de son propre rattachement.
+
+`lib/data/comptes.ts` sélectionnait déjà `scope_entity_id` par habilitation
+— seul `comptes-client.tsx` le jetait en reconstruisant `accordees` comme un
+simple tableau de clés. Le même défaut, pour la troisième fois cette
+session (`promotionDuCroyant`, `organisation_settings.logo_key`) : une
+donnée déjà là, sans appelant.
+
+`pnpm verify` : 44 fichiers, 889 tests (+6), build compris — vert. Aucune
+migration : la colonne existait, seul le chemin UI → Server Action → colonne
+manquait.
 
 ---
 
@@ -486,13 +541,16 @@ valables ; voir
 **La liste fait foi : [`notes/todos.md`](../notes/todos.md).** Les **sections
 10, l'attestation de §1, l'impression PDF de §1 (20 août), le lien conjugal de
 §1, la navigation de `/bureaux` de §2 (20 août), les six points des dîmes de
-§3 (20 août, code écrit et migration confirmée le 22) et le logo du bloc
-Image de §4 (20 août, code écrit le 22) sont closes**. En tête de ce qui
-reste :
+§3 (20 août, migration confirmée le 22), le logo du bloc Image de §4
+(20 août, migration confirmée le 22) et la portée par droit de §5 (20 août,
+sans migration) sont closes**. En tête de ce qui reste :
 
 - **`/rapports`** — génération périodique programmée (écartée le 20 août, à
   reprendre plus tard).
-- **`/administration`** — portée par droit ; profils locaux.
+- **`/administration`** — profils locaux (la colonne existe, aucun écran ne
+  la renseigne) ; mettre à jour la matrice d'habilitations fines des comptes
+  existants si une modification récente les impacte (dernier point de §5,
+  non encore traité).
 - **Référentiel « Événement »** — signalé lui-même comme plus lourd que son
   intitulé.
 - **Lot 8** — portabilité, recette et mise en production. Pas entamé.

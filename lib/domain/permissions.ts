@@ -704,6 +704,21 @@ export interface CibleDelegation {
   readonly cheminEntite: string;
 }
 
+/**
+ * Un octroi tel que compose a l'ecran — EF-ADM-03, RG-25, notes/todos.md §5
+ * (« Portee par droit dans l'octroi »).
+ *
+ * `user_permissions.scope_entity_id` existe depuis la toute premiere
+ * migration (`0005`) et `has_perm`/`peut()` savent deja le lire : ce type ne
+ * comble pas un manque cote base, seulement cote formulaire, qui a toujours
+ * force la portee a l'entite de rattachement du compte.
+ */
+export interface OctroiPortee {
+  readonly permission: Permission;
+  /** `null` = toute l'entite de rattachement du compte beneficiaire. */
+  readonly scopeEntityId: string | null;
+}
+
 export interface OctroiDemande {
   readonly permission: Permission;
   /** Chemin ltree de la portee demandee ; `null` = tout le perimetre de la cible. */
@@ -756,6 +771,48 @@ export function peutDeleguer(
   }
 
   return ok();
+}
+
+/**
+ * EF-ADM-03, RG-25 — resout et valide la portee choisie pour UN octroi.
+ *
+ * `scope_entity_id` existe en base depuis `0005` : `null` signifie « toute
+ * l'entite de rattachement du compte », un id EXPLICITE la restreint. On
+ * NORMALISE en `null` quand l'entite choisie est celle du compte lui-meme —
+ * les deux sont equivalents, et l'ecrire quand meme figerait la portee si le
+ * compte etait un jour re-rattache, la ou `null` suit toujours son entite
+ * courante.
+ *
+ * LA PORTEE NE PEUT QUE RETRECIR : elle doit rester dans le sous-arbre du
+ * compte beneficiaire, jamais ailleurs — c'est le sens de « restreint a
+ * cette sous-structure » du commentaire d'origine de `user_permissions`.
+ * `peutDeleguer` verifie ENSUITE que cette portee reste dans celle que le
+ * delegant detient lui-meme (RG-24) ; les deux controles sont distincts et
+ * necessaires l'un et l'autre.
+ *
+ * `arbre` est reduit a `{ id, path }[]` — pas `NoeudEntite[]` — pour rester
+ * une fonction PURE, testable sans base ni session (regle 24).
+ */
+export function resoudrePortee(
+  scopeEntityId: string | null,
+  cible: { id: string; path: string },
+  arbre: readonly { id: string; path: string }[],
+): ActionResult<{ scopeEntityId: string | null; cheminPortee: string | null }> {
+  if (!scopeEntityId || scopeEntityId === cible.id) {
+    return ok({ scopeEntityId: null, cheminPortee: null });
+  }
+
+  const portee = arbre.find((e) => e.id === scopeEntityId);
+  if (!portee) return ko("L'entite choisie pour restreindre un octroi est introuvable.");
+
+  if (!estDescendant(portee.path, cible.path)) {
+    return ko(
+      'La portee d’un octroi doit rester dans l’entite de rattachement du compte, ou ' +
+        'l’une de ses descendantes.',
+    );
+  }
+
+  return ok({ scopeEntityId: portee.id, cheminPortee: portee.path });
 }
 
 /**
