@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { WifiOff } from 'lucide-react';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { ModifierCroyantDialog } from '@/components/croyants/croyant-dialog';
@@ -134,6 +135,7 @@ export default async function FicheCroyantPage({ params }: Params) {
                   nationalite_id: croyant.nationalite_id,
                   statut: croyant.statut as StatutCroyant,
                   egliseNom: croyant.eglise?.nom ?? '—',
+                  conjoint_id: croyant.conjoint_id,
                 }}
               />
             </>
@@ -189,6 +191,33 @@ export default async function FicheCroyantPage({ params }: Params) {
                     : 'Non renseigné'
                 }
               />
+              <div className="space-y-1">
+                <dt className="text-xs text-muted-foreground">Conjoint</dt>
+                <dd className="text-sm text-foreground">
+                  {/*
+                    EF-CRO-14 — DEUX ABSENCES DIFFÉRENTES, DEUX MESSAGES.
+                    `conjoint_id` nul : personne n'est renseigné, un état
+                    normal (le conjoint peut ne pas être croyant). `conjoint_id`
+                    posé mais `conjoint` absent : la RLS l'a masqué — hors du
+                    périmètre de l'utilisateur, ce qui doit se DIRE (règle 15)
+                    et non se confondre avec un blanc.
+                  */}
+                  {croyant.conjoint ? (
+                    <Link
+                      href={`/croyants/${croyant.conjoint.id}`}
+                      className="text-indigo-700 transition-colors hover:text-indigo-800 hover:underline"
+                    >
+                      {croyant.conjoint.nom.toLocaleUpperCase('fr')} {croyant.conjoint.prenom}
+                    </Link>
+                  ) : croyant.conjoint_id ? (
+                    <span className="text-muted-foreground">
+                      Conjoint hors de votre périmètre
+                    </span>
+                  ) : (
+                    'Non renseigné'
+                  )}
+                </dd>
+              </div>
               <Donnee
                 libelle="Nationalité"
                 valeur={croyant.nationalite?.libelle ?? '—'}

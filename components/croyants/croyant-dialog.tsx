@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import type { OptionConjointRoster } from '@/lib/data/croyants';
 import { nomComplet } from '@/lib/domain/croyant';
 
 import {
@@ -43,6 +44,8 @@ export interface OptionsCroyant {
   nationalites: OptionReferentiel[];
   /** EF-CRO-12 — délai de correction (migration 0069), pour `ChangementGradeDialog`. */
   joursDelai: number;
+  /** EF-CRO-14 — vivier du sélecteur de conjoint (migration 0071). */
+  conjointsPotentiels: OptionConjointRoster[];
 }
 
 interface CroyantAModifier {
@@ -63,6 +66,8 @@ interface CroyantAModifier {
   nationalite_id: string;
   statut: 'ACTIF' | 'INACTIF' | 'TRANSFERE' | 'DECEDE';
   egliseNom: string;
+  /** EF-CRO-14 — le conjoint déjà lié, s'il y en a un. */
+  conjoint_id: string | null;
 }
 
 /** Bouton « Nouveau croyant » et son pop-up. */

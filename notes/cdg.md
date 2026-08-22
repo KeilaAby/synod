@@ -230,6 +230,7 @@ Les habilitations sont **unitaires**, regroupées par catégorie, et chacune peu
 | **EF-CRO-11** | Importer un lot de croyants depuis **CSV** avec **correspondance de colonnes**, pré-validation et rapport d'erreurs ligne à ligne. Aucun modèle de fichier n'est imposé : les colonnes de l'utilisateur sont lues et il désigne ce qu'elles contiennent. Les églises, grades et nationalités se résolvent par **libellé ou par code**. *(XLSX livré le 9 août 2026 : lecteur sans dépendance, `lib/domain/xlsx.ts` — voir ARB-6.)* | **Should** |
 | **EF-CRO-12** | Exporter la liste filtrée (Excel/CSV) et la fiche individuelle (PDF). | **Should** |
 | **EF-CRO-13** | Détecter les doublons potentiels (même nom + prénom + date de naissance) et demander une confirmation explicite. | **Should** |
+| **EF-CRO-14** | Relier deux fiches d'époux(ses) : le lien est **symétrique** (relier A à B relie B à A) et facultatif même si le statut marital est « Marié(e) ». Un décès rend le conjoint survivant **veuf/veuve** automatiquement ; un divorce **efface** le lien sans historique. Un conjoint hors du périmètre de l'utilisateur reste **signalé**, jamais affiché à blanc. *(Ajoutée le 22 août 2026, demande de l'utilisateur — `notes/todos.md` §1, « Relier deux croyants mariés ».)* | **Should** |
 
 ### 5.3 Module **Transferts** *(workflow d'approbation — ARB-4)*
 

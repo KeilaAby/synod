@@ -54,12 +54,14 @@ export default async function ModifierCroyantPage({ params }: Params) {
           nationalite_id: croyant.nationalite_id,
           statut: croyant.statut as StatutCroyant,
           egliseNom: croyant.eglise?.nom ?? '—',
+          conjoint_id: croyant.conjoint_id,
         }}
         eglises={options.eglises}
         cellules={options.cellules}
         grades={options.grades}
         nationalites={options.nationalites}
         joursDelai={options.joursDelai}
+        conjointsPotentiels={options.conjointsPotentiels}
       />
     </div>
   );

@@ -379,6 +379,42 @@ export function libellesFiltresCroyants(
   return libelles;
 }
 
+// -----------------------------------------------------------------------------
+// Lien conjugal — EF-CRO-14
+// -----------------------------------------------------------------------------
+
+export interface OptionConjoint {
+  readonly id: string;
+  readonly sexe: Sexe;
+  /** Déjà lié à quelqu'un — la fiche cible du lien, `null` sinon. */
+  readonly conjoint_id: string | null;
+}
+
+/**
+ * Qui peut être proposé comme conjoint dans le sélecteur — EF-CRO-14.
+ *
+ * DE SEXE OPPOSÉ (règle 18 : ensemble ouvert, un sélecteur filtré, pas des
+ * pictogrammes) — c'est l'écran qui restreint, le lien lui-même reste
+ * facultatif.
+ *
+ * NI SOI-MÊME, ni quelqu'un déjà lié à un AUTRE que soi : le proposer
+ * romprait silencieusement cette autre union — le trigger de symétrie
+ * (migration `0071`) relâcherait l'ancien conjoint sans qu'on l'ait demandé.
+ * Notre conjoint ACTUEL reste proposé (et déjà sélectionné) : c'est le seul
+ * cas où `conjoint_id` d'un tiers peut valoir notre propre identifiant.
+ */
+export function conjointsProposables<T extends OptionConjoint>(
+  options: readonly T[],
+  croyant: { id: string; sexe: Sexe },
+): T[] {
+  return options.filter(
+    (c) =>
+      c.id !== croyant.id &&
+      c.sexe !== croyant.sexe &&
+      (c.conjoint_id === null || c.conjoint_id === croyant.id),
+  );
+}
+
 /**
  * EF-CRO-05 — recherche libre sur nom, prenom, matricule, telephone, e-mail.
  *

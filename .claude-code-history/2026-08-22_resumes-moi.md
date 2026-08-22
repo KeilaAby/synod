@@ -18,10 +18,9 @@
 
 ## L'état de la base
 
-**Appliquées : `0001` à `0068`.** `0069` et `0070` sont **écrites et
-n'attendent qu'une confirmation** — ni l'une ni l'autre n'a encore été passée
-dans l'éditeur SQL Supabase. L'état qui fait foi est en tête de
-`notes/todos.md` — ce fichier-ci ne le répète pas deux fois.
+**Appliquées : `0001` à `0070`**, confirmé par l'utilisateur. `0071` est
+**écrite et n'attend qu'une confirmation**. L'état qui fait foi est en tête
+de `notes/todos.md` — ce fichier-ci ne le répète pas deux fois.
 
 - `0069` — `organisation_settings.jours_correction_saisie` : le délai de
   correction (15 jours par défaut, borné 1–365) devient un réglage
@@ -30,8 +29,10 @@ dans l'éditeur SQL Supabase. L'état qui fait foi est en tête de
   l'attestation de transfert (logo, texte du corps, mentions légales,
   cartouche de signature), une seule ligne, lecture libre / écriture
   `settings.manage`.
+- `0071` — `croyants.conjoint_id` : le lien conjugal symétrique (EF-CRO-14),
+  maintenu par deux triggers `SECURITY DEFINER`.
 
-**877 tests unitaires, 43 fichiers.** `pnpm verify` vert (lint, typecheck,
+**883 tests unitaires, 44 fichiers.** `pnpm verify` vert (lint, typecheck,
 tests, build).
 
 ---
@@ -176,6 +177,35 @@ filtre actif en phrase lisible pour que le document dise ce qu'il porte
 
 `pnpm verify` : 43 fichiers, 877 tests, build compris — vert.
 
+### Le lien conjugal — migration `0071`
+
+Une divergence de citation découverte en cherchant où l'inscrire dans
+`cdg.md` : `EF-CRO-12` et `RG-06` y désignent déjà autre chose que ce à quoi
+le circuit de promotion de grade les accole depuis le 21 août. Signalé,
+non corrigé (hors périmètre), `EF-CRO-14` ajoutée proprement pour cette
+demande.
+
+**Un seul trigger pose ET efface le lien**, symétriquement —
+`fn_conjoint_symetrique()`, `SECURITY DEFINER` parce qu'elle écrit sur la
+fiche de l'AUTRE conjoint. Le divorce (`conjoint_id` → `NULL`) relâche
+l'ancien conjoint dans la MÊME fonction, pas une écriture séparée. Second
+trigger distinct, `fn_conjoint_veuvage()`, pour le décès. `CroyantPicker`
+existant est réutilisé tel quel ; nouvelle fonction pure testée,
+`conjointsProposables`, exclut qui est déjà pris — **revalidée côté
+serveur** (`resoudreConjoint`) pour qu'un client non rafraîchi ne romp pas
+l'union d'un tiers en silence.
+
+`conjointId` a failli manquer à l'écriture dans `modifierCroyant` (qui
+construit son payload champ par champ, contrairement à `creerCroyant`) —
+repéré en relisant, corrigé, et gardé par un test dédié qui lit le fichier
+source. La fiche distingue « non renseigné » de « hors périmètre » (règle
+15) via l'embed `conjoint` de `getCroyant`.
+
+Un test flaky rencontré à répétition aujourd'hui (`apparence.test.ts`,
+timeout à 5000 ms sous charge parallèle) a reçu un délai porté à 15 s.
+
+`pnpm verify` : 44 fichiers, 883 tests, build compris — vert.
+
 ---
 
 ## Les décisions à ne pas défaire
@@ -196,6 +226,12 @@ principe déjà payé sur `bureau.delete` (TypeScript vs SQL) et sur
 `peut_celebrer` (liste codée en dur) : dès qu'une même valeur ou condition doit
 être vraie à deux endroits, un seul des deux devient la source, l'autre la lit.
 
+**Un trigger qui pose un lien symétrique doit aussi savoir le RELÂCHER, dans
+la MÊME fonction.** Écrire « poser le lien » et « l'effacer » comme deux
+chemins séparés les ferait diverger le jour où l'un des deux oublie l'autre
+côté — exactement ce que `fn_conjoint_symetrique()` évite en traitant les
+deux cas dans le même trigger, guidé par la comparaison `NEW`/`OLD`.
+
 *(Les décisions du 21 août — l'étendue d'un modèle, erreur/décision, la fenêtre
 de 15 jours vérifiée côté serveur, le sens de l'`ordre` des grades — restent
 valables ; voir
@@ -206,11 +242,9 @@ valables ; voir
 ## Ce qu'il reste
 
 **La liste fait foi : [`notes/todos.md`](../notes/todos.md).** Les **sections
-10, l'attestation de §1 et l'impression PDF de §1 (20 août) sont closes**. En
-tête de ce qui reste :
+10, l'attestation de §1, l'impression PDF de §1 (20 août) et le lien conjugal
+de §1 sont closes**. En tête de ce qui reste :
 
-- **Relier deux croyants mariés** (époux ↔ épouse) — le plus lourd : migration
-  et trigger, le lien devant rester symétrique.
 - **`/finances`** — le rapprochement des dîmes rendu à l'église (six points).
 - **`/rapports`** — logo téléversé (peut réutiliser `PREFIXES.logos` et le
   patron d'upload posés aujourd'hui pour l'attestation).
@@ -225,7 +259,8 @@ tête de ce qui reste :
 - **Révoquer le mot de passe d'application Google** passé par `.env.example`.
 - **Faire tourner `SUPABASE_SERVICE_ROLE_KEY`** — voir `README.md`.
 - **Borner ou non la visibilité des croyants** dans la saisie des dîmes.
-- **Passer les migrations `0069` et `0070`** dans l'éditeur SQL Supabase.
+- **Passer la migration `0071`** dans l'éditeur SQL Supabase (`0069` et
+  `0070` sont confirmées appliquées).
 
 ---
 
@@ -235,7 +270,7 @@ tête de ce qui reste :
 pnpm install      # installe aussi le hook pre-commit de détection de secrets
 cp .env.example .env.local   # puis renseigner : les valeurs sont dans Supabase
 pnpm exec next typegen       # sur un clone frais, AVANT le premier typecheck
-pnpm verify       # secrets + lint + types + 877 tests + build
+pnpm verify       # secrets + lint + types + 883 tests + build
 pnpm dev:propre   # cache Turbopack vidé — après toute série de modifications
 ```
 

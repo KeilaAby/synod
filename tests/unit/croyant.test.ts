@@ -8,6 +8,7 @@ import {
   cleDoublon,
   compteDansLesEffectifs,
   composerMatricule,
+  conjointsProposables,
   correspondRecherche,
   decomposerMatricule,
   estNouveauBaptise,
@@ -438,5 +439,47 @@ describe('libellesFiltresCroyants', () => {
     expect(
       libellesFiltresCroyants({ ...FILTRES_LISTE_VIDES, egliseId: 'disparue' }, referentiels),
     ).toEqual([]);
+  });
+});
+
+/**
+ * EF-CRO-14 — qui peut être proposé comme conjoint dans le sélecteur.
+ *
+ * Le lien étant symétrique (migration 0071), proposer quelqu'un déjà lié à un
+ * AUTRE romprait silencieusement cette autre union.
+ */
+describe('conjointsProposables', () => {
+  const moi = { id: 'moi', sexe: 'M' as const };
+
+  const roster = [
+    { id: 'moi', sexe: 'M' as const, conjoint_id: null },
+    { id: 'libre-f', sexe: 'F' as const, conjoint_id: null },
+    { id: 'libre-m', sexe: 'M' as const, conjoint_id: null },
+    { id: 'mon-epouse', sexe: 'F' as const, conjoint_id: 'moi' },
+    { id: 'prise', sexe: 'F' as const, conjoint_id: 'quelqu-un-d-autre' },
+  ];
+
+  it('ne propose que le sexe opposé', () => {
+    const propositions = conjointsProposables(roster, moi).map((c) => c.id);
+    expect(propositions).not.toContain('libre-m');
+  });
+
+  it('ne se propose jamais soi-même', () => {
+    expect(conjointsProposables(roster, moi).map((c) => c.id)).not.toContain('moi');
+  });
+
+  it('exclut qui est déjà lié à un AUTRE — romprait son union en silence', () => {
+    expect(conjointsProposables(roster, moi).map((c) => c.id)).not.toContain('prise');
+  });
+
+  it('propose quand même NOTRE conjoint actuel', () => {
+    expect(conjointsProposables(roster, moi).map((c) => c.id)).toContain('mon-epouse');
+  });
+
+  it('propose les personnes libres de sexe opposé', () => {
+    expect(conjointsProposables(roster, moi).map((c) => c.id)).toEqual([
+      'libre-f',
+      'mon-epouse',
+    ]);
   });
 });

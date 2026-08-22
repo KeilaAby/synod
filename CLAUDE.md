@@ -695,9 +695,35 @@ pour ne pas ralentir la frappe dans la recherche. Nouvelle fonction pure,
 filtre en phrase lisible — « Église : Ambohipo » plutôt qu'un identifiant —
 pour que le document dise ce qu'il porte (règle 33).
 
-Base à jour jusqu'à la migration `0068` — `0069` et `0070` sont **écrites et
-n'attendent qu'une confirmation** dans l'éditeur SQL Supabase. Fuseau
-`Indian/Antananarivo` (UTC+3).
+**Le lien conjugal est symétrique, par UN SEUL trigger qui pose ET
+efface** (migration `0071`, EF-CRO-14 — ajoutée à `cdg.md` le 22 août : la
+demande n'y avait pas encore de référence propre). `croyants.conjoint_id`,
+auto-référence, `on delete set null`. `fn_conjoint_symetrique()` est
+**`SECURITY DEFINER`** : elle écrit sur la fiche de l'AUTRE conjoint, hors
+de la portée RLS de l'auteur (règle 13). **Poser le lien et le RELÂCHER
+vivent dans la MÊME fonction** — le divorce (`conjoint_id` → `NULL`) relâche
+l'ancien conjoint dans le même trigger que celui qui pose le nouveau, pas un
+second chemin qui finirait par diverger. La garde `is distinct from` arrête
+la récursion sans compteur de profondeur. Second trigger, séparé,
+`fn_conjoint_veuvage()` : le décès pose `statut_marital = 'VEUF'` sur le
+survivant sans toucher au lien. Nouvelle fonction pure testée,
+`conjointsProposables`, exclut du sélecteur qui est déjà pris — **revalidée
+côté serveur** (`resoudreConjoint`) pour qu'un client non rafraîchi ne romp
+pas l'union d'un tiers en silence. `conjointId` a failli manquer à
+l'écriture de `modifierCroyant`, qui construit son payload champ par champ
+(règle 19, encore) — repéré en relisant, gardé par un test dédié.
+
+**Une divergence de citation découverte en chemin, signalée sans être
+corrigée.** `EF-CRO-12` (cdg.md) désigne l'export Excel/CSV/PDF, `RG-06` le
+référentiel du grade et de la nationalité — mais le circuit de promotion de
+grade (21 août) leur est accolé dans des dizaines de commentaires depuis sa
+livraison. Une dérive de citation sans impact fonctionnel, hors périmètre
+d'une correction immédiate ; `EF-CRO-14` a été ajoutée proprement pour ne
+pas reproduire l'erreur sur cette nouvelle demande.
+
+Base à jour jusqu'à la migration `0070`, confirmée appliquée par
+l'utilisateur — `0071` est **écrite et n'attend qu'une confirmation** dans
+l'éditeur SQL Supabase. Fuseau `Indian/Antananarivo` (UTC+3).
 **Toute migration qui crée ou remplace
 une fonction doit finir par `notify pgrst, 'reload schema'`** : sans lui, l'API
 répond « fonction inconnue » sur du SQL pourtant en place — constaté deux fois,

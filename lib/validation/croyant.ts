@@ -73,6 +73,8 @@ export const croyantSchema = z
     gradeId: z.uuid('Sélectionnez un grade.'),
     nationaliteId: z.uuid('Sélectionnez une nationalité.'),
 
+    /** EF-CRO-14 — facultatif même si `statutMarital` vaut `MARIE`. */
+    conjointId: z.uuid().optional().nullable(),
 
     /** EF-CRO-13 — passe outre l'avertissement de doublon, en connaissance de cause. */
     doublonAccepte: z.boolean().default(false),
@@ -132,6 +134,8 @@ export const modifierCroyantSchema = z.object({
    * chose a quelqu'un se motive, ce qui lui en donne non.
    */
   motifGrade: optionnel(z.string().trim().max(300)),
+  /** EF-CRO-14 — facultatif même si `statutMarital` vaut `MARIE`. */
+  conjointId: z.uuid().optional().nullable(),
   /**
    * EF-CRO-12 — ERREUR DE SAISIE, OU DECISION ?
    *

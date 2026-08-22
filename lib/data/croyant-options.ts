@@ -6,6 +6,7 @@ import type { CelluleOption, OptionReferentiel } from '@/components/croyants/cro
 import { versOptions } from '@/lib/data/entity-options';
 import { createClient } from '@/lib/supabase/server';
 
+import { listerCroyantsPourConjoint } from './croyants';
 import { getArbrePerimetre } from './entities';
 import { DataError } from './errors';
 import { getParametres } from './settings';
@@ -56,13 +57,17 @@ export const getOptionsCroyant = cache(async () => {
   const sb = await createClient();
   const arbre = await getArbrePerimetre();
 
-  const [grades, nationalites, parametres] = await Promise.all([
+  const [grades, nationalites, parametres, conjointsPotentiels] = await Promise.all([
     lireGrades(sb),
     lireNationalites(sb),
     // EF-CRO-12 — délai de correction, réglé dans « Corrections de saisie »
     // (migration 0069). Un simple hint pour le pop-up de changement de
     // grade : le serveur retranche `getParametres()` au moment d'écrire.
     getParametres(),
+    // EF-CRO-14 — le vivier du sélecteur de conjoint (migration 0071),
+    // filtré par sexe et disponibilité EN MÉMOIRE (règle 17) : aucun
+    // aller-retour au changement de statut marital.
+    listerCroyantsPourConjoint(),
   ]);
 
   const eglises = arbre.filter((e) => e.type === 'EGLISE' && e.is_active);
@@ -80,6 +85,7 @@ export const getOptionsCroyant = cache(async () => {
     grades,
     nationalites,
     joursDelai: parametres.jours_correction_saisie,
+    conjointsPotentiels,
   };
 });
 

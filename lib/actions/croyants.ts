@@ -101,6 +101,53 @@ async function resoudreRattachement(
   return { ok: true, eglise };
 }
 
+/**
+ * EF-CRO-14 — le conjoint choisi est-il RECEVABLE ?
+ *
+ * L'écran filtre déjà par sexe opposé et écarte qui est pris (règle 18,
+ * `conjointsProposables`) : ce contrôle-ci est la revalidation serveur — un
+ * client qui n'a pas rechargé sa liste, ou un second onglet, ne doit pas
+ * pouvoir rompre en silence l'union de quelqu'un d'autre.
+ *
+ * `croyantId` est `null` en CRÉATION : la fiche qu'on enregistre n'a pas
+ * encore d'identifiant, donc « déjà notre conjoint » ne peut jamais être le
+ * cas — seul « libre » l'est.
+ */
+async function resoudreConjoint(
+  conjointId: string | null,
+  sexe: 'M' | 'F',
+  croyantId: string | null,
+): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  if (!conjointId) return { ok: true };
+
+  const sb = await createClient();
+  const { data: candidat, error } = await sb
+    .from('croyants')
+    .select('id, sexe, conjoint_id')
+    .eq('id', conjointId)
+    .is('deleted_at', null)
+    .maybeSingle<{ id: string; sexe: 'M' | 'F'; conjoint_id: string | null }>();
+
+  // La RLS masque un conjoint hors périmètre exactement comme n'importe
+  // quelle autre fiche : indiscernable d'une fiche inexistante, et c'est
+  // volontaire (règle 15 mise à part, on ne confirme ni n'infirme ici
+  // l'existence d'une fiche hors de portée).
+  if (error || !candidat) {
+    return { ok: false, erreur: 'Ce conjoint est introuvable ou hors de votre périmètre.' };
+  }
+  if (candidat.sexe === sexe) {
+    return { ok: false, erreur: 'EF-CRO-14 : le conjoint doit être de sexe opposé.' };
+  }
+  if (candidat.conjoint_id !== null && candidat.conjoint_id !== croyantId) {
+    return {
+      ok: false,
+      erreur: 'Cette personne est déjà liée à un autre conjoint sur sa fiche.',
+    };
+  }
+
+  return { ok: true };
+}
+
 // -----------------------------------------------------------------------------
 
 export async function creerCroyant(
@@ -115,16 +162,18 @@ export async function creerCroyant(
     }
     const data = analyse.data;
 
-    // Les deux lectures sont independantes : les enchainer ajoutait un
+    // Les trois lectures sont independantes : les enchainer ajoutait un
     // aller-retour complet a chaque enregistrement.
-    const [rattachement, doublons] = await Promise.all([
+    const [rattachement, doublons, conjoint] = await Promise.all([
       resoudreRattachement(data.egliseId, data.celluleId),
       data.doublonAccepte
         ? Promise.resolve([])
         : chercherDoublons(data.nom, data.prenom, data.dateNaissance),
+      resoudreConjoint(data.conjointId ?? null, data.sexe, null),
     ]);
 
     if (!rattachement.ok) return ko(rattachement.erreur);
+    if (!conjoint.ok) return ko(conjoint.erreur);
 
     await requirePermission(session, 'croyant.create', rattachement.eglise.path);
 
@@ -161,6 +210,9 @@ export async function creerCroyant(
         cellule_id: data.celluleId ?? null,
         grade_id: data.gradeId,
         nationalite_id: data.nationaliteId,
+        // EF-CRO-14 — le trigger de symetrie (migration 0071) relie le
+        // conjoint en retour dans le meme geste.
+        conjoint_id: data.conjointId ?? null,
         saisi_par: session.profileId,
         saisi_depuis: session.entityId,
         // `matricule` est volontairement OMIS : un trigger BEFORE le renseigne,
@@ -225,7 +277,13 @@ export async function modifierCroyant(input: unknown): Promise<ActionResult<void
      * lire au chargement d'un formulaire laisserait passer, pendant des heures,
      * les onglets ouverts avant le changement.
      */
-    const [parametres, arbre] = await Promise.all([getParametres(), getArbrePerimetre()]);
+    const [parametres, arbre, conjoint] = await Promise.all([
+      getParametres(),
+      getArbrePerimetre(),
+      // EF-CRO-14 — independant du reste, meme aller-retour groupe.
+      resoudreConjoint(data.conjointId ?? null, data.sexe, data.id),
+    ]);
+    if (!conjoint.ok) return ko(conjoint.erreur);
 
     const arbitre = arbitreDePromotion(rattachement.eglise.path, arbre);
     const promotionBrute = promotionSoumiseAValidation({
@@ -328,6 +386,9 @@ export async function modifierCroyant(input: unknown): Promise<ActionResult<void
         grade_id: promotion ? existant.grade_id : data.gradeId,
         nationalite_id: data.nationaliteId,
         statut: data.statut,
+        // EF-CRO-14 — le trigger de symetrie (migration 0071) relie ou
+        // relache le conjoint en retour, dans le meme geste.
+        conjoint_id: data.conjointId ?? null,
         // La PHOTO non plus : elle a ses propres actions (EF-CRO-09), et le
         // formulaire ne la transporte pas. L'écrire ici la remettait à null à
         // chaque enregistrement — la photo téléversée dix secondes plus tôt

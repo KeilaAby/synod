@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/select';
 import { creerCroyant, modifierCroyant } from '@/lib/actions/croyants';
 import { televerserPhotoCroyant } from '@/lib/actions/photos';
+import type { OptionConjointRoster } from '@/lib/data/croyants';
 import {
   LIBELLES_SEXE,
   LIBELLES_STATUT_CROYANT,
@@ -31,8 +32,10 @@ import {
   SEXES,
   STATUTS_CROYANT,
   STATUTS_MARITAUX,
+  conjointsProposables,
   type StatutCroyant,
 } from '@/lib/domain/croyant';
+import { CroyantPicker } from '@/components/croyants/croyant-picker';
 import { ChangementGradeDialog } from '@/components/croyants/changement-grade-dialog';
 import type { NatureChangementGrade } from '@/lib/domain/promotion';
 import { appelerAction } from '@/lib/utils/appeler-action';
@@ -80,6 +83,12 @@ interface Commun {
    * l'une n'a pas à dupliquer le type.
    */
   joursDelai: number;
+  /**
+   * EF-CRO-14 — le vivier du sélecteur de conjoint (migration `0071`), déjà
+   * borné au périmètre par la RLS. Le filtrage — sexe opposé, ni soi-même, ni
+   * quelqu'un déjà pris — se fait ici en mémoire (`conjointsProposables`).
+   */
+  conjointsPotentiels: OptionConjointRoster[];
 }
 
 interface CroyantExistant {
@@ -100,6 +109,8 @@ interface CroyantExistant {
   nationalite_id: string;
   statut: StatutCroyant;
   egliseNom: string;
+  /** EF-CRO-14 — le conjoint déjà lié, s'il y en a un. */
+  conjoint_id: string | null;
   /** EF-CRO-12 — ouvre, ou ferme, la fenetre de correction du grade. */
   creeLe?: string;
 }
@@ -265,6 +276,7 @@ export function CroyantForm(props: Props) {
         (props.mode === 'creation' ? (props.rattachement?.celluleId ?? null) : null),
       gradeId: existant?.grade_id ?? undefined,
       nationaliteId: existant?.nationalite_id ?? undefined,
+      conjointId: existant?.conjoint_id ?? null,
       doublonAccepte: false,
     } as Partial<CroyantInput> as CroyantInput,
   });
@@ -277,6 +289,26 @@ export function CroyantForm(props: Props) {
   // L'avatar de repli suit la saisie : on voit ses initiales se former.
   const nomSaisi = useWatch({ control, name: 'nom' });
   const prenomSaisi = useWatch({ control, name: 'prenom' });
+
+  // EF-CRO-14 — le sélecteur de conjoint ne se propose QUE si « Marié(e) »
+  // est choisi, et se filtre par le sexe SAISI (pas encore enregistré).
+  const sexeSaisi = useWatch({ control, name: 'sexe' });
+  const statutMaritalSaisi = useWatch({ control, name: 'statutMarital' });
+
+  const conjointsOptions = useMemo(
+    () =>
+      sexeSaisi
+        ? conjointsProposables(props.conjointsPotentiels, {
+            // Vide en création : personne d'autre ne peut déjà être « notre »
+            // conjoint puisque la fiche n'existe pas encore — la comparaison
+            // ne peut alors jamais s'y prêter, ce qui est le comportement
+            // recherché.
+            id: existant?.id ?? '',
+            sexe: sexeSaisi,
+          })
+        : [],
+    [props.conjointsPotentiels, sexeSaisi, existant?.id],
+  );
 
   // RG-05 — seules les cellules de l'église retenue sont proposées.
   const cellulesDisponibles = useMemo(
@@ -377,6 +409,7 @@ export function CroyantForm(props: Props) {
           natureGrade: decisionGrade?.nature ?? 'DECISION',
           motifGrade: decisionGrade?.motif ?? null,
           nationaliteId: valeurs.nationaliteId,
+          conjointId: valeurs.conjointId ?? null,
           statut,
         }),
       );
@@ -580,6 +613,44 @@ export function CroyantForm(props: Props) {
                 />
               )}
             </Field>
+
+            {/*
+              EF-CRO-14 — le sélecteur de conjoint N'APPARAÎT que sur
+              « Marié(e) », un ensemble OUVERT (règle 18) : la liste des
+              croyants elle-même est un sélecteur, pas des pictogrammes. Le
+              lien reste FACULTATIF : « Marié(e) » sans conjoint renseigné
+              est un état normal (le conjoint peut ne pas être croyant), pas
+              une fiche incomplète — rien ici ne l'exige.
+            */}
+            {statutMaritalSaisi === 'MARIE' && (
+              <Field
+                label="Conjoint"
+                hint={
+                  sexeSaisi
+                    ? 'Non renseigné si le conjoint n’a pas de fiche, ou n’est pas croyant.'
+                    : 'Choisissez le sexe pour proposer un conjoint.'
+                }
+                className="md:col-span-2"
+              >
+                {(aria) => (
+                  <Controller
+                    control={control}
+                    name="conjointId"
+                    render={({ field }) => (
+                      <CroyantPicker
+                        {...aria}
+                        options={conjointsOptions}
+                        value={field.value ?? null}
+                        onChange={field.onChange}
+                        disabled={!sexeSaisi}
+                        placeholder="Non renseigné"
+                        emptyMessage="Aucun croyant de sexe opposé, libre, à proposer."
+                      />
+                    )}
+                  />
+                )}
+              </Field>
+            )}
           </div>
         </CardContent>
       </Card>

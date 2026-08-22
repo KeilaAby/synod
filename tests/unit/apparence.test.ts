@@ -75,26 +75,34 @@ describe('Duree des notifications', () => {
  * n'ecrit pas un champ dont son formulaire est la source.
  */
 describe('EF-ADM-11 — aucun parametre validé ne reste non écrit', () => {
-  it('reprend dans l action CHAQUE champ du schema', async () => {
-    const { readFile } = await import('node:fs/promises');
-    const { parametresSchema } = await import('@/lib/validation/parametres');
+  it(
+    'reprend dans l action CHAQUE champ du schema',
+    async () => {
+      const { readFile } = await import('node:fs/promises');
+      const { parametresSchema } = await import('@/lib/validation/parametres');
 
-    const source = await readFile(
-      new URL('../../lib/actions/parametres.ts', import.meta.url),
-      'utf8',
-    );
+      const source = await readFile(
+        new URL('../../lib/actions/parametres.ts', import.meta.url),
+        'utf8',
+      );
 
-    const champs = Object.keys(parametresSchema.shape);
+      const champs = Object.keys(parametresSchema.shape);
 
-    // Au moins autant de champs que ce qu'on connait : si le schema se vide
-    // par accident, le test passerait sans rien verifier.
-    expect(champs.length).toBeGreaterThanOrEqual(13);
+      // Au moins autant de champs que ce qu'on connait : si le schema se vide
+      // par accident, le test passerait sans rien verifier.
+      expect(champs.length).toBeGreaterThanOrEqual(13);
 
-    for (const champ of champs) {
-      expect(
-        source.includes(`valeurs.${champ}`),
-        `le parametre « ${champ} » est validé mais jamais écrit`,
-      ).toBe(true);
-    }
-  });
+      for (const champ of champs) {
+        expect(
+          source.includes(`valeurs.${champ}`),
+          `le parametre « ${champ} » est validé mais jamais écrit`,
+        ).toBe(true);
+      }
+    },
+    // Le defaut (5000 ms) s'est montre flaky sous charge : les 43 fichiers de
+    // tests tournent en parallele, et cette lecture dynamique (import + fs)
+    // depasse parfois la borne sans rien avoir de casse — constate a
+    // repetition le 22 aout 2026 pendant `pnpm verify`.
+    15_000,
+  );
 });

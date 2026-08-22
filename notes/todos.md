@@ -14,16 +14,16 @@
 
 ## ⚠ État de la base
 
-**Appliquées : `0001` à `0068`. `0069` et `0070` sont écrites et n'attendent
-qu'une confirmation.**
+**Appliquées : `0001` à `0070`. `0071` est écrite et n'attend qu'une
+confirmation.**
 
 | N° | Ce qu'elle apporte | Sans elle |
 |---|---|---|
+| `0071` | `croyants.conjoint_id` — le lien conjugal symétrique (EF-CRO-14), maintenu par `fn_conjoint_symetrique()` et `fn_conjoint_veuvage()`, tous deux `SECURITY DEFINER` | Le formulaire propose un conjoint, mais rien ne le relie ni ne le relâche : deux fiches se contrediraient dès la première saisie |
 | `0070` | `attestation_transfert_settings` — le gabarit réglable de l'attestation de transfert (logo, texte du corps, mentions légales, cartouche de signature), une seule ligne, lecture libre / écriture `settings.manage` | L'attestation reste figée au texte de référence codé en dur, sans écran pour le personnaliser |
 | `0069` | `organisation_settings.jours_correction_saisie` — le délai de correction (15 jours par défaut) devient un réglage, plus une constante dupliquée dans deux fichiers | Le retrait d'un titulaire et le changement de grade continuent de lire chacun leur propre `JOURS_ERREUR_*` codé en dur, sans écran pour le régler |
 | `0068` | **Corrige `fn_decider_promotion`** : le statut passe par une variable **typée**. Dans une fonction, un `case` rend du `text` — le type de la colonne n'entre pas dans la résolution — et PostgreSQL refuse de l'affecter à une colonne énumérée. Le refus arrive à l'**exécution**, jamais à l'écriture. | Le bouton « Approuver » échoue : « column statut is of type statut_promotion but expression is of type text » |
 | `0067` | Le **circuit de validation des promotions de grade** : réglage global, table `promotions_grade`, et `fn_decider_promotion` qui pose le grade en approuvant | Un grade se pose seul, sans que personne au-dessus ne le confirme — alors qu il vaut dans toute l organisation |
-| `0066` | `bureau_membres.motif_retrait` — pourquoi un mandat a été **interrompu** avant son terme | Un retrait en cours de mandat reste sans raison écrite, et c'est exactement ce qu'on cherchera dans dix ans |
 
 C'est **cette ligne** qui fait foi — pas le numéro le plus élevé de
 `supabase/migrations/`, qui dit ce qui est *écrit* et non ce qui est *appliqué*.
@@ -32,9 +32,10 @@ l'éditeur SQL Supabase et le confirme.
 
 *(Cette section annonçait encore `0067` le 21 août, sans dire clairement que
 `0068` l'était aussi. Confirmé par l'utilisateur et corrigé le 21 août au
-soir. `0069` et `0070`, écrites le 21 et le 22 août, suivent la même règle :
-elles ne sont pas appliquées tant que l'utilisateur ne les a pas passées dans
-l'éditeur SQL Supabase.)*
+soir. `0069` et `0070` ont été confirmées appliquées par l'utilisateur le
+22 août. `0071`, écrite le même jour, suit la même règle : elle n'est pas
+appliquée tant que l'utilisateur ne l'a pas passée dans l'éditeur SQL
+Supabase.)*
 
 ---
 
@@ -315,45 +316,61 @@ l'éditeur SQL Supabase.)*
       filtres restent un composant sans état ni connaissance des données
       affichées, seul `CroyantsClient` sait construire le tableau exporté —
       même séparation que `BoutonExport`/`finances-client.tsx`.
-- [ ] **Relier deux croyants mariés** (époux ↔ épouse).
-      - Dans le formulaire, si le statut marital est « marié », proposer une
-        liste de croyants **de sexe opposé** — même sélecteur que la liste des
-        croyants : photo + zone de recherche (règle 18 : l'ensemble est
-        *ouvert*, donc un sélecteur, pas des pictogrammes).
-      - Si le conjoint n'est pas encore enregistré : **« Non renseigné »**.
-      - Si les deux fiches existent déjà, le lien se pose **par simple mise à
-        jour** de l'une ou de l'autre.
-      - La fiche croyant **affiche le conjoint**, avec le maximum
-        d'informations le concernant.
+- [x] **Relier deux croyants mariés** (époux ↔ épouse). *(22 août 2026,
+      migration `0071`, EF-CRO-14 — ajoutée à `cdg.md` le même jour : la
+      demande n'y avait pas encore de référence.)*
 
-      **Points à trancher avant d'écrire** — ils décident du schéma :
-      1. **Le lien est-il symétrique et automatique ?** Relier A à B doit
-         relier B à A, sinon deux fiches se contrediront. Une colonne
-         `conjoint_id` de chaque côté demande un trigger pour rester cohérente
-         (règle 20 : deux écritures indissociables se font **en base**).
-      2. ✅ **Décès, divorce et caractère facultatif — tranchés le 20 août 2026.**
-         - **Décès.** Si A ou B est déclaré décédé, l'autre devient **veuf ou
-           veuve**. Le statut marital du survivant suit donc le décès du
-           conjoint : c'est une conséquence, pas une saisie à refaire à la main —
-           sinon deux fiches se contrediraient jusqu'à ce que quelqu'un s'en
-           aperçoive.
-         - **Divorce : le lien s'efface, sans historique.** Rien n'en est
-           conservé. C'est une décision explicite, à ne pas « améliorer » plus
-           tard en gardant une union passée : ce registre sert l'église
-           d'aujourd'hui, pas la généalogie, et une ex-union qui traîne dans une
-           fiche est une information que personne n'a demandé à voir.
-         - **Le lien n'est jamais obligatoire**, même sur un croyant déclaré
-           marié : son conjoint peut très bien ne pas être croyant. « Marié »
-           sans conjoint renseigné est un état **normal**, pas une fiche
-           incomplète — rien ne doit le signaler comme une anomalie.
+      1. ✅ **Le lien est symétrique et automatique, par TRIGGER.** Une seule
+         colonne `croyants.conjoint_id` (auto-référence, `on delete set
+         null`), et `fn_conjoint_symetrique()` — **SECURITY DEFINER**, parce
+         qu'elle écrit sur la fiche de l'AUTRE conjoint, hors de portée RLS de
+         l'auteur (règle 13). Relier A à B pose B→A dans le même geste
+         (`AFTER INSERT OR UPDATE OF conjoint_id`) ; une garde
+         `is distinct from` arrête la récursion dès que l'état symétrique est
+         atteint — pas de `pg_trigger_depth()` à surveiller. **Le divorce
+         (`conjoint_id` → `NULL`) relâche l'ancien conjoint dans le MÊME
+         trigger** : la même fonction pose et efface, ce n'est pas une
+         écriture applicative en deux temps (règle 20).
+      2. ✅ *(Déjà tranché le 20 août 2026.)* Un second trigger, distinct —
+         une seule responsabilité chacun — `fn_conjoint_veuvage()`, regarde le
+         changement de **statut** (`DECEDE`) et non celui de `conjoint_id` :
+         il pose `statut_marital = 'VEUF'` sur le survivant, sans toucher au
+         lien — on continue de savoir qui était l'époux ou l'épouse.
+      3. ✅ **Un conjoint hors périmètre se DIT.** `getCroyant` embarque le
+         conjoint (`conjoint:croyants!croyants_conjoint_id_fkey`) : `null` de
+         deux façons distinctes que l'écran ne confond pas —
+         `conjoint_id` absent (« Non renseigné », un état normal) contre
+         `conjoint_id` présent mais `conjoint` absent (la RLS l'a masqué :
+         « Conjoint hors de votre périmètre », règle 15).
 
-         **Ce que le divorce impose à l'écriture** : effacer un lien symétrique
-         touche **deux** fiches, et n'en effacer qu'une les ferait se
-         contredire — l'une divorcée, l'autre toujours mariée à elle. Les deux
-         écritures sont donc indissociables et se font **en base** (règle 20).
-      3. **Un conjoint hors périmètre.** La RLS le rendra invisible : la fiche
-         doit afficher « conjoint hors de votre périmètre » et non un blanc
-         (règle 15).
+      **Le sélecteur** (`CroyantPicker`, réutilisé tel quel — règle 16) ne
+      propose QUE le sexe opposé ET les personnes LIBRES — nouvelle fonction
+      pure et testée, `conjointsProposables` (`lib/domain/croyant.ts`) :
+      choisir quelqu'un déjà pris romprait silencieusement une AUTRE union
+      via le trigger. Le conjoint ACTUEL reste proposé (et déjà sélectionné)
+      — seul cas où le `conjoint_id` d'un tiers peut valoir notre propre
+      identifiant. **Revalidé côté serveur** (`resoudreConjoint`,
+      `lib/actions/croyants.ts`) : sexe opposé et disponibilité re-contrôlés
+      à l'écriture, pas seulement à l'écran — un client qui n'a pas rechargé
+      sa liste ne doit pas pouvoir casser l'union d'un tiers.
+
+      **Le vivier vient de `getOptionsCroyant()`** (`listerCroyantsPourConjoint`,
+      colonnes ÉTROITES — ni église, ni cellule, ni grade, cet usage n'en a
+      pas besoin) : même doctrine que le reste du formulaire de croyant
+      (règle 17, filtrage en mémoire, aucun aller-retour au changement de
+      statut marital). Sans photos signées pour ce vivier précis — un lot de
+      plusieurs milliers de signatures pour un sélecteur rarement ouvert
+      aurait coûté plus qu'il n'aurait servi ; l'avatar à initiales, déjà le
+      repli de `CroyantPicker`, suffit à distinguer un visage d'un autre par
+      le nom et le matricule.
+
+      **`modifierCroyant` construit son payload champ par champ** (pas un
+      `...valeurs` global comme `creerCroyant`) : `conjointId` a bien failli
+      manquer à l'écriture — exactement la classe de défaut que ce projet a
+      déjà payée (`photoKey`, règle 19). Un test dédié
+      (`tests/unit/lien-conjugal-action.test.ts`) lit désormais le fichier
+      source et exige DEUX occurrences du champ écrit — une par Server
+      Action — pour que l'oubli ne se reproduise plus en silence.
 
 ## 2. `/bureaux`
 

@@ -5629,3 +5629,82 @@ Le bouton d'impression rejoint `FiltresCroyants` via un slot
 les filtres restent sans état ni connaissance des données affichées.
 
 `pnpm verify` : 43 fichiers, 877 tests, build compris — vert.
+
+## 22 août 2026 (suite) — Le lien conjugal, migration 0071
+
+Les deux migrations précédentes (`0069`, `0070`) ont été appliquées par
+l'utilisateur, testées à la main sur le serveur de dev relancé pour
+l'occasion. Reprise de `notes/todos.md` avec ordre de continuer sans
+redemander l'autorisation pour les commandes de terminal (hors `git push`).
+
+### Une divergence de citation découverte en route
+
+En cherchant où citer proprement cette nouvelle demande dans `cdg.md`, la
+définition réelle d'`EF-CRO-12` s'est révélée être « Exporter la liste
+filtrée (Excel/CSV) et la fiche individuelle (PDF) » — et non le circuit de
+validation des promotions de grade, auquel ce code a pourtant été accolé
+dans des dizaines de commentaires depuis le 21 août (migrations, domaine,
+actions, dialogues). `RG-06` porte le même défaut : « le grade et la
+nationalité proviennent des référentiels », pas la compétence de l'arbitre.
+Signalé à l'utilisateur, non corrigé (hors périmètre de la tâche en cours,
+et un renommage de masse mérite sa propre revue) — `EF-CRO-14` a été ajoutée
+proprement pour ne pas reproduire l'erreur.
+
+### Le lien, symétrique, par UN SEUL trigger qui pose ET efface
+
+`croyants.conjoint_id`, auto-référence sur `croyants`, `on delete set null`.
+`fn_conjoint_symetrique()` (`SECURITY DEFINER` — elle écrit sur la fiche de
+l'AUTRE conjoint, hors de la portée RLS de l'auteur) pose le lien en retour
+à l'insertion ou à la modification de `conjoint_id`, et RELÂCHE l'ancien
+conjoint quand la valeur change ou s'efface — le divorce et la pose du lien
+partagent donc la même fonction, pas deux chemins distincts. La garde
+`is distinct from` arrête la récursion du trigger sans compteur de
+profondeur : une fois l'état symétrique atteint, l'`UPDATE` suivant ne
+touche plus aucune ligne, et son propre déclenchement ne fait rien.
+
+Second trigger, séparé — une seule responsabilité chacun —
+`fn_conjoint_veuvage()`, qui regarde le changement de STATUT (`DECEDE`) et
+pose `statut_marital = 'VEUF'` sur le survivant, sans toucher au lien.
+
+### Le sélecteur, revalidé côté serveur
+
+`CroyantPicker` existait déjà (photo + recherche) et se réutilise tel quel.
+Nouvelle fonction pure et testée, `conjointsProposables`
+(`lib/domain/croyant.ts`) : sexe opposé, jamais soi-même, jamais quelqu'un
+déjà pris — sauf notre propre conjoint actuel, seul cas où le `conjoint_id`
+d'un tiers peut valoir notre identifiant. **Revalidée côté serveur**
+(`resoudreConjoint`, `lib/actions/croyants.ts`) : un client qui n'a pas
+rechargé sa liste, ou un second onglet, ne doit pas pouvoir rompre en
+silence l'union de quelqu'un d'autre.
+
+Le vivier (`listerCroyantsPourConjoint`) porte des colonnes ÉTROITES — ni
+église, ni cellule, ni grade — et rejoint `getOptionsCroyant()`, filtré en
+mémoire (règle 17). Sans photos signées pour ce vivier précis : un lot de
+plusieurs milliers de signatures pour un sélecteur rarement ouvert aurait
+coûté plus qu'il n'aurait servi.
+
+### `conjointId` a failli manquer à l'écriture — encore
+
+`modifierCroyant` construit son payload champ par champ, contrairement à
+`creerCroyant` qui reprend `valeurs` en bloc. En l'écrivant, le nouveau champ
+a été ajouté dans `creerCroyant` par la simple présence de `valeurs` dans
+l'appel — puis oublié un instant dans `modifierCroyant`, où chaque champ
+s'ajoute à la main. Repéré en relisant le fichier avant de le considérer fini
+— exactement la classe de défaut déjà payée sur `photoKey` (règle 19). Un
+test dédié (`tests/unit/lien-conjugal-action.test.ts`) lit désormais le
+fichier source et exige DEUX occurrences du champ écrit.
+
+### La fiche distingue DEUX absences
+
+`getCroyant` embarque le conjoint. `conjoint_id` absent → « Non renseigné »,
+un état normal (le conjoint peut ne pas être croyant). `conjoint_id` présent
+mais `conjoint` (l'embed) absent → la RLS l'a masqué, hors périmètre — la
+fiche le DIT (« Conjoint hors de votre périmètre ») plutôt que d'afficher un
+blanc indiscernable de l'absence (règle 15).
+
+Un test flaky rencontré à répétition aujourd'hui sous `pnpm verify`
+(`apparence.test.ts`, timeout à 5000 ms sous charge parallèle) a reçu un
+délai porté à 15 s — corrigé au passage plutôt que re-toléré une fois de
+plus.
+
+`pnpm verify` : 44 fichiers, 883 tests, build compris — vert.

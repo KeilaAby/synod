@@ -32,7 +32,7 @@ import { DataError } from './errors';
 const CHAMPS_LISTE = `
   id, matricule, nom, prenom, sexe, date_naissance, date_bapteme, statut, created_at,
   photo_key, eglise_id, cellule_id, grade_id, nationalite_id,
-  statut_marital, email, telephone, adresse,
+  statut_marital, email, telephone, adresse, conjoint_id,
   eglise:entities!croyants_eglise_id_fkey (id, nom, code, path),
   cellule:entities!croyants_cellule_id_fkey (id, nom),
   grade:grades!croyants_grade_id_fkey (id, libelle),
@@ -65,6 +65,8 @@ export interface CroyantListe {
   email: string | null;
   telephone: string | null;
   adresse: string;
+  /** EF-CRO-14 — le conjoint déjà lié, s'il y en a un. */
+  conjoint_id: string | null;
   // `path` : l'habilitation de modification s'évalue avec sa portée (RG-25).
   eglise: { id: string; nom: string; code: string; path: string } | null;
   cellule: { id: string; nom: string } | null;
@@ -166,7 +168,8 @@ const CHAMPS_FICHE = `
   cellule:entities!croyants_cellule_id_fkey (id, nom, code),
   grade:grades!croyants_grade_id_fkey (id, libelle, code),
   nationalite:nationalites!croyants_nationalite_id_fkey (id, libelle, code_iso),
-  createur:profiles!croyants_saisi_par_fkey (id, nom_complet)
+  createur:profiles!croyants_saisi_par_fkey (id, nom_complet),
+  conjoint:croyants!croyants_conjoint_id_fkey (id, nom, prenom, matricule, photo_key, statut)
 ` as const;
 
 export interface CroyantFiche extends CroyantListe {
@@ -175,6 +178,22 @@ export interface CroyantFiche extends CroyantListe {
   eglise: { id: string; nom: string; code: string; path: string; type: EntityType } | null;
   /** EF-CRO-06 — qui a enregistre la fiche. `null` : compte depuis supprime. */
   createur: { id: string; nom_complet: string } | null;
+  /**
+   * EF-CRO-14 — `null` de DEUX façons distinctes, et l'écran doit les
+   * distinguer : `conjoint_id` absent (personne n'est renseigné) contre
+   * `conjoint_id` présent mais `conjoint` absent (la RLS l'a masqué — hors du
+   * périmètre de l'utilisateur, règle 15 : ce n'est pas une absence, c'est un
+   * refus de visibilité qui doit se DIRE).
+   */
+  conjoint_id: string | null;
+  conjoint: {
+    id: string;
+    nom: string;
+    prenom: string;
+    matricule: string;
+    photo_key: string | null;
+    statut: string;
+  } | null;
 }
 
 export const getCroyant = cache(async (id: string): Promise<CroyantFiche | null> => {
@@ -189,6 +208,48 @@ export const getCroyant = cache(async (id: string): Promise<CroyantFiche | null>
   if (error) throw new DataError('Cette fiche est momentanément illisible.', error);
   return data;
 });
+
+/**
+ * EF-CRO-14 — le vivier du sélecteur de conjoint.
+ *
+ * MÊME DOCTRINE QUE `CroyantPicker` (règle 17) : les options viennent du
+ * serveur déjà bornées au périmètre par la RLS, le filtrage par sexe et par
+ * disponibilité (`conjointsProposables`) se fait ensuite en mémoire, sans
+ * second aller-retour à chaque changement de statut marital.
+ *
+ * COLONNES ÉTROITES, VOLONTAIREMENT : ni église, ni cellule, ni grade — ce
+ * vivier n'a besoin que de désigner une personne (nom, matricule, photo) et
+ * de savoir si elle est déjà prise (`conjoint_id`). La liste complète
+ * (`chargerCroyants`) porte des jointures que cet usage ne lit jamais.
+ */
+export interface OptionConjointRoster {
+  id: string;
+  nom: string;
+  prenom: string;
+  matricule: string;
+  sexe: 'M' | 'F';
+  photo_key: string | null;
+  conjoint_id: string | null;
+}
+
+export async function listerCroyantsPourConjoint(): Promise<OptionConjointRoster[]> {
+  const sb = await createClient();
+
+  const { data, error } = await sb
+    .from('croyants')
+    .select('id, nom, prenom, matricule, sexe, photo_key, conjoint_id')
+    .is('deleted_at', null)
+    .neq('statut', 'DECEDE')
+    .order('nom')
+    .order('prenom')
+    .limit(5000)
+    .returns<OptionConjointRoster[]>();
+
+  // Un echec ne doit pas bloquer tout le formulaire de croyant : le
+  // selecteur de conjoint se propose vide plutot que de casser la page.
+  if (error) return [];
+  return data ?? [];
+}
 
 /**
  * EF-CRO-13 — doublons potentiels.

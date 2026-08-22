@@ -59,6 +59,7 @@ export default async function NouveauCroyantPage({
         grades={options.grades}
         nationalites={options.nationalites}
         joursDelai={options.joursDelai}
+        conjointsPotentiels={options.conjointsPotentiels}
       />
     </div>
   );
