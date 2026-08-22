@@ -18,11 +18,10 @@
 
 ## L'état de la base
 
-**Appliquées : `0001` à `0071`**, confirmé par l'utilisateur — `0071` de
-surcroît vérifiée en conditions réelles, après correction de deux défauts
-trouvés en test (voir plus bas). **`0072` est écrite et attend la même
-confirmation** dans l'éditeur SQL Supabase. L'état qui fait foi est en tête de
-`notes/todos.md` — ce fichier-ci ne le répète pas deux fois.
+**Appliquées : `0001` à `0072`**, confirmé par l'utilisateur — `0071` et
+`0072` de surcroît vérifiées en conditions réelles, `0071` après correction de
+deux défauts trouvés en test (voir plus bas). L'état qui fait foi est en tête
+de `notes/todos.md` — ce fichier-ci ne le répète pas deux fois.
 
 - `0069` — `organisation_settings.jours_correction_saisie` : le délai de
   correction (15 jours par défaut, borné 1–365) devient un réglage
@@ -33,14 +32,13 @@ confirmation** dans l'éditeur SQL Supabase. L'état qui fait foi est en tête d
   `settings.manage`.
 - `0071` — `croyants.conjoint_id` : le lien conjugal symétrique (EF-CRO-14),
   maintenu par deux triggers `SECURITY DEFINER`.
-- `0072` — **écrite, pas encore appliquée** : élargit `dime_rapprochements` à
-  l'église résolue (RLS `select`/`write`, `fn_resoudre_rapprochement`) et
-  ajoute `fn_marquer_enveloppe_anonyme`, `SECURITY DEFINER`. « En attente » se
-  lit désormais à `resolu_le is null`, plus à `croyant_id is null`.
+- `0072` — élargit `dime_rapprochements` à l'église résolue (RLS
+  `select`/`write`, `fn_resoudre_rapprochement`) et ajoute
+  `fn_marquer_enveloppe_anonyme`, `SECURITY DEFINER`. « En attente » se lit
+  désormais à `resolu_le is null`, plus à `croyant_id is null`.
 
 **883 tests unitaires, 44 fichiers.** `pnpm verify` vert (lint, typecheck,
-tests, build) — y compris après le bloc dîmes décrit plus bas, dont le code
-est écrit mais dont la migration `0072` n'est pas encore confirmée en base.
+tests, build).
 
 ---
 
@@ -310,6 +308,56 @@ plus proche, `resoudreRapprochement`, n'en porte pas non plus), et
 champs à couvrir — contrairement au lien conjugal, où `conjointId` avait
 failli manquer dans un payload construit champ par champ.
 
+Migration `0072` confirmée appliquée par l'utilisateur et testée en
+conditions réelles le jour même.
+
+### Le logo de l'organisation, et le bloc Image des rapports
+
+Reprise de `notes/todos.md` §4 : « Logo téléversé pour le bloc Image
+(aujourd'hui le bloc existe, la source du logo non). » En lisant le code
+existant (`panneau-reglages.tsx`), le réglage attendu était déjà nommé dans
+un texte d'aide jamais honoré : « L'image elle-même est choisie à la
+génération — logo de l'organisation par défaut. »
+
+**`organisation_settings.logo_key` existait depuis la toute première
+migration de réglages (`0006`), sans écran ni lecteur.** Comme
+`promotionDuCroyant` la veille : une intention écrite dans le schéma,
+jamais reliée à rien. Deux actions dans `lib/actions/parametres.ts`
+(`televerserLogoOrganisation`, `supprimerLogoOrganisation`) lui donnent
+enfin un écran — groupe « Identité » de l'onglet Général,
+`/administration/parametres`.
+
+**Le document imprimé ne peut pas dépendre d'une URL signée.** Un rapport
+généré est FIGÉ (RG-27) et relu potentiellement des mois plus tard — le même
+raisonnement qui a fait embarquer les portraits de l'organigramme en
+`data:` (règle 33) s'applique ici, en pire : ce n'est plus une fenêtre de
+`print()` à tenir, c'est une ligne en base censée rester lisible
+indéfiniment. `StorageAdapter` gagne donc une méthode `download()` (rendant
+des octets, pas une URL) — jusqu'ici l'interface ne savait que déposer et
+signer. À la génération, `resoudreContenu` télécharge le logo une seule
+fois (même si plusieurs blocs Image existent) et l'embarque en
+`data:${contentType};base64,${base64}` dans chaque bloc.
+
+**Trois états, pas deux, dans `RenduRapport`** : composition (aucun contenu
+résolu — « Image posée à la génération », inchangé), généré SANS logo réglé
+(« Aucun logo réglé pour l'organisation » — un cadre vide se lirait comme
+une panne d'affichage, règle 15), généré AVEC logo (l'image). Un bloc Image
+n'a pas de `source` (`sourceDuBloc` rend `null`) : sans un second drapeau
+dans `resoudreContenu`, un modèle qui ne contiendrait QUE des blocs de mise
+en page — Image compris — sortait de la fonction avant même d'y songer.
+
+**`components/shared/logo-uploader.tsx` — extrait en écrivant le SECOND
+appelant, pas avant.** L'upload/retrait d'un logo à clé fixe existait déjà
+pour l'attestation de transfert (`0070`, la veille) : composant quasi
+identique à l'octet près. `ReglagesAttestationTransfert` a été refait sur ce
+composant partagé au passage — deux copies auraient divergé à la première
+retouche de l'une sans l'autre.
+
+`pnpm verify` : 44 fichiers, 883 tests, build compris — vert. Aucun test
+neuf : ni le logo de l'attestation (livré la veille) ni les actions miroir
+n'en avaient — cohérent avec l'existant plutôt qu'un standard inventé pour
+l'occasion.
+
 ---
 
 ## Les décisions à ne pas défaire
@@ -347,6 +395,14 @@ conjoint par une seconde requête ciblée, pas une auto-jointure. Une fiche se
 lit une à la fois : l'aller-retour de plus ne coûte rien ici (à distinguer
 d'une LISTE, où ce serait du N+1, règle 28).
 
+**Un document FIGÉ ne peut embarquer qu'un OCTET, jamais une référence qui se
+résout ailleurs.** Une clé de stockage se résout en URL signée, une URL
+signée périme ; les deux sont donc interdites dans un contenu que RG-27
+promet inchangé des mois plus tard. Seule une image DÉJÀ encodée en `data:`
+tient cette promesse — le même raisonnement que les portraits de
+l'organigramme imprimé (règle 33), transposé d'une fenêtre de `print()` à
+une ligne de base censée durer.
+
 **Le signal de « en attente » dans une file de rapprochement doit couvrir
 TOUTES les façons de la clore, pas seulement la plus fréquente.**
 `croyant_id is null` suffisait tant que la seule clôture possible était un
@@ -366,13 +422,13 @@ valables ; voir
 
 **La liste fait foi : [`notes/todos.md`](../notes/todos.md).** Les **sections
 10, l'attestation de §1, l'impression PDF de §1 (20 août), le lien conjugal de
-§1, la navigation de `/bureaux` de §2 (20 août) et les six points des dîmes de
-§3 (20 août, code écrit le 22) sont closes**. Ce dernier bloc attend la
-confirmation de la migration `0072` avant d'être vérifié en conditions
-réelles. En tête de ce qui reste :
+§1, la navigation de `/bureaux` de §2 (20 août), les six points des dîmes de
+§3 (20 août, code écrit et migration confirmée le 22) et le logo du bloc
+Image de §4 (20 août, code écrit le 22) sont closes**. En tête de ce qui
+reste :
 
-- **`/rapports`** — logo téléversé (peut réutiliser `PREFIXES.logos` et le
-  patron d'upload posés aujourd'hui pour l'attestation).
+- **`/rapports`** — génération périodique programmée (écartée le 20 août, à
+  reprendre plus tard).
 - **`/administration`** — portée par droit ; profils locaux.
 - **Référentiel « Événement »** — signalé lui-même comme plus lourd que son
   intitulé.

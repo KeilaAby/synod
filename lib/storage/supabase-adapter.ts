@@ -145,6 +145,26 @@ export const supabaseStorageAdapter: StorageAdapter = {
       : ok();
   },
 
+  async download(cle) {
+    const sb = client();
+    if (!sb.ok) return sb;
+
+    const { STORAGE_BUCKET } = envServeur();
+    const { data, error } = await sb.data.storage.from(STORAGE_BUCKET).download(cle);
+
+    if (error || !data) {
+      return ko(
+        messageStockage(error ?? {}, "Le fichier est introuvable ou n'est plus accessible."),
+      );
+    }
+
+    const octets = new Uint8Array(await data.arrayBuffer());
+    return ok({
+      base64: Buffer.from(octets).toString('base64'),
+      contentType: data.type || 'application/octet-stream',
+    });
+  },
+
   async list(prefixe) {
     const sb = client();
     if (!sb.ok) return sb;

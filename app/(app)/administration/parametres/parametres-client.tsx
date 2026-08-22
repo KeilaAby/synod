@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 
 import { Field, TextField } from '@/components/shared/field';
 import { FiltreIcone, GroupeFiltres } from '@/components/shared/filtre-icone';
+import { LogoUploader } from '@/components/shared/logo-uploader';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,7 +20,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { reglerParametres } from '@/lib/actions/parametres';
+import {
+  reglerParametres,
+  supprimerLogoOrganisation,
+  televerserLogoOrganisation,
+} from '@/lib/actions/parametres';
 import {
   COULEUR_PRIMAIRE_DEFAUT,
   DUREE_TOAST_MAX,
@@ -86,7 +91,14 @@ function ecrireColonnes(valeur: 1 | 2) {
   for (const notifier of abonnesColonnes) notifier();
 }
 
-export function ParametresClient({ parametres }: { parametres: Parametres }) {
+export function ParametresClient({
+  parametres,
+  logoUrl,
+}: {
+  parametres: Parametres;
+  /** URL signée courante, ou `null` : la base ne stocke que la clé (règle 11). */
+  logoUrl: string | null;
+}) {
   const router = useRouter();
 
   /** Le serveur rend toujours une colonne : aucune divergence à l'hydratation. */
@@ -189,6 +201,21 @@ export function ParametresClient({ parametres }: { parametres: Parametres }) {
             required
             value={valeurs.nomOrganisation}
             onChange={(e) => poser({ nomOrganisation: e.target.value })}
+          />
+
+          {/*
+            EF-RAP-02 — LE LOGO SERT DE SOURCE PAR DÉFAUT AU BLOC IMAGE DES
+            RAPPORTS. Posé en schéma depuis la migration `0006`, resté sans
+            écran jusqu'à aujourd'hui. Envoi immédiat, hors du grand
+            formulaire (même geste que le logo de l'attestation) : c'est un
+            fichier, pas un champ texte à regrouper dans `reglerParametres`.
+          */}
+          <LogoUploader
+            logoUrl={logoUrl}
+            onUpload={televerserLogoOrganisation}
+            onRemove={supprimerLogoOrganisation}
+            hint="Utilisé comme logo par défaut du bloc Image des rapports (EF-RAP-02)."
+            removeDescription="Un rapport avec un bloc Image dira désormais qu'aucun logo n'est réglé. Le fichier est définitivement supprimé du stockage."
           />
 
           <div className="grid gap-6 sm:grid-cols-2">

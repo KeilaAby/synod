@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { getParametres } from '@/lib/data/settings';
 import { type ActionResult, ko, ok } from '@/lib/domain/result';
 import { auditer, requirePermission, requireSession } from '@/lib/session';
+import { construireCle, storage, verifierFichier } from '@/lib/storage';
 import { createClient } from '@/lib/supabase/server';
 import { sanitizeAll } from '@/lib/utils/sanitize';
 import { parametresSchema } from '@/lib/validation/parametres';
@@ -94,6 +95,110 @@ export async function reglerParametres(input: unknown): Promise<ActionResult<voi
      * page des parametres laisserait toutes les autres servir l'ancienne
      * valeur — et le reglage passerait pour decoratif (regle 21).
      */
+    revalidatePath('/', 'layout');
+    return ok();
+  });
+}
+
+// -----------------------------------------------------------------------------
+
+/**
+ * Le logo de l'organisation — `organisation_settings.logo_key`.
+ *
+ * POSÉ EN SCHÉMA DEPUIS LA MIGRATION `0006`, SANS ÉCRAN JUSQU'ICI : la colonne
+ * existait, rien ne l'écrivait ni ne la lisait. Elle sert désormais de source
+ * par défaut au bloc Image des rapports (EF-RAP-02, `notes/todos.md` §4).
+ *
+ * MÊME PATRON QUE LE LOGO DE L'ATTESTATION (`attestation-transfert.ts`,
+ * migration `0070`) : type réel déduit des premiers octets (ENF-SEC-06), clé
+ * FIXE (une seule ligne de réglages porte un seul logo, `upsert` écrase
+ * l'ancien plutôt que d'en laisser un orphelin).
+ *
+ * DEUX ACTIONS SÉPARÉES, hors de `reglerParametres` : celle-ci reçoit un
+ * `FormData` (un fichier), pas les champs JSON du grand formulaire — les
+ * mélanger aurait forcé chaque frappe du formulaire à transporter un fichier
+ * qu'elle ne touche pas.
+ */
+const CLE_LOGO_ORGANISATION = 'organisation';
+
+export async function televerserLogoOrganisation(
+  formulaire: FormData,
+): Promise<ActionResult<{ logoKey: string }>> {
+  return executerAction('televerserLogoOrganisation', async () => {
+    const session = await requireSession();
+    await requirePermission(session, 'settings.manage');
+
+    const fichier = formulaire.get('logo');
+    if (!(fichier instanceof File) || fichier.size === 0) {
+      return ko('Aucun fichier reçu.');
+    }
+
+    const octets = new Uint8Array(await fichier.arrayBuffer());
+
+    const verdict = verifierFichier('photo', octets.slice(0, 16), octets.byteLength);
+    if (!verdict.ok) return ko(verdict.error);
+
+    const extension = verdict.data.split('/')[1] ?? 'webp';
+    const cle = construireCle('logos', CLE_LOGO_ORGANISATION, extension);
+
+    const depot = await storage().put(cle, octets, {
+      contentType: verdict.data,
+      upsert: true,
+    });
+    if (!depot.ok) return ko(depot.error);
+
+    const sb = await createClient();
+    const { error } = await sb.from('organisation_settings').update({ logo_key: depot.data }).eq('id', 1);
+
+    if (error) {
+      // L'objet est depose mais le reglage ne le reference pas : on le retire
+      // plutot que de laisser un orphelin dans le stockage.
+      await storage().delete(depot.data);
+      return ko("Le logo n'a pas pu être enregistré.");
+    }
+
+    await auditer({
+      session,
+      action: 'UPDATE',
+      table: 'organisation_settings',
+      diff: { apres: { logo_key: depot.data } },
+    });
+
+    revalidatePath('/', 'layout');
+    return ok({ logoKey: depot.data });
+  });
+}
+
+export async function supprimerLogoOrganisation(): Promise<ActionResult<void>> {
+  return executerAction('supprimerLogoOrganisation', async () => {
+    const session = await requireSession();
+    await requirePermission(session, 'settings.manage');
+
+    const sb = await createClient();
+    const { data: actuel } = await sb
+      .from('organisation_settings')
+      .select('logo_key')
+      .eq('id', 1)
+      .maybeSingle<{ logo_key: string | null }>();
+
+    if (!actuel?.logo_key) return ok();
+
+    const { error } = await sb.from('organisation_settings').update({ logo_key: null }).eq('id', 1);
+
+    if (error) return ko("Le logo n'a pas pu être retiré.");
+
+    // L'objet part APRES le reglage : si sa suppression echoue, il reste un
+    // orphelin dans le stockage, sans consequence — l'inverse laisserait le
+    // reglage pointer vers un objet disparu.
+    await storage().delete(actuel.logo_key);
+
+    await auditer({
+      session,
+      action: 'UPDATE',
+      table: 'organisation_settings',
+      diff: { avant: { logo_key: actuel.logo_key }, apres: { logo_key: null } },
+    });
+
     revalidatePath('/', 'layout');
     return ok();
   });

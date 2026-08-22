@@ -51,9 +51,9 @@ export default async function ParametresPage() {
     chargerParametresAttestation(),
   ]);
 
-  // Cle relative -> URL signee (regle 11) : une seule cle, mais la meme
-  // fonction que pour les photos plutot qu'un troisieme mecanisme.
-  const logosAttestation = await signerPhotos([attestation.logo_key]);
+  // Cle relative -> URL signee (regle 11) : une seule requete pour les deux
+  // logos de l'ecran, plutot que deux appels au stockage.
+  const logos = await signerPhotos([attestation.logo_key, parametres.logo_key]);
 
   /**
    * EF-ADM-04 — un profil de privileges est COMMUN a toute l'organisation : il
@@ -74,15 +74,18 @@ export default async function ParametresPage() {
       />
 
       <OngletsParametres
-        general={<ParametresClient parametres={parametres} />}
+        general={
+          <ParametresClient
+            parametres={parametres}
+            logoUrl={parametres.logo_key ? (logos.get(parametres.logo_key) ?? null) : null}
+          />
+        }
         profils={<ReglagesProfils profils={profils} peutComposer={peutComposerProfils} />}
         courriel={<ReglagesCourriel configuration={configuration} modeles={modeles} />}
         attestation={
           <ReglagesAttestationTransfert
             parametres={attestation}
-            logoUrl={
-              attestation.logo_key ? (logosAttestation.get(attestation.logo_key) ?? null) : null
-            }
+            logoUrl={attestation.logo_key ? (logos.get(attestation.logo_key) ?? null) : null}
           />
         }
       />

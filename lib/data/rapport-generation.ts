@@ -10,9 +10,11 @@ import {
   filtresPoses,
   sourceDuBloc,
 } from '@/lib/domain/rapport';
+import { storage } from '@/lib/storage';
 import { createClient } from '@/lib/supabase/server';
 
 import { type NoeudEntite, getArbrePerimetre } from './entities';
+import { getParametres } from './settings';
 
 /**
  * La resolution des sources — EF-RAP-12 a 15.
@@ -127,12 +129,26 @@ export async function resoudreContenu(
     const source = sourceDuBloc(bloc);
     if (source) sources.add(source);
   }
-  if (sources.size === 0) return {};
 
-  const recoltes = await recolter(sources, contexte);
+  // Un bloc IMAGE n'a pas de SOURCE (`sourceDuBloc` rend `null`) : sans ce
+  // second drapeau, un modele qui n'aurait QUE des blocs de mise en page
+  // sortait de la fonction avant meme de songer au logo.
+  const contientImage = blocs.some((b) => b.type === 'IMAGE');
+
+  const [recoltes, logo] = await Promise.all([
+    sources.size > 0 ? recolter(sources, contexte) : Promise.resolve(VIDE),
+    contientImage ? logoOrganisation() : Promise.resolve(null),
+  ]);
 
   const contenu: ContenuRapport = {};
   for (const bloc of blocs) {
+    if (bloc.type === 'IMAGE') {
+      // Aucun logo regle : le bloc est absent de `contenu`, comme un bloc de
+      // donnees dont `composer` n'a rien produit — le rendu le dit (regle 15).
+      if (logo) contenu[bloc.id] = { genre: 'IMAGE', dataUri: logo };
+      continue;
+    }
+
     const source = sourceDuBloc(bloc);
     if (!source) continue;
 
@@ -149,6 +165,29 @@ export async function resoudreContenu(
     if (resolu) contenu[bloc.id] = resolu;
   }
   return contenu;
+}
+
+/**
+ * Le logo de l'organisation, embarque en `data:` — ou `null` si l'organisation
+ * n'en a regle aucun (`organisation_settings.logo_key`, Administration ->
+ * Parametres generaux).
+ *
+ * UNE SEULE LECTURE MEME AVEC PLUSIEURS BLOCS IMAGE : `resoudreContenu` ne
+ * l'appelle qu'une fois, avant la boucle, et chaque bloc y puise (regle 28).
+ * Un stockage indisponible degrade comme les autres sources — le bloc
+ * disparait de `contenu`, il ne fait pas echouer toute la generation.
+ */
+async function logoOrganisation(): Promise<string | null> {
+  const parametres = await getParametres();
+  if (!parametres.logo_key) return null;
+
+  const telechargement = await storage().download(parametres.logo_key);
+  if (!telechargement.ok) {
+    console.error('[rapport] logo illisible', telechargement.error);
+    return null;
+  }
+
+  return `data:${telechargement.data.contentType};base64,${telechargement.data.base64}`;
 }
 
 /**

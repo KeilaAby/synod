@@ -195,7 +195,7 @@ export const BLOCS_RAPPORT: readonly DefinitionBloc[] = [
   {
     type: 'IMAGE',
     libelle: 'Image',
-    description: 'Un logo, une photographie.',
+    description: 'Le logo de l’organisation, réglé dans Administration.',
     groupe: 'CONTENU',
     source: null,
     largeurParDefaut: 'DEMI',
@@ -787,6 +787,15 @@ export type ContenuBloc =
       readonly genre: 'ARBRE';
       readonly racine: string;
       readonly enfants: readonly string[];
+    }
+  | {
+      readonly genre: 'IMAGE';
+      /**
+       * Embarquée en `data:`, jamais une clé ni une URL signée — le même
+       * précédent que les portraits de l'organigramme imprimé : une image
+       * liée périmerait avant qu'on relise le rapport (RG-27, règle 11).
+       */
+      readonly dataUri: string;
     };
 
 /** Le contenu FIGE d'un rapport : un genre par bloc, indexe par identifiant. */

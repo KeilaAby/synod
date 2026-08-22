@@ -52,6 +52,14 @@ export interface StorageAdapter {
   delete(cle: string): Promise<ActionResult<void>>;
 
   list(prefixe: string): Promise<ActionResult<string[]>>;
+
+  /**
+   * Le contenu BRUT d'un objet, en base64 — pour l'embarquer en `data:` dans
+   * un document FIGÉ (RG-27, rapports). Une URL signée périmerait avant
+   * qu'on relise le document trois mois plus tard ; ceci ne sort jamais du
+   * serveur qui génère.
+   */
+  download(cle: string): Promise<ActionResult<{ base64: string; contentType: string }>>;
 }
 
 /** Duree de vie par defaut d'une URL signee : assez pour afficher, pas pour partager. */

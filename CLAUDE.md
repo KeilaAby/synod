@@ -765,9 +765,27 @@ de `/finances/dimes` ouvre un nouveau versement à entité **verrouillée**
 (`CollecteDialog` gagne le mode piloté déjà rodé sur `MandatDialog`, règle
 16).
 
-Base à jour jusqu'à la migration `0071`, confirmée appliquée par
-l'utilisateur et vérifiée en conditions réelles — `0072` est **écrite et
-attend la même confirmation**. Fuseau `Indian/Antananarivo` (UTC+3).
+**Le logo de l'organisation, et le bloc Image des rapports** (sans
+migration) : `organisation_settings.logo_key` existait depuis la toute
+première migration de réglages (`0006`), posé en schéma et jamais lu ni
+écrit par aucun écran — même défaut que `promotionDuCroyant` la veille. Deux
+actions (`televerserLogoOrganisation`, `supprimerLogoOrganisation`) lui
+donnent enfin un écran, groupe « Identité » de l'onglet Général. **Un
+document FIGÉ (RG-27) ne peut embarquer qu'un OCTET, jamais une référence
+qui se résout ailleurs** : `StorageAdapter` gagne `download()` (des octets,
+pas une URL) — le même raisonnement que les portraits de l'organigramme
+imprimé (règle 33), transposé d'une fenêtre de `print()` à une ligne de base
+censée durer. Le logo est téléchargé UNE SEULE fois à la génération et
+embarqué en `data:` dans chaque bloc Image. `RenduRapport` distingue TROIS
+états : composition, généré sans logo réglé (« Aucun logo réglé pour
+l'organisation », règle 15), généré avec logo. `components/shared/
+logo-uploader.tsx` — extrait en écrivant le SECOND appelant : le geste
+existait déjà pour le logo de l'attestation de transfert (`0070`), refaite
+sur ce composant partagé au passage.
+
+Base à jour jusqu'à la migration `0072`, confirmée appliquée par
+l'utilisateur et vérifiée en conditions réelles. Fuseau
+`Indian/Antananarivo` (UTC+3).
 **Toute migration qui crée ou remplace
 une fonction doit finir par `notify pgrst, 'reload schema'`** : sans lui, l'API
 répond « fonction inconnue » sur du SQL pourtant en place — constaté deux fois,

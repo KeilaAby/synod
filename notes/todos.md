@@ -14,8 +14,8 @@
 
 ## ⚠ État de la base
 
-**Appliquées : `0001` à `0071`. `0072` est écrite et attend une confirmation
-dans l'éditeur SQL Supabase.**
+**Appliquées : `0001` à `0072`**, confirmé par l'utilisateur — `0072` de
+surcroît testée en conditions réelles le 22 août.
 
 | N° | Ce qu'elle apporte | Sans elle |
 |---|---|---|
@@ -36,8 +36,8 @@ l'éditeur SQL Supabase et le confirme.
 soir. `0069`, `0070` et `0071` ont été confirmées appliquées par
 l'utilisateur le 22 août — `0071` vérifiée en conditions réelles après
 correction de deux défauts trouvés en test, voir l'item du lien conjugal.
-`0072`, écrite le 22 août pour le bloc dîmes ci-dessous, attend la même
-confirmation avant d'être vérifiée en conditions réelles.)*
+`0072`, écrite le 22 août pour le bloc dîmes ci-dessous, a été confirmée
+appliquée et testée en conditions réelles le même jour.)*
 
 ---
 
@@ -597,8 +597,34 @@ soldes consolidés — la décision a déjà été prise et tenue une fois.
       **Le rapport dit ce qu'il a retenu**, sous le titre du bloc : sur une
       feuille imprimée, personne ne peut ouvrir les réglages pour comprendre
       pourquoi le total ne correspond pas.
-- [ ] **Logo téléversé** pour le bloc Image (aujourd'hui le bloc existe, la
-      source du logo non).
+- [x] **Logo téléversé** pour le bloc Image. *(22 août 2026, sans migration —
+      `organisation_settings.logo_key` existait depuis `0006`, posé en schéma
+      et jamais lu ni écrit par aucun écran.)* Deux actions,
+      `televerserLogoOrganisation`/`supprimerLogoOrganisation`
+      (`lib/actions/parametres.ts`), même patron que le logo de l'attestation
+      de transfert (`0070`) : type réel déduit des premiers octets
+      (ENF-SEC-06), clé **fixe** (`logos/organisation.<ext>`, `upsert`).
+      Contrôle dans `/administration/parametres`, onglet Général, groupe
+      « Identité ».
+
+      **Le rendu s'imprime, une URL signée n'aurait pas tenu.** À la
+      génération (`resoudreContenu`), le logo est téléchargé puis **embarqué
+      en `data:`** dans `report_instances.contenu` — même précédent que les
+      portraits de l'organigramme imprimé (règle 33, RG-11) : une clé ou une
+      URL signée périmerait avant qu'on relise le rapport, et RG-27 l'interdit
+      de toute façon de recalculer à la lecture. Nouvelle méthode
+      `StorageAdapter.download()` (`lib/storage`), la première à rendre des
+      octets plutôt qu'une URL.
+
+      **Trois états dans `RenduRapport`, pas deux** : composition (« Image
+      posée à la génération »), généré sans logo réglé (« Aucun logo réglé
+      pour l'organisation » — règle 15, ne pas laisser un cadre qu'on
+      prendrait pour une panne), généré avec logo (l'image).
+
+      `components/shared/logo-uploader.tsx` — **extrait en écrivant le second
+      appelant** : l'upload/retrait d'un logo à clé fixe existait déjà pour
+      l'attestation, quasi identique à l'octet près. `ReglagesAttestationTransfert`
+      a été refait sur ce composant partagé au passage (règle 16).
 - [x] **Retirer la publication** — un rapport reste confidentiel à son entité.
       *(20 août 2026, migration `0060`)* — **le défaut était réel, pas
       théorique** : RG-26 omet les blocs non habilités **à la génération**, sous

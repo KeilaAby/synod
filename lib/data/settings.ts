@@ -20,6 +20,8 @@ import { createClient } from '@/lib/supabase/server';
 
 export interface Parametres {
   nom_organisation: string;
+  /** Clé relative (règle 11), ou `null` — posé depuis `0006`, resté sans écran jusqu'ici. */
+  logo_key: string | null;
   devise: string;
   fuseau_horaire: string;
   /** ARB-5 / RG-30 — fenetre « nouveaux baptises », 15 jours par defaut. */
@@ -66,6 +68,7 @@ export interface Parametres {
  */
 const REPLI: Parametres = {
   nom_organisation: 'SYNOD',
+  logo_key: null,
   devise: 'MGA',
   fuseau_horaire: 'Indian/Antananarivo',
   fenetre_nouveaux_baptises_jours: 15,
@@ -115,7 +118,7 @@ export const getParametres = cache(async (): Promise<Parametres> => {
   const { data, error } = await sb
     .from('organisation_settings')
     .select(
-      'nom_organisation, devise, fuseau_horaire, fenetre_nouveaux_baptises_jours, ' +
+      'nom_organisation, logo_key, devise, fuseau_horaire, fenetre_nouveaux_baptises_jours, ' +
         'finance_validation_active, separation_saisie_validation, ' +
         'transfert_auto_approbation_interne, rapport_composition_libre, ' +
         'promotion_grade_validation, ' +

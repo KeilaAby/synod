@@ -5841,3 +5841,67 @@ Migration `0072` écrite, **pas encore appliquée** par l'utilisateur au moment
 du commit — le code est en place et vert, mais le comportement réel (RLS
 élargie, fonction d'anonymisation) reste à vérifier une fois la migration
 confirmée dans l'éditeur SQL Supabase.
+
+## 22 août 2026 (suite) — Migration `0072` confirmée en conditions réelles
+
+L'utilisateur a appliqué la migration `0072` et testé le bloc dîmes en
+conditions réelles : le rapprochement par église, l'anonymisation d'une
+enveloppe et le versement verrouillé sur la collecte fonctionnent tel
+qu'écrit. `notes/todos.md` mis à jour en conséquence.
+
+## 22 août 2026 (suite) — Le logo de l'organisation, et le bloc Image des rapports
+
+Reprise de `notes/todos.md` §4 : « Logo téléversé pour le bloc Image
+(aujourd'hui le bloc existe, la source du logo non). » Le texte d'aide du
+panneau de réglages du bloc l'annonçait déjà, sans que rien ne le tienne :
+« L'image elle-même est choisie à la génération — logo de l'organisation par
+défaut. »
+
+**`organisation_settings.logo_key` existait depuis la migration `0006`, la
+toute première des réglages généraux — posée en schéma, jamais lue ni écrite
+par aucun écran.** Même défaut que `promotionDuCroyant` la veille : une
+intention nommée dans le code, sans appelant. Deux nouvelles actions dans
+`lib/actions/parametres.ts` — `televerserLogoOrganisation`,
+`supprimerLogoOrganisation` — lui donnent enfin un écran, groupe « Identité »
+de l'onglet Général (`/administration/parametres`). Même patron que le logo
+de l'attestation de transfert livré la veille (`0070`) : type réel déduit des
+premiers octets (ENF-SEC-06), clé FIXE (`logos/organisation.<ext>`,
+`upsert` — une seule ligne de réglages porte un seul logo).
+
+**Le document imprimé ne peut pas dépendre d'une URL signée.** Un rapport
+généré est FIGÉ (RG-27) et peut être relu des mois plus tard — le même
+raisonnement qui a fait embarquer les portraits de l'organigramme imprimé en
+`data:` (règle 33) s'applique ici, en plus contraignant : ce n'est plus une
+fenêtre de `print()` à tenir mais une ligne en base censée rester lisible
+indéfiniment. `StorageAdapter` (`lib/storage/types.ts`,
+`lib/storage/supabase-adapter.ts`) gagne donc une méthode `download()` —
+rendant des octets en base64, pas une URL — la première de ses méthodes à le
+faire ; jusqu'ici l'interface ne savait que déposer et signer.
+
+À la génération (`resoudreContenu`, `lib/data/rapport-generation.ts`), le
+logo est téléchargé UNE SEULE fois même si plusieurs blocs Image existent
+dans le modèle, et embarqué en `data:${contentType};base64,${base64}` dans
+chacun. **Un bloc Image n'a pas de `source`** (`sourceDuBloc` rend `null`) :
+sans un second drapeau explicite (`contientImage`), un modèle qui ne
+contiendrait QUE des blocs de mise en page — Image compris — sortait de la
+fonction avant même d'y songer, `sources.size === 0` provoquant un retour
+anticipé.
+
+**`RenduRapport` distingue désormais TROIS états, pas deux** : composition
+(aucun contenu résolu — « Image posée à la génération », inchangé), généré
+SANS logo réglé (« Aucun logo réglé pour l'organisation » — un cadre vide se
+lirait comme une panne d'affichage, règle 15), généré AVEC logo (l'image
+rendue, `data:` en `<img src>`).
+
+**`components/shared/logo-uploader.tsx` — extrait en écrivant le SECOND
+appelant, pas avant.** Le geste (fichier caché, aperçu, bouton d'envoi,
+confirmation de retrait) existait déjà, quasi identique à l'octet près, pour
+le logo de l'attestation. `ReglagesAttestationTransfert` a été refait sur ce
+composant partagé au passage — deux copies auraient divergé à la première
+retouche de l'une sans penser à l'autre (le même principe déjà payé sur
+`bureau.delete` et `peut_celebrer`).
+
+`pnpm verify` : 44 fichiers, 883 tests, build compris — vert. Aucun test
+neuf : ni le logo de l'attestation (livré la veille) ni les actions miroir
+n'en avaient — cohérence avec l'existant plutôt qu'un standard inventé pour
+l'occasion.

@@ -1,13 +1,13 @@
 'use client';
 
-import { Loader2, Trash2, Upload } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 
 import { Field, TextField } from '@/components/shared/field';
+import { LogoUploader } from '@/components/shared/logo-uploader';
 import { avertir } from '@/components/shared/messages';
-import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,7 +17,6 @@ import {
   televerserLogoAttestation,
 } from '@/lib/actions/attestation-transfert';
 import type { ParametresAttestation } from '@/lib/data/attestation-transfert';
-import { CONTRAINTES_FICHIER } from '@/lib/storage/types';
 import { appelerAction } from '@/lib/utils/appeler-action';
 
 /**
@@ -83,7 +82,13 @@ export function ReglagesAttestationTransfert({
             </p>
           </div>
 
-          <LogoAttestation logoUrl={logoUrl} />
+          <LogoUploader
+            logoUrl={logoUrl}
+            onUpload={televerserLogoAttestation}
+            onRemove={supprimerLogoAttestation}
+            hint="Imprimé en tête de l’attestation définitive, jamais sur la pièce de dossier."
+            removeDescription="L’attestation reprendra son en-tête sans image. Le fichier est définitivement supprimé du stockage."
+          />
 
           <Field
             label="Texte du corps"
@@ -128,108 +133,6 @@ export function ReglagesAttestationTransfert({
           </div>
         </CardContent>
       </Card>
-    </div>
-  );
-}
-
-function LogoAttestation({ logoUrl }: { logoUrl: string | null }) {
-  const router = useRouter();
-  const champ = useRef<HTMLInputElement>(null);
-  const [enCours, setEnCours] = useState(false);
-
-  async function envoyer(fichier: File) {
-    setEnCours(true);
-    try {
-      const formulaire = new FormData();
-      formulaire.set('logo', fichier);
-
-      const resultat = await televerserLogoAttestation(formulaire);
-      if (!resultat.ok) {
-        avertir(resultat.error);
-        return;
-      }
-      toast.success('Logo enregistré.');
-      router.refresh();
-    } finally {
-      setEnCours(false);
-      if (champ.current) champ.current.value = '';
-    }
-  }
-
-  return (
-    <div className="flex items-center gap-4 rounded-md border border-border p-4">
-      <div className="flex h-16 w-32 shrink-0 items-center justify-center rounded border border-dashed border-border bg-muted/30">
-        {logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- URL signée, hors de tout domaine connu à l'avance.
-          <img src={logoUrl} alt="" className="max-h-14 max-w-28 object-contain" />
-        ) : (
-          <span className="text-xs text-muted-foreground">Aucun logo</span>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <div className="flex gap-2">
-          <input
-            ref={champ}
-            type="file"
-            accept={CONTRAINTES_FICHIER.photo.types.join(',')}
-            className="sr-only"
-            aria-label="Choisir un logo"
-            onChange={(e) => {
-              const fichier = e.target.files?.[0];
-              if (fichier) void envoyer(fichier);
-            }}
-          />
-
-          <Button
-            type="button"
-            variant="outline"
-            className="h-9"
-            disabled={enCours}
-            onClick={() => champ.current?.click()}
-          >
-            {enCours ? (
-              <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
-            ) : (
-              <Upload className="mr-2 size-4" aria-hidden />
-            )}
-            {logoUrl ? 'Changer le logo' : 'Ajouter un logo'}
-          </Button>
-
-          {logoUrl && (
-            <ConfirmDialog
-              trigger={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="h-9 text-destructive hover:text-destructive"
-                  disabled={enCours}
-                >
-                  <Trash2 className="mr-2 size-4" aria-hidden />
-                  Retirer
-                </Button>
-              }
-              title="Retirer le logo ?"
-              description="L’attestation reprendra son en-tête sans image. Le fichier est définitivement supprimé du stockage."
-              confirmLabel="Retirer"
-              onConfirm={async () => {
-                const resultat = await supprimerLogoAttestation();
-                if (!resultat.ok) {
-                  avertir(resultat.error);
-                  return;
-                }
-                toast.success('Logo retiré.');
-                router.refresh();
-              }}
-            />
-          )}
-        </div>
-
-        <p className="text-xs text-muted-foreground">
-          {CONTRAINTES_FICHIER.photo.libelle}. Imprimé en tête de l’attestation
-          définitive, jamais sur la pièce de dossier.
-        </p>
-      </div>
     </div>
   );
 }
