@@ -481,6 +481,34 @@ au champ « Entité de rattachement », qui doit lui rester restreint).
 `resoudrePortee` bornait déjà tout côté serveur : élargir la liste à l'écran
 n'ouvrait aucune porte qu'il n'aurait pas fermée si nécessaire.
 
+**Fatigue visuelle signalée ensuite, capture à l'appui : treize droits
+accordés, treize champs pleine largeur, tous répétant « Toute l'entité de
+rattachement ».** `EntityPicker` (`components/structure/entity-picker.tsx`)
+gagne un mode `discret`, opt-in — le déclencheur passe du bouton `h-10
+w-full` bordé habituel à un texte cliquable, à la taille de son contenu,
+sans rien changer aux usages existants (le composant sert aussi les
+formulaires et les colonnes de grille, où le champ plein reste voulu). La
+ligne se lit maintenant « Portée : Toute l'entité de rattachement » en
+petit texte muet, cliquable pour ouvrir le même panneau de recherche
+qu'avant.
+
+**Question posée en retour par l'utilisateur, à clarifier pour la suite :**
+« Toute l'entité de rattachement » couvre-t-elle l'entité seule, ou
+l'entité et ses descendantes ? Et si l'on restreint à un enfant précis, cet
+enfant seul, ou l'enfant et SES propres descendants ? Réponse : ÇA DÉPEND DU
+DROIT, pas du sélecteur — c'est RG-25. Un droit `DESCENDANTE` (la majorité,
+dont les deux droits `entity.read`/`entity.create` de la capture — aucun
+`portee` déclaré dans `PERMISSIONS` vaut `DESCENDANTE` par défaut) couvre
+l'entité choisie ET tout son sous-arbre, que cette entité soit celle de
+rattachement ou un enfant restreint. Un droit `PROPRE` (les onze de
+`fn_permissions_portee_propre()` — `finance.create/update/submit/validate/
+validate_own`, `finance.periode.close/reopen`, `bureau.manage/delete`,
+`user.manage`, `permission.delegate`, `trash.purge`) couvre l'entité EXACTE
+choisie, jamais ses descendantes, quel que soit le niveau où on la pose. Ce
+n'était pas une lacune du jour — c'est le comportement de `porteeCouvre`
+depuis la migration `0050`, simplement rendu VISIBLE par le nouveau
+sélecteur.
+
 ---
 
 ## Les décisions à ne pas défaire

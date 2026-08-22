@@ -6036,3 +6036,32 @@ n'ouvrait donc aucune porte que le serveur n'aurait pas refermée si
 nécessaire — seule l'option manquait à l'affichage.
 
 `pnpm verify` : 44 fichiers, 889 tests, build compris — vert.
+
+## 22 août 2026 (suite) — Fatigue visuelle du sélecteur de portée, et la portée expliquée
+
+L'utilisateur a signalé, capture d'écran à l'appui, qu'un compte à treize
+droits accordés affichait treize champs pleine largeur empilés, tous
+répétant « Toute l'entité de rattachement » — un déclencheur bordé de
+`EntityPicker`, `h-10 w-full`, répété une fois par droit actif.
+
+`EntityPicker` (`components/structure/entity-picker.tsx`) gagne un mode
+`discret`, **opt-in** : le déclencheur devient un texte cliquable, à la
+taille de son contenu, sans bordure ni fond, au lieu du bouton `outline`
+pleine largeur. Les usages existants (formulaires, colonnes de grille) ne
+changent pas — `discret` vaut `false` par défaut. La ligne du sélecteur de
+portée (`selecteur-habilitations.tsx`) se lit désormais « Portée : Toute
+l'entité de rattachement » en petit texte muet, cliquable pour ouvrir le
+même panneau de recherche qu'avant.
+
+L'utilisateur a ensuite demandé : « Toute l'entité de rattachement », est-ce
+l'entité seule ou l'entité et ses enfants ? Et si l'on restreint à un
+enfant, cet enfant seul ou lui et ses propres descendants ? Réponse : ça
+dépend du DROIT, pas du sélecteur — RG-25. Un droit `DESCENDANTE` (la
+majorité, dont `entity.read`/`entity.create` visibles sur la capture)
+couvre l'entité choisie ET tout son sous-arbre, à quelque niveau qu'on la
+pose. Un droit `PROPRE` (les onze de `fn_permissions_portee_propre()`)
+couvre l'entité exacte choisie, jamais ses descendantes. Ce comportement
+existait déjà depuis la migration `0050` (`porteeCouvre`) — le nouveau
+sélecteur le rend simplement visible, il ne le change pas.
+
+`pnpm verify` : 44 fichiers, 889 tests, build compris — vert.
