@@ -18,9 +18,10 @@
 
 ## L'état de la base
 
-**Appliquées : `0001` à `0070`**, confirmé par l'utilisateur. `0071` est
-**écrite et n'attend qu'une confirmation**. L'état qui fait foi est en tête
-de `notes/todos.md` — ce fichier-ci ne le répète pas deux fois.
+**Appliquées : `0001` à `0071`**, confirmé par l'utilisateur — `0071` de
+surcroît vérifiée en conditions réelles, après correction de deux défauts
+trouvés en test (voir plus bas). L'état qui fait foi est en tête de
+`notes/todos.md` — ce fichier-ci ne le répète pas deux fois.
 
 - `0069` — `organisation_settings.jours_correction_saisie` : le délai de
   correction (15 jours par défaut, borné 1–365) devient un réglage
@@ -232,6 +233,17 @@ chemins séparés les ferait diverger le jour où l'un des deux oublie l'autre
 côté — exactement ce que `fn_conjoint_symetrique()` évite en traitant les
 deux cas dans le même trigger, guidé par la comparaison `NEW`/`OLD`.
 
+**Sur une table qui se référence elle-même, PostgREST ne sait pas déduire la
+direction de la relation — n'auto-jointez pas.** Testé en conditions
+réelles avec l'utilisateur le 22 août : le hint de contrainte
+(`croyants!croyants_conjoint_id_fkey`) échouait, le nom auto-généré ne
+correspondant pas ; le hint de colonne (`croyants!conjoint_id`) réussissait
+la requête mais rendait un TABLEAU au lieu d'un objet — `croyant.conjoint.
+nom` valait `undefined`, la fiche plantait. `getCroyant` lit désormais le
+conjoint par une seconde requête ciblée, pas une auto-jointure. Une fiche se
+lit une à la fois : l'aller-retour de plus ne coûte rien ici (à distinguer
+d'une LISTE, où ce serait du N+1, règle 28).
+
 *(Les décisions du 21 août — l'étendue d'un modèle, erreur/décision, la fenêtre
 de 15 jours vérifiée côté serveur, le sens de l'`ordre` des grades — restent
 valables ; voir
@@ -259,8 +271,6 @@ de §1 sont closes**. En tête de ce qui reste :
 - **Révoquer le mot de passe d'application Google** passé par `.env.example`.
 - **Faire tourner `SUPABASE_SERVICE_ROLE_KEY`** — voir `README.md`.
 - **Borner ou non la visibilité des croyants** dans la saisie des dîmes.
-- **Passer la migration `0071`** dans l'éditeur SQL Supabase (`0069` et
-  `0070` sont confirmées appliquées).
 
 ---
 

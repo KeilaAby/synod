@@ -713,6 +713,18 @@ pas l'union d'un tiers en silence. `conjointId` a failli manquer à
 l'écriture de `modifierCroyant`, qui construit son payload champ par champ
 (règle 19, encore) — repéré en relisant, gardé par un test dédié.
 
+**Sur une table qui se référence elle-même, PostgREST ne sait pas déduire la
+direction de la relation.** Testé en conditions réelles avec l'utilisateur :
+`conjoint:croyants!croyants_conjoint_id_fkey (…)` échouait (mauvais nom de
+contrainte auto-générée) ; remplacé par le hint de colonne
+`croyants!conjoint_id`, qui réussissait la requête mais rendait un
+**tableau** au lieu d'un objet — `croyant.conjoint.nom` valait `undefined`,
+la fiche plantait. **Aucun des deux hints ne suffit** sur une auto-jointure :
+`getCroyant` lit désormais le conjoint par une SECONDE requête ciblée
+(`.eq('id', conjoint_id).maybeSingle()`), pas une auto-jointure. Une fiche se
+lit une à la fois, l'aller-retour de plus ne coûte rien ici — à distinguer
+d'une LISTE, où ce serait du N+1 (règle 28).
+
 **Une divergence de citation découverte en chemin, signalée sans être
 corrigée.** `EF-CRO-12` (cdg.md) désigne l'export Excel/CSV/PDF, `RG-06` le
 référentiel du grade et de la nationalité — mais le circuit de promotion de
@@ -721,9 +733,9 @@ livraison. Une dérive de citation sans impact fonctionnel, hors périmètre
 d'une correction immédiate ; `EF-CRO-14` a été ajoutée proprement pour ne
 pas reproduire l'erreur sur cette nouvelle demande.
 
-Base à jour jusqu'à la migration `0070`, confirmée appliquée par
-l'utilisateur — `0071` est **écrite et n'attend qu'une confirmation** dans
-l'éditeur SQL Supabase. Fuseau `Indian/Antananarivo` (UTC+3).
+Base à jour jusqu'à la migration `0071`, confirmée appliquée par
+l'utilisateur et vérifiée en conditions réelles. Fuseau
+`Indian/Antananarivo` (UTC+3).
 **Toute migration qui crée ou remplace
 une fonction doit finir par `notify pgrst, 'reload schema'`** : sans lui, l'API
 répond « fonction inconnue » sur du SQL pourtant en place — constaté deux fois,

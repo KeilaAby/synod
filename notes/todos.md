@@ -14,8 +14,7 @@
 
 ## ⚠ État de la base
 
-**Appliquées : `0001` à `0070`. `0071` est écrite et n'attend qu'une
-confirmation.**
+**Appliquées : `0001` à `0071`.** Aucune migration n'attend.
 
 | N° | Ce qu'elle apporte | Sans elle |
 |---|---|---|
@@ -32,10 +31,9 @@ l'éditeur SQL Supabase et le confirme.
 
 *(Cette section annonçait encore `0067` le 21 août, sans dire clairement que
 `0068` l'était aussi. Confirmé par l'utilisateur et corrigé le 21 août au
-soir. `0069` et `0070` ont été confirmées appliquées par l'utilisateur le
-22 août. `0071`, écrite le même jour, suit la même règle : elle n'est pas
-appliquée tant que l'utilisateur ne l'a pas passée dans l'éditeur SQL
-Supabase.)*
+soir. `0069`, `0070` et `0071` ont été confirmées appliquées par
+l'utilisateur le 22 août — `0071` vérifiée en conditions réelles après
+correction de deux défauts trouvés en test, voir l'item du lien conjugal.)*
 
 ---
 
@@ -336,12 +334,28 @@ Supabase.)*
          changement de **statut** (`DECEDE`) et non celui de `conjoint_id` :
          il pose `statut_marital = 'VEUF'` sur le survivant, sans toucher au
          lien — on continue de savoir qui était l'époux ou l'épouse.
-      3. ✅ **Un conjoint hors périmètre se DIT.** `getCroyant` embarque le
-         conjoint (`conjoint:croyants!croyants_conjoint_id_fkey`) : `null` de
-         deux façons distinctes que l'écran ne confond pas —
-         `conjoint_id` absent (« Non renseigné », un état normal) contre
-         `conjoint_id` présent mais `conjoint` absent (la RLS l'a masqué :
-         « Conjoint hors de votre périmètre », règle 15).
+      3. ✅ **Un conjoint hors périmètre se DIT.** `getCroyant` va chercher le
+         conjoint par une **seconde requête ciblée**, pas une auto-jointure
+         PostgREST : `null` de deux façons distinctes que l'écran ne confond
+         pas — `conjoint_id` absent (« Non renseigné », un état normal)
+         contre `conjoint_id` présent mais la seconde lecture vide (la RLS
+         l'a masqué : « Conjoint hors de votre périmètre », règle 15).
+
+         **⚠ Piège payé en test, avec l'utilisateur, le 22 août.**
+         `conjoint:croyants!croyants_conjoint_id_fkey (…)` semblait le choix
+         naturel (même patron que `eglise:entities!croyants_eglise_id_fkey`),
+         mais échouait — « Could not find a relationship » — le nom de
+         contrainte auto-généré ne correspondait pas à l'hypothèse. Remplacé
+         par le hint de COLONNE, `croyants!conjoint_id` : cette fois la
+         requête aboutissait, mais rendait un **tableau**, pas un objet —
+         `croyant.conjoint.nom` valait `undefined`, l'écran plantait
+         (`toLocaleUpperCase` sur `undefined`). **Sur une table qui se
+         référence elle-même, PostgREST ne sait pas trancher la direction de
+         la relation**, quel que soit le hint tenté. Réglé en abandonnant
+         l'auto-jointure : une seconde requête `.eq('id', conjoint_id).
+         maybeSingle()`, explicite. Une fiche se lit une à la fois — l'aller-
+         retour de plus ne coûte rien ici, à distinguer d'une LISTE où ce
+         serait du N+1 (règle 28).
 
       **Le sélecteur** (`CroyantPicker`, réutilisé tel quel — règle 16) ne
       propose QUE le sexe opposé ET les personnes LIBRES — nouvelle fonction

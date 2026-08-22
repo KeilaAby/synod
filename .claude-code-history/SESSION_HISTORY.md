@@ -5696,11 +5696,11 @@ fichier source et exige DEUX occurrences du champ écrit.
 
 ### La fiche distingue DEUX absences
 
-`getCroyant` embarque le conjoint. `conjoint_id` absent → « Non renseigné »,
-un état normal (le conjoint peut ne pas être croyant). `conjoint_id` présent
-mais `conjoint` (l'embed) absent → la RLS l'a masqué, hors périmètre — la
-fiche le DIT (« Conjoint hors de votre périmètre ») plutôt que d'afficher un
-blanc indiscernable de l'absence (règle 15).
+`getCroyant` va chercher le conjoint. `conjoint_id` absent → « Non
+renseigné », un état normal (le conjoint peut ne pas être croyant).
+`conjoint_id` présent mais la lecture du conjoint vide → la RLS l'a masqué,
+hors périmètre — la fiche le DIT (« Conjoint hors de votre périmètre »)
+plutôt que d'afficher un blanc indiscernable de l'absence (règle 15).
 
 Un test flaky rencontré à répétition aujourd'hui sous `pnpm verify`
 (`apparence.test.ts`, timeout à 5000 ms sous charge parallèle) a reçu un
@@ -5708,3 +5708,41 @@ délai porté à 15 s — corrigé au passage plutôt que re-toléré une fois d
 plus.
 
 `pnpm verify` : 44 fichiers, 883 tests, build compris — vert.
+
+## 22 août 2026 (suite) — Deux échecs en test, un piège PostgREST retenu
+
+Migration `0071` passée par l'utilisateur, testée en conditions réelles :
+assigner un conjoint sur une fiche, puis consulter cette fiche.
+
+**Premier échec — le nom de contrainte devinée était faux.**
+`conjoint:croyants!croyants_conjoint_id_fkey (…)` — même patron que les
+autres embeds de ce fichier (`eglise:entities!croyants_eglise_id_fkey`, tous
+fonctionnels) — échouait à l'écriture ET à la lecture : « Could not find a
+relationship between 'croyants' and 'croyants' … using the hint
+'croyants_conjoint_id_fkey' ». Le nom auto-généré par Postgres pour la
+contrainte de `0071` ne correspondait pas à l'hypothèse.
+
+**Deuxième échec — le hint de colonne aboutissait, mais dans le mauvais
+sens.** Remplacé par `croyants!conjoint_id` (hint par colonne plutôt que par
+contrainte) : la requête réussissait cette fois, mais `croyant.conjoint`
+arrivait en **tableau**, jamais en objet — `croyant.conjoint.nom` valait
+`undefined`, et `.toLocaleUpperCase()` sur `undefined` faisait planter la
+page (`Runtime TypeError`, capture d'écran fournie par l'utilisateur).
+
+**La leçon, retenue pour la suite : sur une table qui se référence
+elle-même, PostgREST ne sait pas déduire la DIRECTION de la relation** — ni
+le hint de contrainte, ni le hint de colonne ne suffisent à lui seuls à
+distinguer « le conjoint que MA ligne désigne » de « les lignes qui ME
+désignent comme conjoint ». Contourné en abandonnant l'auto-jointure :
+`getCroyant` lit d'abord la fiche, puis — SEULEMENT SI `conjoint_id` n'est
+pas nul — une seconde requête ciblée (`.eq('id', conjoint_id).
+maybeSingle()`) va chercher le conjoint. Une fiche se lit une à la fois :
+l'aller-retour de plus ne coûte rien ici (à distinguer d'une LISTE, où ce
+serait du N+1, règle 28). Le `null` de cette seconde lecture recouvre
+toujours les deux cas — conjoint inexistant ou masqué par la RLS — mais la
+comparaison avec `conjoint_id` (colonne brute, toujours lisible) suffit à
+l'écran pour distinguer « non renseigné » de « hors périmètre ».
+
+`pnpm verify` : 44 fichiers, 883 tests, build compris — vert. Confirmé
+fonctionnel par l'utilisateur en conditions réelles après le second
+correctif.

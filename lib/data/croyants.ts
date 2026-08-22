@@ -168,8 +168,7 @@ const CHAMPS_FICHE = `
   cellule:entities!croyants_cellule_id_fkey (id, nom, code),
   grade:grades!croyants_grade_id_fkey (id, libelle, code),
   nationalite:nationalites!croyants_nationalite_id_fkey (id, libelle, code_iso),
-  createur:profiles!croyants_saisi_par_fkey (id, nom_complet),
-  conjoint:croyants!croyants_conjoint_id_fkey (id, nom, prenom, matricule, photo_key, statut)
+  createur:profiles!croyants_saisi_par_fkey (id, nom_complet)
 ` as const;
 
 export interface CroyantFiche extends CroyantListe {
@@ -203,10 +202,40 @@ export const getCroyant = cache(async (id: string): Promise<CroyantFiche | null>
     .select(CHAMPS_FICHE)
     .eq('id', id)
     .is('deleted_at', null)
-    .maybeSingle<CroyantFiche>();
+    .maybeSingle<Omit<CroyantFiche, 'conjoint'>>();
 
   if (error) throw new DataError('Cette fiche est momentanément illisible.', error);
-  return data;
+  if (!data) return null;
+
+  /**
+   * EF-CRO-14 — UNE SECONDE REQUÊTE, CIBLÉE, PLUTÔT QU'UNE AUTO-JOINTURE
+   * POSTGREST SUR `croyants` VERS ELLE-MÊME.
+   *
+   * PostgREST ne sait pas trancher, pour une table qui se référence
+   * elle-même, LA DIRECTION de la relation : le hint par nom de colonne
+   * (`croyants!conjoint_id`) rend tantôt une erreur « relation introuvable »,
+   * tantôt un TABLEAU au lieu d'un objet — constaté en test le 22 août 2026.
+   * Une fiche se lit une à la fois : une requête de plus ici ne coûte rien
+   * (à distinguer d'une LISTE, où ce serait du N+1, règle 28).
+   *
+   * `null` en sortie recouvre deux cas que `.maybeSingle()` ne distingue pas
+   * lui-même, mais qui n'ont pas besoin de l'être ICI : conjoint inexistant
+   * ou masqué par la RLS (hors périmètre) rendent tous deux `null`, et c'est
+   * la comparaison avec `conjoint_id` (colonne brute, toujours lisible) qui
+   * permet à l'écran de distinguer « non renseigné » de « hors périmètre ».
+   */
+  let conjoint: CroyantFiche['conjoint'] = null;
+  if (data.conjoint_id) {
+    const { data: c } = await sb
+      .from('croyants')
+      .select('id, nom, prenom, matricule, photo_key, statut')
+      .eq('id', data.conjoint_id)
+      .is('deleted_at', null)
+      .maybeSingle<NonNullable<CroyantFiche['conjoint']>>();
+    conjoint = c ?? null;
+  }
+
+  return { ...data, conjoint };
 });
 
 /**
