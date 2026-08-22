@@ -5,6 +5,7 @@ import { chargerBureaux, listerCandidats, listerFonctions } from '@/lib/data/bur
 import { getArbrePerimetre } from '@/lib/data/entities';
 import { versOptions } from '@/lib/data/entity-options';
 import { signerPhotos } from '@/lib/data/photos';
+import { getParametres } from '@/lib/data/settings';
 import { formatNombre } from '@/lib/utils/format';
 
 import { BureauxClient } from './bureaux-client';
@@ -20,11 +21,13 @@ export const metadata: Metadata = { title: 'Bureaux' };
  * listes de l'application.
  */
 export default async function BureauxPage() {
-  const [bureaux, fonctions, candidats, arbre] = await Promise.all([
+  const [bureaux, fonctions, candidats, arbre, parametres] = await Promise.all([
     chargerBureaux(),
     listerFonctions(),
     listerCandidats(),
     getArbrePerimetre(),
+    // EF-BUR-08 — le délai de correction de saisie, pour le pop-up de retrait.
+    getParametres(),
   ]);
 
   // Une seule signature pour tout l'écran : titulaires ET candidats proposés.
@@ -65,6 +68,7 @@ export default async function BureauxPage() {
           arbre.filter((e) => e.is_active),
           arbre,
         )}
+        joursDelai={parametres.jours_correction_saisie}
       />
     </div>
   );

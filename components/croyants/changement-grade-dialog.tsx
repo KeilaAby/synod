@@ -13,11 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  JOURS_ERREUR_GRADE,
-  type NatureChangementGrade,
-  correctionDeGradePossible,
-} from '@/lib/domain/promotion';
+import { type NatureChangementGrade, correctionDeGradePossible } from '@/lib/domain/promotion';
 import { cn } from '@/lib/utils';
 
 /**
@@ -54,6 +50,7 @@ export function ChangementGradeDialog({
   enCours,
   onConfirmer,
   onAnnuler,
+  joursDelai,
 }: {
   ouvert: boolean;
   gradeActuel: string;
@@ -65,11 +62,18 @@ export function ChangementGradeDialog({
   enCours: boolean;
   onConfirmer: (nature: NatureChangementGrade, motif: string | null) => void;
   onAnnuler: () => void;
+  /**
+   * EF-CRO-12 — réglé dans « Corrections de saisie » (migration `0069`).
+   *
+   * Simple HINT côté écran : la Server Action relit ce paramètre à l'instant
+   * de l'écriture et tranche pour de bon.
+   */
+  joursDelai: number;
 }) {
   const [nature, setNature] = useState<NatureChangementGrade>('DECISION');
   const [motif, setMotif] = useState('');
 
-  const erreurPossible = correctionDeGradePossible(ficheCreeeLe);
+  const erreurPossible = correctionDeGradePossible(ficheCreeeLe, joursDelai);
   const choix: NatureChangementGrade = erreurPossible ? nature : 'DECISION';
 
   // Une descente enregistrée comme décision exige son motif ; une correction
@@ -142,7 +146,7 @@ export function ChangementGradeDialog({
 
           {!erreurPossible && (
             <p className="text-muted-foreground text-xs">
-              Cette fiche a plus de {JOURS_ERREUR_GRADE} jours : son grade ne se
+              Cette fiche a plus de {joursDelai} jours : son grade ne se
               corrige plus comme une erreur de saisie.
             </p>
           )}

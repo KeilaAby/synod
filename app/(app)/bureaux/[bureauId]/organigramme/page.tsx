@@ -16,6 +16,7 @@ import { candidatsEligibles, libelleAffichage } from '@/lib/domain/bureau';
 import { nomComplet } from '@/lib/domain/croyant';
 import { peut } from '@/lib/domain/permissions';
 import { signerPhotos } from '@/lib/data/photos';
+import { getParametres } from '@/lib/data/settings';
 import { requireSession } from '@/lib/session';
 
 export const metadata: Metadata = { title: "Organigramme d'un bureau" };
@@ -42,11 +43,13 @@ export default async function OrganigrammeBureauPage({
   const { bureauId } = await params;
   const session = await requireSession();
 
-  const [bureau, fonctions, candidats, disposition] = await Promise.all([
+  const [bureau, fonctions, candidats, disposition, parametres] = await Promise.all([
     chargerBureau(bureauId),
     listerFonctions(),
     listerCandidats(),
     chargerDisposition(bureauId),
+    // EF-BUR-08 — délai de correction, pour le pop-up de retrait de titulaire.
+    getParametres(),
   ]);
 
   // La RLS a déjà écarté ce qui sort du périmètre : une absence ici est une
@@ -115,6 +118,7 @@ export default async function OrganigrammeBureauPage({
         photos={Object.fromEntries(photos)}
         dispositionInitiale={disposition}
         peutGerer={peut(session, 'bureau.manage', bureau.entite.path)}
+        joursDelai={parametres.jours_correction_saisie}
       />
     </div>
   );

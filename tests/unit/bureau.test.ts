@@ -78,33 +78,41 @@ describe('EF-REF-03 — une fonction ne vaut que pour certains niveaux', () => {
     expect(fonctionApplicable(fonction({ isActive: false }), 'EGLISE')).toBe(false);
   });
 
-  it('ordonne par ALPHABET, depuis le retrait de l ordre protocolaire', () => {
-    // L'ordre protocolaire a disparu le 9 aout 2026 : plus rien n'en dependait
-    // depuis que l'organigramme se dessine. L'alphabet ne pretend rien dire de
-    // la preseance, et c'est exactement ce qu'on veut — la hierarchie reelle
-    // vit dans la disposition propre a chaque bureau.
+  it('NE TRIE PAS — elle preserve l ordre de son entree', () => {
+    /**
+     * Revirement du 21 aout 2026. Cette fonction triait par alphabet depuis le
+     * retrait de l'ordre protocolaire (9 aout) ; celui-ci est revenu le 20 aout
+     * (migration 0061) pour fixer l'ordre d'AFFICHAGE, et `listerFonctions`
+     * trie desormais la requete en consequence. Un `.sort()` laisse ici
+     * l'ECRASAIT en silence : la composition d'un bureau et la palette de
+     * l'organigramme continuaient d'afficher le tresorier avant le president,
+     * alors que le referentiel savait dire l'inverse.
+     *
+     * La liste ci-dessous n'est PAS alphabetique — si la fonction se remettait
+     * a trier, ce test le remarquerait immediatement, la ou l'ancien testait
+     * une entree deja triee et n'aurait rien vu.
+     */
     const liste = [
       fonction({ id: 'a', libelle: 'Tresorier' }),
       fonction({ id: 'b', libelle: 'President' }),
       fonction({ id: 'c', libelle: 'Secretaire' }),
     ];
     expect(fonctionsDuNiveau(liste, 'EGLISE').map((f) => f.libelle)).toEqual([
+      'Tresorier',
       'President',
       'Secretaire',
-      'Tresorier',
     ]);
   });
 
-  it('donne un ordre STABLE d un affichage a l autre', () => {
-    // Sans tri, l'ordre dependrait de celui de la base — donc changerait sans
-    // raison entre deux chargements.
+  it('ne fait que FILTRER : le rang inapplicable disparait sans deplacer les autres', () => {
     const liste = [
-      fonction({ id: 'a', libelle: 'Vice-president' }),
-      fonction({ id: 'b', libelle: 'Tresorier' }),
+      fonction({ id: 'a', libelle: 'Tresorier' }),
+      tresorierEglise, // inapplicable a CELLULE
+      fonction({ id: 'c', libelle: 'Secretaire' }),
     ];
-    expect(fonctionsDuNiveau(liste, 'EGLISE').map((f) => f.libelle)).toEqual([
+    expect(fonctionsDuNiveau(liste, 'CELLULE').map((f) => f.libelle)).toEqual([
       'Tresorier',
-      'Vice-president',
+      'Secretaire',
     ]);
   });
 });

@@ -162,6 +162,7 @@ function Editeur({
   photos,
   dispositionInitiale,
   peutGerer,
+  joursDelai,
 }: {
   bureau: BureauComplet;
   fonctions: FonctionBureau[];
@@ -169,6 +170,8 @@ function Editeur({
   photos: Record<string, string>;
   dispositionInitiale: DispositionPoste[];
   peutGerer: boolean;
+  /** EF-BUR-08 — délai de correction, pour le pop-up de retrait de titulaire. */
+  joursDelai: number;
 }) {
   const router = useRouter();
   const { screenToFlowPosition, deleteElements } = useReactFlow();
@@ -974,6 +977,7 @@ function Editeur({
         enCours={operation !== null}
         onAnnuler={() => setARetirer(null)}
         onConfirmer={confirmerRetrait}
+        joursDelai={joursDelai}
       />
     </div>
   );
@@ -987,6 +991,8 @@ export default function OrganigrammeFlow(props: {
   photos: Record<string, string>;
   dispositionInitiale: DispositionPoste[];
   peutGerer: boolean;
+  /** EF-BUR-08 — délai de correction, pour le pop-up de retrait de titulaire. */
+  joursDelai: number;
 }) {
   return (
     <ReactFlowProvider>

@@ -21,6 +21,7 @@ import {
 import { supprimerEntite } from '@/lib/actions/entities';
 import type { ApercuBureaux } from '@/lib/data/bureaux';
 import type { ChiffresStructure } from '@/lib/data/structure-chiffres';
+import { JOURS_CORRECTION_SAISIE_DEFAUT } from '@/lib/domain/delai-correction';
 import { formatNombre } from '@/lib/utils/format';
 
 import type { EntiteFlux } from './entite';
@@ -57,6 +58,13 @@ export function useEntityDialogs(
    * pop-up ne doit jamais attendre une requete pour s'ouvrir (regle 28).
    */
   chiffresStructure?: ChiffresStructure,
+  /**
+   * EF-BUR-08 — delai de correction de saisie, pour le pop-up de retrait d'un
+   * titulaire ouvert depuis le menu ⋮ de la structure. Repli sur le defaut du
+   * domaine si l'appelant ne l'a pas encore : un simple HINT d'ecran, la
+   * Server Action tranche pour de bon avec la valeur reelle.
+   */
+  joursDelai: number = JOURS_CORRECTION_SAISIE_DEFAUT,
 ) {
   const router = useRouter();
   const { peut } = useSession();
@@ -343,6 +351,7 @@ export function useEntityDialogs(
           ouvert
           onOuvertChange={(v) => !v && setBureauxOuverts(null)}
           onRafraichir={() => void chargerBureaux(bureauxOuverts.entite)}
+          joursDelai={joursDelai}
         />
       )}
 

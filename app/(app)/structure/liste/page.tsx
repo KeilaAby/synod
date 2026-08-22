@@ -9,6 +9,7 @@ import { apercuBureauxParEntite } from '@/lib/data/bureaux';
 import { getOptionsCroyant } from '@/lib/data/croyant-options';
 import { cheminLisible, getArbrePerimetre, indexerParChemin } from '@/lib/data/entities';
 import { parentsPossibles } from '@/lib/data/entity-options';
+import { getParametres } from '@/lib/data/settings';
 import { chargerChiffresStructure } from '@/lib/data/structure-chiffres';
 import { ENTITY_TYPES, type EntityType } from '@/lib/domain/hierarchy';
 import { formatNombre } from '@/lib/utils/format';
@@ -32,14 +33,18 @@ export default async function ListeStructurePage({
 }) {
   const params = await searchParams;
 
-  const [arbre, apercuBureaux, optionsCroyant, chiffresStructure] = await Promise.all([
-    getArbrePerimetre(),
-    apercuBureauxParEntite(),
-    getOptionsCroyant(),
-    // EF-STR-06 — chargé AVEC l'arbre : la fiche s'ouvre alors sans requête,
-    // donc sans squelette et sans attente (règle 28).
-    chargerChiffresStructure(),
-  ]);
+  const [arbre, apercuBureaux, optionsCroyant, chiffresStructure, parametres] =
+    await Promise.all([
+      getArbrePerimetre(),
+      apercuBureauxParEntite(),
+      getOptionsCroyant(),
+      // EF-STR-06 — chargé AVEC l'arbre : la fiche s'ouvre alors sans requête,
+      // donc sans squelette et sans attente (règle 28).
+      chargerChiffresStructure(),
+      // EF-BUR-08 — délai de correction, pour le pop-up de retrait ouvert
+      // depuis le menu ⋮ d'une entité.
+      getParametres(),
+    ]);
   const index = indexerParChemin(arbre);
 
   // La ligne porte l'entite COMPLETE : ouvrir la fiche en pop-up depuis la
@@ -94,6 +99,7 @@ export default async function ListeStructurePage({
         apercuBureaux={apercuBureaux}
         optionsCroyant={optionsCroyant}
         chiffresStructure={chiffresStructure}
+        joursDelai={parametres.jours_correction_saisie}
         filtresInitiaux={{
           recherche: params.q ?? '',
           type:

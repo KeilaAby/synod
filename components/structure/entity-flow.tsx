@@ -111,11 +111,13 @@ function Organigramme({
   apercuBureaux,
   optionsCroyant,
   chiffresStructure,
+  joursDelai,
 }: {
   entites: EntiteFlux[];
   apercuBureaux: ApercuBureaux;
   optionsCroyant: OptionsCroyant;
   chiffresStructure: ChiffresStructure;
+  joursDelai: number;
 }) {
   const router = useRouter();
   const { fitView, setCenter, getNode, getIntersectingNodes } = useReactFlow();
@@ -141,7 +143,7 @@ function Organigramme({
     ajouterCroyant,
     peutAjouterCroyant,
     dialogues,
-  } = useEntityDialogs(entites, apercuBureaux, optionsCroyant, chiffresStructure);
+  } = useEntityDialogs(entites, apercuBureaux, optionsCroyant, chiffresStructure, joursDelai);
 
   // --- Actions du menu de noeud ---------------------------------------------
 
@@ -574,11 +576,13 @@ export default function EntityFlow({
   apercuBureaux,
   optionsCroyant,
   chiffresStructure,
+  joursDelai,
 }: {
   entites: EntiteFlux[];
   apercuBureaux: ApercuBureaux;
   optionsCroyant: OptionsCroyant;
   chiffresStructure: ChiffresStructure;
+  joursDelai: number;
 }) {
   return (
     <ReactFlowProvider>
@@ -587,6 +591,7 @@ export default function EntityFlow({
         apercuBureaux={apercuBureaux}
         optionsCroyant={optionsCroyant}
         chiffresStructure={chiffresStructure}
+        joursDelai={joursDelai}
       />
     </ReactFlowProvider>
   );

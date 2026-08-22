@@ -75,6 +75,7 @@ export function BureauComposition({
   photos,
   peutGerer,
   onChange,
+  joursDelai,
 }: {
   bureau: BureauComplet;
   fonctions: FonctionBureau[];
@@ -88,6 +89,8 @@ export function BureauComposition({
    * resterait figée après une désignation.
    */
   onChange?: () => void;
+  /** EF-BUR-08 — délai de correction, réglé dans « Corrections de saisie ». */
+  joursDelai: number;
 }) {
   const router = useRouter();
   const [enCours, demarrer] = useTransition();
@@ -465,6 +468,7 @@ export function BureauComposition({
         cible={aRetirer}
         enCours={enCours}
         onAnnuler={() => setARetirer(null)}
+        joursDelai={joursDelai}
         onConfirmer={(nature, motif) =>
           retirer({ id: aRetirer!.id, nom: aRetirer!.nom }, nature, motif)
         }

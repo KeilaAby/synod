@@ -58,6 +58,7 @@ export default async function NouveauCroyantPage({
         cellules={options.cellules}
         grades={options.grades}
         nationalites={options.nationalites}
+        joursDelai={options.joursDelai}
       />
     </div>
   );

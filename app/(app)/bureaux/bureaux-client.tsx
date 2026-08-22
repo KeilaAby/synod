@@ -79,12 +79,15 @@ export function BureauxClient({
   candidats,
   photos,
   entites,
+  joursDelai,
 }: {
   bureaux: BureauComplet[];
   fonctions: FonctionBureau[];
   candidats: CandidatOption[];
   photos: Record<string, string>;
   entites: OptionEntite[];
+  /** EF-BUR-08 — délai de correction, réglé dans « Corrections de saisie ». */
+  joursDelai: number;
 }) {
   const { peut } = useSession();
   const router = useRouter();
@@ -707,6 +710,7 @@ export function BureauxClient({
                   peutGerer={
                     affiche.entite ? peut('bureau.manage', affiche.entite.path) : false
                   }
+                  joursDelai={joursDelai}
                 />
               </>
             )}

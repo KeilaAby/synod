@@ -59,6 +59,7 @@ export default async function ModifierCroyantPage({ params }: Params) {
         cellules={options.cellules}
         grades={options.grades}
         nationalites={options.nationalites}
+        joursDelai={options.joursDelai}
       />
     </div>
   );

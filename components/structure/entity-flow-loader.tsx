@@ -30,11 +30,14 @@ export function EntityFlowLoader({
   apercuBureaux,
   optionsCroyant,
   chiffresStructure,
+  joursDelai,
 }: {
   entites: EntiteFlux[];
   apercuBureaux: ApercuBureaux;
   optionsCroyant: OptionsCroyant;
   chiffresStructure: ChiffresStructure;
+  /** EF-BUR-08 — délai de correction, pour le pop-up de retrait de titulaire. */
+  joursDelai: number;
 }) {
   return (
     <EntityFlow
@@ -42,6 +45,7 @@ export function EntityFlowLoader({
       apercuBureaux={apercuBureaux}
       optionsCroyant={optionsCroyant}
       chiffresStructure={chiffresStructure}
+      joursDelai={joursDelai}
     />
   );
 }

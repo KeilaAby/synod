@@ -72,6 +72,14 @@ interface Commun {
   cellules: CelluleOption[];
   grades: OptionReferentiel[];
   nationalites: OptionReferentiel[];
+  /**
+   * EF-CRO-12 — délai de correction, réglé dans « Corrections de saisie »
+   * (migration `0069`). Seul le mode `modification` l'utilise — une création
+   * n'a pas de grade antérieur à corriger — mais il vit dans `Commun` : les
+   * deux branches partagent le même formulaire, et un champ qui ne sert qu'à
+   * l'une n'a pas à dupliquer le type.
+   */
+  joursDelai: number;
 }
 
 interface CroyantExistant {
@@ -837,6 +845,7 @@ export function CroyantForm(props: Props) {
         descente={estDescente(existant?.grade_id, enAttenteGrade?.gradeId)}
         ficheCreeeLe={existant?.creeLe ?? ''}
         enCours={isSubmitting}
+        joursDelai={props.joursDelai}
         onAnnuler={() => setEnAttenteGrade(null)}
         onConfirmer={(nature, motif) => {
           const valeurs = enAttenteGrade;

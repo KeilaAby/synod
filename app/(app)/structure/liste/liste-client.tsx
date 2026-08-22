@@ -61,6 +61,7 @@ export function ListeStructureClient({
   apercuBureaux,
   optionsCroyant,
   chiffresStructure,
+  joursDelai,
   filtresInitiaux,
 }: {
   entites: LigneStructure[];
@@ -69,6 +70,8 @@ export function ListeStructureClient({
   /** EF-CRO-01 — referentiels du formulaire, pour « Ajouter un croyant ». */
   optionsCroyant: OptionsCroyant;
   chiffresStructure: ChiffresStructure;
+  /** EF-BUR-08 — délai de correction, pour le pop-up de retrait de titulaire. */
+  joursDelai: number;
   filtresInitiaux: {
     recherche: string;
     type: EntityType | 'tous';
@@ -93,7 +96,7 @@ export function ListeStructureClient({
     ajouterCroyant,
     peutAjouterCroyant,
     dialogues,
-  } = useEntityDialogs(entites, apercuBureaux, optionsCroyant, chiffresStructure);
+  } = useEntityDialogs(entites, apercuBureaux, optionsCroyant, chiffresStructure, joursDelai);
 
   // Deconnecte la frappe du filtrage : la saisie reste fluide meme si le
   // rendu de la table prend quelques millisecondes.

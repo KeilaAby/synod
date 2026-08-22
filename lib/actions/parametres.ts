@@ -70,6 +70,7 @@ export async function reglerParametres(input: unknown): Promise<ActionResult<voi
       toast_bouton_fermer: valeurs.toastBoutonFermer,
       toast_couleurs_vives: valeurs.toastCouleursVives,
       toast_position: valeurs.toastPosition,
+      jours_correction_saisie: valeurs.joursCorrectionSaisie,
     });
 
     const sb = await createClient();

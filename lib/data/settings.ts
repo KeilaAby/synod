@@ -7,6 +7,7 @@ import {
   NOTIFICATIONS_DEFAUT,
   POSITION_TOAST_DEFAUT,
 } from '@/lib/domain/apparence';
+import { JOURS_CORRECTION_SAISIE_DEFAUT } from '@/lib/domain/delai-correction';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -46,6 +47,13 @@ export interface Parametres {
   toast_bouton_fermer: boolean;
   toast_couleurs_vives: boolean;
   toast_position: string;
+  /**
+   * EF-BUR-08, EF-CRO-12 — le delai de correction de saisie, PARTAGE par le
+   * retrait d'un titulaire de bureau et la correction d'un grade. Deux
+   * constantes a 15 jours, ecrites separement, sont devenues un seul reglage
+   * (migration 0069).
+   */
+  jours_correction_saisie: number;
 }
 
 /**
@@ -98,6 +106,7 @@ const REPLI: Parametres = {
   toast_bouton_fermer: NOTIFICATIONS_DEFAUT.boutonFermer,
   toast_couleurs_vives: NOTIFICATIONS_DEFAUT.couleursVives,
   toast_position: POSITION_TOAST_DEFAUT,
+  jours_correction_saisie: JOURS_CORRECTION_SAISIE_DEFAUT,
 };
 
 export const getParametres = cache(async (): Promise<Parametres> => {
@@ -111,7 +120,8 @@ export const getParametres = cache(async (): Promise<Parametres> => {
         'transfert_auto_approbation_interne, rapport_composition_libre, ' +
         'promotion_grade_validation, ' +
         'reinitialisation_par_email, couleur_primaire, toast_duree_ms, ' +
-        'toast_bouton_fermer, toast_couleurs_vives, toast_position',
+        'toast_bouton_fermer, toast_couleurs_vives, toast_position, ' +
+        'jours_correction_saisie',
     )
     .eq('id', 1)
     .maybeSingle<Parametres>();

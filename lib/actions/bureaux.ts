@@ -11,6 +11,7 @@ import {
 } from '@/lib/data/bureaux';
 import { getArbrePerimetre } from '@/lib/data/entities';
 import { signerPhotos } from '@/lib/data/photos';
+import { getParametres } from '@/lib/data/settings';
 import {
   type FonctionBureau,
   aReconduire,
@@ -873,17 +874,24 @@ export async function retirerMembre(input: unknown): Promise<ActionResult<void>>
     await requirePermission(session, 'bureau.manage', contexte.entite!.path);
 
     /**
-     * EF-BUR-08 — LA FENETRE DE QUINZE JOURS SE VERIFIE ICI.
+     * EF-BUR-08 — LE DELAI SE VERIFIE ICI, LU A CET INSTANT.
      *
      * Le pop-up ne propose « erreur d'assignation » que dans le delai, mais un
      * menu masque ne ferme rien : la Server Action s'appelle sans passer par
      * l'ecran qui la propose. Et ce qui est en jeu est un EFFACEMENT — le
      * refus se corrige, la ligne effacee non.
+     *
+     * `getParametres()` est appele ICI et non plus haut dans la fonction : un
+     * onglet reste parfois ouvert pendant qu'on resserre le delai en
+     * administration, et c'est la valeur AU MOMENT DE L'ECRITURE qui doit
+     * trancher (regle 21) — jamais celle lue au premier rendu du pop-up.
      */
+    const { jours_correction_saisie: joursDelai } = await getParametres();
     const recevable = retraitRecevable(
       analyse.data.nature,
       analyse.data.motif,
       membre.created_at,
+      joursDelai,
     );
     if (!recevable.ok) return ko(recevable.raison);
 

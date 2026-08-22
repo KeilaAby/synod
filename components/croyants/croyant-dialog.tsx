@@ -41,6 +41,8 @@ export interface OptionsCroyant {
   cellules: CelluleOption[];
   grades: OptionReferentiel[];
   nationalites: OptionReferentiel[];
+  /** EF-CRO-12 — délai de correction (migration 0069), pour `ChangementGradeDialog`. */
+  joursDelai: number;
 }
 
 interface CroyantAModifier {

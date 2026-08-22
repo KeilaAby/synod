@@ -13,11 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  JOURS_ERREUR_ASSIGNATION,
-  type MotifRetrait,
-  retraitPourErreurPossible,
-} from '@/lib/domain/bureau';
+import { type MotifRetrait, retraitPourErreurPossible } from '@/lib/domain/bureau';
 import { cn } from '@/lib/utils';
 
 /**
@@ -51,6 +47,7 @@ export function RetraitDialog({
   onConfirmer,
   onAnnuler,
   enCours,
+  joursDelai,
 }: {
   cible: {
     id: string;
@@ -62,13 +59,22 @@ export function RetraitDialog({
   onConfirmer: (nature: MotifRetrait, motif: string | null) => void;
   onAnnuler: () => void;
   enCours: boolean;
+  /**
+   * EF-BUR-08 — réglé dans « Corrections de saisie » (migration `0069`).
+   *
+   * Un simple HINT côté écran : la Server Action relit ce paramètre à
+   * l'instant de l'écriture et tranche pour de bon. Cette valeur-ci peut dater
+   * de l'ouverture de la page — au pire, le pop-up propose une option que le
+   * serveur refusera juste après, motif à l'appui.
+   */
+  joursDelai: number;
 }) {
   const [nature, setNature] = useState<MotifRetrait>('DECISION');
   const [motif, setMotif] = useState('');
 
   if (!cible) return null;
 
-  const erreurPossible = retraitPourErreurPossible(cible.enregistreLe);
+  const erreurPossible = retraitPourErreurPossible(cible.enregistreLe, joursDelai);
   const choix: MotifRetrait = erreurPossible ? nature : 'DECISION';
   const pretAValider = choix === 'ERREUR' || motif.trim().length >= 3;
 
@@ -136,7 +142,7 @@ export function RetraitDialog({
 
           {!erreurPossible && (
             <p className="text-muted-foreground text-xs">
-              Cette désignation date de plus de {JOURS_ERREUR_ASSIGNATION} jours :
+              Cette désignation date de plus de {joursDelai} jours :
               elle ne peut plus être effacée comme une erreur de saisie.
             </p>
           )}

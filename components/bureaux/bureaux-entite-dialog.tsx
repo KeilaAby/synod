@@ -62,6 +62,7 @@ export function BureauxEntiteDialog({
   ouvert,
   onOuvertChange,
   onRafraichir,
+  joursDelai,
 }: {
   entite: { id: string; nom: string };
   /** `null` tant que le chargement n'a pas abouti — squelette à l'écran. */
@@ -74,6 +75,8 @@ export function BureauxEntiteDialog({
   onOuvertChange: (ouvert: boolean) => void;
   /** Les données viennent d'une action, pas de la page : à recharger nous-mêmes. */
   onRafraichir: () => void;
+  /** EF-BUR-08 — délai de correction, réglé dans « Corrections de saisie ». */
+  joursDelai: number;
 }) {
   /**
    * TROIS états, et non deux : `undefined` signifie « l'utilisateur n'a pas
@@ -139,6 +142,7 @@ export function BureauxEntiteDialog({
               photos={contexte.photos}
               peutGerer={peutGerer}
               onChange={onRafraichir}
+              joursDelai={joursDelai}
             />
           </div>
         )}

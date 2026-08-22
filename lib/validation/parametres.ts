@@ -123,6 +123,22 @@ export const parametresSchema = z.object({
 
   /** EF-ADM-13 — le coin. Ensemble clos : les six que Sonner accepte. */
   toastPosition: z.enum(POSITIONS_TOAST, { message: 'Position inconnue.' }),
+
+  /**
+   * EF-BUR-08, EF-CRO-12 — le delai de correction de saisie.
+   *
+   * PARTAGE par le retrait d'un titulaire de bureau et la correction d'un
+   * grade : deux constantes a 15 jours, ecrites separement, sont devenues un
+   * seul reglage (migration 0069). Bornes identiques a la fenetre des nouveaux
+   * baptises, pour la meme raison : un delai nul supprimerait la notion
+   * d'erreur rattrapable, et au-dela d'un an « correction de saisie » ne
+   * voudrait plus rien dire (regle 26).
+   */
+  joursCorrectionSaisie: z.coerce
+    .number()
+    .int('Un nombre entier de jours.')
+    .min(1, 'Au moins un jour.')
+    .max(365, 'Au-dela d’un an, ce n’est plus une correction de saisie.'),
 });
 
 export type ParametresInput = z.input<typeof parametresSchema>;

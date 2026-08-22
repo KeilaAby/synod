@@ -14,10 +14,12 @@
 
 ## ⚠ État de la base
 
-**Appliquées : `0001` à `0067`.**
+**Appliquées : `0001` à `0068`. `0069` est écrite et n'attend qu'une
+confirmation.**
 
 | N° | Ce qu'elle apporte | Sans elle |
 |---|---|---|
+| `0069` | `organisation_settings.jours_correction_saisie` — le délai de correction (15 jours par défaut) devient un réglage, plus une constante dupliquée dans deux fichiers | Le retrait d'un titulaire et le changement de grade continuent de lire chacun leur propre `JOURS_ERREUR_*` codé en dur, sans écran pour le régler |
 | `0068` | **Corrige `fn_decider_promotion`** : le statut passe par une variable **typée**. Dans une fonction, un `case` rend du `text` — le type de la colonne n'entre pas dans la résolution — et PostgreSQL refuse de l'affecter à une colonne énumérée. Le refus arrive à l'**exécution**, jamais à l'écriture. | Le bouton « Approuver » échoue : « column statut is of type statut_promotion but expression is of type text » |
 | `0067` | Le **circuit de validation des promotions de grade** : réglage global, table `promotions_grade`, et `fn_decider_promotion` qui pose le grade en approuvant | Un grade se pose seul, sans que personne au-dessus ne le confirme — alors qu il vaut dans toute l organisation |
 | `0066` | `bureau_membres.motif_retrait` — pourquoi un mandat a été **interrompu** avant son terme | Un retrait en cours de mandat reste sans raison écrite, et c'est exactement ce qu'on cherchera dans dix ans |
@@ -27,8 +29,11 @@ C'est **cette ligne** qui fait foi — pas le numéro le plus élevé de
 Les migrations ne s'appliquent pas toutes seules : l'utilisateur les passe dans
 l'éditeur SQL Supabase et le confirme.
 
-*(Cette section annonçait encore `0058` le 20 août, alors que `0059` et `0060`
-étaient appliquées depuis le matin. Corrigé.)*
+*(Cette section annonçait encore `0067` le 21 août, sans dire clairement que
+`0068` l'était aussi. Confirmé par l'utilisateur et corrigé le 21 août au
+soir. `0069`, écrite le même soir pour le délai de correction configurable,
+suit la même règle : elle n'est pas appliquée tant que l'utilisateur ne l'a
+pas passée dans l'éditeur SQL Supabase.)*
 
 ---
 
@@ -917,31 +922,45 @@ soldes consolidés — la décision a déjà été prise et tenue une fois.
 
 ## 10. Demandes du 21 août 2026 (soir)
 
-- [ ] **Organigramme d'un bureau : la palette « Fonctions à poser » ignore
-      l'ordre protocolaire.** Elle doit suivre celui configuré dans les
-      référentiels — le même que la composition tabulaire.
-      *À vérifier avant d'écrire :* la colonne existe
-      (`fonctions.ordre_protocolaire`, migration `0061`) et le référentiel se
-      range au glisser-déposer. Le défaut est donc probablement dans la lecture
-      ou dans un tri appliqué après coup, pas dans le schéma. **Ne pas retrier
-      en mémoire dans le composant** si la requête peut le faire : deux ordres,
-      l'un dans la requête l'autre dans l'écran, finissent par diverger.
+- [x] **Organigramme d'un bureau : la palette « Fonctions à poser » ignore
+      l'ordre protocolaire.** *(21 août 2026, sans migration.)*
+      Le défaut était bien dans la lecture, pas dans le schéma : `fonctionsDuNiveau`
+      (`lib/domain/bureau.ts`) portait encore un `.sort()` alphabétique par
+      `libelle`, resté d'une époque où `ordre_protocolaire` n'existait pas. La
+      migration `0061` avait corrigé la requête (`listerFonctions`, triée en
+      base) mais ce tri en mémoire, appliqué APRÈS, écrasait silencieusement son
+      résultat — pour la composition tabulaire **et** pour la palette de
+      l'organigramme, qui partagent le même appel. **Ne pas retrier en mémoire
+      ce que la requête trie déjà** : deux ordres qui se superposent finissent
+      par diverger, et c'est le second, invisible dans le schéma, qui gagne.
+      Corrigé en supprimant le tri : `fonctionsDuNiveau` ne fait plus que
+      filtrer, et préserve l'ordre de son entrée. Les tests qui validaient
+      l'ancien tri alphabétique masquaient le défaut — entrée déjà triée, la
+      régression ne pouvait pas se voir ; réécrits pour vérifier la préservation
+      de l'ordre ET l'absence de réordonnancement au filtrage
+      (`tests/unit/bureau.test.ts`).
 
-- [ ] **Centraliser le délai de 15 jours dans Administration.**
-      Il vaut aujourd'hui pour **deux** gestes, écrits chacun de leur côté :
-      `JOURS_ERREUR_ASSIGNATION` (retrait d'un titulaire, `lib/domain/bureau.ts`)
-      et `JOURS_ERREUR_GRADE` (changement de grade, `lib/domain/promotion.ts`).
-      **C'est déjà une règle écrite à deux endroits** — exactement ce que le
-      projet a payé avec `bureau.delete`, non délégable en TypeScript et
-      délégable en SQL.
-      *Ce que cela demande :* une colonne
-      `organisation_settings.jours_correction_saisie`, un réglage à l'écran, et
-      les deux constantes qui disparaissent au profit du paramètre **lu à chaque
-      rendu** (règle 21).
-      *Le point à ne pas manquer :* le délai borne un **effacement**. Une valeur
-      lue au chargement d'un formulaire laisserait, pendant des heures, des
-      onglets ouverts avant le changement continuer d'effacer sous l'ancienne
-      règle.
+- [x] **Centraliser le délai de 15 jours dans Administration.**
+      *(21 août 2026, migration `0069`.)*
+      Les deux constantes dupliquées — `JOURS_ERREUR_ASSIGNATION`
+      (`lib/domain/bureau.ts`) et `JOURS_ERREUR_GRADE`
+      (`lib/domain/promotion.ts`) — ont disparu au profit d'une fonction
+      partagée, `dansLeDelaiDeCorrection` (`lib/domain/delai-correction.ts`),
+      et d'un réglage : `organisation_settings.jours_correction_saisie`, exposé
+      dans le nouveau groupe « Corrections de saisie » de
+      `/administration/parametres`.
+      **Le délai borne un effacement, donc il est relu à CHAQUE écriture**
+      (règle 21) — jamais mis en cache dans un pop-up ouvert depuis des heures.
+      Les deux Server Actions concernées (`lib/actions/bureaux.ts`,
+      `lib/actions/croyants.ts`) rappellent `getParametres()` au moment de
+      trancher, et c'est cette valeur, jamais celle passée en prop, qui décide.
+      Les pop-up (`retrait-dialog.tsx`, `changement-grade-dialog.tsx`) reçoivent
+      `joursDelai` en prop : un simple **hint d'écran**, pour annoncer le bon
+      nombre de jours avant même la soumission — le serveur reste seul à
+      trancher pour de bon. Ce hint est enfilé depuis `getParametres()` à
+      chaque page qui monte ces pop-up, avec un repli sur
+      `JOURS_CORRECTION_SAISIE_DEFAUT` (15 jours) là où il n'a pas encore de
+      valeur réelle à offrir (`useEntityDialogs`).
 
 - [ ] **« Erreur d'assignation » devient l'option PAR DÉFAUT.**
       Elle n'est proposée que dans la limite du délai : quand elle apparaît,

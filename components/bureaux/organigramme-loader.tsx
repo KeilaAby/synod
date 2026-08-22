@@ -28,6 +28,8 @@ export function OrganigrammeLoader(props: {
   photos: Record<string, string>;
   dispositionInitiale: DispositionPoste[];
   peutGerer: boolean;
+  /** EF-BUR-08 — délai de correction, pour le pop-up de retrait de titulaire. */
+  joursDelai: number;
 }) {
   return <OrganigrammeFlow {...props} />;
 }

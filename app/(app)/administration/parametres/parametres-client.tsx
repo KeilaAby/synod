@@ -110,6 +110,7 @@ export function ParametresClient({ parametres }: { parametres: Parametres }) {
     toastPosition: estPositionToast(parametres.toast_position)
       ? parametres.toast_position
       : POSITION_TOAST_DEFAUT,
+    joursCorrectionSaisie: parametres.jours_correction_saisie,
   });
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
@@ -226,6 +227,32 @@ export function ParametresClient({ parametres }: { parametres: Parametres }) {
               )}
             </Field>
           </div>
+        </Groupe>
+
+        <Groupe
+          titre="Corrections de saisie"
+          description="Le délai pendant lequel une saisie récente se corrige sans laisser de trace, plutôt que de s’inscrire comme une décision."
+        >
+          {/*
+            EF-BUR-08, EF-CRO-12 — UN SEUL REGLAGE POUR DEUX GESTES.
+
+            Retirer un titulaire de bureau et corriger un grade pose par
+            erreur suivaient la MEME regle, ecrite a deux endroits avec sa
+            propre constante a 15 jours. La meme regle a deux endroits ne
+            diverge pas le jour ou on l'ecrit — elle diverge le jour ou l'un
+            des deux est retouche sans l'autre.
+          */}
+          <TextField
+            label="Délai de correction"
+            required
+            type="number"
+            min={1}
+            max={365}
+            className="tabular-nums"
+            hint="En jours, depuis l’ENREGISTREMENT — pas depuis le début du mandat ou du grade. Passé ce délai, retirer un titulaire ou corriger un grade devient une décision motivée plutôt qu’un effacement."
+            value={String(valeurs.joursCorrectionSaisie)}
+            onChange={(e) => poser({ joursCorrectionSaisie: e.target.value })}
+          />
         </Groupe>
 
         <Groupe

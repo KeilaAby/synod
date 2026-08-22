@@ -5345,3 +5345,86 @@ caractères.
 `ecrireClasseurXlsx` a été ajouté à l'écrivain XLSX pour les feuilles multiples ;
 `ecrireXlsx` en devient un appel à une seule feuille, et aucun appelant existant
 ne change.
+
+## 22 août 2026 — La palette qui se retriait toute seule, et un délai qui devient un réglage
+
+Reprise du travail sur `notes/todos.md` §10, après un pull du dépôt distant et
+la correction de son en-tête (les migrations `0067` puis `0068` avaient été
+appliquées le 21 août sans que la section « État de la base » le dise
+clairement — corrigé sur confirmation de l'utilisateur).
+
+### La palette de l'organigramme désobéissait à sa propre migration
+
+`fonctions.ordre_protocolaire` existe depuis la migration `0061`, et
+`listerFonctions` le lit déjà trié en base. Mais `fonctionsDuNiveau`
+(`lib/domain/bureau.ts`), qui filtre cette liste par niveau pour la composition
+tabulaire **et** pour la palette « Fonctions à poser » de l'organigramme,
+portait encore un `.sort((a, b) => a.libelle.localeCompare(b.libelle))` — un
+reste de l'époque où l'ordre protocolaire n'existait pas encore. La requête
+triait juste ; la fonction qui en consommait le résultat le retriait
+alphabétiquement par-dessus, sans que rien dans le schéma ne le laisse deviner.
+
+C'est exactement le risque que la règle du projet nomme : deux ordres qui se
+superposent finissent par diverger, et ici c'est le second — invisible,
+appliqué en mémoire après coup — qui gagnait. Corrigé en supprimant le tri :
+`fonctionsDuNiveau` ne fait plus que filtrer, et préserve l'ordre de son
+entrée.
+
+Les tests existants ne pouvaient pas voir le défaut : leur jeu de données était
+déjà trié alphabétiquement, si bien que le mauvais tri produisait la même
+sortie que l'absence de tri. Réécrits pour le rendre visible — un test avec une
+entrée délibérément **non** alphabétique qui vérifie la préservation de
+l'ordre, un autre qui vérifie que le filtrage n'en déplace pas les survivants.
+
+### Un délai de 15 jours, écrit deux fois, devient un réglage
+
+`JOURS_ERREUR_ASSIGNATION` (`lib/domain/bureau.ts`, pour le retrait d'un
+titulaire de bureau) et `JOURS_ERREUR_GRADE` (`lib/domain/promotion.ts`, pour
+la correction d'un grade) portaient la même règle — 15 jours au-delà desquels
+une « erreur de saisie » n'efface plus rien, elle devient une décision qui se
+motive — écrite à deux endroits distincts. `notes/todos.md` la signalait
+lui-même comme le prochain `bureau.delete` : une règle dupliquée ne diverge pas
+le jour où on l'écrit, elle diverge le jour où on retouche l'une sans penser à
+l'autre.
+
+Les deux constantes ont été retirées au profit d'une seule fonction pure,
+`dansLeDelaiDeCorrection` (nouveau fichier `lib/domain/delai-correction.ts`),
+et d'un réglage en base : `organisation_settings.jours_correction_saisie`
+(migration `0069`, 15 jours par défaut, borné entre 1 et 365 — une contrainte
+interdit l'impossible, pas l'inhabituel).
+
+**Le point qui commandait toute la conception :** ce délai borne un
+**effacement**. Une valeur lue une fois à l'ouverture d'un formulaire
+laisserait un onglet resté ouvert continuer d'effacer sous l'ancienne règle
+pendant qu'on la resserre en administration. Les deux Server Actions qui
+tranchent (`lib/actions/bureaux.ts`, `lib/actions/croyants.ts`) rappellent donc
+`getParametres()` au moment même de l'écriture — jamais une valeur reçue plus
+tôt. Ce que les pop-up reçoivent en prop (`joursDelai`, sur `RetraitDialog` et
+`ChangementGradeDialog`) n'est qu'un **hint d'affichage**, pour annoncer le bon
+nombre de jours avant la soumission ; le serveur reste seul à trancher pour de
+bon, et peut refuser une saisie que l'écran annonçait encore recevable si le
+réglage a changé entre-temps.
+
+Le réglage a son groupe dans `/administration/parametres` (« Corrections de
+saisie »), à côté d'« Identité ».
+
+**Ce qui a pris le plus de lignes n'est pas la règle, mais son chemin
+d'affichage.** `RetraitDialog` se monte à trois endroits indépendants —
+la composition tabulaire (`/bureaux`), le menu ⋮ de la structure
+(`/structure` et `/structure/liste`, organigramme et vue liste), et l'éditeur
+dédié (`/bureaux/[bureauId]/organigramme`) — et `ChangementGradeDialog` se
+monte depuis `CroyantForm`, elle-même montée à quatre endroits. `joursDelai` a
+donc été enfilé de chaque page (`getParametres()`, déjà lu en parallèle des
+autres données de la page) jusqu'au pop-up, à travers chaque maillon
+intermédiaire. `getOptionsCroyant()` — déjà le point de collecte partagé des
+référentiels du formulaire de croyant — s'est vu ajouter la même lecture, pour
+que les quatre montages de `CroyantForm` n'aient qu'à consommer `options.
+joursDelai` sans dupliquer l'appel.
+
+Deux fichiers de test référençaient encore les constantes supprimées et
+appelaient les fonctions avec l'ancienne signature (`Date` là où
+`joursDelai: number` s'intercale désormais avant `maintenant`) —
+`tests/unit/promotion.test.ts` et `tests/unit/retrait-membre.test.ts`, mis à
+jour pour passer `JOURS_CORRECTION_SAISIE_DEFAUT` explicitement.
+
+`pnpm verify` : 42 fichiers de test, 866 tests, build compris — vert.

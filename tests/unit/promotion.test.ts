@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
+import { JOURS_CORRECTION_SAISIE_DEFAUT } from '@/lib/domain/delai-correction';
 import type { SessionUtilisateur } from '@/lib/domain/permissions';
 import {
   type EntiteDeLArbre,
   PERMISSION_PROMOTION,
-  JOURS_ERREUR_GRADE,
   arbitreDePromotion,
   correctionDeGradePossible,
   estRetrogradation,
@@ -298,8 +298,16 @@ describe('correctionDeGradePossible', () => {
     new Date(MAINTENANT.getTime() - j * 86_400_000).toISOString();
 
   it('accepte une correction dans le délai', () => {
-    expect(correctionDeGradePossible(ilYA(0), MAINTENANT)).toBe(true);
-    expect(correctionDeGradePossible(ilYA(JOURS_ERREUR_GRADE), MAINTENANT)).toBe(true);
+    expect(correctionDeGradePossible(ilYA(0), JOURS_CORRECTION_SAISIE_DEFAUT, MAINTENANT)).toBe(
+      true,
+    );
+    expect(
+      correctionDeGradePossible(
+        ilYA(JOURS_CORRECTION_SAISIE_DEFAUT),
+        JOURS_CORRECTION_SAISIE_DEFAUT,
+        MAINTENANT,
+      ),
+    ).toBe(true);
   });
 
   /**
@@ -307,12 +315,24 @@ describe('correctionDeGradePossible', () => {
    * deviendrait la porte par laquelle on retrograde quelqu'un sans rien ecrire.
    */
   it('EF-CRO-12 — REFUSE au-delà du délai : ce n’est plus une correction', () => {
-    expect(correctionDeGradePossible(ilYA(JOURS_ERREUR_GRADE + 1), MAINTENANT)).toBe(false);
-    expect(correctionDeGradePossible(ilYA(400), MAINTENANT)).toBe(false);
+    expect(
+      correctionDeGradePossible(
+        ilYA(JOURS_CORRECTION_SAISIE_DEFAUT + 1),
+        JOURS_CORRECTION_SAISIE_DEFAUT,
+        MAINTENANT,
+      ),
+    ).toBe(false);
+    expect(
+      correctionDeGradePossible(ilYA(400), JOURS_CORRECTION_SAISIE_DEFAUT, MAINTENANT),
+    ).toBe(false);
   });
 
   it('refuse sur une date illisible ou future', () => {
-    expect(correctionDeGradePossible('', MAINTENANT)).toBe(false);
-    expect(correctionDeGradePossible(ilYA(-2), MAINTENANT)).toBe(false);
+    expect(correctionDeGradePossible('', JOURS_CORRECTION_SAISIE_DEFAUT, MAINTENANT)).toBe(
+      false,
+    );
+    expect(
+      correctionDeGradePossible(ilYA(-2), JOURS_CORRECTION_SAISIE_DEFAUT, MAINTENANT),
+    ).toBe(false);
   });
 });

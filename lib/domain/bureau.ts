@@ -1,3 +1,4 @@
+import { dansLeDelaiDeCorrection } from './delai-correction';
 import type { EntityType } from './hierarchy';
 import { estDescendant } from './hierarchy';
 import { type ActionResult, ko, ok } from './result';
@@ -38,23 +39,31 @@ export function fonctionApplicable(
 }
 
 /**
- * Les fonctions applicables, par ORDRE ALPHABETIQUE.
+ * Les fonctions applicables, DANS L'ORDRE OU ELLES ARRIVENT.
  *
- * L'ordre protocolaire a ete retire le 9 aout 2026 : depuis que l'organigramme
- * se dessine (migration 0021), plus rien n'en dependait — il restait une
- * colonne a saisir et a maintenir pour un usage disparu, et un champ qui ne
- * decide de rien finit par tromper.
+ * CETTE FONCTION NE TRIE PLUS — c'est un revirement, et son histoire vaut
+ * d'etre gardee. L'ordre protocolaire avait ete retire le 9 aout 2026 : depuis
+ * que l'organigramme se dessine (migration 0021), plus rien n'en dependait, et
+ * un `.sort()` alphabetique avait pris sa place ici meme.
  *
- * L'alphabet ne pretend rien dire de la preseance, et c'est voulu : la
- * hierarchie reelle vit dans la disposition propre a chaque bureau.
+ * Il est revenu le 20 aout (migration 0061), mais pour une raison DIFFERENTE :
+ * non plus deduire une hierarchie, mais fixer l'ordre d'AFFICHAGE d'une liste.
+ * `listerFonctions` trie desormais la requete par `ordre_protocolaire`. Ce
+ * `.sort()`-ci, laisse en place, l'ecrasait en silence : la composition d'un
+ * bureau ET la palette de l'organigramme continuaient d'afficher le tresorier
+ * avant le president, alors que le referentiel savait dire l'inverse depuis
+ * belle lurette.
+ *
+ * La regle qui en decoule (notes/todos.md, 21 aout) : NE PAS RETRIER EN
+ * MEMOIRE CE QUE LA REQUETE PEUT DEJA TRIER. Deux ordres — l'un dans la
+ * requete, l'autre dans un composant — finissent toujours par diverger, et
+ * c'est exactement ce qui vient d'arriver ici.
  */
 export function fonctionsDuNiveau(
   fonctions: readonly FonctionBureau[],
   niveau: EntityType,
 ): FonctionBureau[] {
-  return fonctions
-    .filter((f) => fonctionApplicable(f, niveau))
-    .sort((a, b) => a.libelle.localeCompare(b.libelle, 'fr'));
+  return fonctions.filter((f) => fonctionApplicable(f, niveau));
 }
 
 // -----------------------------------------------------------------------------
@@ -348,17 +357,6 @@ export function entreeBureauDeEntite(
 // EF-BUR-08 — retirer un titulaire : une erreur, ou une decision
 // ---------------------------------------------------------------------------
 
-/**
- * COMBIEN DE JOURS UNE DESIGNATION RESTE UNE ERREUR RATTRAPABLE.
- *
- * Passe ce delai, retirer quelqu'un n'est plus une correction de saisie : c'est
- * une decision, et elle se motive. Quinze jours laissent le temps de s'apercevoir
- * d'une faute de frappe — un bureau se compose sur une ou deux semaines — sans
- * ouvrir une porte par laquelle on effacerait, six mois plus tard, un mandat
- * qui a reellement eu lieu.
- */
-export const JOURS_ERREUR_ASSIGNATION = 15;
-
 export type MotifRetrait = 'ERREUR' | 'DECISION';
 
 /**
@@ -374,25 +372,20 @@ export type MotifRetrait = 'ERREUR' | 'DECISION';
  *     demission, sanction : cela compte, et un mandat interrompu sans raison
  *     ecrite est exactement ce qu'on cherchera dans dix ans.
  *
- * LE DELAI COURT DEPUIS L'ENREGISTREMENT, pas depuis le debut du mandat. Un
- * bureau peut etre saisi en retard, avec une date de debut anterieure de six
- * mois : c'est le jour ou la ligne a ete CREEE qui dit depuis quand la faute
- * etait visible et corrigeable.
- *
- * Les deux dates se comparent en JOURS entiers, sur l'horodatage : un mandat
- * saisi le matin et corrige le soir du quinzieme jour reste rattrapable.
+ * LE DELAI EST UN PARAMETRE, PAS UNE CONSTANTE — depuis le 21 aout 2026. Il
+ * se regle dans `organisation_settings.jours_correction_saisie` (migration
+ * `0069`) et se lit a CHAQUE rendu (regle 21) : le formulaire pour le suggerer,
+ * la Server Action pour trancher au moment de l'ecriture. La comparaison
+ * elle-meme vit dans `lib/domain/delai-correction.ts`, partagee avec le meme
+ * calcul pour les promotions de grade — une regle ecrite a deux endroits ne
+ * diverge jamais le jour ou on l'ecrit.
  */
 export function retraitPourErreurPossible(
   enregistreLe: string,
+  joursDelai: number,
   maintenant: Date = new Date(),
 ): boolean {
-  const pose = Date.parse(enregistreLe);
-  // Une date illisible ne rouvre pas la fenetre : dans le doute, c'est une
-  // decision, qui se motive. Le refus se corrige, l'effacement non.
-  if (Number.isNaN(pose)) return false;
-
-  const jours = (maintenant.getTime() - pose) / 86_400_000;
-  return jours >= 0 && jours <= JOURS_ERREUR_ASSIGNATION;
+  return dansLeDelaiDeCorrection(enregistreLe, joursDelai, maintenant);
 }
 
 /**
@@ -407,15 +400,16 @@ export function retraitRecevable(
   motif: MotifRetrait,
   texte: string | null,
   enregistreLe: string,
+  joursDelai: number,
   maintenant: Date = new Date(),
 ): { ok: true } | { ok: false; raison: string } {
   if (motif === 'ERREUR') {
-    return retraitPourErreurPossible(enregistreLe, maintenant)
+    return retraitPourErreurPossible(enregistreLe, joursDelai, maintenant)
       ? { ok: true }
       : {
           ok: false,
           raison:
-            `Ce mandat a ete enregistre il y a plus de ${JOURS_ERREUR_ASSIGNATION} jours : `
+            `Ce mandat a ete enregistre il y a plus de ${joursDelai} jours : `
             + 'il ne peut plus etre efface comme une erreur de saisie. '
             + 'Retirez le titulaire en indiquant le motif.',
         };

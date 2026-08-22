@@ -1,3 +1,4 @@
+import { dansLeDelaiDeCorrection } from './delai-correction';
 import { estDescendant } from './hierarchy';
 import type { Permission, SessionUtilisateur } from './permissions';
 import { peut } from './permissions';
@@ -204,25 +205,25 @@ export function motifDeRetrogradationManquant(options: {
  */
 export type NatureChangementGrade = 'ERREUR' | 'DECISION';
 
-/** Le delai est celui des mandats : une correction de saisie se rattrape vite. */
-export const JOURS_ERREUR_GRADE = 15;
-
 /**
  * Peut-on encore corriger ce grade comme une ERREUR DE SAISIE ?
  *
  * `posePar` est la date a laquelle le grade COURANT a ete pose — la derniere
  * ligne du journal, ou a defaut la creation de la fiche, qui est bien le moment
  * ou son grade initial a ete choisi.
+ *
+ * LE DELAI EST LE MEME QUE POUR UN MANDAT, ET C'EST LITTERALEMENT LE MEME
+ * PARAMETRE depuis le 21 aout 2026 : `organisation_settings.jours_correction_saisie`
+ * (migration `0069`), lu a CHAQUE rendu (regle 21). La comparaison vit dans
+ * `lib/domain/delai-correction.ts`, partagee avec le retrait d'un titulaire de
+ * bureau — deux endroits qui portaient la meme regle avec leur propre
+ * constante a 15, et qui auraient fini par diverger le jour ou l'un des deux
+ * aurait ete retouche sans l'autre.
  */
 export function correctionDeGradePossible(
   posePar: string,
+  joursDelai: number,
   maintenant: Date = new Date(),
 ): boolean {
-  const pose = Date.parse(posePar);
-  // Une date illisible ne rouvre pas la fenetre : dans le doute c'est une
-  // decision, qui s'inscrit. Le refus se corrige, l'historique efface non.
-  if (Number.isNaN(pose)) return false;
-
-  const jours = (maintenant.getTime() - pose) / 86_400_000;
-  return jours >= 0 && jours <= JOURS_ERREUR_GRADE;
+  return dansLeDelaiDeCorrection(posePar, joursDelai, maintenant);
 }

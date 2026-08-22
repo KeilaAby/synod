@@ -15,7 +15,7 @@ Application web de gestion d'église. **Lire avant toute tâche** :
 Toute modification doit citer l'exigence ou la règle qu'elle sert. Si une
 demande contredit `cdg.md`, signalez-le avant d'implémenter.
 
-## État — 21 août 2026
+## État — 22 août 2026
 
 **Lots 0 à 7 livrés.** Il reste le **lot 8** — portabilité, recette et mise en
 production — et quelques finitions listées au dernier point d'étape.
@@ -590,8 +590,35 @@ recopié sur chaque versement (`0027`) ; et `fn_appliquer_transfert` ne touche �
 aucune table de dîmes. La RLS suit : l'église d'origine continue de voir ce
 qu'elle a collecté après le départ du croyant — cet argent est passé par elle.
 
+**Journée du 22 août 2026 — la palette qui se retriait, et un délai qui
+devient un réglage** (migration `0069`, reprise de `notes/todos.md` §10).
 
-Base à jour jusqu'à la migration `0068`. Fuseau
+**`fonctionsDuNiveau` retriait ce que la requête triait déjà.** La palette
+« Fonctions à poser » de l'organigramme ignorait l'ordre protocolaire posé par
+la migration `0061` : `listerFonctions` le lit trié en base, mais cette
+fonction — qui filtre ensuite par niveau, pour la composition tabulaire
+**et** la palette — portait encore un `.sort()` alphabétique oublié d'avant
+`0061`. **Deux ordres qui se superposent finissent par diverger**, et c'est le
+second, invisible dans le schéma, qui gagnait. Corrigé en supprimant le tri :
+la fonction ne fait plus que filtrer. Les tests existants ne pouvaient pas voir
+le défaut — leur entrée était déjà alphabétique — et ont été réécrits pour
+vérifier la préservation de l'ordre.
+
+**Le délai de correction, écrit deux fois, devient `organisation_settings.
+jours_correction_saisie`.** `JOURS_ERREUR_ASSIGNATION` (retrait d'un
+titulaire) et `JOURS_ERREUR_GRADE` (correction de grade) portaient la même
+règle des deux côtés — signalé dans `notes/todos.md` comme le prochain
+`bureau.delete`. Remplacées par `dansLeDelaiDeCorrection`
+(`lib/domain/delai-correction.ts`) et un réglage dans le nouveau groupe
+« Corrections de saisie » de `/administration/parametres`. **Le délai borne un
+effacement** : les deux Server Actions concernées relisent `getParametres()`
+au moment même de l'écriture (règle 21), jamais une valeur reçue à l'ouverture
+du pop-up — ce que celui-ci reçoit en prop n'est qu'un hint d'affichage, et le
+serveur peut refuser une saisie que l'écran annonçait encore recevable si le
+réglage a changé entre-temps.
+
+Base à jour jusqu'à la migration `0068` — `0069` est **écrite et n'attend
+qu'une confirmation** dans l'éditeur SQL Supabase. Fuseau
 `Indian/Antananarivo` (UTC+3).
 **Toute migration qui crée ou remplace
 une fonction doit finir par `notify pgrst, 'reload schema'`** : sans lui, l'API
@@ -604,7 +631,7 @@ configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` 
 l'API.
 
 Historique : [`SESSION_HISTORY.md`](.claude-code-history/SESSION_HISTORY.md) ·
-dernier point d'étape : [`.claude-code-history/2026-08-21_resumes-moi.md`](.claude-code-history/2026-08-21_resumes-moi.md)
+dernier point d'étape : [`.claude-code-history/2026-08-22_resumes-moi.md`](.claude-code-history/2026-08-22_resumes-moi.md)
 
 ## Publication — lire `.agents/rules/gitpush.md` AVANT tout push
 

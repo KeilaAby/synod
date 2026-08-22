@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/server';
 
 import { getArbrePerimetre } from './entities';
 import { DataError } from './errors';
+import { getParametres } from './settings';
 
 type ClientSupabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -55,9 +56,13 @@ export const getOptionsCroyant = cache(async () => {
   const sb = await createClient();
   const arbre = await getArbrePerimetre();
 
-  const [grades, nationalites] = await Promise.all([
+  const [grades, nationalites, parametres] = await Promise.all([
     lireGrades(sb),
     lireNationalites(sb),
+    // EF-CRO-12 — délai de correction, réglé dans « Corrections de saisie »
+    // (migration 0069). Un simple hint pour le pop-up de changement de
+    // grade : le serveur retranche `getParametres()` au moment d'écrire.
+    getParametres(),
   ]);
 
   const eglises = arbre.filter((e) => e.type === 'EGLISE' && e.is_active);
@@ -74,6 +79,7 @@ export const getOptionsCroyant = cache(async () => {
     cellules,
     grades,
     nationalites,
+    joursDelai: parametres.jours_correction_saisie,
   };
 });
 

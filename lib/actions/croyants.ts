@@ -8,7 +8,6 @@ import { type NoeudEntite, getArbrePerimetre } from '@/lib/data/entities';
 import { getParametres } from '@/lib/data/settings';
 import { nomComplet, validerDatesCroyant } from '@/lib/domain/croyant';
 import {
-  JOURS_ERREUR_GRADE,
   arbitreDePromotion,
   correctionDeGradePossible,
   motifDeRetrogradationManquant,
@@ -262,22 +261,25 @@ export async function modifierCroyant(input: unknown): Promise<ActionResult<void
      * l'historique, aucune demande ne part. Un « Diacre » de trois jours
      * inscrit au journal se lirait plus tard comme une degradation.
      *
-     * LA FENETRE DE QUINZE JOURS EMPECHE LE CONTOURNEMENT — sans elle, « erreur
-     * de saisie » deviendrait la porte par laquelle on retrograde quelqu'un sans
-     * rien ecrire. Elle se verifie ICI : un choix masque a l'ecran ne ferme
-     * rien, la Server Action s'appelle sans passer par le formulaire.
+     * LE DELAI EMPECHE LE CONTOURNEMENT — sans lui, « erreur de saisie »
+     * deviendrait la porte par laquelle on retrograde quelqu'un sans rien
+     * ecrire. Il se verifie ICI : un choix masque a l'ecran ne ferme rien, la
+     * Server Action s'appelle sans passer par le formulaire. `parametres` est
+     * deja lu plus haut dans cette meme ecriture (regle 21) — pas au premier
+     * rendu du pop-up, qui peut dater de plusieurs heures.
      *
      * La reference est la creation de la FICHE, qui est bien le moment ou son
      * grade a ete choisi la premiere fois.
      */
+    const joursDelai = parametres.jours_correction_saisie;
     const correction =
       changeDeGrade &&
       data.natureGrade === 'ERREUR' &&
-      correctionDeGradePossible(existant.created_at);
+      correctionDeGradePossible(existant.created_at, joursDelai);
 
     if (changeDeGrade && data.natureGrade === 'ERREUR' && !correction) {
       return ko(
-        `Cette fiche a plus de ${JOURS_ERREUR_GRADE} jours : son grade ne se corrige `
+        `Cette fiche a plus de ${joursDelai} jours : son grade ne se corrige `
           + 'plus comme une erreur de saisie. Enregistrez le changement comme une '
           + 'decision, en indiquant le motif s il s agit d une descente.',
       );
