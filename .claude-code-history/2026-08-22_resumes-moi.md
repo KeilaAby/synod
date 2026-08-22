@@ -18,16 +18,20 @@
 
 ## L'état de la base
 
-**Appliquées : `0001` à `0068`.** `0069` est **écrite et n'attend qu'une
-confirmation** — elle n'a pas encore été passée dans l'éditeur SQL Supabase.
-L'état qui fait foi est en tête de `notes/todos.md` — ce fichier-ci ne le
-répète pas deux fois.
+**Appliquées : `0001` à `0068`.** `0069` et `0070` sont **écrites et
+n'attendent qu'une confirmation** — ni l'une ni l'autre n'a encore été passée
+dans l'éditeur SQL Supabase. L'état qui fait foi est en tête de
+`notes/todos.md` — ce fichier-ci ne le répète pas deux fois.
 
 - `0069` — `organisation_settings.jours_correction_saisie` : le délai de
   correction (15 jours par défaut, borné 1–365) devient un réglage
   d'administration au lieu d'une constante écrite deux fois dans le code.
+- `0070` — `attestation_transfert_settings` : le gabarit réglable de
+  l'attestation de transfert (logo, texte du corps, mentions légales,
+  cartouche de signature), une seule ligne, lecture libre / écriture
+  `settings.manage`.
 
-**866 tests unitaires, 42 fichiers.** `pnpm verify` vert (lint, typecheck,
+**872 tests unitaires, 43 fichiers.** `pnpm verify` vert (lint, typecheck,
 tests, build).
 
 ---
@@ -122,6 +126,41 @@ n'a pas bougé — `ERREUR` n'est de toute façon jamais proposée au-delà.
 
 **La section 10 de `notes/todos.md` est maintenant close en entier.**
 
+### La pièce de dossier, consultable AVANT la décision de transfert
+
+Un seul rendu pour les deux documents (règle 16), comme `RenduRapport` :
+`imprimerAttestation` prend un `statut`, qui distingue la pièce de dossier
+(`DEMANDE` — titre, verbe et mention différents, cartouche de signature
+absent) de l'attestation définitive (`APPROUVE`/`EFFECTUE`). Nouvelle fonction
+de domaine `pieceDossierDisponible`, testée pour ne jamais recouvrir
+`transfertAttestable`. **L'audience n'est pas `transfer.certify`** — ce droit
+protège ce qui *affirme* ; la pièce de dossier *informe* celui qui va juger,
+donc son public est `peutDecider`, déjà calculé pour la carte « à trancher ».
+
+### Le gabarit de l'attestation devient réglable
+
+Question d'architecture posée à l'utilisateur avant d'écrire : bloc du
+générateur de rapports, ou gabarit propre ? Réponse — **son propre gabarit**,
+sur le patron des modèles de courriel (lot 7) : le générateur compose des
+blocs qui agrègent des données sur une période, une attestation porte UN
+transfert précis. Migration `0070`, `attestation_transfert_settings`, une
+seule ligne — texte du corps, mentions légales, cartouche de signature sont
+un choix d'organisation, pas un réglage par entité. Lecture libre, écriture
+`settings.manage`. Le logo réutilise `PREFIXES.logos`, posé mais jusque-là
+inemployé. La pièce de dossier n'y puise **rien** : son texte de mise en
+garde reste fixe. Écran : nouvel onglet « Attestation » dans
+`/administration/parametres`.
+
+`pnpm verify` : 43 fichiers de test, 872 tests, build compris — vert.
+
+### Une découverte en chemin, sortie en item séparé
+
+Une note enterrée dans un item déjà coché (« validation de la promotion de
+grade », 21 août) signalait que le socle est complet et testé, mais
+**qu'aucun écran ne présente les demandes en attente** — `croyant.grade.
+approve` est un droit qu'il n'existe aujourd'hui aucun moyen d'exercer. Sortie
+en item séparé dans `notes/todos.md` §1 pour ne plus se reperdre.
+
 ---
 
 ## Les décisions à ne pas défaire
@@ -151,14 +190,21 @@ valables ; voir
 
 ## Ce qu'il reste
 
-**La liste fait foi : [`notes/todos.md`](../notes/todos.md).** La **section 10
-est close en entier**. En tête de ce qui reste :
+**La liste fait foi : [`notes/todos.md`](../notes/todos.md).** Les **sections
+10 et l'attestation de §1 sont closes**. En tête de ce qui reste :
 
-- **Deux demandes du 21 août sur l'attestation de transfert** — consultable
-  avant approbation, et configurable par l'entité émettrice.
+- **L'écran de la file des promotions de grade en attente** — le socle (lot
+  du 21 août) est complet, mais `croyant.grade.approve` n'a aujourd'hui aucun
+  moyen d'être exercé. Le patron existe déjà (`/transferts`).
+- **Impression PDF de la liste des croyants**, filtres appliqués respectés.
+- **Relier deux croyants mariés** (époux ↔ épouse) — le plus lourd : migration
+  et trigger, le lien devant rester symétrique.
 - **`/finances`** — le rapprochement des dîmes rendu à l'église (six points).
-- **`/rapports`** — logo téléversé.
+- **`/rapports`** — logo téléversé (peut réutiliser `PREFIXES.logos` et le
+  patron d'upload posés aujourd'hui pour l'attestation).
 - **`/administration`** — portée par droit ; profils locaux.
+- **Référentiel « Événement »** — signalé lui-même comme plus lourd que son
+  intitulé.
 - **Lot 8** — portabilité, recette et mise en production. Pas entamé.
 
 ### À décider par vous
@@ -167,7 +213,7 @@ est close en entier**. En tête de ce qui reste :
 - **Révoquer le mot de passe d'application Google** passé par `.env.example`.
 - **Faire tourner `SUPABASE_SERVICE_ROLE_KEY`** — voir `README.md`.
 - **Borner ou non la visibilité des croyants** dans la saisie des dîmes.
-- **Passer la migration `0069`** dans l'éditeur SQL Supabase.
+- **Passer les migrations `0069` et `0070`** dans l'éditeur SQL Supabase.
 
 ---
 
@@ -177,7 +223,7 @@ est close en entier**. En tête de ce qui reste :
 pnpm install      # installe aussi le hook pre-commit de détection de secrets
 cp .env.example .env.local   # puis renseigner : les valeurs sont dans Supabase
 pnpm exec next typegen       # sur un clone frais, AVANT le premier typecheck
-pnpm verify       # secrets + lint + types + 866 tests + build
+pnpm verify       # secrets + lint + types + 872 tests + build
 pnpm dev:propre   # cache Turbopack vidé — après toute série de modifications
 ```
 

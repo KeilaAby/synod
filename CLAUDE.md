@@ -647,8 +647,37 @@ et le réinitialisent ainsi à la fermeture ; la garde qui retombe sur
 `DECISION` hors du délai de correction n'a pas bougé. **La section 10 de
 `notes/todos.md` est close en entier.**
 
-Base à jour jusqu'à la migration `0068` — `0069` est **écrite et n'attend
-qu'une confirmation** dans l'éditeur SQL Supabase. Fuseau
+**La pièce de dossier se consulte AVANT la décision de transfert.** Un seul
+rendu pour les deux documents (règle 16), comme `RenduRapport` :
+`imprimerAttestation` prend un `statut`, qui distingue la pièce de dossier
+(`DEMANDE`) de l'attestation définitive (`APPROUVE`/`EFFECTUE`) — titre, verbe
+et mention encadrée différents, cartouche de signature **absent** plutôt que
+vide sur la pièce de dossier. Nouvelle fonction de domaine
+`pieceDossierDisponible`, testée pour ne **jamais** recouvrir
+`transfertAttestable`. **L'audience n'est pas `transfer.certify`** : ce droit
+protège ce qui *affirme*, la pièce de dossier *informe* celui qui va juger —
+son public est `peutDecider`, déjà calculé pour la carte « à trancher ».
+
+**Le gabarit de l'attestation devient réglable — question d'architecture posée
+avant d'écrire.** Bloc du générateur de rapports, ou gabarit propre ? Le
+générateur compose des blocs qui agrègent des données sur une **période** ;
+une attestation porte **un** transfert précis — l'intégrer y aurait demandé un
+bloc d'un genre nouveau que rien d'autre n'aurait employé. Réponse retenue :
+son propre gabarit, sur le patron des modèles de courriel (lot 7). Migration
+`0070`, `attestation_transfert_settings` — **une seule ligne** : le texte du
+corps, les mentions légales et le cartouche de signature sont un choix
+d'organisation, pas un réglage par entité ; ce qui varie déjà par entité — son
+nom — reste dynamique. **Lecture libre, écriture `settings.manage`** — à la
+différence d'`email_settings`, ce gabarit doit être lu par quiconque imprime
+une attestation, potentiellement délégué loin du Siège. Le logo réutilise
+`PREFIXES.logos`, posé dans `lib/storage/types.ts` mais jusque-là inemployé —
+même contrôle qu'une photo de croyant (ENF-SEC-06), clé fixe puisqu'une seule
+ligne de réglages porte un seul logo. **La pièce de dossier n'y puise
+rien** : ni logo, ni texte réglé, ni mentions légales — son texte de mise en
+garde reste fixe, pour ne jamais pouvoir être atténué par un réglage.
+
+Base à jour jusqu'à la migration `0068` — `0069` et `0070` sont **écrites et
+n'attendent qu'une confirmation** dans l'éditeur SQL Supabase. Fuseau
 `Indian/Antananarivo` (UTC+3).
 **Toute migration qui crée ou remplace
 une fonction doit finir par `notify pgrst, 'reload schema'`** : sans lui, l'API

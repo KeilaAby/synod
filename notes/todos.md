@@ -14,11 +14,12 @@
 
 ## ⚠ État de la base
 
-**Appliquées : `0001` à `0068`. `0069` est écrite et n'attend qu'une
-confirmation.**
+**Appliquées : `0001` à `0068`. `0069` et `0070` sont écrites et n'attendent
+qu'une confirmation.**
 
 | N° | Ce qu'elle apporte | Sans elle |
 |---|---|---|
+| `0070` | `attestation_transfert_settings` — le gabarit réglable de l'attestation de transfert (logo, texte du corps, mentions légales, cartouche de signature), une seule ligne, lecture libre / écriture `settings.manage` | L'attestation reste figée au texte de référence codé en dur, sans écran pour le personnaliser |
 | `0069` | `organisation_settings.jours_correction_saisie` — le délai de correction (15 jours par défaut) devient un réglage, plus une constante dupliquée dans deux fichiers | Le retrait d'un titulaire et le changement de grade continuent de lire chacun leur propre `JOURS_ERREUR_*` codé en dur, sans écran pour le régler |
 | `0068` | **Corrige `fn_decider_promotion`** : le statut passe par une variable **typée**. Dans une fonction, un `case` rend du `text` — le type de la colonne n'entre pas dans la résolution — et PostgreSQL refuse de l'affecter à une colonne énumérée. Le refus arrive à l'**exécution**, jamais à l'écriture. | Le bouton « Approuver » échoue : « column statut is of type statut_promotion but expression is of type text » |
 | `0067` | Le **circuit de validation des promotions de grade** : réglage global, table `promotions_grade`, et `fn_decider_promotion` qui pose le grade en approuvant | Un grade se pose seul, sans que personne au-dessus ne le confirme — alors qu il vaut dans toute l organisation |
@@ -31,9 +32,9 @@ l'éditeur SQL Supabase et le confirme.
 
 *(Cette section annonçait encore `0067` le 21 août, sans dire clairement que
 `0068` l'était aussi. Confirmé par l'utilisateur et corrigé le 21 août au
-soir. `0069`, écrite le même soir pour le délai de correction configurable,
-suit la même règle : elle n'est pas appliquée tant que l'utilisateur ne l'a
-pas passée dans l'éditeur SQL Supabase.)*
+soir. `0069` et `0070`, écrites le 21 et le 22 août, suivent la même règle :
+elles ne sont pas appliquées tant que l'utilisateur ne les a pas passées dans
+l'éditeur SQL Supabase.)*
 
 ---
 
@@ -86,41 +87,80 @@ pas passée dans l'éditeur SQL Supabase.)*
 
 ### Demandes du 21 août 2026 — sur l'attestation
 
-- [ ] **Le document doit être consulté par l'entité RÉCEPTRICE avant toute
+- [x] **Le document doit être consulté par l'entité RÉCEPTRICE avant toute
       approbation.**
-      Aujourd'hui l'attestation se délivre **après** la décision : elle constate.
-      La demande inverse l'ordre — l'entité d'accueil doit pouvoir **lire le
-      document avant de trancher**, puisque c'est sur lui qu'elle se prononce.
+      *(22 août 2026, sans migration — `components/transferts/imprimer-attestation.ts`,
+      `lib/domain/transfert.ts`.)*
 
-      **Ce que cela change, et qui n'est pas cosmétique :** un document lu avant
-      décision n'est plus une attestation, c'est une **pièce de dossier**. Deux
-      questions à trancher avant d'écrire :
-      1. **Que porte-t-il à ce stade ?** Ni date de décision, ni approbateur —
-        ils n'existent pas encore. Le même gabarit rendrait des cartouches vides,
-        et un cartouche de signature vide sur un papier officiel se lit comme un
-        oubli, pas comme une étape.
-      2. **Comment se distingue-t-il de l'attestation définitive ?** S'ils se
-        ressemblent, quelqu'un présentera le brouillon comme la preuve. Une
-        mention visible — « demande en cours d'examen » — n'est pas une
-        décoration : c'est ce qui empêche la confusion.
+      **Un seul rendu pour les deux documents** (règle 16), exactement comme
+      `RenduRapport` : `imprimerAttestation` prend désormais un `statut`, et
+      c'est LUI qui décide entre la pièce de dossier et l'attestation
+      définitive — pas un second fichier, pas une seconde fonction.
+      1. **Ce qu'elle porte** : identité, matricule, origine, destination,
+         date de demande, motif — jamais de date de décision ni de décideur,
+         qui n'existent pas encore. Rien à masquer explicitement : ces champs
+         sont naturellement `null` tant que rien n'est tranché, la même
+         condition qui les affiche sur l'attestation les efface ici sans
+         branche à part.
+      2. **La distinction** : le titre change de mot (« Pièce de dossier —
+         demande de transfert », jamais « Attestation »), le corps change de
+         verbe (« fait l'objet d'une demande… à l'examen », jamais « atteste
+         que… a été »), et une mention encadrée en tête du document — « Demande
+         en cours d'examen — ce document ne constitue pas une attestation » —
+         ne laisse aucune place à la confusion sur un papier détaché de
+         l'écran. **Le cartouche de signature disparaît entièrement** plutôt
+         que de rester vide : vide, il se lirait comme un oubli et non comme
+         une étape à venir.
 
-      À rapprocher de la doctrine des rapports : un aperçu et un document figé
-      passent par **un seul rendu** (règle 16), et c'est la présence du contenu
-      figé qui les distingue.
+      **Nouvelle fonction de domaine**, `pieceDossierDisponible(statut)` — vraie
+      pour `DEMANDE` seul, testée pour ne **jamais** recouvrir
+      `transfertAttestable` (un statut n'ouvre jamais les deux à la fois).
 
-- [ ] **Le document A4 doit être configurable par l'entité émettrice.**
-      *La version actuelle sert d'exemplaire de référence.*
-      **Ce que « configurable » recouvre**, à préciser avec l'utilisateur :
-      en-tête et logo, texte du corps, mentions légales, cartouche de signature.
-      **Le rapprochement s'impose** : le générateur de rapports (lot 6) fait
-      déjà exactement cela — un modèle composé par une entité, figé à la
-      production, rendu par `RenduRapport`. Réécrire un second moteur de
-      document serait le contre-exemple de la règle 16.
-      **La question à trancher d'abord** : l'attestation devient-elle un
-      **type de bloc** du générateur, ou garde-t-elle son propre gabarit avec
-      quelques champs réglables ? La première voie donne tout — logo, marges,
-      composition — au prix de l'entrée dans un modèle ; la seconde reste
-      simple mais figera ce qu'on n'aura pas prévu.
+      **L'audience n'est PAS `transfer.certify`.** Ce droit engage l'entité — il
+      protège l'attestation, un document qui *affirme*. La pièce de dossier
+      n'affirme rien, elle *informe* celui qui va juger : son public est donc
+      celui qui `peutDecider` ce transfert précis (même portée — l'arbitre,
+      RG-12 —, aucune règle nouvelle à écrire). Le bouton « Pièce de dossier »
+      vit dans la carte « à trancher », juste avant le bouton qui décide —
+      il **précède** la décision sans la remplacer.
+
+- [x] **Le document A4 doit être configurable par l'entité émettrice.**
+      *(22 août 2026, migration `0070`.)*
+
+      **Question d'architecture posée à l'utilisateur avant d'écrire** : bloc du
+      générateur de rapports, ou gabarit propre avec quelques champs réglables ?
+      Réponse — **son propre gabarit**. Le générateur compose des blocs qui
+      **agrègent des données sur une période** ; une attestation porte **un**
+      transfert précis, à une date précise — l'y intégrer aurait demandé un bloc
+      d'un genre nouveau que rien d'autre n'aurait employé.
+
+      **Le patron retenu est celui des modèles de courriel** (lot 7,
+      `email_settings`/`email_templates`) : `attestation_transfert_settings`,
+      **une seule ligne** — le texte du corps, les mentions légales et le
+      cartouche de signature sont un choix d'ORGANISATION, comme le sujet d'un
+      courriel, pas un réglage par entité. Ce qui varie déjà par entité — le
+      **nom** de l'entité émettrice — reste dynamique, lu à chaque impression :
+      le figer ici l'aurait fait diverger de celui affiché partout ailleurs.
+
+      **Lecture libre, écriture réservée** — à la différence d'`email_settings`.
+      Un hôte SMTP ne sert qu'à l'administration ; ce gabarit doit être lu par
+      quiconque imprime une attestation (`transfer.certify`), potentiellement
+      délégué loin du Siège. Le modifier reste sous `settings.manage`, non
+      délégable.
+
+      **Le logo réutilise l'infrastructure de stockage existante**
+      (`PREFIXES.logos`, posée mais inemployée) plutôt que d'en inventer une
+      seconde : même contrôle de signature que la photo d'un croyant
+      (premiers octets, jamais l'extension — ENF-SEC-06), clé fixe
+      (`logos/attestation-transfert.<ext>`) parce qu'une seule ligne de
+      réglages porte un seul logo. **Ce que la pièce de dossier n'emploie
+      JAMAIS** : ni le logo, ni le texte du corps réglé, ni les mentions
+      légales — son texte de mise en garde reste fixe, pour ne jamais pouvoir
+      être atténué par un réglage (voir l'item précédent).
+
+      Écran : nouvel onglet « Attestation » dans `/administration/parametres`,
+      quatrième famille de réglages aux côtés d'Organisation, Profils de
+      privilèges et Courriel.
 
 
 - [x] **Un transfert d'église ne doit pas toucher l'historique des dîmes.**
@@ -206,6 +246,22 @@ pas passée dans l'éditeur SQL Supabase.)*
       journal restreint à ce que l'utilisateur peut réellement trancher.
       À prévoir aussi : la fiche du croyant doit **dire qu'une promotion est en
       attente**, sinon on croira que le changement n'a pas été enregistré.
+
+      *(Repéré le 22 août 2026 en reprenant `notes/todos.md` dans l'ordre :*
+      *cette note vivait dans les détails d'un item déjà coché, sans case à
+      elle — invisible à qui ne lit pas jusqu'au bout. Sortie en item séparé
+      ci-dessous pour qu'elle ne se reperde pas.)*
+
+- [ ] **L'écran de la file des promotions de grade en attente**, pendant côté
+      croyants du socle livré le 21 août (voir l'item juste au-dessus). Sans
+      lui, `croyant.grade.approve` est un droit qu'il n'existe **aucun moyen
+      d'exercer** : la demande s'écrit en base et n'y meurt jamais.
+      *Le patron existe déjà* : `/transferts` fait exactement ce travail — un
+      journal restreint à ce que l'utilisateur peut réellement trancher,
+      approuver/refuser en un geste, motif exigé pour un refus.
+      *Et sur la fiche du croyant* : dire qu'une promotion est **en attente**,
+      sinon un changement de grade demandé se lira comme un changement de
+      grade oublié.
 
 - [x] **La liste des versements sans fiche** devient la base des croyants non
       rattachés, et se replie. *(20 août 2026)* — le bandeau porte désormais

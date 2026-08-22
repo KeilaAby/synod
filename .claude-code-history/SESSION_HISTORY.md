@@ -5497,3 +5497,86 @@ garde qui retombe sur `DECISION` hors du délai de correction
 de toute façon jamais proposée ni sélectionnable au-delà du délai.
 
 **La section 10 de `notes/todos.md` est maintenant close en entier.**
+
+## 22 août 2026 (suite) — L'attestation de transfert, avant et après la décision
+
+Deux demandes du 21 août sur l'attestation, en tête de `notes/todos.md` §1,
+toutes deux tranchées avec l'utilisateur avant d'écrire — l'une par
+implémentation directe (la doctrine était déjà écrite dans la demande elle-
+même), l'autre par une vraie question d'architecture posée d'abord.
+
+### La pièce de dossier, consultable AVANT la décision
+
+L'attestation se délivrait après coup — elle constatait. La demande inversait
+l'ordre : l'entité appelée à trancher doit pouvoir lire le dossier avant de se
+prononcer.
+
+**Un seul rendu pour les deux documents** (règle 16), exactement comme
+`RenduRapport` pour l'aperçu et le rapport figé du générateur.
+`imprimerAttestation` prend un `statut`, et c'est lui qui distingue la pièce
+de dossier (`DEMANDE`) de l'attestation définitive (`APPROUVE`/`EFFECTUE`) —
+titre, verbe du corps, et une mention encadrée en tête sur la pièce de
+dossier : « Demande en cours d'examen — ce document ne constitue pas une
+attestation ». Le cartouche de signature **disparaît entièrement** sur la
+pièce de dossier plutôt que de rester vide : vide, il se lirait comme un
+oubli et non comme une étape à venir.
+
+**L'audience n'est pas `transfer.certify`.** Ce droit engage l'entité —
+protège l'attestation, qui *affirme*. La pièce de dossier n'affirme rien,
+elle *informe* celui qui va juger : son public est `peutDecider`, déjà
+calculé pour la carte « à trancher ». Le bouton vit dans cette carte, juste
+avant le bouton qui décide.
+
+Nouvelle fonction de domaine, `pieceDossierDisponible(statut)`, testée pour
+ne jamais recouvrir `transfertAttestable` — un statut n'ouvre jamais les deux
+document à la fois.
+
+### Le gabarit de l'attestation devient réglable — une vraie question d'architecture
+
+« Configurable par l'entité émettrice » posait une question que la demande
+nommait elle-même : un type de bloc du générateur de rapports (lot 6), ou son
+propre gabarit avec quelques champs réglables ? Question posée à
+l'utilisateur AVANT d'écrire, avec une recommandation motivée : le générateur
+compose des blocs qui **agrègent des données sur une période** ; une
+attestation porte **un** transfert précis, à une date précise — l'y intégrer
+aurait demandé un bloc d'un genre nouveau que rien d'autre n'aurait employé.
+Réponse : son propre gabarit, sur le patron des modèles de courriel (lot 7).
+
+Migration `0070` — `attestation_transfert_settings`, **une seule ligne**
+(comme `email_settings`) : le texte du corps, les mentions légales et le
+cartouche de signature sont un choix d'organisation, pas un réglage par
+entité — vingt eglises avec vingt mentions légales différentes ne serait pas
+une personnalisation, ce serait une incohérence. Ce qui varie déjà par
+entité — son nom — reste dynamique, lu à chaque impression.
+
+**Lecture libre, écriture réservée** — à la différence d'`email_settings` :
+un hôte SMTP ne sert qu'à l'administration, ce gabarit doit être lu par
+quiconque imprime une attestation, potentiellement délégué loin du Siège.
+
+**Le logo réutilise une infrastructure posée mais jamais employée** :
+`PREFIXES.logos` existait déjà dans `lib/storage/types.ts`, en attente d'un
+premier usage — celui-ci, plutôt que le bloc Image du générateur de rapports
+(encore sans téléversement, `notes/todos.md`), mais construit pour que le
+second réutilise la même mécanique. Même contrôle qu'une photo de croyant :
+le type réel se déduit des premiers octets (ENF-SEC-06), clé fixe puisqu'une
+seule ligne de réglages porte un seul logo.
+
+**Ce que la pièce de dossier n'emploie jamais** : ni le logo, ni le texte du
+corps réglé, ni les mentions légales. Son texte de mise en garde reste fixe,
+pour ne jamais pouvoir être atténué par un réglage — le point qui commandait
+toute la conception de la demande précédente.
+
+Écran : nouvel onglet « Attestation », quatrième famille de réglages de
+`/administration/parametres` aux côtés d'Organisation, Profils de privilèges
+et Courriel.
+
+`pnpm verify` : 43 fichiers de test, 872 tests, build compris — vert.
+
+### Une découverte en chemin : le circuit de promotion de grade n'a pas d'écran
+
+En reprenant `notes/todos.md` dans l'ordre, une note enterrée dans un item
+déjà coché (« validation de la promotion de grade », 21 août) signalait que
+le socle est complet et testé, mais **qu'aucun écran ne présente les
+demandes en attente** à l'entité supérieure — `croyant.grade.approve` est un
+droit qu'il n'existe aujourd'hui aucun moyen d'exercer. Sortie en item séparé
+pour ne plus se reperdre dans le détail d'un item coché.

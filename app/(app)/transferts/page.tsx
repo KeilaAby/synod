@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 
 import { PageHeader } from '@/components/shared/page-header';
+import { chargerParametresAttestation } from '@/lib/data/attestation-transfert';
+import { signerPhotos } from '@/lib/data/photos';
 import { getParametres } from '@/lib/data/settings';
 import { chargerTransferts } from '@/lib/data/transferts';
 import { formatNombre } from '@/lib/utils/format';
@@ -21,12 +23,17 @@ export const metadata: Metadata = { title: 'Transferts' };
  * nature.
  */
 export default async function TransfertsPage() {
-  // Deux lectures INDEPENDANTES, donc simultanees (regle 28). Le nom de
-  // l'organisation sert l'en-tete de l'attestation (EF-TRF-08).
-  const [transferts, parametres] = await Promise.all([
+  // Lectures INDEPENDANTES, donc simultanees (regle 28). Le nom de
+  // l'organisation et le gabarit reglable servent l'attestation (EF-TRF-08).
+  const [transferts, parametres, gabarit] = await Promise.all([
     chargerTransferts(),
     getParametres(),
+    chargerParametresAttestation(),
   ]);
+
+  // Cle relative -> URL signee (regle 11) : une seule cle, mais la meme
+  // fonction que pour les photos plutot qu'un troisieme mecanisme.
+  const logos = await signerPhotos([gabarit.logo_key]);
 
   return (
     <div className="space-y-8">
@@ -43,6 +50,12 @@ export default async function TransfertsPage() {
       <TransfertsClient
         transferts={transferts}
         organisation={parametres.nom_organisation}
+        gabaritAttestation={{
+          logoUrl: gabarit.logo_key ? (logos.get(gabarit.logo_key) ?? null) : null,
+          texteCorps: gabarit.texte_corps,
+          mentionsLegales: gabarit.mentions_legales,
+          cartoucheSignature: gabarit.cartouche_signature,
+        }}
       />
     </div>
   );

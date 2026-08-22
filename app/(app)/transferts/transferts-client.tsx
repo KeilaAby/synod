@@ -81,10 +81,18 @@ const TONS: Record<StatutTransfert, 'success' | 'warning' | 'danger' | 'neutral'
 export function TransfertsClient({
   transferts,
   organisation,
+  gabaritAttestation,
 }: {
   transferts: TransfertListe[];
   /** EF-TRF-08 — l'en-tete de l'attestation. Lu a chaque rendu (regle 21). */
   organisation: string;
+  /** EF-TRF-08 — gabarit reglable de l'attestation definitive (migration `0070`). */
+  gabaritAttestation: {
+    logoUrl: string | null;
+    texteCorps: string;
+    mentionsLegales: string | null;
+    cartoucheSignature: string;
+  };
 }) {
   const router = useRouter();
   const { peut, session } = useSession();
@@ -127,9 +135,25 @@ export function TransfertsClient({
     [peut],
   );
 
-  function attester(t: TransfertListe) {
+  /**
+   * EF-TRF-08 — la pièce de dossier, AVANT la décision.
+   *
+   * L'audience n'est pas celle de `transfer.certify` : ce document n'engage
+   * personne, il informe celui qui va trancher. C'est donc `peutDecider` qui
+   * gouverne — la même personne qui voit la carte « à trancher » peut lire le
+   * dossier qu'elle s'apprête à juger, ni plus ni moins.
+   */
+  const peutVoirPieceDossier = peutDecider;
+
+  /**
+   * UN SEUL RENDU POUR LES DEUX DOCUMENTS (règle 16) : `imprimerAttestation`
+   * distingue lui-même la pièce de dossier de l'attestation définitive par le
+   * `statut` transmis. Le mapping des champs ne se répète donc qu'une fois.
+   */
+  function imprimer(t: TransfertListe) {
     imprimerAttestation({
       reference: t.id.slice(0, 8).toLocaleUpperCase('fr'),
+      statut: t.statut as 'DEMANDE' | 'APPROUVE' | 'EFFECTUE',
       nom: t.croyant?.nom ?? '',
       prenom: t.croyant?.prenom ?? '',
       matricule: t.croyant?.matricule ?? '',
@@ -145,6 +169,7 @@ export function TransfertsClient({
       // L'entité qui délivre est celle d'ACCUEIL : c'est elle qui reçoit.
       entiteEmettrice: t.destination?.nom ?? t.origine?.nom ?? '—',
       decideur: t.decideur?.nom_complet ?? null,
+      gabarit: gabaritAttestation,
     });
   }
 
@@ -246,6 +271,21 @@ export function TransfertsClient({
                     </p>
 
                     <div className="flex justify-end gap-2 border-t border-border pt-4">
+                      {/*
+                        EF-TRF-08 — la pièce de dossier se lit AVANT de
+                        trancher, pas après : elle précède le bouton qui
+                        décide, elle ne le remplace pas.
+                      */}
+                      {peutVoirPieceDossier(t) && (
+                        <Button
+                          variant="ghost"
+                          className="h-10"
+                          onClick={() => imprimer(t)}
+                        >
+                          <FileText className="mr-2 size-3.5" aria-hidden />
+                          Pièce de dossier
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         className="h-10"
@@ -439,7 +479,7 @@ export function TransfertsClient({
                             <Button
                               variant="ghost"
                               className="mr-1 h-8"
-                              onClick={() => attester(t)}
+                              onClick={() => imprimer(t)}
                             >
                               <FileText className="mr-2 size-3.5" aria-hidden />
                               Attestation

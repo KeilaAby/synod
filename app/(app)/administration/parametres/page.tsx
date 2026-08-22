@@ -1,13 +1,16 @@
 import type { Metadata } from 'next';
 
+import { ReglagesAttestationTransfert } from '@/components/administration/reglages-attestation-transfert';
 import { ReglagesCourriel } from '@/components/administration/reglages-courriel';
 import { ReglagesProfils } from '@/components/administration/reglages-profils';
 import { PageHeader } from '@/components/shared/page-header';
+import { chargerParametresAttestation } from '@/lib/data/attestation-transfert';
 import {
   chargerConfigurationCourriel,
   chargerModelesCourriel,
   chargerProfilsHabilitation,
 } from '@/lib/data/courriel';
+import { signerPhotos } from '@/lib/data/photos';
 import { getParametres } from '@/lib/data/settings';
 import { getSession } from '@/lib/session';
 
@@ -39,13 +42,18 @@ export default async function ParametresPage() {
    * ne rendent rien sans `settings.manage` — leur RLS s'en charge, et le repli
    * tient lieu de reponse.
    */
-  const [session, parametres, configuration, modeles, profils] = await Promise.all([
+  const [session, parametres, configuration, modeles, profils, attestation] = await Promise.all([
     getSession(),
     getParametres(),
     chargerConfigurationCourriel(),
     chargerModelesCourriel(),
     chargerProfilsHabilitation(),
+    chargerParametresAttestation(),
   ]);
+
+  // Cle relative -> URL signee (regle 11) : une seule cle, mais la meme
+  // fonction que pour les photos plutot qu'un troisieme mecanisme.
+  const logosAttestation = await signerPhotos([attestation.logo_key]);
 
   /**
    * EF-ADM-04 — un profil de privileges est COMMUN a toute l'organisation : il
@@ -69,6 +77,14 @@ export default async function ParametresPage() {
         general={<ParametresClient parametres={parametres} />}
         profils={<ReglagesProfils profils={profils} peutComposer={peutComposerProfils} />}
         courriel={<ReglagesCourriel configuration={configuration} modeles={modeles} />}
+        attestation={
+          <ReglagesAttestationTransfert
+            parametres={attestation}
+            logoUrl={
+              attestation.logo_key ? (logosAttestation.get(attestation.logo_key) ?? null) : null
+            }
+          />
+        }
       />
     </div>
   );

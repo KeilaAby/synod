@@ -21,10 +21,12 @@ export function OngletsParametres({
   general,
   profils,
   courriel,
+  attestation,
 }: {
   general: React.ReactNode;
   profils: React.ReactNode;
   courriel: React.ReactNode;
+  attestation: React.ReactNode;
 }) {
   const [onglet, setOnglet] = useState('general');
 
@@ -34,11 +36,13 @@ export function OngletsParametres({
         <TabsTrigger value="general">Organisation</TabsTrigger>
         <TabsTrigger value="profils">Profils de privileges</TabsTrigger>
         <TabsTrigger value="courriel">Courriel</TabsTrigger>
+        <TabsTrigger value="attestation">Attestation</TabsTrigger>
       </TabsList>
 
       <TabsContent value="general">{general}</TabsContent>
       <TabsContent value="profils">{profils}</TabsContent>
       <TabsContent value="courriel">{courriel}</TabsContent>
+      <TabsContent value="attestation">{attestation}</TabsContent>
     </Tabs>
   );
 }

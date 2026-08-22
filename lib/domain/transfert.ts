@@ -210,5 +210,21 @@ export function transfertAttestable(statut: StatutTransfert): boolean {
   return statut === 'APPROUVE' || statut === 'EFFECTUE';
 }
 
+/**
+ * La PIECE DE DOSSIER — EF-TRF-08, demande du 21 aout 2026.
+ *
+ * L'entite appelee a se prononcer doit pouvoir LIRE le dossier avant de
+ * trancher, pas seulement le constater apres coup : une decision qui se prend
+ * sans avoir vu le document qu'elle engage n'a rien d'une decision informee.
+ *
+ * UN SEUL STATUT L'OUVRE : `DEMANDE`. Des que la decision est prise —
+ * `APPROUVE`, `EFFECTUE`, `REFUSE`, `ANNULE` — ce n'est plus une piece de
+ * dossier qu'il faut, c'est soit l'attestation (`transfertAttestable`), soit
+ * rien : un dossier tranche ne se consulte plus, il se constate.
+ */
+export function pieceDossierDisponible(statut: StatutTransfert): boolean {
+  return statut === 'DEMANDE';
+}
+
 /** Le droit qu'exige l'attestation — distinct de la demande et de la decision. */
 export const PERMISSION_ATTESTATION = 'transfer.certify' as const;

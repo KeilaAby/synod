@@ -9,6 +9,7 @@ import {
   estApprobateurCompetent,
   estEnAttente,
   niveauDeTransfert,
+  pieceDossierDisponible,
   transfertAttestable,
   transitionAutorisee,
   validerDemandeTransfert,
@@ -233,5 +234,35 @@ describe('transfertAttestable', () => {
       'APPROUVE',
       'EFFECTUE',
     ]);
+  });
+});
+
+/**
+ * EF-TRF-08 — la piece de dossier, demande du 21 aout 2026.
+ *
+ * L'entite appelee a trancher doit pouvoir LIRE le dossier avant de decider,
+ * pas seulement le constater apres coup — et ce document ne doit jamais se
+ * confondre avec l'attestation definitive (`transfertAttestable`).
+ */
+describe('pieceDossierDisponible', () => {
+  it('EF-TRF-08 — disponible UNIQUEMENT sur une demande en attente', () => {
+    expect(pieceDossierDisponible('DEMANDE')).toBe(true);
+  });
+
+  it('EF-TRF-08 — indisponible des que la decision est prise', () => {
+    expect(pieceDossierDisponible('APPROUVE')).toBe(false);
+    expect(pieceDossierDisponible('EFFECTUE')).toBe(false);
+    expect(pieceDossierDisponible('REFUSE')).toBe(false);
+    expect(pieceDossierDisponible('ANNULE')).toBe(false);
+  });
+
+  it('ne recouvre JAMAIS transfertAttestable — un seul statut a la fois ouvre l’un ou l’autre', () => {
+    for (const s of STATUTS_TRANSFERT) {
+      expect(pieceDossierDisponible(s) && transfertAttestable(s)).toBe(false);
+    }
+  });
+
+  it('couvre explicitement les cinq statuts connus', () => {
+    expect(STATUTS_TRANSFERT.filter(pieceDossierDisponible)).toEqual(['DEMANDE']);
   });
 });
