@@ -52,16 +52,6 @@ export default async function ComptesPage({
     (e) => e.is_active && e.type !== 'CELLULE' && peut(session, 'user.manage', e.path),
   );
 
-  /**
-   * EF-ADM-03 — restreindre un DROIT à une sous-structure n'est pas ouvrir
-   * un compte : une Cellule ne porte pas de compte (RG-21), mais rien
-   * n'empêche d'y restreindre `croyant.read`. `ouvrables` exclurait donc à
-   * tort le seul niveau qu'une petite église aurait à proposer. Le périmètre
-   * entier suffit ici : `resoudrePortee` (lib/domain/permissions.ts) borne
-   * ensuite, côté serveur, à ce qui reste dans le sous-arbre du compte visé.
-   */
-  const entitesPourPortee = versOptions(arbre, arbre);
-
   const actifs = comptes.filter((c) => c.is_active).length;
 
   return (
@@ -82,7 +72,6 @@ export default async function ComptesPage({
         photos={Object.fromEntries(photos)}
         profils={profils}
         entites={versOptions(ouvrables, arbre)}
-        entitesPourPortee={entitesPourPortee}
         rechercheInitiale={params.q ?? ''}
       />
     </div>

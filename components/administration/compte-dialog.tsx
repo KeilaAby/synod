@@ -74,7 +74,6 @@ export interface CompteModifiable {
 
 export function CompteDialog({
   entites,
-  entitesPourPortee,
   croyants,
   photos,
   profils,
@@ -84,13 +83,6 @@ export function CompteDialog({
   onOuvert,
 }: {
   entites: OptionEntite[];
-  /**
-   * EF-ADM-03 — le périmètre ENTIER de l'administrateur, Cellules comprises,
-   * pour restreindre un droit à une sous-structure. Distinct de `entites` :
-   * celui-ci n'écarte QUE les Cellules parce qu'on n'y OUVRE pas de compte
-   * (RG-21) — rien n'empêche pourtant d'y RESTREINDRE un droit déjà accordé.
-   */
-  entitesPourPortee: OptionEntite[];
   croyants: CroyantEligible[];
   /** Clé de photo → URL signée, signées en lot par la page. */
   photos: Record<string, string>;
@@ -447,7 +439,7 @@ export function CompteDialog({
                   entiteEffective && entitePath
                     ? {
                         entite: { id: entiteEffective, path: entitePath },
-                        entites: entitesPourPortee,
+                        entites,
                         parPermission: portees,
                         onChanger: (permission, scopeEntityId) =>
                           setPortees((actuelles) => ({ ...actuelles, [permission]: scopeEntityId })),

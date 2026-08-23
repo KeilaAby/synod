@@ -702,22 +702,6 @@ soldes consolidés — la décision a déjà été prise et tenue une fois.
       reste dans le sous-arbre du compte bénéficiaire, `peutDeleguer` (RG-24,
       inchangée) vérifie ensuite qu'elle reste dans ce que le délégant
       détient lui-même — la seconde ne remplace pas la première.
-
-      **⚠ Piège trouvé en testant le jour même : les Cellules disparaissaient
-      du sélecteur de portée.** La liste d'entités passée au sélecteur était
-      celle des lieux où l'on peut *ouvrir un compte* (`ouvrables`,
-      `page.tsx`), qui écarte les Cellules parce que RG-21 interdit d'y
-      rattacher un compte. Mais **restreindre un droit déjà accordé** n'est
-      pas *ouvrir un compte* — rien n'empêche de borner `croyant.read` à une
-      seule cellule de prière. Une petite église dont les seules
-      sous-entités sont des cellules voyait donc le sélecteur de portée
-      **disparaître entièrement** sur tout droit actif, alors qu'une
-      restriction avait bien un sens. Corrigé par un second prop,
-      `entitesPourPortee` (le périmètre ENTIER de l'administrateur, Cellules
-      comprises), distinct de `entites` (réservé au champ « Entité de
-      rattachement », qui doit rester restreint). `resoudrePortee` borne de
-      toute façon côté serveur : élargir la liste à l'écran n'ouvrait aucune
-      porte que le serveur n'aurait pas déjà fermée s'il le fallait.
 - [ ] **Profils locaux** — la colonne existe, aucun écran ne la renseigne.
 - [ ] La liste des habilitations fines des comptes doivent être mises à jour et 
       configurées si une des mises à jour dans ce Todos.md est susceptibles d'impacter les habilitations fines d'un utilisateur 
