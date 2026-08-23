@@ -10,8 +10,8 @@
 --         pnpm db:bundle --depuis <derniere version appliquee>
 --     La derniere version appliquee se lit dans supabase/diagnostic.sql.
 --
--- Genere le 2026-08-23T15:55:51.569Z
--- Migrations : 74 + amorce
+-- Genere le 2026-08-23T17:12:21.485Z
+-- Migrations : 75 + amorce
 -- =============================================================================
 
 
@@ -10948,6 +10948,29 @@ comment on function fn_reordonner_referentiel is
 notify pgrst, 'reload schema';
 
 insert into schema_migrations (version) values ('0074')
+  on conflict (version) do nothing;
+
+-- #############################################################################
+-- ## 0075_grades_sexe_autorise.sql
+-- #############################################################################
+
+-- =============================================================================
+-- Migration 0075 — Restriction des sexes assignables aux grades
+--
+-- Permet de réserver certains grades aux hommes (ex: Pasteur), aux femmes,
+-- ou de les laisser ouverts à tous ('TOUS' par défaut).
+-- =============================================================================
+
+alter table grades
+  add column if not exists sexe_autorise text not null default 'TOUS'
+  check (sexe_autorise in ('TOUS', 'M', 'F'));
+
+comment on column grades.sexe_autorise is
+  'Restriction de sexe pour l''assignation de ce grade : TOUS, M (hommes uniquement), ou F (femmes uniquement).';
+
+notify pgrst, 'reload schema';
+
+insert into schema_migrations (version) values ('0075')
   on conflict (version) do nothing;
 
 -- #############################################################################

@@ -33,6 +33,7 @@ import {
   STATUTS_CROYANT,
   STATUTS_MARITAUX,
   conjointsProposables,
+  gradeEstCompatibleSexe,
   type StatutCroyant,
 } from '@/lib/domain/croyant';
 import { CroyantPicker } from '@/components/croyants/croyant-picker';
@@ -62,6 +63,7 @@ import { SelecteurPhoto } from './selecteur-photo';
 export interface OptionReferentiel {
   id: string;
   libelle: string;
+  sexe_autorise?: 'TOUS' | 'M' | 'F' | null;
 }
 
 export interface CelluleOption {
@@ -89,6 +91,8 @@ interface Commun {
    * quelqu'un déjà pris — se fait ici en mémoire (`conjointsProposables`).
    */
   conjointsPotentiels: OptionConjointRoster[];
+  /** Photos signées pour les conjoints potentiels. */
+  photosConjoints?: Record<string, string>;
 }
 
 interface CroyantExistant {
@@ -305,7 +309,13 @@ export function CroyantForm(props: Props) {
             // recherché.
             id: existant?.id ?? '',
             sexe: sexeSaisi,
-          })
+          }).map((c) => ({
+            id: c.id,
+            nom: c.nom,
+            prenom: c.prenom,
+            matricule: c.matricule,
+            photoKey: c.photo_key,
+          }))
         : [],
     [props.conjointsPotentiels, sexeSaisi, existant?.id],
   );
@@ -314,6 +324,12 @@ export function CroyantForm(props: Props) {
   const cellulesDisponibles = useMemo(
     () => props.cellules.filter((c) => c.egliseId === egliseChoisie),
     [props.cellules, egliseChoisie],
+  );
+
+  // Restriction des grades selon le sexe assignable (migration 0075)
+  const gradesDisponibles = useMemo(
+    () => props.grades.filter((g) => gradeEstCompatibleSexe(g.sexe_autorise, sexeSaisi)),
+    [props.grades, sexeSaisi],
   );
 
   const derniereEtape = etape === ETAPES.length - 1;
@@ -642,6 +658,7 @@ export function CroyantForm(props: Props) {
                         options={conjointsOptions}
                         value={field.value ?? null}
                         onChange={field.onChange}
+                        photos={props.photosConjoints}
                         disabled={!sexeSaisi}
                         placeholder="Non renseigné"
                         emptyMessage="Aucun croyant de sexe opposé, libre, à proposer."
@@ -768,7 +785,7 @@ export function CroyantForm(props: Props) {
                         <SelectValue placeholder="Choisir" />
                       </SelectTrigger>
                       <SelectContent>
-                        {props.grades.map((g) => (
+                        {gradesDisponibles.map((g) => (
                           <SelectItem key={g.id} value={g.id}>
                             {g.libelle}
                           </SelectItem>

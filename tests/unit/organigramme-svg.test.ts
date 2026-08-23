@@ -504,4 +504,19 @@ describe('disposerEnArbre — le poste en derivation', () => {
     expect(par.get('v1')!.x).toBeCloseTo(par.get('v2')!.x, 5);
     expect(par.get('v2')!.y).toBeGreaterThan(par.get('v1')!.y);
   });
+
+  it('evite le chevauchement horizontal entre derivation et sous-arbre suivant', () => {
+    const plan = disposerEnArbre([
+      bloc({ fonctionId: 'r1' }),
+      bloc({ fonctionId: 'deriv', parentFonctionId: 'r1', enDerivation: true }),
+      bloc({ fonctionId: 'r2' }),
+    ]);
+
+    const par = new Map(plan.map((b) => [b.fonctionId, b]));
+    const deriv = par.get('deriv')!;
+    const r2 = par.get('r2')!;
+
+    // r2 doit commencer APRES la derivation
+    expect(r2.x).toBeGreaterThanOrEqual(deriv.x + 248);
+  });
 });

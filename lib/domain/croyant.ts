@@ -17,6 +17,16 @@ export type Sexe = (typeof SEXES)[number];
 
 export const LIBELLES_SEXE: Record<Sexe, string> = { M: 'Homme', F: 'Femme' };
 
+export type SexeAutoriseGrade = 'TOUS' | 'M' | 'F';
+
+export function gradeEstCompatibleSexe(
+  sexeAutorise: SexeAutoriseGrade | string | null | undefined,
+  sexe: Sexe | string | null | undefined,
+): boolean {
+  if (!sexeAutorise || sexeAutorise === 'TOUS' || !sexe) return true;
+  return sexeAutorise === sexe;
+}
+
 export const STATUTS_MARITAUX = [
   'CELIBATAIRE',
   'MARIE',

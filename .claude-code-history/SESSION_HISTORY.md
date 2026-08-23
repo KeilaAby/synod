@@ -6068,4 +6068,35 @@ Demande de `notes/todos.md` §5 et §6.
 
 `pnpm verify` validé : 0 secret, 0 lint error, 0 type error, 887 tests unitaires passés, build Next.js validé.
 
+## 23 août 2026 (nuit) — Livraisons : Organigramme PDF, Export colonnes croyants, Restriction des grades par sexe, Rapprochements et Dîmes
+
+Sept points traités et vérifiés :
+
+1. **Organigramme PDF — Hiérarchie intermédiaire et dérivations** :
+   - `imprimer-organigramme.ts` propage le drapeau `enDerivation: place.enDerivation` vers `BlocImprime`.
+   - `lib/domain/organigramme-svg.ts` (`disposerEnArbre`) intègre la largeur des dérivations dans le sous-arbre pour éliminer les chevauchements avec les frères et enfants. Tests unitaires 35/35 validés (`tests/unit/organigramme-svg.test.ts`).
+
+2. **Liste des Croyants — Boîte de dialogue de sélection des colonnes avant impression PDF** :
+   - Création de `SelecteurColonnesDialog` (`components/croyants/selecteur-colonnes-dialog.tsx`).
+   - Intégration sur le bouton « Imprimer » de `croyants-client.tsx` permettant de choisir les colonnes visibles avant la génération PDF du tableau.
+
+3. **Sélecteurs de croyants — Affichage des photos de profil** :
+   - `CroyantPicker` fiabilisé pour extraire la photo depuis `photoKey`, `photo_key` ou URL directe.
+   - Signature des photos pour `conjointsPotentiels` dans `getOptionsCroyant` (`lib/data/croyant-options.ts`) et injection dans `CroyantForm`.
+
+4. **Tableau des dîmes & Action « Remettre au Siège » directe** :
+   - Menu `⋮` par collecte refondu dans `dimes-client.tsx` pour offrir des actions directes (« Remettre au Siège » et « Imprimer les reçus (A4) »).
+   - `RemiseDialog` enrichi avec les props `entiteImposeeId`, `collecteImposeeId` et mode contrôlé, verrouillant l'entité émettrice et pré-sélectionnant la collecte cible.
+
+5. **Rapprochement des dîmes — Filtrage des croyants par église connue** :
+   - Dans `components/croyants/rapprochements-dimes.tsx`, filtrage automatique des croyants proposés selon l'église connue du versement / enveloppe.
+   - En cas d'église inconnue, ouverture à l'ensemble des croyants pour le SuperAdmin.
+
+6. **Référentiel des Grades — Restriction des sexes assignables (Migration 0075)** :
+   - Migration `0075_grades_sexe_autorise.sql` ajoutant la colonne `sexe_autorise text check (sexe_autorise in ('TOUS', 'M', 'F'))`.
+   - Régénération du bundle `install.sql` (`pnpm db:bundle`).
+   - Mise à jour de `REFERENTIELS.grades` (`lib/domain/referentiels.ts`), fonction `gradeEstCompatibleSexe` (`lib/domain/croyant.ts`), validations serveur dans `creerCroyant` / `modifierCroyant` (`lib/actions/croyants.ts`), et filtrage dynamique dans `croyant-form.tsx`.
+
+`pnpm verify` : 0 secret, 0 lint error, 0 type error, 888 tests unitaires passés, build Next.js validé.
+
 

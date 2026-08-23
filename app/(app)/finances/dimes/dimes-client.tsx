@@ -119,6 +119,8 @@ export function DimesClient({
    * cette ligne plutôt qu'un par collecte.
    */
   const [aAjouter, setAAjouter] = useState<{ id: string; nom: string } | null>(null);
+  /** La collecte qu'on s'apprête à remettre au Siège depuis le menu de ligne. */
+  const [remiseLigne, setRemiseLigne] = useState<{ entiteId: string; collecteId: string } | null>(null);
   /** La ligne qu'on s'apprête à déclarer anonyme — EF-FIN-34, migration 0072. */
   const [aAnonymiser, setAAnonymiser] = useState<string | null>(null);
 
@@ -484,7 +486,7 @@ export function DimesClient({
                         imposé (règle 16).
                       */}
                       <TableCell className="text-right">
-                        {c.entite_collecte_id && peut('finance.dime.collect', c.entite_collecte_id) && (
+                        {c.entite_collecte_id && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button
@@ -497,17 +499,27 @@ export function DimesClient({
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onSelect={() =>
-                                  setAAjouter({
-                                    id: c.entite_collecte_id!,
-                                    nom: c.collecteur?.nom ?? '—',
-                                  })
-                                }
-                              >
-                                <Coins className="mr-2 size-4" aria-hidden />
-                                Nouveau versement
-                              </DropdownMenuItem>
+                              {c.dime_remise_id === null && peut('finance.dime.collect', c.entite_collecte_id) && (
+                                <DropdownMenuItem
+                                  onSelect={() =>
+                                    setRemiseLigne({
+                                      entiteId: c.entite_collecte_id!,
+                                      collecteId: c.id,
+                                    })
+                                  }
+                                >
+                                  <Truck className="mr-2 size-4" aria-hidden />
+                                  Remettre au Siège
+                                </DropdownMenuItem>
+                              )}
+                              {detail && (
+                                <DropdownMenuItem
+                                  onSelect={() => imprimerRecus(recusDe(c), devise)}
+                                >
+                                  <Printer className="mr-2 size-4" aria-hidden />
+                                  Imprimer les reçus (A4)
+                                </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         )}
@@ -855,6 +867,39 @@ export function DimesClient({
         onOpenChange={(ouvert) => {
           if (!ouvert) setAAjouter(null);
         }}
+      />
+
+      {/*
+        EF-FIN-30 — REMISE AU SIÈGE d'une collecte précise, entité verrouillée
+        déclenchée depuis le menu contextuel de la ligne.
+      */}
+      <RemiseDialog
+        collectes={collectes
+          .filter((c) => c.dime_remise_id === null && c.entite_collecte_id)
+          .map((c) => ({
+            id: c.id,
+            entiteId: c.entite_collecte_id!,
+            entiteNom: c.collecteur?.nom ?? '—',
+            dateOperation: c.date_operation,
+            montant: Number(c.montant),
+          }))}
+        porteurs={croyants.map((c) => ({
+          id: c.id,
+          nom: c.nom,
+          prenom: c.prenom,
+          matricule: c.matricule,
+          photoKey: c.photoKey,
+          detail: c.egliseNom,
+        }))}
+        photos={photos}
+        devise={devise}
+        entiteImposeeId={remiseLigne?.entiteId}
+        collecteImposeeId={remiseLigne?.collecteId}
+        open={remiseLigne !== null}
+        onOpenChange={(ouvert) => {
+          if (!ouvert) setRemiseLigne(null);
+        }}
+        declencheurVisible={false}
       />
 
       {/*

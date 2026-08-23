@@ -114,6 +114,7 @@ export default async function CroyantsPage({
           prenom: c.prenom,
           matricule: c.matricule,
           photoKey: c.photo_key,
+          egliseId: c.eglise_id,
           detail: c.eglise?.nom ?? null,
         }))}
         photos={Object.fromEntries(photos)}

@@ -6,7 +6,7 @@ import { chercherDoublons, getCroyant } from '@/lib/data/croyants';
 import { listerGradesOrdonnes } from '@/lib/data/croyant-options';
 import { type NoeudEntite, getArbrePerimetre } from '@/lib/data/entities';
 import { getParametres } from '@/lib/data/settings';
-import { nomComplet, validerDatesCroyant } from '@/lib/domain/croyant';
+import { gradeEstCompatibleSexe, nomComplet, validerDatesCroyant } from '@/lib/domain/croyant';
 import {
   arbitreDePromotion,
   correctionDeGradePossible,
@@ -148,6 +148,28 @@ async function resoudreConjoint(
   return { ok: true };
 }
 
+async function validerCompatibiliteGradeSexe(
+  gradeId: string,
+  sexe: 'M' | 'F',
+): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const sb = await createClient();
+  const { data: grade, error } = await sb
+    .from('grades')
+    .select('id, libelle, sexe_autorise')
+    .eq('id', gradeId)
+    .maybeSingle<{ id: string; libelle: string; sexe_autorise: string }>();
+
+  if (error || !grade) return { ok: true };
+  if (!gradeEstCompatibleSexe(grade.sexe_autorise, sexe)) {
+    const libelleGenre = grade.sexe_autorise === 'M' ? 'aux hommes' : 'aux femmes';
+    return {
+      ok: false,
+      erreur: `Le grade « ${grade.libelle} » est réservé ${libelleGenre}.`,
+    };
+  }
+  return { ok: true };
+}
+
 // -----------------------------------------------------------------------------
 
 export async function creerCroyant(
@@ -162,18 +184,21 @@ export async function creerCroyant(
     }
     const data = analyse.data;
 
-    // Les trois lectures sont independantes : les enchainer ajoutait un
-    // aller-retour complet a chaque enregistrement.
-    const [rattachement, doublons, conjoint] = await Promise.all([
+    // Les vérifications sont indépendantes : on les lance en parallèle
+    const [rattachement, doublons, conjoint, compatibiliteGrade] = await Promise.all([
       resoudreRattachement(data.egliseId, data.celluleId),
       data.doublonAccepte
         ? Promise.resolve([])
         : chercherDoublons(data.nom, data.prenom, data.dateNaissance),
       resoudreConjoint(data.conjointId ?? null, data.sexe, null),
+      validerCompatibiliteGradeSexe(data.gradeId, data.sexe),
     ]);
 
     if (!rattachement.ok) return ko(rattachement.erreur);
     if (!conjoint.ok) return ko(conjoint.erreur);
+    if (!compatibiliteGrade.ok) {
+      return ko(compatibiliteGrade.erreur, { gradeId: [compatibiliteGrade.erreur] });
+    }
 
     await requirePermission(session, 'croyant.create', rattachement.eglise.path);
 
@@ -311,6 +336,13 @@ export async function modifierCroyant(input: unknown): Promise<ActionResult<void
      */
     const grades = await listerGradesOrdonnes();
     const changeDeGrade = existant.grade_id !== data.gradeId;
+
+    if (changeDeGrade) {
+      const compatibiliteGrade = await validerCompatibiliteGradeSexe(data.gradeId, data.sexe);
+      if (!compatibiliteGrade.ok) {
+        return ko(compatibiliteGrade.erreur, { gradeId: [compatibiliteGrade.erreur] });
+      }
+    }
 
     /**
      * EF-CRO-12 — DEUX GESTES, comme pour le retrait d'un titulaire.

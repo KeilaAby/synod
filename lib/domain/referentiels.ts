@@ -149,20 +149,16 @@ export const REFERENTIELS: Record<SlugReferentiel, DefinitionReferentiel> = {
     triPar: 'ordre',
     colonneOrdre: 'ordre',
     colonnes: [
-      { cle: 'libelle', label: 'Libelle' },
+      { cle: 'libelle', label: 'Libellé' },
       { cle: 'code', label: 'Code', mono: true },
+      { cle: 'sexe_autorise', label: 'Sexe autorisé' },
       /**
        * EF-ADM-14 — LE REGLAGE SE VOIT AUTANT QU'IL SE REGLE.
-       *
-       * Il se posait au formulaire depuis 0048, mais la liste n'en disait rien :
-       * savoir quels grades celebrent demandait d'ouvrir chaque fiche. Or c'est
-       * une question de COMPARAISON — « qui peut celebrer ? » —, et une question
-       * de comparaison veut une reponse en tableau.
        */
-      { cle: 'peut_celebrer', label: 'Celebrant', booleen: true },
+      { cle: 'peut_celebrer', label: 'Célébrant', booleen: true },
     ],
     champs: [
-      { cle: 'libelle', label: 'Libelle', type: 'texte', requis: true },
+      { cle: 'libelle', label: 'Libellé', type: 'texte', requis: true },
       {
         cle: 'code',
         label: 'Code',
@@ -170,42 +166,31 @@ export const REFERENTIELS: Record<SlugReferentiel, DefinitionReferentiel> = {
         mono: true,
         requis: true,
         immuable: true,
-        hint: 'Reference technique stable, non modifiable ensuite.',
+        hint: 'Référence technique stable, non modifiable ensuite.',
       },
-      /*
-        LE RANG NE SE TAPE PLUS — il se pose en deplaçant la ligne.
-
-        « Ordre d'affichage : 100, 200, 300 » est une representation, pas une
-        intention : pour glisser le pasteur avant l'evangeliste il fallait
-        deviner un nombre libre entre les deux, et le jour ou il n'y en avait
-        plus, renumeroter la liste entiere. Garder le champ A COTE du
-        glisser-deposer aurait donne deux chemins pour la meme chose (regle 16),
-        et rien n'aurait dit lequel gagne.
-
-        La colonne reste en base et dans le schema : c'est elle qui porte
-        l'ordre, seule sa SAISIE change.
-      */
       {
-        /**
-         * EF-ADM-14 — CE REGLAGE ETAIT UNE LISTE ECRITE DANS LE CODE.
-         *
-         * Un grade cree apres coup ne pouvait jamais celebrer, quoi qu'on fasse
-         * a l'ecran : rien ne refusait, rien ne s'affichait, la liste des
-         * celebrants etait simplement plus courte. Il se regle desormais ici,
-         * la ou le grade lui-meme se definit.
-         */
+        cle: 'sexe_autorise',
+        label: 'Sexe assignable',
+        type: 'choix',
+        options: [
+          { valeur: 'TOUS', label: 'Tous (Hommes et Femmes)' },
+          { valeur: 'M', label: 'Hommes uniquement' },
+          { valeur: 'F', label: 'Femmes uniquement' },
+        ],
+        hint: 'Restreint les croyants pouvant recevoir ce grade ou y être promus.',
+      },
+      {
         cle: 'peut_celebrer',
-        label: 'Peut celebrer un bapteme',
+        label: 'Peut célébrer un baptême',
         type: 'booleen',
-        hint: 'Les croyants portant ce grade seront proposes comme celebrants.',
+        hint: 'Les croyants portant ce grade seront proposés comme célébrants.',
       },
     ],
     schema: z.object({
       code: codeReferentiel,
       libelle,
-      // Rien n'ouvre la celebration par defaut : elle se donne, elle ne
-      // s'herite pas d'un oubli de saisie.
       peut_celebrer: z.boolean().default(false),
+      sexe_autorise: z.enum(['TOUS', 'M', 'F']).default('TOUS'),
     }),
     usages: [{ table: 'croyants', colonne: 'grade_id', quoi: 'croyant' }],
   },

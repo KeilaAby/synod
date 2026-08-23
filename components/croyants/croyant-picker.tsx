@@ -35,10 +35,23 @@ export interface OptionCroyant {
   readonly nom: string;
   readonly prenom: string;
   readonly matricule: string;
-  /** Clé de stockage de la photo (EF-CRO-09), résolue par `photos`. */
+  /** Clé de stockage de la photo (EF-CRO-09), résolue par `photos`, ou URL directe. */
   readonly photoKey?: string | null;
+  readonly photo_key?: string | null;
   /** Précision affichée sous le nom : cellule, grade, enveloppe connue… */
   readonly detail?: string | null;
+}
+
+function extrairePhotoUrl(
+  croyant: OptionCroyant,
+  photos: Record<string, string>,
+): string | null {
+  const cle = croyant.photoKey || croyant.photo_key;
+  if (!cle) return null;
+  if (cle.startsWith('http://') || cle.startsWith('https://') || cle.startsWith('/')) {
+    return cle;
+  }
+  return photos[cle] ?? null;
 }
 
 export function CroyantPicker({
@@ -104,7 +117,7 @@ export function CroyantPicker({
                 <AvatarCroyant
                   nom={choisi.nom}
                   prenom={choisi.prenom}
-                  url={choisi.photoKey ? photos[choisi.photoKey] : null}
+                  url={extrairePhotoUrl(choisi, photos)}
                 />
                 <span className="truncate">
                   {choisi.nom.toLocaleUpperCase('fr')} {choisi.prenom}
@@ -186,7 +199,7 @@ export function CroyantPicker({
                   <AvatarCroyant
                     nom={croyant.nom}
                     prenom={croyant.prenom}
-                    url={croyant.photoKey ? photos[croyant.photoKey] : null}
+                    url={extrairePhotoUrl(croyant, photos)}
                   />
 
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">

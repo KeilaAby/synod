@@ -295,13 +295,23 @@ export function disposerEnArbre(blocs: readonly BlocImprime[]): BlocImprime[] {
 
     enCours.add(bloc.fonctionId);
     const fils = enfants.get(bloc.fonctionId) ?? [];
-    const total =
+    const deriv = derivations.get(bloc.fonctionId) ?? [];
+
+    const totalFils =
       fils.length === 0
         ? LARGEUR
         : Math.max(
             LARGEUR,
             fils.reduce((n, f) => n + largeur(f), 0) + (fils.length - 1) * ECART_X,
           );
+
+    const parentXRelatif = (totalFils - LARGEUR) / 2;
+    const largeurAvecDeriv =
+      deriv.length > 0
+        ? parentXRelatif + LARGEUR + ECART_X + LARGEUR
+        : totalFils;
+
+    const total = Math.max(totalFils, largeurAvecDeriv);
     enCours.delete(bloc.fonctionId);
 
     largeurs.set(bloc.fonctionId, total);
@@ -314,10 +324,19 @@ export function disposerEnArbre(blocs: readonly BlocImprime[]): BlocImprime[] {
     if (poses.has(bloc.fonctionId)) return;
     poses.add(bloc.fonctionId);
 
-    // Le parent se CENTRE au-dessus de ses enfants : c'est ce qui fait lire un
-    // organigramme comme un arbre plutot que comme une liste indentee.
+    const fils = enfants.get(bloc.fonctionId) ?? [];
+    const totalFils =
+      fils.length === 0
+        ? LARGEUR
+        : Math.max(
+            LARGEUR,
+            fils.reduce((n, f) => n + (largeurs.get(f.fonctionId) ?? LARGEUR), 0) +
+              (fils.length - 1) * ECART_X,
+          );
+
+    // Le parent se CENTRE au-dessus de ses enfants ordinaires
     places.set(bloc.fonctionId, {
-      x: gauche + (largeur(bloc) - LARGEUR) / 2,
+      x: gauche + (totalFils - LARGEUR) / 2,
       y: profondeur * (HAUTEUR + ECART_Y),
     });
 
@@ -330,28 +349,20 @@ export function disposerEnArbre(blocs: readonly BlocImprime[]): BlocImprime[] {
     /**
      * EF-BUR-07 — LES DERIVATIONS, APRES COUP ET A COTE DU TRONC.
      *
-     * Elles se posent une fois le bloc place, donc en fonction de SA position,
-     * et non de celle de la rangee : c'est ce qui les accroche au trait
-     * vertical plutot qu'a la ligne des freres.
-     *
-     * A MI-HAUTEUR entre le superieur et ses subordonnes, la ou le trait
-     * descend. Plus haut, elles toucheraient le bloc ; plus bas, elles se
-     * confondraient avec la rangee, ce qu'on veut precisement eviter.
-     *
-     * A DROITE, et empilees s'il y en a plusieurs. Le modele fourni les met a
-     * droite ; alterner les cotes pour « equilibrer » ferait changer de place
-     * un adjoint parce qu'un autre est apparu.
+     * Elles se posent une fois le bloc placé, à droite du supérieur et
+     * rattachées latéralement au tronc.
      */
     const miHauteur = (HAUTEUR + ECART_Y) / 2;
     const place = places.get(bloc.fonctionId)!;
+    const deriv = derivations.get(bloc.fonctionId) ?? [];
 
-    (derivations.get(bloc.fonctionId) ?? []).forEach((adjoint, rang) => {
+    deriv.forEach((adjoint, rang) => {
       if (poses.has(adjoint.fonctionId)) return;
       poses.add(adjoint.fonctionId);
 
       places.set(adjoint.fonctionId, {
         x: place.x + LARGEUR + ECART_X,
-        y: place.y + miHauteur + rang * (HAUTEUR + ECART_X),
+        y: place.y + miHauteur + rang * (HAUTEUR + 16),
       });
     });
   }

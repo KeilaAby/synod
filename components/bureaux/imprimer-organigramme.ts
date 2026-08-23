@@ -139,6 +139,7 @@ function blocs(
         fonction: poste.fonction.libelle,
         estFinanciere: poste.fonction.estFinanciere,
         parentFonctionId: place.parentFonctionId,
+        enDerivation: place.enDerivation ?? false,
         titulaire: croyant
           ? {
               nom: croyant.nom,

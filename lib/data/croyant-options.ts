@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/server';
 import { listerCroyantsPourConjoint } from './croyants';
 import { getArbrePerimetre } from './entities';
 import { DataError } from './errors';
+import { signerPhotos } from './photos';
 import { getParametres } from './settings';
 
 type ClientSupabase = Awaited<ReturnType<typeof createClient>>;
@@ -26,7 +27,7 @@ type ClientSupabase = Awaited<ReturnType<typeof createClient>>;
 async function lireGrades(sb: ClientSupabase): Promise<OptionReferentiel[]> {
   const { data, error } = await sb
     .from('grades')
-    .select('id, libelle')
+    .select('id, libelle, sexe_autorise')
     .eq('is_active', true)
     .order('ordre')
     .returns<OptionReferentiel[]>();
@@ -70,6 +71,8 @@ export const getOptionsCroyant = cache(async () => {
     listerCroyantsPourConjoint(),
   ]);
 
+  const photosConjoints = await signerPhotos(conjointsPotentiels.map((c) => c.photo_key));
+
   const eglises = arbre.filter((e) => e.type === 'EGLISE' && e.is_active);
 
   // Toutes les cellules du périmètre, avec leur église : le filtrage par
@@ -86,6 +89,7 @@ export const getOptionsCroyant = cache(async () => {
     nationalites,
     joursDelai: parametres.jours_correction_saisie,
     conjointsPotentiels,
+    photosConjoints: Object.fromEntries(photosConjoints),
   };
 });
 

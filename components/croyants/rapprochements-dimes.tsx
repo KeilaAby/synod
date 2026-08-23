@@ -16,6 +16,7 @@ import {
 } from '@/components/finances/suggestions-enveloppe';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { avertir } from '@/components/shared/messages';
+import { useSession } from '@/components/shared/session-provider';
 import { EntityPicker } from '@/components/structure/entity-picker';
 import { Button } from '@/components/ui/button';
 import {
@@ -76,6 +77,7 @@ export function RapprochementsDimes({
   porteurs?: Record<string, PorteurSuggere[]>;
 }) {
   const router = useRouter();
+  const { estSuperAdmin } = useSession();
   const [choix, setChoix] = useState<Record<string, string | null>>({});
   const [enCours, setEnCours] = useState<string | null>(null);
   /** La ligne dont on est en train d'ouvrir la fiche, ou `null`. */
@@ -353,18 +355,38 @@ export function RapprochementsDimes({
                       </TableCell>
 
                       <TableCell className="align-top">
-                        <CroyantPicker
-                          options={croyants}
-                          value={retenu}
-                          onChange={(id) => setChoix((c) => ({ ...c, [r.id]: id }))}
-                          photos={photos}
-                          placeholder="Chercher la fiche"
-                          aria-label={
-                            r.nom_source
-                              ? `Rattacher ${r.nom_source}`
-                              : `Rattacher l’enveloppe ${r.enveloppe_source ?? ''}`
-                          }
-                        />
+                        {(() => {
+                          const egliseCible = egliseRetenue(r);
+                          const optionsLigne = egliseCible
+                            ? croyants.filter(
+                                (c) =>
+                                  !(c as { egliseId?: string | null }).egliseId ||
+                                  (c as { egliseId?: string | null }).egliseId === egliseCible,
+                              )
+                            : estSuperAdmin
+                              ? croyants
+                              : croyants.filter((c) => (c as { egliseId?: string | null }).egliseId);
+
+                          return (
+                            <CroyantPicker
+                              options={optionsLigne}
+                              value={retenu}
+                              onChange={(id) => setChoix((c) => ({ ...c, [r.id]: id }))}
+                              photos={photos}
+                              placeholder="Chercher la fiche"
+                              emptyMessage={
+                                egliseCible
+                                  ? 'Aucun croyant dans cette église.'
+                                  : 'Aucun croyant trouvé.'
+                              }
+                              aria-label={
+                                r.nom_source
+                                  ? `Rattacher ${r.nom_source}`
+                                  : `Rattacher l’enveloppe ${r.enveloppe_source ?? ''}`
+                              }
+                            />
+                          );
+                        })()}
 
                         {/*
                       EF-FIN-27 — LE NUMÉRO D'ENVELOPPE PROPOSE.
