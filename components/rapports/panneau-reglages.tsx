@@ -23,6 +23,7 @@ import {
   LIBELLES_SOURCE,
   MARGE_MAX_MM,
   MARGE_MIN_MM,
+  type MargesDocument,
   PERMISSION_SOURCE,
   SOURCES,
   type StructureRapport,
@@ -32,7 +33,9 @@ import {
   definitionBloc,
   filtresDuBloc,
   filtresPoses,
-  margeDocument,
+  hauteurUtileMm,
+  largeurUtileMm,
+  margesDocument,
   sourceDuBloc,
   typeGraphique,
 } from '@/lib/domain/rapport';
@@ -385,45 +388,96 @@ function ReglagesDocument({
   /** Un texte vide RETIRE la clé : le bloc retrouve son défaut. */
   const ouRien = (valeur: string) => (valeur.trim() ? valeur : undefined);
 
-  const marge = margeDocument(structure);
+  const marges = margesDocument(structure);
+
+  const poserMarge = (cote: keyof MargesDocument, valeur: number) => {
+    onRegler({
+      ...structure,
+      marges: {
+        ...marges,
+        [cote]: valeur,
+      },
+    });
+  };
+
+  const poserToutesMarges = (valeur: number) => {
+    onRegler({
+      ...structure,
+      marge: valeur,
+      marges: {
+        haut: valeur,
+        bas: valeur,
+        gauche: valeur,
+        droite: valeur,
+      },
+    });
+  };
 
   return (
     <div className="space-y-6">
       {/*
-        EF-RAP-05 — LA MARGE DU PAPIER, RÉGLABLE ET VISIBLE.
+        EF-RAP-05 — LES 4 MARGES DU PAPIER, RÉGLABLES SÉPARÉMENT ET VISIBLES.
 
-        Le pop-up laisse l'aperçu visible derrière lui : on tire le curseur et
-        la feuille bouge. C'est tout l'objet du réglage — vérifier AVANT
-        d'imprimer qu'un tableau tient encore, plutôt que de le découvrir sur
-        le papier.
-
-        Un curseur natif et non un composant : c'est un `input` que le
-        navigateur sait déjà rendre, au clavier comme au pointeur (règle 29).
+        Le pop-up / panneau laisse l'aperçu visible : on tire les curseurs et la
+        feuille s'ajuste en temps réel (haut, bas, gauche, droite).
       */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-baseline justify-between">
-          <label htmlFor="marge-papier" className="text-sm font-medium text-foreground">
-            Marge du papier
-          </label>
-          <span className="text-sm tabular-nums text-muted-foreground">{marge} mm</span>
+      <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/20 p-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium text-foreground">Marges du papier</p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => poserToutesMarges(marges.haut)}
+            title="Appliquer la marge du haut aux quatre côtés"
+          >
+            Uniformiser ({marges.haut} mm)
+          </Button>
         </div>
 
-        <input
-          id="marge-papier"
-          type="range"
-          min={MARGE_MIN_MM}
-          max={MARGE_MAX_MM}
-          step={1}
-          value={marge}
-          onChange={(e) => onRegler({ ...structure, marge: Number(e.target.value) })}
-          className="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-indigo-600"
-        />
+        <div className="grid grid-cols-2 gap-3">
+          {(
+            [
+              ['haut', 'Haut'],
+              ['bas', 'Bas'],
+              ['gauche', 'Gauche'],
+              ['droite', 'Droite'],
+            ] as const
+          ).map(([cote, libelle]) => (
+            <div key={cote} className="flex flex-col gap-1">
+              <div className="flex items-baseline justify-between text-xs">
+                <label htmlFor={`marge-${cote}`} className="text-muted-foreground">
+                  {libelle}
+                </label>
+                <span className="tabular-nums font-medium text-foreground">
+                  {marges[cote]} mm
+                </span>
+              </div>
+              <input
+                id={`marge-${cote}`}
+                type="range"
+                min={MARGE_MIN_MM}
+                max={MARGE_MAX_MM}
+                step={1}
+                value={marges[cote]}
+                onChange={(e) => poserMarge(cote, Number(e.target.value))}
+                className="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-indigo-600"
+              />
+            </div>
+          ))}
+        </div>
 
         <p className="text-xs text-muted-foreground">
           Zone utile :{' '}
-          <span className="tabular-nums">{210 - marge * 2}</span> ×{' '}
-          <span className="tabular-nums">{297 - marge * 2}</span> mm. Sous 5 mm, la
-          plupart des imprimantes rognent le bord.
+          <span className="tabular-nums font-medium text-foreground">
+            {largeurUtileMm(marges)}
+          </span>{' '}
+          ×{' '}
+          <span className="tabular-nums font-medium text-foreground">
+            {hauteurUtileMm(marges)}
+          </span>{' '}
+          mm.
         </p>
       </div>
 

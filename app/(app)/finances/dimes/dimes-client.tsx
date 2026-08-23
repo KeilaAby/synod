@@ -54,6 +54,7 @@ import {
   LIBELLES_EVENEMENT,
   LIBELLES_NATURE,
   type ModeDime,
+  type OptionEvenementDime,
   detailConsultable,
   estEnRetard,
 } from '@/lib/domain/dime';
@@ -82,6 +83,7 @@ export function DimesClient({
   enveloppes,
   photos,
   porteurs,
+  evenements,
 }: {
   collectes: CollecteListe[];
   entites: OptionEntite[];
@@ -97,6 +99,7 @@ export function DimesClient({
   photos: Record<string, string>;
   /** N° d'enveloppe -> ceux qui l'ont déjà portée (EF-FIN-27). */
   porteurs: Record<string, { croyantId: string; nom: string; prenom: string }[]>;
+  evenements?: OptionEvenementDime[];
 }) {
   const { peut } = useSession();
   const router = useRouter();
@@ -120,6 +123,16 @@ export function DimesClient({
   const [aAnonymiser, setAAnonymiser] = useState<string | null>(null);
 
   const aujourdhui = new Date().toISOString().slice(0, 10);
+
+  const mapEvenements = useMemo(() => {
+    const map: Record<string, string> = { ...LIBELLES_EVENEMENT };
+    if (evenements) {
+      for (const e of evenements) {
+        map[e.code] = e.libelle;
+      }
+    }
+    return map;
+  }, [evenements]);
 
   const visibles = useMemo(() => {
     const terme = normaliserRecherche(recherche);
@@ -181,7 +194,7 @@ export function DimesClient({
         // partagent — mais c'est le TICKET qui la porte, pas le lot.
         entite: c.collecteur?.nom ?? '—',
         dateOperation: c.date_operation,
-        evenement: c.dime_evenement ? LIBELLES_EVENEMENT[c.dime_evenement] : null,
+        evenement: c.dime_evenement ? mapEvenements[c.dime_evenement] : null,
       }));
 
   const basculer = (id: string) =>
@@ -257,7 +270,10 @@ export function DimesClient({
               devise={devise}
             />
 
-            <ImportVersementsDialog entites={entites} />
+            <ImportVersementsDialog 
+              entites={entites} 
+              evenementsDisponibles={evenements}
+            />
 
             <CollecteDialog
               entites={entites}
@@ -268,6 +284,7 @@ export function DimesClient({
               enveloppes={enveloppes}
               photos={photos}
               porteurs={porteurs}
+              evenementsDisponibles={evenements}
             />
           </div>
         </div>
@@ -298,7 +315,10 @@ export function DimesClient({
         </GroupeFiltres>
 
         {enAttente.nombre === 0 && (
-          <ImportVersementsDialog entites={entites} />
+          <ImportVersementsDialog 
+            entites={entites} 
+            evenementsDisponibles={evenements}
+          />
         )}
 
         {enAttente.nombre === 0 && (
@@ -311,6 +331,7 @@ export function DimesClient({
             enveloppes={enveloppes}
             photos={photos}
             porteurs={porteurs}
+            evenementsDisponibles={evenements}
           />
         )}
       </div>
@@ -388,7 +409,9 @@ export function DimesClient({
                       <TableCell className="text-sm">{c.collecteur?.nom ?? '—'}</TableCell>
 
                       <TableCell className="text-sm">
-                        {c.dime_evenement ? LIBELLES_EVENEMENT[c.dime_evenement] : '—'}
+                        {c.dime_evenement
+                          ? (mapEvenements[c.dime_evenement] ?? c.dime_evenement)
+                          : '—'}
                         {c.libelle && (
                           <span className="text-muted-foreground block text-xs">
                             {c.libelle}
@@ -826,6 +849,7 @@ export function DimesClient({
         enveloppes={enveloppes}
         photos={photos}
         porteurs={porteurs}
+        evenementsDisponibles={evenements}
         entiteImposee={aAjouter ?? undefined}
         open={aAjouter !== null}
         onOpenChange={(ouvert) => {

@@ -25,8 +25,11 @@ import {
   deplacerSection,
   estOnglet,
   estStructure,
+  hauteurUtileMm,
   largeurEffective,
+  largeurUtileMm,
   margeDocument,
+  margesDocument,
   mentionOmissions,
   modeleExploitable,
   modeleSApplique,
@@ -43,6 +46,7 @@ import {
   trouverBloc,
   typeGraphique,
 } from '@/lib/domain/rapport';
+import { structureSchema } from '@/lib/validation/rapport';
 
 /**
  * EF-RAP-02, EF-RAP-03, RG-26 — le registre des blocs et l'omission.
@@ -743,31 +747,83 @@ describe('EF-RAP-07 — quels modeles restent EXPLOITABLES', () => {
   });
 });
 
-describe('EF-RAP-05 — la marge du papier', () => {
-  it('vaut 16 mm quand rien n est regle', () => {
-    // L'ancienne valeur figee : rien ne bouge sous les modeles deja composes.
+describe('EF-RAP-05 — les marges du papier (4 côtés réglables)', () => {
+  it('vaut 16 mm sur les quatre côtés quand rien n est réglé', () => {
+    expect(margesDocument({ sections: [] })).toEqual({
+      haut: 16,
+      bas: 16,
+      gauche: 16,
+      droite: 16,
+    });
     expect(margeDocument({ sections: [] })).toBe(16);
   });
 
-  it('rend la marge reglee', () => {
+  it('reprend la marge unique sur les 4 côtés par rétrocompatibilité', () => {
+    expect(margesDocument({ sections: [], marge: 10 })).toEqual({
+      haut: 10,
+      bas: 10,
+      gauche: 10,
+      droite: 10,
+    });
     expect(margeDocument({ sections: [], marge: 10 })).toBe(10);
   });
 
-  it('RAMENE une valeur hors bornes plutot que de rendre une feuille fausse', () => {
-    /**
-     * Sous 5 mm, la plupart des imprimantes rognent : le texte sort coupe sans
-     * que rien ne l'ait annonce. La valeur peut venir d'une version anterieure
-     * ou d'un appel direct a l'API — le rendu, lui, doit rester imprimable.
-     */
-    expect(margeDocument({ sections: [], marge: 0 })).toBe(5);
-    expect(margeDocument({ sections: [], marge: 120 })).toBe(30);
+  it('permet de régler chaque côté indépendamment', () => {
+    const struct: StructureRapport = {
+      sections: [],
+      marges: { haut: 25, bas: 15, gauche: 10, droite: 12 },
+    };
+    expect(margesDocument(struct)).toEqual({
+      haut: 25,
+      bas: 15,
+      gauche: 10,
+      droite: 12,
+    });
+    expect(largeurUtileMm(margesDocument(struct))).toBe(210 - 10 - 12);
+    expect(hauteurUtileMm(margesDocument(struct))).toBe(297 - 25 - 15);
   });
 
-  it('ignore ce qui n est pas un nombre', () => {
-    expect(margeDocument({ sections: [], marge: Number.NaN })).toBe(16);
+  it('RAMÈNE les valeurs hors bornes (5..30 mm)', () => {
     expect(
-      margeDocument({ sections: [], marge: 'large' } as unknown as StructureRapport),
-    ).toBe(16);
+      margesDocument({
+        sections: [],
+        marges: { haut: 0, bas: 100, gauche: -5, droite: 45 },
+      }),
+    ).toEqual({
+      haut: 5,
+      bas: 30,
+      gauche: 5,
+      droite: 30,
+    });
+  });
+
+  it('ignore les valeurs non numériques et retombe sur le repli', () => {
+    expect(
+      margesDocument({
+        sections: [],
+        marges: { haut: Number.NaN, bas: undefined },
+        marge: 12,
+      }),
+    ).toEqual({
+      haut: 12,
+      bas: 12,
+      gauche: 12,
+      droite: 12,
+    });
+  });
+
+  it('valide structureSchema avec marges individuelles', () => {
+    const valide = structureSchema.safeParse({
+      sections: [],
+      marges: { haut: 20, bas: 15, gauche: 10, droite: 10 },
+    });
+    expect(valide.success).toBe(true);
+
+    const invalide = structureSchema.safeParse({
+      sections: [],
+      marges: { haut: 2 }, // inférieur au min 5
+    });
+    expect(invalide.success).toBe(false);
   });
 });
 

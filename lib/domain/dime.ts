@@ -15,6 +15,14 @@ import { estDescendant } from './hierarchy';
 // L'evenement de collecte — EF-FIN-30
 // -----------------------------------------------------------------------------
 
+export interface OptionEvenementDime {
+  readonly id?: string;
+  readonly code: string;
+  readonly libelle: string;
+  readonly niveauHote: string;
+  readonly ordre?: number;
+}
+
 export const EVENEMENTS_DIME = [
   'CULTE',
   'RASSEMBLEMENT_PAROISSE',
@@ -23,9 +31,9 @@ export const EVENEMENTS_DIME = [
   'EVENEMENT_NATIONAL',
 ] as const;
 
-export type EvenementDime = (typeof EVENEMENTS_DIME)[number];
+export type EvenementDime = (typeof EVENEMENTS_DIME)[number] | (string & {});
 
-export const LIBELLES_EVENEMENT: Record<EvenementDime, string> = {
+export const LIBELLES_EVENEMENT: Record<string, string> = {
   CULTE: 'Culte',
   RASSEMBLEMENT_PAROISSE: 'Rassemblement de paroisse',
   RASSEMBLEMENT_DISTRICT: 'Rassemblement de district',
@@ -40,7 +48,7 @@ export const LIBELLES_EVENEMENT: Record<EvenementDime, string> = {
  * eglises : c'est ce qui justifie `entite_collecte_id` plutot que
  * `eglise_collecte_id`.
  */
-export const NIVEAU_HOTE: Record<EvenementDime, string> = {
+export const NIVEAU_HOTE: Record<string, string> = {
   CULTE: 'EGLISE',
   RASSEMBLEMENT_PAROISSE: 'PAROISSE',
   RASSEMBLEMENT_DISTRICT: 'DISTRICT',
@@ -55,7 +63,7 @@ export const NIVEAU_HOTE: Record<EvenementDime, string> = {
  * enveloppes a la main. Le Siege encaisse lui-meme et saisit un montant global
  * par libelle (EF-FIN-30).
  */
-export function admetLeDetail(evenement: EvenementDime): boolean {
+export function admetLeDetail(evenement: string): boolean {
   return evenement !== 'EVENEMENT_NATIONAL';
 }
 

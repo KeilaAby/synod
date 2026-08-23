@@ -67,9 +67,10 @@ describe('Filtres de la liste des entites', () => {
 });
 
 describe('Registre des referentiels — EF-REF-01 a 04', () => {
-  it('declare les quatre referentiels attendus', () => {
+  it('declare les cinq referentiels attendus', () => {
     expect([...SLUGS_REFERENTIELS].sort()).toEqual([
       'categories-finance',
+      'evenements-dime',
       'fonctions',
       'grades',
       'nationalites',
@@ -78,6 +79,7 @@ describe('Registre des referentiels — EF-REF-01 a 04', () => {
 
   it('reconnait un slug valide et rejette les autres', () => {
     expect(estSlugReferentiel('grades')).toBe(true);
+    expect(estSlugReferentiel('evenements-dime')).toBe(true);
     expect(estSlugReferentiel('paroisses')).toBe(false);
   });
 
@@ -104,6 +106,17 @@ describe('Registre des referentiels — EF-REF-01 a 04', () => {
       );
       expect(champCode?.immuable, slug).toBe(true);
     }
+  });
+
+  it('EF-FIN-30 : les evenements de dimes portent le niveau hote', () => {
+    const champNiveau = REFERENTIELS['evenements-dime'].champs.find((c) => c.cle === 'niveau_hote');
+    expect(champNiveau?.type).toBe('choix');
+    if (champNiveau?.type === 'choix') {
+      expect(champNiveau.options.map((o) => o.valeur)).toEqual([...ENTITY_TYPES]);
+    }
+    const schema = REFERENTIELS['evenements-dime'].schema;
+    expect(schema.safeParse({ code: 'CULTE', libelle: 'Culte', niveau_hote: 'EGLISE' }).success).toBe(true);
+    expect(schema.safeParse({ code: 'CULTE', libelle: 'Culte', niveau_hote: 'INCONNU' }).success).toBe(false);
   });
 
   it('RG-31 : les fonctions portent l indicateur « financiere »', () => {

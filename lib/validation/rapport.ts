@@ -218,7 +218,7 @@ const sectionSchema = z.object({
 export const structureSchema = z.object({
   sections: z.array(sectionSchema).max(50).default([]),
   /**
-   * EF-RAP-05 — la marge du papier, en millimetres.
+   * EF-RAP-05 — la marge du papier, en millimetres (unique ou par côté).
    *
    * Les bornes sont celles du domaine : sous 5 mm la plupart des imprimantes
    * rognent, et le texte sort coupe sans que rien ne l'ait annonce. Le schema
@@ -226,6 +226,14 @@ export const structureSchema = z.object({
    * d'un appel direct merite un message, pas une correction muette.
    */
   marge: z.number().int().min(MARGE_MIN_MM).max(MARGE_MAX_MM).optional(),
+  marges: z
+    .object({
+      haut: z.number().int().min(MARGE_MIN_MM).max(MARGE_MAX_MM).optional(),
+      bas: z.number().int().min(MARGE_MIN_MM).max(MARGE_MAX_MM).optional(),
+      gauche: z.number().int().min(MARGE_MIN_MM).max(MARGE_MAX_MM).optional(),
+      droite: z.number().int().min(MARGE_MIN_MM).max(MARGE_MAX_MM).optional(),
+    })
+    .optional(),
   /**
    * EF-RAP-06 — en-tete et pied de page.
    *

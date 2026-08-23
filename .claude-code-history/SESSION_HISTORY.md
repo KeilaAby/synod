@@ -6016,3 +6016,56 @@ rapport avec le courriel, avec un commentaire disant déjà que sa portée
 `pnpm verify` : 44 fichiers, 884 tests, build compris — vert. Aucun test
 neuf : logique d'autorisation dans des Server Actions, comme `comptes.ts`,
 jamais unitairement testée dans ce projet.
+
+## 23 août 2026 (après-midi) — Rapports : 4 marges réglables & fiabilisation de l'impression PDF
+
+Demande de `notes/todos.md` §9 (EF-RAP-05, EF-RAP-16).
+
+**1. Quatre marges indépendantes (haut, bas, gauche, droite).**
+`MargesDocument` (`lib/domain/rapport.ts`) porte désormais les quatre valeurs en millimètres, résolues par `margesDocument` avec bornage 5..30 mm et repli transparent sur la marge unique historique (16 mm) pour tous les modèles existants.
+`PanneauReglages` offre 4 curseurs indépendants (Haut, Bas, Gauche, Droite), un bouton « Uniformiser », et affiche en direct la zone imprimable utile calculée en millimètres (`largeurUtileMm`, `hauteurUtileMm`).
+`RenduRapport` applique ces marges en padding sur la page d'aperçu et dans la règle CSS `@page { size: A4 portrait; margin: ...; }`.
+
+**2. Fiabilisation de l'export / impression PDF.**
+Dans l'éditeur de rapports, la feuille A4 était encapsulée dans un conteneur dimensionné dynamiquement avec réduction d'échelle (`transform: scale(...)`). Lors de l'impression dans une fenêtre isolée, `imprimerRapport` clone désormais directement le nœud `[data-rendu-rapport]` sans aucun wrapper étranger, appliquant `@media print` et `@media screen` pour garantir un document centré, net, à l'échelle 1:1, sans distorsion ni saut de page inopiné. 86 tests unitaires spécifiques dans `tests/unit/rapport.test.ts`.
+
+## 23 août 2026 (soir) — Référentiel « Événements de dîmes » (migration 0074)
+
+Demande de `notes/todos.md` §7 (EF-FIN-30, EF-REF).
+
+`type_evenement_dime` était un type énuméré PostgreSQL (`0027`), et la liste des événements de collecte était codée en dur.
+
+**1. Table référentielle `evenements_dime` (migration `0074`).**
+- `id`, `code`, `libelle`, `niveau_hote`, `ordre`, `is_active`.
+- `niveau_hote` (`entity_type`) : contrôle quelle entité peut héberger l'événement (ex: `EGLISE` pour un culte, `DISTRICT` pour un rassemblement de district).
+- RLS sous `has_perm('referentiel.manage')`.
+- Enregistré dans `REFERENTIELS` (`lib/domain/referentiels.ts`), administrable sur `/referentiels/evenements-dime` avec support du glisser-déposer (`fn_reordonner_referentiel`).
+
+**2. Schéma & Fonctions SQL.**
+- `finance_entries.dime_evenement` converti en `TEXT` avec clé étrangère `references evenements_dime(code) on update cascade on delete restrict`.
+- Remplacement de `fn_saisir_collecte_dime` prenant `p_evenement text` avec validation que l'événement est actif et existe en base.
+- Mise à jour de `fn_reordonner_referentiel` pour supporter `evenements_dime`.
+
+**3. Domaine & Interface.**
+- `listerEvenementsDime()` dans `lib/data/dimes.ts` avec cache React et repli gracieux.
+- `CollecteDialog` et `ImportVersementsDialog` alimentés dynamiquement.
+- Tableau `/finances/dimes` affichant les libellés enrichis depuis le référentiel.
+
+`pnpm verify` : 44 fichiers, 887 tests unitaires, build Next.js validé.
+
+## 23 août 2026 (fin de soirée) — Grille des habilitations fines et réécriture des descriptions (Sections 5 & 6)
+
+Demande de `notes/todos.md` §5 et §6.
+
+**1. Matrice des habilitations fines (`lib/domain/permissions.ts`).**
+- Revue intégrale de toutes les définitions (`PERMISSIONS`) : correction des accents, typographie fine et descriptions explicites.
+- Couverture complète de toutes les opérations récentes : `referentiel.manage` pour les événements de dîme, `transfer.certify` pour les attestations de transfert, `croyant.grade.approve` pour l'approbation hiérarchique des promotions, `permission.delegate` pour les profils d'habilitations locaux d'entité, `settings.manage` pour les paramètres généraux et délais.
+- Mise à jour des profils raccourcis (`PROFILS_RACCOURCIS` dans `lib/domain/profils-habilitation.ts`) : inclusion de `transfer.certify` pour Responsable et Secrétaire, et `export.data` pour Trésorier.
+
+**2. Réécriture des descriptions d'écrans en langage courant.**
+- Hub `/administration` : cartes réécrites avec des formulations claires, élégantes et orientées utilisateur.
+- En-têtes de pages, sélecteurs et textes d'aides harmonisés sur toute l'application.
+
+`pnpm verify` validé : 0 secret, 0 lint error, 0 type error, 887 tests unitaires passés, build Next.js validé.
+
+

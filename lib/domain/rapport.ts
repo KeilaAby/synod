@@ -269,41 +269,66 @@ export interface PiedDocument {
   readonly texte?: string;
 }
 
+export interface MargesDocument {
+  readonly haut: number;
+  readonly bas: number;
+  readonly gauche: number;
+  readonly droite: number;
+}
+
 export interface StructureRapport {
   readonly sections: readonly SectionRapport[];
   readonly entete?: EnteteDocument;
   readonly pied?: PiedDocument;
-  /** EF-RAP-05 — la marge du papier, en millimetres. */
+  /** EF-RAP-05 — la marge unique (conservée pour rétrocompatibilité). */
   readonly marge?: number;
+  /** EF-RAP-05 — les quatre marges du papier, en millimètres. */
+  readonly marges?: Partial<MargesDocument>;
 }
 
 /**
- * LA MARGE DU PAPIER — EF-RAP-05.
+ * LES MARGES DU PAPIER — EF-RAP-05.
  *
- * Elle etait figee a 16 mm dans la feuille de style, ce qui rendait l'apercu
- * MENTEUR des qu'on voulait autre chose : on composait sur une zone utile de
- * 178 mm, on imprimait sur une autre, et le tableau qui tenait tout juste
- * passait a la ligne. Un apercu qui n'engage pas l'impression ne sert a rien.
+ * Elles étaient figées à 16 mm dans la feuille de style, puis configurables
+ * en marge unique, et désormais réglables séparément (haut, bas, gauche, droite).
  *
- * 16 mm par defaut — l'ancienne valeur, pour que rien ne bouge sous les modeles
- * deja composes.
+ * 16 mm par défaut — l'ancienne valeur, pour que rien ne bouge sous les modèles
+ * déjà composés.
  *
- * LES BORNES INTERDISENT L'IMPOSSIBLE, PAS L'INHABITUEL (regle 26). Sous 5 mm,
- * la plupart des imprimantes de bureau rognent : le texte sort coupe sans que
- * rien ne l'ait annonce. Au-dela de 30 mm, la zone utile tombe sous 150 mm et
- * un tableau a quatre colonnes cesse de tenir — c'est large, mais ce n'est plus
- * faux, alors on laisse.
+ * LES BORNES INTERDISENT L'IMPOSSIBLE, PAS L'INHABITUEL (règle 26). Sous 5 mm,
+ * la plupart des imprimantes de bureau rognent : le texte sort coupé sans que
+ * rien ne l'ait annoncé. Au-delà de 30 mm, la zone utile devient très étroite.
  */
 export const MARGE_DEFAUT_MM = 16;
 export const MARGE_MIN_MM = 5;
 export const MARGE_MAX_MM = 30;
 
+function bornerMarge(valeur: unknown, repli: number): number {
+  if (typeof valeur !== 'number' || !Number.isFinite(valeur)) return repli;
+  return Math.min(MARGE_MAX_MM, Math.max(MARGE_MIN_MM, Math.round(valeur)));
+}
+
+export function margesDocument(structure: StructureRapport): MargesDocument {
+  const repli = bornerMarge(structure.marge, MARGE_DEFAUT_MM);
+  const declarees = structure.marges ?? {};
+  return {
+    haut: bornerMarge(declarees.haut, repli),
+    bas: bornerMarge(declarees.bas, repli),
+    gauche: bornerMarge(declarees.gauche, repli),
+    droite: bornerMarge(declarees.droite, repli),
+  };
+}
+
 export function margeDocument(structure: StructureRapport): number {
-  const declaree = structure.marge;
-  if (typeof declaree !== 'number' || !Number.isFinite(declaree)) return MARGE_DEFAUT_MM;
-  // Une valeur hors bornes vient d'une version anterieure ou d'un appel direct
-  // a l'API : on la ramene plutot que de rendre une feuille inimprimable.
-  return Math.min(MARGE_MAX_MM, Math.max(MARGE_MIN_MM, Math.round(declaree)));
+  return margesDocument(structure).haut;
+}
+
+export function largeurUtileMm(marges: MargesDocument): number {
+  return Math.max(50, 210 - marges.gauche - marges.droite);
+}
+
+export function hauteurUtileMm(marges: MargesDocument): number {
+  return Math.max(50, 297 - marges.haut - marges.bas);
 }
 
 /**

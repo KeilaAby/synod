@@ -39,8 +39,8 @@ export default async function CorbeillePage() {
         title="Corbeille"
         description={
           elements.length > 0
-            ? `${formatNombre(elements.length)} element${elements.length > 1 ? 's' : ''} supprime${elements.length > 1 ? 's' : ''} dans votre perimetre.`
-            : 'Rien n a ete supprime dans votre perimetre.'
+            ? `${formatNombre(elements.length)} élément${elements.length > 1 ? 's' : ''} placé${elements.length > 1 ? 's' : ''} en corbeille dans votre périmètre.`
+            : 'Aucun élément en corbeille dans votre périmètre.'
         }
       />
 

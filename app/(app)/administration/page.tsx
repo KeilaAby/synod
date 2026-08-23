@@ -44,26 +44,17 @@ interface Section {
 const SECTIONS: readonly Section[] = [
   {
     href: '/administration/comptes',
-    titre: 'Comptes',
+    titre: 'Comptes d’accès',
     description:
-      'Ouvrir un compte, réinitialiser un mot de passe, activer ou désactiver. Les identifiants se remettent en main propre — aucun courriel n’est envoyé.',
+      'Gérer les comptes utilisateurs, délivrer les accès provisoires, suspendre ou réinitialiser les mots de passe.',
     icone: Users,
     permission: 'user.manage',
   },
   {
-    /**
-     * EF-ADM-05 — CHAQUE ENTITÉ GÈRE LES SIENS.
-     *
-     * Distincte de la carte « Paramètres généraux », qui porte les profils
-     * GLOBAUX (Siège, `settings.manage`). `permission.delegate` gouverne
-     * déjà la délégation de droits à un compte (RG-24) : composer un
-     * découpage réutilisable pour sa propre entité en découle directement,
-     * ce n'est pas une habilitation à part.
-     */
     href: '/administration/profils',
     titre: 'Profils de privilèges',
     description:
-      'Vos propres découpages d’habilitations, proposés à l’ouverture d’un compte de votre entité.',
+      'Composer et gérer les modèles d’habilitations réutilisables pour faciliter l’attribution des accès au sein de votre entité.',
     icone: Shield,
     permission: 'permission.delegate',
   },
@@ -71,7 +62,7 @@ const SECTIONS: readonly Section[] = [
     href: '/administration/parametres',
     titre: 'Paramètres généraux',
     description:
-      'Identité de l’organisation, devise, fuseau, workflows financiers, composition des rapports.',
+      'Identité visuelle de l’organisation, devise, fuseau horaire, délais de correction, notifications et modèles d’attestation.',
     icone: SlidersHorizontal,
     permission: 'settings.manage',
   },
@@ -79,7 +70,7 @@ const SECTIONS: readonly Section[] = [
     href: '/administration/audit',
     titre: 'Journal d’audit',
     description:
-      'Qui a fait quoi, et quand. Le journal ne se modifie jamais — c’est ce qui lui donne sa valeur.',
+      'Consulter l’historique horodaté et inaltérable des connexions, modifications et opérations effectuées.',
     icone: ScrollText,
     permission: 'audit.read',
   },
@@ -87,24 +78,15 @@ const SECTIONS: readonly Section[] = [
     href: '/administration/corbeille',
     titre: 'Corbeille',
     description:
-      'Ce qui a été supprimé, et peut revenir. Rien n’est jamais effacé définitivement : l’historique doit rester juste.',
+      'Retrouver les croyants et entités supprimés, restaurer les éléments ou effectuer une purge définitive.',
     icone: Trash2,
     permission: 'trash.restore',
   },
   {
-    /**
-     * EF-ADM-13 — LES RÉFÉRENTIELS NE SONT PAS RÉÉCRITS ICI.
-     *
-     * Grades, nationalités, fonctions et catégories ont leur CRUD complet
-     * depuis le lot 1. Ce qui manquait n'était pas la fonctionnalité mais son
-     * emplacement : rien ne les reliait à l'administration, et le SuperAdmin ne
-     * savait pas qu'ils existaient. Un renvoi, donc — pas un second chemin
-     * (règle 16).
-     */
     href: '/referentiels',
     titre: 'Référentiels',
     description:
-      'Grades, nationalités, fonctions, catégories financières. L’écran existe depuis le lot 1 ; cette carte ne fait que le relier.',
+      'Administrer les nomenclatures officielles : grades, fonctions ecclésiales, nationalités, catégories financières et événements de dîmes.',
     icone: ShieldCheck,
     permission: 'referentiel.manage',
   },

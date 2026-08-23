@@ -55,11 +55,11 @@ export default async function RapportsPage({
     <div className="space-y-8">
       <PageHeader
         eyebrow="Rapports"
-        title="Bibliotheque de modeles"
+        title="Bibliothèque de modèles"
         description={
           modeles.length > 0
-            ? `${formatNombre(actifs)} modele${actifs > 1 ? 's' : ''} disponible${actifs > 1 ? 's' : ''} sur ${formatNombre(modeles.length)} visible${modeles.length > 1 ? 's' : ''}.`
-            : 'Aucun modele dans votre perimetre — le premier reste a composer.'
+            ? `${formatNombre(actifs)} modèle${actifs > 1 ? 's' : ''} disponible${actifs > 1 ? 's' : ''} sur ${formatNombre(modeles.length)} visible${modeles.length > 1 ? 's' : ''}.`
+            : 'Aucun modèle dans votre périmètre — composez votre premier modèle de rapport.'
         }
       />
 

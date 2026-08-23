@@ -48,7 +48,6 @@ import {
 } from '@/lib/actions/dimes';
 import { CANEVAS_DIMES } from '@/lib/domain/canevas-import';
 import { lireCsv, separerEntetes } from '@/lib/domain/csv';
-import { EVENEMENTS_DIME, LIBELLES_EVENEMENT } from '@/lib/domain/dime';
 import {
   type CorrespondanceVersement,
   DESCRIPTION_VERSEMENT,
@@ -56,6 +55,8 @@ import {
   devinerVersement,
 } from '@/lib/domain/import-dimes';
 import { formatNombre } from '@/lib/utils/format';
+import type { OptionEvenementDime } from '@/lib/domain/dime';
+import { EVENEMENTS_DIME, LIBELLES_EVENEMENT, NIVEAU_HOTE } from '@/lib/domain/dime';
 
 /**
  * Import d'une feuille de versements — EF-FIN-34.
@@ -76,8 +77,10 @@ type Etape = 'depot' | 'correspondance' | 'rapport';
 
 export function ImportVersementsDialog({
   entites,
+  evenementsDisponibles,
 }: {
   entites: OptionEntite[];
+  evenementsDisponibles?: OptionEvenementDime[];
 }) {
   const router = useRouter();
   const [ouvert, setOuvert] = useState(false);
@@ -90,6 +93,17 @@ export function ImportVersementsDialog({
   const [donnees, setDonnees] = useState<string[][]>([]);
   const [correspondance, setCorrespondance] = useState<CorrespondanceVersement>({});
   const [rapport, setRapport] = useState<ResultatImportVersements | null>(null);
+
+  const listeEvenements = useMemo(() => {
+    if (evenementsDisponibles && evenementsDisponibles.length > 0) {
+      return evenementsDisponibles;
+    }
+    return EVENEMENTS_DIME.map((e) => ({
+      code: e,
+      libelle: LIBELLES_EVENEMENT[e] ?? e,
+      niveauHote: NIVEAU_HOTE[e] ?? 'EGLISE',
+    }));
+  }, [evenementsDisponibles]);
 
   // --- L'en-tête de la collecte : le fichier ne porte que des lignes ---
   const [entiteId, setEntiteId] = useState<string | null>(null);
@@ -339,9 +353,9 @@ export function ImportVersementsDialog({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {EVENEMENTS_DIME.map((e) => (
-                            <SelectItem key={e} value={e}>
-                              {LIBELLES_EVENEMENT[e]}
+                          {listeEvenements.map((e) => (
+                            <SelectItem key={e.code} value={e.code}>
+                              {e.libelle}
                             </SelectItem>
                           ))}
                         </SelectContent>

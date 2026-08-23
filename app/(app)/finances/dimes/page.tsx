@@ -6,6 +6,7 @@ import {
   chargerDonateurs,
   chargerEnveloppesPerimetre,
   chargerPorteursDEnveloppe,
+  listerEvenementsDime,
 } from '@/lib/data/dimes';
 import { getArbrePerimetre } from '@/lib/data/entities';
 import { versOptions } from '@/lib/data/entity-options';
@@ -31,7 +32,7 @@ export const metadata: Metadata = { title: 'Dîmes' };
  * d'équivalent ici.
  */
 export default async function DimesPage() {
-  const [collectes, arbre, parametres, donateurs, enveloppes, porteurs] =
+  const [collectes, arbre, parametres, donateurs, enveloppes, porteurs, evenements] =
     await Promise.all([
     chargerCollectes(),
     getArbrePerimetre(),
@@ -56,6 +57,7 @@ export default async function DimesPage() {
      * ce que l'historique sait deja.
      */
     chargerPorteursDEnveloppe(),
+    listerEvenementsDime(),
   ]);
 
   /**
@@ -100,6 +102,7 @@ export default async function DimesPage() {
         enveloppes={Object.fromEntries(enveloppes)}
         photos={Object.fromEntries(photos)}
         porteurs={Object.fromEntries(porteurs)}
+        evenements={evenements}
       />
     </div>
   );

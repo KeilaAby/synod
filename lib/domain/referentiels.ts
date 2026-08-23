@@ -133,6 +133,7 @@ export const SLUGS_REFERENTIELS = [
   'nationalites',
   'fonctions',
   'categories-finance',
+  'evenements-dime',
 ] as const;
 
 export type SlugReferentiel = (typeof SLUGS_REFERENTIELS)[number];
@@ -349,6 +350,49 @@ export const REFERENTIELS: Record<SlugReferentiel, DefinitionReferentiel> = {
     // violation de cle etrangere, qui protege meme si on l'oublie.
     usages: [],
   },
+
+  'evenements-dime': {
+    slug: 'evenements-dime',
+    table: 'evenements_dime',
+    titre: 'Événements de dîmes',
+    singulier: 'événement',
+    description:
+      "Cadre et portée d'une collecte de dîmes. Détermine le niveau d'entité habilité à collecter (Église, Paroisse, District, Régional, Siège).",
+    triPar: 'ordre',
+    colonneOrdre: 'ordre',
+    colonnes: [
+      { cle: 'libelle', label: 'Libellé' },
+      { cle: 'code', label: 'Code', mono: true },
+      { cle: 'niveau_hote', label: 'Niveau hôte' },
+    ],
+    champs: [
+      { cle: 'libelle', label: 'Libellé', type: 'texte', requis: true },
+      {
+        cle: 'code',
+        label: 'Code',
+        type: 'texte',
+        mono: true,
+        requis: true,
+        immuable: true,
+        hint: 'Référence technique stable : CULTE, DISTRICT, etc.',
+      },
+      {
+        cle: 'niveau_hote',
+        label: 'Niveau hôte',
+        type: 'choix',
+        requis: true,
+        options: optionsNiveaux,
+        hint: 'Niveau de l’entité qui héberge et perçoit la collecte.',
+      },
+    ],
+    schema: z.object({
+      code: codeReferentiel,
+      libelle,
+      niveau_hote: z.enum(ENTITY_TYPES),
+    }),
+    // Protégé par la contrainte de clé étrangère RESTRICT en base.
+    usages: [],
+  },
 };
 
 export function estSlugReferentiel(valeur: string): valeur is SlugReferentiel {
@@ -364,4 +408,10 @@ export const LIBELLES_VALEURS: Record<string, string> = {
   AUTRE: 'Autre',
   RECETTE: 'Recette',
   DEPENSE: 'Depense',
+  SIEGE: 'Siège',
+  REGIONAL: 'Régional',
+  DISTRICT: 'District',
+  PAROISSE: 'Paroisse',
+  EGLISE: 'Église',
+  CELLULE: 'Cellule',
 };

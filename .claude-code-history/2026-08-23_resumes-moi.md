@@ -125,9 +125,27 @@ fonctionnel avec le courriel — et son propre commentaire disait déjà que la
 portée « n'est pas encore exploitée par l'écran ». Extrait dans
 `lib/data/profils.ts` et `lib/actions/profils.ts`, ses propres fichiers.
 
-`pnpm verify` : 44 fichiers, 884 tests, build compris — vert. Aucun test
-neuf : la logique ajoutée est de l'autorisation dans des Server Actions,
-comme `comptes.ts`, jamais unitairement testée dans ce projet.
+### 3. Rapports — 4 marges réglables & fiabilisation de l'impression PDF (EF-RAP-05, EF-RAP-16)
+
+- `MargesDocument` (`lib/domain/rapport.ts`) porte `haut`, `bas`, `gauche`, `droite`, résolues par `margesDocument` avec bornage (5 à 30 mm) et repli transparent sur la marge unique historique (16 mm).
+- `PanneauReglages` expose 4 curseurs indépendants, un bouton « Uniformiser », et le calcul en temps réel de la zone utile (`largeurUtileMm`, `hauteurUtileMm`).
+- `RenduRapport` applique les marges spécifiques sur la feuille A4 et génère `@page { size: A4 portrait; margin: ...; }`.
+- `imprimerRapport` (`components/rapports/imprimer-rapport.ts`) extrait directement le balisage `[data-rendu-rapport]` sans réduction d'échelle (`transform: scale`) ni conteneur fixe de l'éditeur.
+
+### 4. Référentiel « Événements de dîmes » (EF-REF, EF-FIN-30, migration 0074)
+
+- Table `evenements_dime` (`id`, `code`, `libelle`, `niveau_hote`, `ordre`, `is_active`) avec RLS sous `has_perm('referentiel.manage')`.
+- Enregistrement dans `REFERENTIELS` (`lib/domain/referentiels.ts`) : administrable sous `/referentiels/evenements-dime`, réordonnable par glisser-déposer (`fn_reordonner_referentiel`).
+- Conversion de `finance_entries.dime_evenement` en `TEXT` avec clé étrangère `references evenements_dime(code)`.
+- Remplacement de `fn_saisir_collecte_dime` prenant `p_evenement text` avec vérification de l'événement actif.
+- `CollecteDialog` et `ImportVersementsDialog` alimentés dynamiquement par `listerEvenementsDime()`.
+
+### 5. Habilitations fines & Réécriture des descriptions d’écrans
+
+- Vérification et mise à jour de `lib/domain/permissions.ts` : libellés et descriptions de l’ensemble des permissions (`PERMISSIONS`) revus avec typographie soignée, accents, et descriptions explicites.
+- Intégration de `referentiel.manage` pour les événements de dîme, `transfer.certify` pour les attestations officielles, `croyant.grade.approve` pour les promotions, et `permission.delegate` pour les profils locaux.
+- Mise à jour des raccourcis (`PROFILS_RACCOURCIS` dans `lib/domain/profils-habilitation.ts`) avec `transfer.certify` et `export.data`.
+- Réécriture des cartes du hub `/administration`, des en-têtes et des descriptions d’écrans pour un langage clair, naturel et accueillant.
 
 ---
 
@@ -166,11 +184,8 @@ que la RLS vérifie déjà — elle a souvent la réponse.
 
 ## Ce qu'il reste
 
-**EF-ADM-03 et EF-ADM-05 sortent tous deux de la liste des sujets ouverts**
-— la première **tranchée** (déclinée, voir plus haut), la seconde
-**livrée**. Pour le reste, voir
-[`2026-08-22_resumes-moi.md`](2026-08-22_resumes-moi.md#ce-quil-reste) et
-[`notes/todos.md`](../notes/todos.md) — inchangé sinon ces deux points.
+Toutes les demandes en attente de `notes/todos.md` sont désormais livrées et cochées.
+Reste le **lot 8** (portabilité, tests E2E / recette en production).
 
 ---
 
@@ -180,7 +195,7 @@ que la RLS vérifie déjà — elle a souvent la réponse.
 pnpm install      # installe aussi le hook pre-commit de détection de secrets
 cp .env.example .env.local   # puis renseigner : les valeurs sont dans Supabase
 pnpm exec next typegen       # sur un clone frais, AVANT le premier typecheck
-pnpm verify       # secrets + lint + types + 884 tests + build
+pnpm verify       # secrets + lint + types + 887 tests + build
 pnpm dev:propre   # cache Turbopack vidé — après toute série de modifications
 ```
 

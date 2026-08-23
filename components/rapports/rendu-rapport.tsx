@@ -10,7 +10,7 @@ import {
   afficheChamp,
   decouperEnFeuilles,
   definitionBloc,
-  margeDocument,
+  margesDocument,
   mentionFiltres,
   typeGraphique,
 } from '@/lib/domain/rapport';
@@ -26,12 +26,12 @@ import { cn } from '@/lib/utils';
  * un second rendu à maintenir, qui aurait divergé du premier — et c'est
  * précisément l'aperçu qui promet que le PDF lui ressemblera. Exporter en PDF,
  * c'est donc **imprimer ceci**, et les styles `@page` de `globals.css` s'en
- * chargent : A4, marges 16 mm, `.page-break` là où l'auteur l'a demandé.
+ * chargent : A4, marges réglées, `.page-break` là où l'auteur l'a demandé.
  *
- * LES MILLIMÈTRES SONT VRAIS. La feuille fait 210 mm, les marges 16 mm, le
- * texte 10 pt : c'est ce qui rend l'aperçu **fidèle**. Une maquette en pixels
- * approcherait la mise en page à l'écran et la trahirait à l'impression, ce qui
- * est exactement l'erreur qu'un aperçu doit empêcher.
+ * LES MILLIMÈTRES SONT VRAIS. La feuille fait 210 mm, le texte 10 pt : c'est ce
+ * qui rend l'aperçu **fidèle**. Une maquette en pixels approcherait la mise en
+ * page à l'écran et la trahirait à l'impression, ce qui est exactement l'erreur
+ * qu'un aperçu doit empêcher.
  *
  * CE QUI N'EST PAS ENCORE GÉNÉRÉ SE DIT. Pendant la composition, un bloc de
  * données n'a pas de valeur : il rend un cadre qui NOMME sa source, plutôt
@@ -81,10 +81,10 @@ export function RenduRapport({
    * voulues, et le reste que l'impression répartira.
    */
   const feuilles = decouperEnFeuilles(structure.sections);
-  const marge = margeDocument(structure);
+  const marges = margesDocument(structure);
 
   return (
-    <div className={cn('space-y-6', className)}>
+    <div data-rendu-rapport className={cn('space-y-6', className)}>
       {/*
         LA MARGE DU PAPIER SE DÉCLARE ICI, PAS DANS LA FEUILLE DE STYLE.
 
@@ -96,7 +96,7 @@ export function RenduRapport({
         Sans cela, l'aperçu montrait 16 mm quoi qu'on règle, et l'impression
         aussi : le réglage aurait été décoratif (règle 21).
       */}
-      <style>{`@page { size: A4; margin: ${marge}mm; }`}</style>
+      <style>{`@page { size: A4 portrait; margin: ${marges.haut}mm ${marges.droite}mm ${marges.bas}mm ${marges.gauche}mm; }`}</style>
 
       {feuilles.map((feuille, index) => (
         <article
@@ -104,15 +104,22 @@ export function RenduRapport({
           /*
             LES MILLIMÈTRES NE SONT PAS DES ESPACEMENTS D'ÉCRAN.
 
-            210 × 297 mm et 16 mm de marge sont les dimensions du PAPIER : elles
+            210 × 297 mm et les marges sont les dimensions du PAPIER : elles
             n'ont rien à faire sur la grille de 8 px (UI-01), qui règle des
             rapports entre éléments à l'écran. Les poser en style plutôt qu'en
             classe le dit, au lieu de contourner la règle par une exception.
 
-            À l'impression, `globals.css` remet cette marge à zéro : c'est
-            `@page { margin: 16mm }` qui la fournit, et la cumuler la doublerait.
+            À l'impression, `globals.css` remet cette marge intérieure à zéro :
+            c'est `@page { margin: ... }` qui la fournit, et la cumuler la doublerait.
           */
-          style={{ width: '210mm', minHeight: '297mm', padding: `${marge}mm` }}
+          style={{
+            width: '210mm',
+            minHeight: '297mm',
+            paddingTop: `${marges.haut}mm`,
+            paddingBottom: `${marges.bas}mm`,
+            paddingLeft: `${marges.gauche}mm`,
+            paddingRight: `${marges.droite}mm`,
+          }}
           className={cn(
             'mx-auto flex flex-col bg-white text-slate-900 shadow-sm print:shadow-none',
             index < feuilles.length - 1 && 'page-break',

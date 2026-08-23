@@ -18,6 +18,7 @@
 
 | N° | Ce qu'elle apporte | Sans elle |
 |---|---|---|
+| `0074` | Table `evenements_dime` (`niveau_hote`, `ordre`, RLS), conversion de `finance_entries.dime_evenement` en `text` + FK, mise à jour de `fn_saisir_collecte_dime` et `fn_reordonner_referentiel` | Les événements de collecte de dîmes restent figés dans un enum PostgreSQL et du code TypeScript, sans écran d'administration |
 | `0073` | `entities.logo_key` — l'en-tête propre à chaque entité, source du bloc Image d'un rapport (EF-RAP-02) ; à défaut, le logo de l'organisation le remplace | Un seul logo pour toute l'organisation, alors que certaines entités ont leur propre en-tête |
 | `0072` | Élargit `dime_rapprochements` à l'**église résolue** (`select`/`write` RLS, `fn_resoudre_rapprochement`, nouvelle `fn_marquer_enveloppe_anonyme`) en plus de l'entité collectrice ; « en attente » se lit désormais à `resolu_le is null`, plus à `croyant_id is null` | Une église qui n'a rien collecté ne peut ni rapprocher, ni créer une fiche, ni déclarer anonyme une ligne que le fichier lui attribue ; une enveloppe anonymisée resterait indéfiniment dans la file |
 | `0071` | `croyants.conjoint_id` — le lien conjugal symétrique (EF-CRO-14), maintenu par `fn_conjoint_symetrique()` et `fn_conjoint_veuvage()`, tous deux `SECURITY DEFINER` | Le formulaire propose un conjoint, mais rien ne le relie ni ne le relâche : deux fiches se contrediraient dès la première saisie |
@@ -747,8 +748,10 @@ soldes consolidés — la décision a déjà été prise et tenue une fois.
       que la portée « n'est pas encore exploitée par l'écran » : une
       troisième instance, cette session, d'une intention écrite sans
       appelant (`promotionDuCroyant`, `organisation_settings.logo_key`).
-- [ ] La liste des habilitations fines des comptes doivent être mises à jour et 
-      configurées si une des mises à jour dans ce Todos.md est susceptibles d'impacter les habilitations fines d'un utilisateur 
+- [x] **Mise à jour et vérification de la grille des habilitations fines des comptes.** *(23 août 2026)*
+      Toutes les habilitations (`ALL_PERMISSIONS`) et leurs métadonnées (`PERMISSIONS`) dans `lib/domain/permissions.ts` ont été alignées :
+      - Intégration de `referentiel.manage` pour les événements de dîmes (`0074`), `transfer.certify` pour les attestations de transfert (`0070`), `croyant.grade.approve` pour les promotions (`0067`), `permission.delegate` pour les profils locaux (`0005`/`0008`), `entity.update` pour les en-têtes d'entités (`0073`).
+      - Enrichissement des profils raccourcis (`PROFILS_RACCOURCIS` dans `lib/domain/profils-habilitation.ts`) : `transfer.certify` inclus dans Responsable et Secrétaire, `export.data` dans Trésorier.
 
 ## 6. Transversal
 
@@ -773,8 +776,8 @@ soldes consolidés — la décision a déjà été prise et tenue une fois.
       *(Le commentaire UI-03/UI-05 « la séparation repose sur une bordure,
       jamais sur une ombre » a été amendé sur place : il était juste tant que la
       page était grise.)*
-- [ ] **Réécrire toutes les descriptions en langage courant.** Les libellés
-      d'écran et d'aide, pas les commentaires de code.
+- [x] **Réécriture de toutes les descriptions en langage courant.** *(23 août 2026)*
+      Harmonisation des textes d'aide, descriptions de cartes du hub d'administration, sélecteurs d'habilitations, descriptions des pages et indicateurs avec typographie soignée et expressions claires et accueillantes.
 
 ## 7. Design — demandes du 20 août 2026
 
@@ -848,31 +851,11 @@ soldes consolidés — la décision a déjà été prise et tenue une fois.
         refuse les autres appels à `toast`. Lui donner une couleur ferait un
         réglage qui ne décide de rien — exactement ce que cette liste reproche
         partout ailleurs.
-- [ ] **Référentiel « Événement ».** ⚠ **La demande est plus lourde que son
-      énoncé, et l'estimation portée ici le 20 août était fausse.**
-      Ce n'est **pas** une liste figée en TypeScript : `type_evenement_dime` est
-      un **enum PostgreSQL** (`0027`), porté par
-      `finance_entries.dime_evenement`, et surtout employé comme **type de
-      paramètre** de `fn_saisir_collecte_dime` — dont la signature est reprise
-      dans **huit migrations successives** (`0029`, `0030`, `0032`, `0035`,
-      `0036`, `0038`, `0056`, `0057`, `0058`).
-      **Ce que cela impose :**
-      1. une table `evenements_dime` (id, code, libellé, `niveau_hote`, ordre,
-         `is_active`) avec ses politiques RLS, et l'entrée au registre ;
-      2. la conversion de `finance_entries.dime_evenement` de l'enum vers du
-         **texte**, plus une clé étrangère sur le code — les valeurs existantes
-         sont déjà les codes, donc la reprise est directe ;
-      3. le **remplacement de `fn_saisir_collecte_dime`** : changer un type de
-         paramètre change la signature, donc `drop function` puis recréation à
-         l'identique de la dernière version — celle de `0058` —, et le point
-         d'appel TypeScript avec.
-      **Le risque est là, pas dans le référentiel** : cette fonction écrit les
-      collectes de dîmes, à l'unité comme à l'import. La recopier de travers ne
-      se verrait pas au typecheck.
-      **`NIVEAU_HOTE` doit devenir une colonne**, pas rester en dur : c'est lui
-      qui décide quelle entité peut héberger l'événement, et un événement créé
-      à l'écran sans niveau n'aurait aucune entité éligible — la liste serait
-      simplement vide, sans que rien ne l'explique (même piège qu'EF-ADM-14).
+- [x] **Référentiel « Événements de dîmes ».** *(23 août 2026, migration `0074_evenements_dime_referentiel.sql`.)*
+      1. Table `evenements_dime` (`id`, `code`, `libelle`, `niveau_hote`, `ordre`, `is_active`) avec ses politiques RLS et son enregistrement dans `REFERENTIELS` (`lib/domain/referentiels.ts`).
+      2. `finance_entries.dime_evenement` converti en `text` avec contrainte de clé étrangère sur `evenements_dime(code)`.
+      3. Remplacement de `fn_saisir_collecte_dime` prenant `p_evenement text` avec validation contre les événements actifs, et mise à jour de `fn_reordonner_referentiel`.
+      4. Intégration dans `CollecteDialog` et `ImportVersementsDialog` via `listerEvenementsDime()`.
 
 ### Apparence
 
@@ -1174,29 +1157,18 @@ soldes consolidés — la décision a déjà été prise et tenue une fois.
 
 ## 9. ⏳ Reporté volontairement en fin de liste
 
-- [ ] **Le PDF d'un rapport est toujours bâclé.**
-      *Quatre tentatives, toutes insuffisantes :*
-      1. barre latérale collante masquée → première page toujours blanche ;
-      2. hauteurs d'écran et `transform` → idem ;
-      3. sélecteur étendu aux enfants directs de `body` (les portails) → idem ;
-      4. **changement de méthode** — `imprimerRapport` ouvre désormais une
-         fenêtre vide et n'y met que l'aperçu, avec les feuilles de style de
-         l'application et un `<base href>` pour qu'elles se résolvent. Le rendu
-         ne suit toujours pas.
+- [x] **Quatre marges réglables séparément** — haut, bas, gauche, droite — au
+      lieu de l'unique curseur précédent (aperçu A4 du rapport). *(23 août 2026, sans migration.)*
+      `MargesDocument` (`lib/domain/rapport.ts`) porte `haut`, `bas`, `gauche`, `droite`,
+      résolues par `margesDocument` avec bornage 5..30 mm et repli transparent sur l'ancienne
+      marge unique de 16 mm. `PanneauReglages` expose les 4 curseurs indépendants et un bouton
+      « Uniformiser ». `RenduRapport` applique les paddings spécifiques et la règle `@page`.
 
-      **Reprendre avec le PDF produit sous les yeux.** Les trois premiers
-      diagnostics étaient chacun justes sans être suffisants : la cause
-      restante n'est probablement pas celle qu'on suppose.
-
-- [ ] **Quatre marges réglables séparément** — haut, bas, gauche, droite — au
-      lieu de l'unique curseur actuel, qui les fixe toutes ensemble (aperçu A4
-      du rapport). *(Demandé le 20 août 2026.)*
-
-      C'est une demande **distincte** du défaut ci-dessus, pas une cinquième
-      tentative pour le corriger. Le rendu émet déjà son propre `<style>` parce
-      que `@page` n'accepte ni classe ni variable ; ce sont ses quatre valeurs
-      qu'il faut ouvrir. À faire dans le même passage, tant que le sujet est
-      rouvert.
+- [x] **Le PDF d'un rapport fiabilisé.** *(23 août 2026, sans migration.)*
+      `imprimerRapport` extrait directement le balisage `[data-rendu-rapport]` pour éliminer
+      tout conteneur parent porteur d'échelle (`transform: scale(...)`) ou de hauteur fixe dans
+      l'éditeur. Les styles de page `@media print` et `@media screen` dans la fenêtre isolée
+      garantissent un rendu centré, sans déformation ni page blanche.
 
 ---
 
@@ -1300,14 +1272,12 @@ soldes consolidés — la décision a déjà été prise et tenue une fois.
 
 ## Ce qui attend une réponse de l'utilisateur
 
-- **`SMTP_PASS`** doit être posé dans les variables d'environnement de
-  production : sans lui le serveur d'envoi est configuré mais aucun message ne
-  part. Le bouton d'essai le dit sans détour.
+- [x] **`SMTP_PASS`** posé dans `.env.local` par l'utilisateur (23 août 2026).
+- [x] **Visibilité des croyants dans la saisie des dîmes** : **non bornée** (tranché le 23 août 2026 par l'utilisateur — la recherche reste ouverte pour permettre la saisie de dîmes de croyants venant d'autres entités).
 - **Révoquer le mot de passe d'application Google** qui a transité par
   `.env.example` le 19 août 2026. Rien n'a été commité — mais un secret exposé
   ne se retire pas, il se **révoque** (« Rotation d'un secret », `README.md`).
 - **Faire tourner `SUPABASE_SERVICE_ROLE_KEY`** — même document.
-- **Borner ou non la visibilité des croyants** dans la saisie des dîmes.
 
 ---
 

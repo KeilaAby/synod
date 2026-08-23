@@ -67,348 +67,232 @@ export const PERMISSIONS = {
   'entity.read': {
     label: 'Consulter la structure',
     group: 'Structure',
-    description: "Voir l'organigramme et les fiches des entites du perimetre.",
+    description: 'Afficher l’organigramme, la liste et les fiches des entités du périmètre.',
   },
   'entity.create': {
-    label: 'Creer une entite',
+    label: 'Créer une entité',
     group: 'Structure',
-    description: 'Ajouter une sous-entite sous une entite du perimetre.',
+    description: 'Ajouter une sous-entité (direction, région, district, paroisse, église ou cellule).',
   },
   'entity.update': {
-    label: 'Modifier une entite',
+    label: 'Modifier une entité',
     group: 'Structure',
-    description: 'Renommer, recoder ou rattacher une entite du perimetre.',
+    description: 'Mettre à jour les informations, l’en-tête officiel ou le rattachement hiérarchique.',
   },
   'entity.delete': {
-    label: 'Supprimer une entite',
+    label: 'Supprimer une entité',
     group: 'Structure',
-    description: 'Supprimer definitivement une entite. Reserve au Siege.',
+    description: 'Supprimer définitivement une entité. Réservé au Siège.',
   },
 
   // --- Croyants --------------------------------------------------------------
   'croyant.read': {
     label: 'Consulter les croyants',
     group: 'Croyants',
-    description: 'Lister et ouvrir les fiches des croyants du perimetre.',
+    description: 'Lister et consulter les fiches individuelles et historiques des croyants du périmètre.',
   },
   'croyant.create': {
-    label: 'Creer un croyant',
+    label: 'Créer un croyant',
     group: 'Croyants',
-    description: 'Enregistrer un nouveau croyant dans une eglise du perimetre.',
+    description: 'Enregistrer un nouveau croyant au sein d’une église du périmètre.',
   },
   'croyant.update': {
     label: 'Modifier un croyant',
     group: 'Croyants',
-    description: "Corriger l'identite, les coordonnees ou le rattachement.",
+    description: 'Mettre à jour l’identité, les coordonnées, le lien conjugal ou le statut d’une fiche.',
   },
   'croyant.delete': {
     label: 'Supprimer un croyant',
     group: 'Croyants',
-    description: 'Placer une fiche en corbeille. La suppression est reversible.',
+    description: 'Placer une fiche en corbeille (suppression réversible conservant l’historique).',
   },
   'croyant.transfer': {
     label: 'Demander un transfert',
     group: 'Croyants',
-    description: "Initier le transfert d'un croyant vers une autre entite.",
+    description: 'Initier une demande de transfert de membre vers une autre entité.',
   },
   'transfer.approve': {
     label: 'Approuver un transfert',
     group: 'Croyants',
-    description: 'Decider des demandes de transfert dont le perimetre vous revient.',
+    description: 'Examiner, approuver ou refuser les demandes de transfert relevant de votre arbitrage.',
   },
-  /**
-   * UN DROIT A PART, ET C'EST LA DEMANDE (20 aout 2026) : « un document signe
-   * n'est pas une lecture de liste ».
-   *
-   * Consulter un transfert dit ce qui s'est passe ; en delivrer l'attestation
-   * ENGAGE l'entite — le papier porte son en-tete, il sera presente ailleurs, et
-   * il vaut preuve. Le confondre avec `croyant.transfer` donnerait le pouvoir
-   * d'attester a qui n'a que celui de demander.
-   */
   'transfer.certify': {
-    label: 'Delivrer une attestation de transfert',
+    label: 'Délivrer une attestation de transfert',
     group: 'Croyants',
     description:
-      "Editer le document officiel d'un transfert approuve, sous l'en-tete de l'entite.",
+      'Éditer et imprimer l’attestation officielle de transfert sous l’en-tête de l’entité.',
   },
-  /**
-   * EF-CRO-12 — DECIDER N'EST PAS DEMANDER.
-   *
-   * Demander une promotion reste sous `croyant.update` : c'est le meme geste
-   * qu'avant le circuit, seul change qui tranche. Approuver, en revanche,
-   * engage l'organisation entiere — un grade vaut partout, « Pasteur » doit
-   * designer la meme chose d'une eglise a l'autre.
-   *
-   * La PORTEE fait le reste : ce droit s'evalue sur l'entite SUPERIEURE figee a
-   * la demande, si bien qu'un compte borne a l'eglise ne peut pas s'approuver
-   * lui-meme. Aucune regle de plus a ecrire pour cela.
-   */
   'croyant.grade.approve': {
     label: 'Approuver une promotion de grade',
     group: 'Croyants',
     description:
-      "Trancher les demandes de changement de grade des entites qui dependent de vous.",
+      'Valider ou rejeter les propositions de promotion de grade soumises par les entités rattachées.',
   },
   'bapteme.create': {
-    label: 'Saisir un nouveau baptise',
+    label: 'Saisir un baptême',
     group: 'Croyants',
-    description: 'Declarer un bapteme ; le croyant correspondant est cree.',
+    description: 'Enregistrer une cérémonie de baptême (crée automatiquement les fiches de croyants correspondantes).',
   },
 
   // --- Bureaux ---------------------------------------------------------------
   'bureau.read': {
     label: 'Consulter les bureaux',
     group: 'Bureaux',
-    description: 'Voir la composition et les mandats des bureaux du perimetre.',
+    description: 'Consulter la composition, les mandats et l’organigramme des bureaux du périmètre.',
   },
   'bureau.manage': {
     portee: 'PROPRE',
-    label: 'Gerer les bureaux',
+    label: 'Gérer les bureaux',
     group: 'Bureaux',
-    description: 'Ouvrir un mandat, designer, remplacer ou retirer un membre.',
+    description: 'Ouvrir un mandat, composer les postes, désigner, remplacer ou retirer un membre.',
   },
-  /**
-   * Droit DISTINCT de `bureau.manage` — EF-BUR-08.
-   *
-   * Clore un mandat le conserve : c'est l'histoire du bureau. SUPPRIMER
-   * l'efface, avec les mandats individuels qui en dependent, et les fonctions
-   * occupees disparaissent des fiches des croyants concernes. Une operation qui
-   * reecrit le passe ne s'accorde pas avec celle qui gere le present.
-   */
   'bureau.delete': {
     portee: 'PROPRE',
     label: 'Supprimer un bureau',
     group: 'Bureaux',
     description:
-      "Effacer un bureau et son historique. Irreversible : preferez la cloture, qui conserve.",
+      'Effacer définitivement un bureau et son historique. À réserver aux ouvertures erronées.',
   },
 
-  // --- Finances (ARB-2 / ARB-3) ---------------------------------------------
+  // --- Finances --------------------------------------------------------------
   'finance.read': {
-    label: 'Consulter les finances et le solde',
+    label: 'Consulter les finances',
     group: 'Finances',
-    description: 'Voir les mouvements, les syntheses et le solde disponible.',
+    description: 'Visualiser le registre des mouvements, les synthèses périodiques et le solde de trésorerie.',
   },
   'finance.create': {
     portee: 'PROPRE',
     label: 'Saisir un mouvement',
     group: 'Finances',
-    description: 'Enregistrer une recette ou une depense sur le perimetre.',
+    description: 'Enregistrer une recette ou une dépense pour son entité.',
   },
   'finance.update': {
     portee: 'PROPRE',
     label: 'Modifier un brouillon',
     group: 'Finances',
-    description: 'Corriger un mouvement tant qu il n est ni soumis ni valide.',
+    description: 'Corriger un mouvement financier tant qu’il n’est ni soumis ni validé.',
   },
   'finance.submit': {
     portee: 'PROPRE',
     label: 'Soumettre pour validation',
     group: 'Finances',
-    description: 'Presenter un brouillon au circuit de validation.',
+    description: 'Transmettre un brouillon financier au circuit de validation.',
   },
   'finance.validate': {
     portee: 'PROPRE',
-    label: 'Valider ou rejeter un mouvement',
+    label: 'Valider un mouvement',
     group: 'Finances',
-    description: 'Decider des mouvements soumis. La validation les rend immuables.',
+    description: 'Approuver ou rejeter les mouvements financiers soumis (la validation fige l’écriture).',
   },
   'finance.delegate': {
-    label: "Saisir pour le compte d'une entite",
+    label: 'Saisie déléguée',
     group: 'Finances',
     description:
-      "Enregistrer un mouvement au nom d'une entite privee d'acces. Reserve au Siege.",
+      'Enregistrer un mouvement financier au nom d’une entité sans accès ou sans bureau constitué.',
   },
-  /**
-   * EF-FIN-15 (adapte) — regler le workflow d'une entite.
-   *
-   * DISTINCT DE `settings.manage`, ET DELEGABLE. Le reglage passait par
-   * `settings.manage`, qui n'est pas delegable : seul le Siege pouvait donc
-   * decider, entite par entite, pour toute l'organisation. Un district qui
-   * structure ses eglises devait le demander au Siege a chaque fois.
-   *
-   * Le lui accorder par `settings.manage` aurait ouvert AVEC lui la devise, le
-   * format des matricules et la fenetre des nouveaux baptises — des reglages
-   * d'organisation qu'un district n'a pas a toucher. Un droit qui ouvre plus
-   * que ce qu'on veut accorder n'est pas le bon droit.
-   *
-   * Il se delegue AVEC SA PORTEE (RG-25) : un district le recoit pour son
-   * district, et ne regle donc que ses propres eglises.
-   */
   'finance.workflow.manage': {
-    label: 'Regler le workflow de validation',
+    label: 'Régler le workflow financier',
     group: 'Finances',
     description:
-      "Activer ou desactiver la validation des ecritures, entite par entite, dans la "
-      + 'portee accordee.',
+      'Activer ou désactiver l’exigence de validation préalable des écritures pour les entités du périmètre.',
   },
-  /**
-   * EF-FIN-27 — collecter les dimes d'une entite.
-   *
-   * DROIT DEDIE, et il ne pouvait pas en etre autrement. Une dime appartient au
-   * Siege (RG-33), donc son mouvement y est rattache — mais c'est l'EGLISE qui
-   * la collecte, et son tresorier ne detient pas `finance.create` sur le Siege.
-   *
-   * Ce droit porte sur l'entite COLLECTRICE : le detenir pour son eglise permet
-   * d'ecrire une recette du Siege, et rien d'autre. C'est
-   * `fn_saisir_collecte_dime` qui le verifie, seul chemin d'ecriture.
-   *
-   * DELEGABLE : le Siege le confie a chaque eglise pour elle-meme.
-   */
   'finance.dime.collect': {
-    label: 'Collecter les dimes',
+    label: 'Collecter les dîmes',
     group: 'Finances',
     description:
-      "Enregistrer une collecte de dimes et delivrer les recus. La dime revient au "
-      + 'Siege ; cette entite en tient le detail.',
+      'Enregistrer les collectes, importer les versements et délivrer les reçus individuels de dîmes.',
   },
-  /**
-   * EF-FIN-18 — la levee de la separation saisie/validation.
-   *
-   * Elle SE DETIENT, elle ne se suppose pas. Une eglise de trois personnes n'a
-   * personne d'autre pour valider ; ailleurs, laisser une seule main saisir et
-   * constater efface la difference entre une comptabilite et une declaration.
-   * Le droit rend donc l'exception VISIBLE — dans la matrice d'habilitation, et
-   * dans le journal d'audit.
-   */
   'finance.validate_own': {
     portee: 'PROPRE',
     label: 'Valider ses propres mouvements',
     group: 'Finances',
     description:
-      'Leve la separation entre saisie et validation. A reserver aux entites ou une '
-      + 'seule personne tient les comptes.',
+      'Lève la séparation entre saisie et validation (à réserver aux entités à trésorier unique).',
   },
-  /**
-   * EF-FIN-26 — arreter les comptes d'un mois.
-   *
-   * DELEGABLE, et il doit l'etre : c'est le bureau qui arrete ses propres
-   * comptes, pas le Siege a sa place. Il s'evalue AVEC SA PORTEE (RG-25), y
-   * compris quand la cloture est demandee pour tout un perimetre — les entites
-   * hors portee sont alors ignorees, jamais closes en silence.
-   */
   'finance.periode.close': {
     portee: 'PROPRE',
-    label: 'Cloturer une periode',
+    label: 'Clôturer une période',
     group: 'Finances',
     description:
-      'Arreter les comptes d un mois : plus aucune ecriture ne peut y entrer ni en '
-      + 'sortir. Refuse tant qu un mouvement y attend une decision.',
+      'Arrêter définitivement les comptes d’un mois : fige et verrouille toutes les écritures de la période.',
   },
-  /**
-   * EF-FIN-26 — rouvrir, et l'exigence est explicite : « sans reouverture par
-   * le SuperAdmin ».
-   *
-   * NON DELEGABLE. Si celui qui clot pouvait s'accorder de quoi rouvrir, la
-   * cloture ne serait plus qu'une convention entre soi — elle n'arreterait
-   * rien, elle ajouterait une etape.
-   */
   'finance.periode.reopen': {
     portee: 'PROPRE',
-    label: 'Rouvrir une periode cloturee',
+    label: 'Rouvrir une période clôturée',
     group: 'Finances',
     description:
-      'Lever le verrou d un mois arrete, sur motif. Reserve au Siege : celui qui '
-      + 'clot ne rouvre pas.',
+      'Lever exceptionnellement le verrou d’un mois arrêté, sur motif justifié. Réservé au Siège.',
   },
 
   // --- Rapports --------------------------------------------------------------
   'report.read': {
     label: 'Consulter les rapports',
     group: 'Rapports',
-    description: 'Ouvrir les modeles et les rapports generes du perimetre.',
+    description: 'Consulter les modèles enregistrés et ouvrir les rapports générés du périmètre.',
   },
   'report.create': {
-    label: 'Composer et generer un rapport',
+    label: 'Composer et générer un rapport',
     group: 'Rapports',
-    description: 'Assembler des blocs, enregistrer un modele et produire un PDF.',
+    description: 'Assembler des blocs modulaires, enregistrer des modèles et générer des documents PDF.',
   },
-  /**
-   * `report.publish` A ETE RETIRE le 20 aout 2026 (migration `0060`).
-   *
-   * Publier rendait un rapport lisible par tout le perimetre SANS
-   * `report.read` — c'en etait la definition. Or RG-26 omet les blocs non
-   * habilites A LA GENERATION, sous la session de celui qui genere, et le
-   * contenu est ensuite fige (RG-27) : un rapport publie montrait donc ses
-   * finances a quelqu'un a qui `finance.read` avait ete refuse.
-   *
-   * LE DROIT DISPARAIT DU REGISTRE PLUTOT QUE DE DEVENIR DECORATIF. Un
-   * interrupteur qu'on peut encore poser et qui n'accorde rien est un piege
-   * pose pour plus tard : quelqu'un le cocherait et croirait avoir diffuse.
-   *
-   * Les octrois deja enregistres en base restent, inertes : ce sont des
-   * chaines, plus rien ne les lit. Les effacer aurait touche des lignes que
-   * le journal d'audit cite.
-   */
   'report.template.manage': {
-    label: 'Gerer les modeles partages',
+    label: 'Gérer les modèles partagés',
     group: 'Rapports',
-    description: 'Publier des modeles reutilisables pour les entites filles.',
+    description: 'Publier et diffuser des modèles de rapports officiels pour les entités rattachées.',
   },
 
   // --- Pilotage --------------------------------------------------------------
   'dashboard.configure': {
-    label: 'Personnaliser son tableau de bord',
+    label: 'Personnaliser le tableau de bord',
     group: 'Pilotage',
-    description: 'Choisir, ordonner et dimensionner ses propres indicateurs.',
+    description: 'Organiser, dimensionner et agencer ses indicateurs et graphiques favoris.',
   },
   'export.data': {
-    label: 'Exporter les donnees',
+    label: 'Exporter les données',
     group: 'Pilotage',
-    description: 'Produire des exports Excel, CSV et PDF sur le perimetre.',
+    description: 'Télécharger les données du périmètre aux formats Excel (XLSX), CSV ou PDF.',
   },
 
   // --- Administration --------------------------------------------------------
   'referentiel.manage': {
-    label: 'Gerer les referentiels',
+    label: 'Gérer les référentiels',
     group: 'Administration',
-    description: 'Grades, nationalites, fonctions et categories. Reserve au Siege.',
+    description: 'Grades, fonctions, nationalités, catégories financières et événements de dîmes. Réservé au Siège.',
   },
   'user.manage': {
     portee: 'PROPRE',
-    label: 'Gerer les comptes',
+    label: 'Gérer les comptes',
     group: 'Administration',
-    description: 'Inviter, activer et desactiver les comptes du perimetre.',
+    description: 'Créer, activer, suspendre et réinitialiser les comptes d’accès du périmètre.',
   },
   'permission.delegate': {
     portee: 'PROPRE',
-    label: 'Deleguer des habilitations',
+    label: 'Gérer les habilitations & profils',
     group: 'Administration',
     description:
-      'Accorder a un compte du perimetre un sous-ensemble des droits que vous detenez.',
+      'Accorder des droits aux comptes d’accès ou administrer les profils d’habilitations locaux.',
   },
   'settings.manage': {
-    label: 'Modifier les parametres generaux',
+    label: 'Modifier les paramètres généraux',
     group: 'Administration',
     description:
-      'Devise, fenetre des nouveaux baptises, workflow de validation. Reserve au Siege.',
+      'Devise, délais de correction, apparence visuelle, notifications et courriels. Réservé au Siège.',
   },
   'audit.read': {
-    label: "Consulter le journal d'audit",
+    label: 'Consulter le journal d’audit',
     group: 'Administration',
-    description: 'Lire la trace horodatee des operations du perimetre.',
+    description: 'Consulter l’historique horodaté et détaillé des opérations réalisées sur le périmètre.',
   },
   'trash.restore': {
     label: 'Restaurer depuis la corbeille',
     group: 'Administration',
-    description: 'Remettre en service un element supprime logiquement.',
+    description: 'Remettre en service un croyant, une entité ou un élément placé en corbeille.',
   },
-  /**
-   * EF-ADM-10 — L'EFFACEMENT REEL, ET IL EST SANS RETOUR.
-   *
-   * `trash.restore` defait une suppression ; celui-ci la rend definitive. Ce ne
-   * sont pas deux degres du meme droit mais deux actes opposes, et le second
-   * n'a aucun rattrapage : le detenir doit se decider a part.
-   *
-   * Portee PROPRE : purger n'est pas un acte qui descend. Un district qui
-   * effacerait definitivement les fiches de ses eglises le ferait sans que
-   * personne, chez elles, ne puisse s'en apercevoir avant qu'il soit trop tard.
-   */
   'trash.purge': {
-    label: 'Effacer definitivement',
+    label: 'Purger la corbeille',
     group: 'Administration',
     description:
-      'Retirer pour de bon un element de la corbeille. Sans retour possible.',
+      'Supprimer définitivement et de façon irréversible les éléments placés en corbeille.',
     portee: 'PROPRE',
   },
 } as const satisfies Record<string, PermissionMeta>;

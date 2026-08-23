@@ -61,8 +61,8 @@ export default async function ComptesPage({
         title="Comptes"
         description={
           comptes.length > 0
-            ? `${formatNombre(actifs)} compte${actifs > 1 ? 's' : ''} actif${actifs > 1 ? 's' : ''} sur ${formatNombre(comptes.length)} dans votre perimetre.`
-            : 'Aucun compte dans votre perimetre.'
+            ? `${formatNombre(actifs)} compte${actifs > 1 ? 's' : ''} actif${actifs > 1 ? 's' : ''} sur ${formatNombre(comptes.length)} dans votre périmètre.`
+            : 'Aucun compte d’accès dans votre périmètre.'
         }
       />
 

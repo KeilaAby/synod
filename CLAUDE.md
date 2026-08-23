@@ -17,12 +17,14 @@ demande contredit `cdg.md`, signalez-le avant d'implémenter.
 
 ## État — 23 août 2026
 
-**Lots 0 à 7 livrés.** Il reste le **lot 8** — portabilité, recette et mise en
-production — et quelques finitions listées au dernier point d'étape.
+**Lots 0 à 7 livrés.** Migrations `0001` à `0074` écrites et prêtes.
+887 tests unitaires, 44 fichiers. `pnpm verify` vert (secrets, lint, typecheck, tests, build).
 
-**Lots 0, 1 et 2 livrés** : socle, authentification, habilitations avec portée,
-structure à 6 niveaux (organigramme éditable **et** vue liste), référentiels,
-croyants avec photo, **transferts** avec workflow d'approbation, **baptêmes**.
+**Dernières livraisons du 23 août 2026 :**
+1. **Rapports (EF-RAP-05, EF-RAP-16)** : 4 marges réglables indépendamment (haut, bas, gauche, droite) entre 5 et 30 mm avec repli transparent sur la marge unique historique (16 mm) et zone utile en millimètres. Fiabilisation de l'impression / export PDF via extraction directe du balisage pur sans réduction d'échelle de l'éditeur.
+2. **Dîmes (EF-FIN-30, EF-REF, migration `0074`)** : Conversion de `type_evenement_dime` en table référentielle `evenements_dime` (`niveau_hote`, `ordre`, RLS), administrable depuis `/referentiels/evenements-dime`, réordonnable par glisser-déposer (`fn_reordonner_referentiel`), clé étrangère sur `finance_entries.dime_evenement`, mise à jour de `fn_saisir_collecte_dime` avec validation d'événement actif, et sélecteurs dynamiques dans `CollecteDialog` et `ImportVersementsDialog`.
+3. **Profils locaux & Droits** : `/administration/profils` sous `permission.delegate` pour gérer les profils de son entité sans sélection superflue.
+4. **Habilitations & Descriptions** : Alignement complet de la matrice des permissions (`PERMISSIONS`, `PROFILS_RACCOURCIS`) et réécriture soignée de toutes les descriptions d'écrans et d'aides en français naturel et accueillant.
 
 **Lot 2 achevé**, y compris la lecture **XLSX** (`lib/domain/xlsx.ts`, sans
 dépendance — ARB-6 clos) et la **saisie de baptêmes en lot** (EF-BAP-07) :

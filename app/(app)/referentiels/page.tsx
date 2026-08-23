@@ -41,7 +41,7 @@ export default async function ReferentielsPage() {
       <PageHeader
         eyebrow="Administration"
         title="Référentiels"
-        description="Valeurs partagées par toute l'organisation. Une valeur utilisée ne se supprime pas : elle se désactive et reste lisible dans l'historique."
+        description="Nomenclatures et listes officielles partagées par l’ensemble de l’organisation. Les valeurs archivées restent préservées pour l’intégrité des historiques."
       />
 
       <ReferentielsClient

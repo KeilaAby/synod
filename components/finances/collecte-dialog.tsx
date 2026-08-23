@@ -45,8 +45,10 @@ import {
   LIBELLES_EVENEMENT,
   LIBELLES_NATURE,
   NATURES_VERSEMENT,
+  NIVEAU_HOTE,
   type ModeDime,
   type NatureVersement,
+  type OptionEvenementDime,
   admetLeDetail,
   modeEffectif,
   suggestionsPourEnveloppe,
@@ -94,6 +96,7 @@ export function CollecteDialog({
   enveloppes = {},
   photos = {},
   porteurs = {},
+  evenementsDisponibles,
   entiteImposee,
   libelle = 'Nouvelle collecte',
   open,
@@ -112,6 +115,7 @@ export function CollecteDialog({
   photos?: Record<string, string>;
   /** N° d'enveloppe -> ceux qui l'ont déjà portée, du plus récent au plus ancien. */
   porteurs?: Record<string, { croyantId: string; nom: string; prenom: string }[]>;
+  evenementsDisponibles?: OptionEvenementDime[];
   /**
    * EF-FIN-34 — ouverture depuis le menu ⋮ d'une ligne de `/finances/dimes` :
    * l'entité collectrice se LIT au lieu de se choisir, même principe que
@@ -229,6 +233,17 @@ export function CollecteDialog({
    * district n'apparaîtra donc pas — c'est à cela que servent l'enveloppe
    * anonyme (EF-FIN-33) et la reprise des non-rapprochés (EF-FIN-34).
    */
+  const listeEvenements = useMemo(() => {
+    if (evenementsDisponibles && evenementsDisponibles.length > 0) {
+      return evenementsDisponibles;
+    }
+    return EVENEMENTS_DIME.map((e) => ({
+      code: e,
+      libelle: LIBELLES_EVENEMENT[e] ?? e,
+      niveauHote: NIVEAU_HOTE[e] ?? 'EGLISE',
+    }));
+  }, [evenementsDisponibles]);
+
   const eligibles = useMemo(
     () =>
       [...croyants]
@@ -450,9 +465,9 @@ export function CollecteDialog({
                               <SelectValue placeholder="Choisir" />
                             </SelectTrigger>
                             <SelectContent>
-                              {EVENEMENTS_DIME.map((e) => (
-                                <SelectItem key={e} value={e}>
-                                  {LIBELLES_EVENEMENT[e]}
+                              {listeEvenements.map((e) => (
+                                <SelectItem key={e.code} value={e.code}>
+                                  {e.libelle}
                                 </SelectItem>
                               ))}
                             </SelectContent>

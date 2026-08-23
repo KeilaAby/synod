@@ -2,7 +2,8 @@ import 'server-only';
 
 import { cache } from 'react';
 
-import type { EvenementDime, ModeDime, NatureVersement } from '@/lib/domain/dime';
+import type { EvenementDime, ModeDime, NatureVersement, OptionEvenementDime } from '@/lib/domain/dime';
+import { EVENEMENTS_DIME, LIBELLES_EVENEMENT, NIVEAU_HOTE } from '@/lib/domain/dime';
 import { createClient } from '@/lib/supabase/server';
 
 import { DataError } from './errors';
@@ -461,3 +462,33 @@ export async function chargerVersementsDuCroyant(
     (b.entree?.date_operation ?? '').localeCompare(a.entree?.date_operation ?? ''),
   );
 }
+
+/**
+ * Liste des événements de collecte actifs pour alimenter les formulaires de dîmes.
+ */
+export const listerEvenementsDime = cache(async (): Promise<OptionEvenementDime[]> => {
+  const sb = await createClient();
+  const { data, error } = await sb
+    .from('evenements_dime')
+    .select('id, code, libelle, niveau_hote, ordre')
+    .eq('is_active', true)
+    .order('ordre', { ascending: true })
+    .order('libelle', { ascending: true });
+
+  if (error || !data || data.length === 0) {
+    return EVENEMENTS_DIME.map((code, idx) => ({
+      code,
+      libelle: LIBELLES_EVENEMENT[code] ?? code,
+      niveauHote: NIVEAU_HOTE[code] ?? 'EGLISE',
+      ordre: (idx + 1) * 10,
+    }));
+  }
+
+  return data.map((d) => ({
+    id: d.id,
+    code: d.code,
+    libelle: d.libelle,
+    niveauHote: d.niveau_hote,
+    ordre: d.ordre,
+  }));
+});
