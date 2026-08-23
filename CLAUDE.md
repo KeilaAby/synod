@@ -15,7 +15,7 @@ Application web de gestion d'église. **Lire avant toute tâche** :
 Toute modification doit citer l'exigence ou la règle qu'elle sert. Si une
 demande contredit `cdg.md`, signalez-le avant d'implémenter.
 
-## État — 22 août 2026
+## État — 23 août 2026
 
 **Lots 0 à 7 livrés.** Il reste le **lot 8** — portabilité, recette et mise en
 production — et quelques finitions listées au dernier point d'étape.
@@ -800,9 +800,23 @@ transfert (`0070`), refaite sur ce composant partagé, et
 `components/structure/entite-logo.tsx` s'en sert à son tour pour la clé
 variable.
 
-Base à jour jusqu'à la migration `0072`, confirmée appliquée par
-l'utilisateur et vérifiée en conditions réelles — `0073` est **écrite et
-attend la même confirmation**. Fuseau `Indian/Antananarivo` (UTC+3).
+**La portée par droit dans l'octroi (EF-ADM-03) a été construite, testée,
+puis RETIRÉE le 23 août sur décision explicite de l'utilisateur** : le
+sélecteur fonctionnait, mais surchargeait le formulaire de compte — treize
+droits actifs affichaient treize sélecteurs, même en mode discret. Retirée
+par trois `git revert` (commits déjà poussés, donc pas de réécriture
+d'historique), vérifiés par un `git diff` contre l'état d'avant, vide. **La
+règle retenue à la place** : une habilitation reste bornée à l'entité de
+rattachement du compte, jamais plus étroite ; atteindre une entité enfant
+sans accès à l'application passe par RG-25 (un droit `DESCENDANTE` couvre
+déjà l'entité et son sous-arbre) et par `sans_acces_application` (saisie
+déléguée, lot 4) — pas par une restriction posée ligne par ligne à l'écran.
+Détail et citation dans `notes/cdg.md` (EF-ADM-03, amendée) et
+`notes/todos.md` §5.
+
+Base à jour jusqu'à la migration `0073`, confirmée appliquée par
+l'utilisateur et vérifiée en conditions réelles. Fuseau
+`Indian/Antananarivo` (UTC+3).
 **Toute migration qui crée ou remplace
 une fonction doit finir par `notify pgrst, 'reload schema'`** : sans lui, l'API
 répond « fonction inconnue » sur du SQL pourtant en place — constaté deux fois,
@@ -814,7 +828,7 @@ configure **pas** en SQL — `storage.*` appartient à `supabase_storage_admin` 
 l'API.
 
 Historique : [`SESSION_HISTORY.md`](.claude-code-history/SESSION_HISTORY.md) ·
-dernier point d'étape : [`.claude-code-history/2026-08-22_resumes-moi.md`](.claude-code-history/2026-08-22_resumes-moi.md)
+dernier point d'étape : [`.claude-code-history/2026-08-23_resumes-moi.md`](.claude-code-history/2026-08-23_resumes-moi.md)
 
 ## Publication — lire `.agents/rules/gitpush.md` AVANT tout push
 

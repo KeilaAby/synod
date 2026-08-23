@@ -5950,3 +5950,31 @@ fixe, confirmé en le relisant avant d'écrire un troisième composant).
 
 `pnpm verify` : 44 fichiers, 883 tests, build compris — vert. Migration
 `0073` écrite, pas encore appliquée au moment du commit.
+
+## 23 août 2026 — La portée par droit dans l'octroi, retirée sur décision explicite
+
+Livrée la veille, testée et confirmée fonctionnelle, la portée par droit
+dans l'octroi d'habilitations (EF-ADM-03) est retirée : « je préfère
+revenir au cas précédent pour ne pas surcharger le formulaire de création
+de compte et les habilitations. »
+
+Retirée par TROIS `git revert` successifs, du plus récent au plus ancien
+(`54d2d49` « discret », `44db5f9` « entitesPourPortee », `f85775c` « portée
+par droit »), chacun sans conflit — les commits étaient déjà poussés sur
+`origin/main`, une réécriture d'historique était donc exclue. Vérifié par
+`git diff ab7f25b HEAD` (le commit juste avant le premier des trois) :
+différence VIDE, le code est revenu à l'identique. `pnpm verify` repasse au
+vert, 883 tests (contre 889 : les 6 tests de `resoudrePortee` partent avec
+le reste).
+
+La règle retenue à la place, dictée par l'utilisateur : une habilitation
+reste bornée à l'entité de rattachement du compte — jamais plus étroite. Le
+besoin d'atteindre une entité enfant sans accès à l'application reste
+couvert par RG-25 (un droit `DESCENDANTE` couvre déjà l'entité ET son
+sous-arbre) combiné à `sans_acces_application` (saisie déléguée, lot 4) —
+pas par une restriction choisie ligne par ligne dans le formulaire d'octroi.
+`notes/cdg.md` (EF-ADM-03) et `notes/todos.md` (§5) portent la décision,
+datée et motivée, sur le même principe que l'écart à EF-FIN-15 le 12 août :
+un écart à l'exigence d'origine se documente là où l'exigence est citée.
+
+Point d'étape du jour : [`2026-08-23_resumes-moi.md`](2026-08-23_resumes-moi.md).

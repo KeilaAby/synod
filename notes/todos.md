@@ -14,8 +14,7 @@
 
 ## ⚠ État de la base
 
-**Appliquées : `0001` à `0072`. `0073` est écrite et attend confirmation**
-dans l'éditeur SQL Supabase.
+**Appliquées : `0001` à `0073`**, confirmé par l'utilisateur.
 
 | N° | Ce qu'elle apporte | Sans elle |
 |---|---|---|
@@ -39,8 +38,8 @@ l'utilisateur le 22 août — `0071` vérifiée en conditions réelles après
 correction de deux défauts trouvés en test, voir l'item du lien conjugal.
 `0072`, écrite le 22 août pour le bloc dîmes ci-dessous, a été confirmée
 appliquée et testée en conditions réelles le même jour. `0073`, écrite le
-22 août pour l'en-tête par entité du bloc Image, attend la même
-confirmation.)*
+22 août pour l'en-tête par entité du bloc Image, a également été confirmée
+appliquée le même jour.)*
 
 ---
 
@@ -672,10 +671,38 @@ soldes consolidés — la décision a déjà été prise et tenue une fois.
 
 ## 5. `/administration`
 
-- [ ] **Portée par droit dans l'octroi.** Aujourd'hui toute habilitation prend
-      la portée de l'entité de rattachement ; RG-25 distingue désormais `PROPRE`
-      et `DESCENDANTE` par droit, mais l'écran ne permet pas de choisir la
-      portée d'un octroi.
+- [ ] ~~**Portée par droit dans l'octroi.**~~ **Tentée puis explicitement
+      REJETÉE par l'utilisateur le 23 août 2026, après implémentation
+      complète et testée.** Aujourd'hui toute habilitation prend la portée de
+      l'entité de rattachement ; RG-25 distingue `PROPRE` et `DESCENDANTE` par
+      droit, mais l'écran ne permet — délibérément — pas de choisir une
+      portée plus étroite par octroi.
+
+      **Ce qui a été construit, puis intégralement annulé par trois
+      `git revert`** (commits `f85775c`, `44db5f9`, `54d2d49` — code identique
+      à l'état d'avant, vérifié par `git diff`) : un prop `portee` sur
+      `SelecteurHabilitations`, la fonction `resoudrePortee`
+      (`lib/domain/permissions.ts`), un sélecteur d'entité par droit accordé
+      (d'abord plein cadre, puis en mode `discret`), et `entitesPourPortee`
+      pour couvrir les Cellules. Le mécanisme FONCTIONNAIT — confirmé en
+      testant — mais l'utilisateur a jugé le formulaire de compte
+      **surchargé** : treize droits actifs affichaient treize sélecteurs,
+      même en mode discret.
+
+      **La règle retenue à la place, dictée par l'utilisateur :**
+      > Les habilitations d'un compte doivent être limitées au sein de son
+      > entité même. Si une entité enfant n'a pas accès à l'application,
+      > alors son entité parent peut saisir pour elle (toutes les options,
+      > dans la limite de l'habilitation d'un compte au sein de son parent).
+
+      Autrement dit : un droit `DESCENDANTE` couvre déjà l'entité de
+      rattachement et tout son sous-arbre — c'est ce mécanisme, combiné à
+      `sans_acces_application` (EF-STR, saisie déléguée déjà en place pour
+      les finances), qui doit suffire à couvrir une entité enfant sans accès,
+      sans qu'un compte ait besoin d'une portée plus étroite que sa propre
+      entité. **Ne pas rouvrir ce chantier sans reposer la question** — le
+      besoin décrit par EF-ADM-03 (`cdg.md`) est *couvert autrement*, pas
+      *non résolu*.
 - [ ] **Profils locaux** — la colonne existe, aucun écran ne la renseigne.
 - [ ] La liste des habilitations fines des comptes doivent être mises à jour et 
       configurées si une des mises à jour dans ce Todos.md est susceptibles d'impacter les habilitations fines d'un utilisateur 
