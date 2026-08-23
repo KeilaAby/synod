@@ -375,10 +375,11 @@ plus courte. La reprise rétablit nommément les trois codes, bornée à
 `peut_celebrer = false` pour ne jamais défaire un choix fait à l'écran.
 
 Ce que le lot 7 **ne fait pas** : pas de portée par droit (toute habilitation
-prend la portée de l'entité de rattachement), pas de profils **locaux**
-(la colonne existe, aucun écran ne la renseigne), et l'audit est écrit par
-**`auditer()`** dans chaque Server Action, pas par des triggers — un trigger ne
-connaît ni l'auteur applicatif, ni le motif d'un refus.
+prend la portée de l'entité de rattachement — tentée et retirée le 23 août,
+voir plus bas), et l'audit est écrit par **`auditer()`** dans chaque Server
+Action, pas par des triggers — un trigger ne connaît ni l'auteur applicatif,
+ni le motif d'un refus. *(Les profils locaux, seul manque restant de cette
+liste à l'origine, sont livrés le 23 août — voir plus bas.)*
 
 **EF-BUR-11 clos** : l'export Excel de la composition est abandonné le 12 août
 2026, le PDF de l'organigramme couvre le besoin.
@@ -813,6 +814,25 @@ déjà l'entité et son sous-arbre) et par `sans_acces_application` (saisie
 déléguée, lot 4) — pas par une restriction posée ligne par ligne à l'écran.
 Détail et citation dans `notes/cdg.md` (EF-ADM-03, amendée) et
 `notes/todos.md` §5.
+
+**Les profils LOCAUX (EF-ADM-05) livrés le même jour, sans migration.**
+`permission_profiles.entity_id` et sa RLS existaient depuis la toute
+première migration (`0005`/`0008`) : la politique d'écriture exigeait déjà
+`permission.delegate` — pas `settings.manage`, réservé aux profils globaux —
+la RLS pointait donc vers la conception avant même que la question ne soit
+posée. **Chaque entité gère les siens** : deux écrans, jamais un sélecteur
+d'entité. `/administration/parametres` garde les profils GLOBAUX (Siège),
+filtré à `entity_id is null` ; nouvel écran `/administration/profils`
+(`permission.delegate`) pour les LOCAUX, où l'entité n'est jamais choisie —
+elle est celle de l'auteur, même doctrine que « une entité ne compose que
+pour elle-même » du lot 6. `ReglagesProfils`/`ProfilDialog` gagnent un prop
+`entiteImposee` optionnel plutôt que deux composants (règle 16).
+**L'habilitation d'une modification se lit sur le profil EXISTANT, jamais
+sur ce que le formulaire renvoie** (règle 19, dans l'autre sens) :
+`entity_id` ne s'écrit qu'à la création. Extrait de `lib/data/courriel.ts`
+(où il vivait sans rapport avec le courriel) vers `lib/data/profils.ts` et
+`lib/actions/profils.ts` — troisième intention sans appelant trouvée cette
+session, après `promotionDuCroyant` et `organisation_settings.logo_key`.
 
 Base à jour jusqu'à la migration `0073`, confirmée appliquée par
 l'utilisateur et vérifiée en conditions réelles. Fuseau

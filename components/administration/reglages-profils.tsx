@@ -21,20 +21,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { enregistrerProfil, supprimerProfil } from '@/lib/actions/courriel';
-import type { ProfilEnregistre } from '@/lib/data/courriel';
+import { enregistrerProfil, supprimerProfil } from '@/lib/actions/profils';
+import type { ProfilEnregistre } from '@/lib/data/profils';
 import { ALL_PERMISSIONS, type Permission } from '@/lib/domain/permissions';
 import { PROFILS_RACCOURCIS } from '@/lib/domain/profils-habilitation';
 import { appelerAction } from '@/lib/utils/appeler-action';
 
 /**
- * Les profils de privilèges — EF-ADM-04.
+ * Les profils de privilèges — EF-ADM-05.
  *
- * DEUX ORIGINES, ET UNE SEULE EST MODIFIABLE. Les cinq profils **fournis**
+ * TROIS ORIGINES, DEUX SONT MODIFIABLES ICI. Les cinq profils **fournis**
  * viennent du code : ils décrivent des rôles qu'on retrouve dans toute
  * organisation, et les rendre modifiables les ferait dériver sans qu'on sache
- * plus à quoi « Trésorier » correspond. Ceux qu'on **ajoute** ici sont propres
- * à l'organisation : « Responsable jeunesse », « Chargé des dîmes ».
+ * plus à quoi « Trésorier » correspond. Ceux qu'on **ajoute** ici sont soit
+ * GLOBAUX (communs à toute l'organisation, composés au Siège), soit LOCAUX
+ * (propres à une entité, composés par elle — `entiteImposee`) : deux écrans
+ * distincts montent ce même composant, jamais les deux portées ensemble.
  *
  * UN PROFIL N'ACCORDE RIEN. Il pose des cases dans le formulaire d'un compte,
  * et c'est ce formulaire qui vérifie droit par droit ce que le délégant peut
@@ -46,9 +48,9 @@ import { appelerAction } from '@/lib/utils/appeler-action';
 export function ReglagesProfils({
   profils,
   /**
-   * EF-ADM-04 — la composition est RÉSERVÉE AU SIÈGE.
+   * EF-ADM-05 — la composition GLOBALE est RÉSERVÉE AU SIÈGE.
    *
-   * Un profil est commun à toute l'organisation : il apparaît dans le
+   * Un profil global est commun à toute l'organisation : il apparaît dans le
    * formulaire de compte de chaque entité. Le laisser composer ailleurs le
    * poserait sous les yeux de tous sans que personne l'ait demandé.
    *
@@ -57,9 +59,19 @@ export function ReglagesProfils({
    * pourtant. Ce qui disparaît, ce sont les gestes.
    */
   peutComposer,
+  /**
+   * EF-ADM-05 — présent SEULEMENT sur l'écran des profils LOCAUX
+   * (`/administration/profils`) : ce composant sert alors CETTE entité, et
+   * elle seule (« chaque entité gère les siens », décision de l'utilisateur
+   * le 23 août 2026) — pas de sélecteur, pas de choix, l'entité est celle de
+   * l'auteur. Absent sur l'écran des profils globaux (`/administration/
+   * parametres`), qui n'a pas d'entité à imposer.
+   */
+  entiteImposee,
 }: {
   profils: ProfilEnregistre[];
   peutComposer: boolean;
+  entiteImposee?: { id: string; nom: string };
 }) {
   const [enEdition, setEnEdition] = useState<ProfilEnregistre | 'nouveau' | null>(null);
   const [aSupprimer, setASupprimer] = useState<ProfilEnregistre | null>(null);
@@ -123,12 +135,14 @@ export function ReglagesProfils({
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
               <h2 className="text-sm font-semibold text-foreground">
-                Profils de l’organisation
+                {entiteImposee ? `Profils de « ${entiteImposee.nom} »` : 'Profils de l’organisation'}
               </h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                {peutComposer
-                  ? 'Vos propres découpages, proposés à côté des précédents.'
-                  : 'Communs à toute l’organisation, ils se composent au Siège. Vous pouvez les employer à l’ouverture d’un compte.'}
+                {entiteImposee
+                  ? 'Propres à votre entité, proposés à côté des profils communs à l’ouverture d’un compte.'
+                  : peutComposer
+                    ? 'Communs à toute l’organisation, proposés à côté des cinq profils fournis.'
+                    : 'Communs à toute l’organisation, ils se composent au Siège. Vous pouvez les employer à l’ouverture d’un compte.'}
               </p>
             </div>
             {peutComposer && (
@@ -143,7 +157,11 @@ export function ReglagesProfils({
             <EmptyState
               icon={ShieldCheck}
               title="Aucun profil défini"
-              description="Les cinq profils fournis suffisent souvent. Ajoutez-en un quand votre organisation a un découpage qui lui est propre."
+              description={
+                entiteImposee
+                  ? 'Les cinq profils fournis et les profils communs suffisent souvent. Ajoutez-en un quand votre entité a un découpage qui lui est propre.'
+                  : 'Les cinq profils fournis suffisent souvent. Ajoutez-en un quand votre organisation a un découpage qui lui est propre.'
+              }
             />
           ) : (
             <ul className="grid gap-3 sm:grid-cols-2">
@@ -201,6 +219,7 @@ export function ReglagesProfils({
         <ProfilDialog
           key={enEdition === 'nouveau' ? 'nouveau' : enEdition.id}
           profil={enEdition === 'nouveau' ? null : enEdition}
+          entiteImposee={entiteImposee}
           onFermer={() => setEnEdition(null)}
         />
       )}
@@ -236,9 +255,11 @@ export function ReglagesProfils({
  */
 function ProfilDialog({
   profil,
+  entiteImposee,
   onFermer,
 }: {
   profil: ProfilEnregistre | null;
+  entiteImposee?: { id: string; nom: string };
   onFermer: () => void;
 }) {
   const router = useRouter();
@@ -263,6 +284,7 @@ function ProfilDialog({
         nom,
         description,
         permissions: accordees,
+        entityId: entiteImposee?.id ?? null,
       }),
     );
     setEnCours(false);
@@ -298,6 +320,20 @@ function ProfilDialog({
         )}
 
         <div className="space-y-6 py-2">
+          {/*
+            EF-ADM-05 — L'ENTITÉ SE LIT, ELLE NE SE CHOISIT PAS. Ce pop-up ne
+            s'ouvre que depuis un écran où elle est déjà déterminée — le
+            Siège pour un profil global, sa propre entité pour un profil
+            local — même mécanisme que le rattachement d'un croyant depuis la
+            structure.
+          */}
+          {entiteImposee && (
+            <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+              Profil propre à <strong className="text-foreground">{entiteImposee.nom}</strong>{' '}
+              — proposé uniquement à l’ouverture d’un compte de cette entité.
+            </div>
+          )}
+
           <div className="grid gap-6 sm:grid-cols-2">
             <TextField
               label="Nom du profil"

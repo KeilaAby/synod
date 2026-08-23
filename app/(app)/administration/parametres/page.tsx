@@ -5,12 +5,9 @@ import { ReglagesCourriel } from '@/components/administration/reglages-courriel'
 import { ReglagesProfils } from '@/components/administration/reglages-profils';
 import { PageHeader } from '@/components/shared/page-header';
 import { chargerParametresAttestation } from '@/lib/data/attestation-transfert';
-import {
-  chargerConfigurationCourriel,
-  chargerModelesCourriel,
-  chargerProfilsHabilitation,
-} from '@/lib/data/courriel';
+import { chargerConfigurationCourriel, chargerModelesCourriel } from '@/lib/data/courriel';
 import { signerPhotos } from '@/lib/data/photos';
+import { chargerProfilsHabilitation } from '@/lib/data/profils';
 import { getParametres } from '@/lib/data/settings';
 import { getSession } from '@/lib/session';
 
@@ -56,14 +53,22 @@ export default async function ParametresPage() {
   const logos = await signerPhotos([attestation.logo_key, parametres.logo_key]);
 
   /**
-   * EF-ADM-04 — un profil de privileges est COMMUN a toute l'organisation : il
+   * EF-ADM-05 — un profil GLOBAL est COMMUN a toute l'organisation : il
    * apparait dans le formulaire de compte de chaque entite. Le composer se
-   * decide donc au Siege, comme la trame des rapports (0045).
+   * decide donc au Siege, comme la trame des rapports (0045). Les profils
+   * LOCAUX se composent ailleurs, sur `/administration/profils` — chaque
+   * entite gere les siens (`permission.delegate`), pas ceux qui valent pour
+   * tout le monde.
    *
    * L'ecran refuse AVANT le geste, et l'action refuse aussi : un garde-fou
    * d'interface se contourne par un appel direct.
    */
   const peutComposerProfils = session?.entiteType === 'SIEGE';
+
+  // Cet onglet ne montre QUE les profils GLOBAUX : un profil local d'un
+  // district encombrerait l'ecran du Siege sans que celui-ci puisse le
+  // modifier — chaque entite gere les siens sur son propre ecran.
+  const profilsGlobaux = profils.filter((p) => p.entity_id === null);
 
   return (
     <div className="space-y-8">
@@ -80,7 +85,7 @@ export default async function ParametresPage() {
             logoUrl={parametres.logo_key ? (logos.get(parametres.logo_key) ?? null) : null}
           />
         }
-        profils={<ReglagesProfils profils={profils} peutComposer={peutComposerProfils} />}
+        profils={<ReglagesProfils profils={profilsGlobaux} peutComposer={peutComposerProfils} />}
         courriel={<ReglagesCourriel configuration={configuration} modeles={modeles} />}
         attestation={
           <ReglagesAttestationTransfert

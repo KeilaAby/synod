@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/dialog';
 import { creerCompte, modifierCompte } from '@/lib/actions/comptes';
 import type { CroyantEligible } from '@/lib/data/comptes';
-import type { ProfilEnregistre } from '@/lib/data/courriel';
+import type { ProfilEnregistre } from '@/lib/data/profils';
 import {
   ALL_PERMISSIONS,
   type Permission,

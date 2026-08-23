@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import {
   ScrollText,
+  Shield,
   Trash2,
   ShieldCheck,
   SlidersHorizontal,
@@ -48,6 +49,23 @@ const SECTIONS: readonly Section[] = [
       'Ouvrir un compte, réinitialiser un mot de passe, activer ou désactiver. Les identifiants se remettent en main propre — aucun courriel n’est envoyé.',
     icone: Users,
     permission: 'user.manage',
+  },
+  {
+    /**
+     * EF-ADM-05 — CHAQUE ENTITÉ GÈRE LES SIENS.
+     *
+     * Distincte de la carte « Paramètres généraux », qui porte les profils
+     * GLOBAUX (Siège, `settings.manage`). `permission.delegate` gouverne
+     * déjà la délégation de droits à un compte (RG-24) : composer un
+     * découpage réutilisable pour sa propre entité en découle directement,
+     * ce n'est pas une habilitation à part.
+     */
+    href: '/administration/profils',
+    titre: 'Profils de privilèges',
+    description:
+      'Vos propres découpages d’habilitations, proposés à l’ouverture d’un compte de votre entité.',
+    icone: Shield,
+    permission: 'permission.delegate',
   },
   {
     href: '/administration/parametres',

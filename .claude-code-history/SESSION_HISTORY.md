@@ -5978,3 +5978,41 @@ datée et motivée, sur le même principe que l'écart à EF-FIN-15 le 12 août 
 un écart à l'exigence d'origine se documente là où l'exigence est citée.
 
 Point d'étape du jour : [`2026-08-23_resumes-moi.md`](2026-08-23_resumes-moi.md).
+
+## 23 août 2026 (suite) — Les profils locaux (EF-ADM-05), sans migration
+
+Reprise de `notes/todos.md` §5, le point suivant après le retrait
+d'EF-ADM-03 : « Profils locaux — la colonne existe, aucun écran ne la
+renseigne. » Exploration avant d'écrire : `permission_profiles.entity_id`
+et sa RLS (migrations `0005`/`0008`) étaient prêtes depuis l'origine — la
+politique d'écriture exige `permission.delegate` (pas `settings.manage`,
+réservé aux profils globaux) combiné à `entity_in_scope`. Cette RLS
+pointait déjà vers la réponse à la question posée avant d'écrire : le
+Siège garde-t-il l'exclusivité en ciblant une entité, ou chaque entité
+gère-t-elle les siens ? Réponse retenue — chaque entité gère les siens,
+cohérente avec ce que la RLS attendait.
+
+**Deux écrans, jamais un sélecteur d'entité.** `/administration/parametres`
+garde les profils GLOBAUX (Siège, `settings.manage`), désormais filtré à
+`entity_id is null`. Nouvel écran `/administration/profils`
+(`permission.delegate`) pour les profils LOCAUX : l'entité n'est jamais
+choisie, elle est celle de l'auteur — même doctrine que « une entité ne
+compose que pour elle-même » du lot 6 (rapports). `ReglagesProfils`/
+`ProfilDialog` gagnent un prop `entiteImposee` optionnel plutôt que deux
+composants (règle 16) — même mécanisme que `RattachementImpose`.
+
+**L'habilitation d'une modification se lit sur le profil EXISTANT en base,
+pas sur ce que le formulaire renvoie** (règle 19, dans l'autre sens) :
+`entity_id` n'est écrit qu'à la création dans `enregistrerProfil`, jamais
+réécrit par une modification.
+
+**Troisième instance cette session d'une intention écrite sans appelant**
+(après `promotionDuCroyant` et `organisation_settings.logo_key`) :
+`chargerProfilsHabilitation` vivait dans `lib/data/courriel.ts`, sans
+rapport avec le courriel, avec un commentaire disant déjà que sa portée
+« n'est pas encore exploitée par l'écran ». Extrait dans
+`lib/data/profils.ts` et `lib/actions/profils.ts`.
+
+`pnpm verify` : 44 fichiers, 884 tests, build compris — vert. Aucun test
+neuf : logique d'autorisation dans des Server Actions, comme `comptes.ts`,
+jamais unitairement testée dans ce projet.

@@ -71,34 +71,3 @@ export async function chargerModelesCourriel(): Promise<ModeleCourriel[]> {
 
   return error ? [] : (data ?? []);
 }
-
-/**
- * Les profils de privileges enregistres — EF-ADM-04.
- *
- * Ils s'ajoutent aux quatre raccourcis du domaine, qui eux ne se modifient pas :
- * une organisation a ses propres decoupages, et les figer dans le code
- * obligerait a redeployer pour ajouter « Responsable jeunesse ».
- *
- * `entity_id` a `null` : le profil vaut pour toute l'organisation. Renseigne,
- * il n'est propose qu'a l'entite qui l'a defini — mais cette portee n'est pas
- * encore exploitee par l'ecran, qui les rend tous.
- */
-export interface ProfilEnregistre {
-  id: string;
-  nom: string;
-  description: string | null;
-  permissions: string[];
-  entity_id: string | null;
-}
-
-export async function chargerProfilsHabilitation(): Promise<ProfilEnregistre[]> {
-  const sb = await createClient();
-
-  const { data, error } = await sb
-    .from('permission_profiles')
-    .select('id, nom, description, permissions, entity_id')
-    .order('nom')
-    .returns<ProfilEnregistre[]>();
-
-  return error ? [] : (data ?? []);
-}

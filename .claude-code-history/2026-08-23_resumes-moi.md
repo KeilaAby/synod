@@ -19,18 +19,20 @@
 ## L'état de la base
 
 **Inchangé depuis le 22 août : `0001` à `0073` appliquées**, confirmé par
-l'utilisateur. Aucune migration n'a été écrite ni retirée aujourd'hui — la
-seule opération du jour porte sur le CODE, pas le schéma. L'état qui fait
-foi est en tête de `notes/todos.md`.
+l'utilisateur. Aucune migration écrite ni retirée aujourd'hui — les deux
+opérations du jour (un retrait, un ajout) portent sur le CODE, pas le
+schéma. `permission_profiles.entity_id`, exploité par les profils locaux
+livrés plus bas, existait déjà depuis `0005`/`0008`. L'état qui fait foi est
+en tête de `notes/todos.md`.
 
-**883 tests unitaires, 44 fichiers.** `pnpm verify` vert (lint, typecheck,
-tests, build) — vérifié APRÈS le retrait décrit ci-dessous.
+**884 tests unitaires, 44 fichiers.** `pnpm verify` vert (lint, typecheck,
+tests, build) — vérifié après chacune des deux opérations du jour.
 
 ---
 
-## Ce qui a été fait aujourd'hui — un retrait, pas un ajout
+## Ce qui a été fait aujourd'hui
 
-### La portée par droit dans l'octroi (EF-ADM-03) est retirée sur décision explicite
+### 1. La portée par droit dans l'octroi (EF-ADM-03) est retirée sur décision explicite
 
 Livrée la veille (22 août, trois commits : `f85775c`, `44db5f9`, `54d2d49`),
 testée et confirmée fonctionnelle par l'utilisateur — mais jugée trop lourde
@@ -76,6 +78,57 @@ décision, datée et motivée — le même principe déjà appliqué à EF-FIN-1
 12 août : un écart à l'exigence d'origine se documente à l'endroit où
 l'exigence est citée, pas seulement dans un journal qu'on ne relit pas.
 
+### 2. Les profils locaux (EF-ADM-05), livrés — sans migration
+
+Reprise de `notes/todos.md` §5, le point suivant : « Profils locaux — la
+colonne existe, aucun écran ne la renseigne. » Vérifié en explorant avant
+d'écrire : `permission_profiles.entity_id` et sa RLS existaient depuis la
+TOUTE PREMIÈRE migration (`0005`/`0008`) — la colonne et la politique
+d'écriture étaient prêtes, seul l'écran forçait `entity_id = null` sur tout
+profil et réservait toute la composition au Siège.
+
+**La RLS elle-même pointait vers la réponse, avant même de poser la
+question.** Sa politique d'écriture exige `permission.delegate` — PAS
+`settings.manage`, réservé aux profils globaux — combiné à `entity_in_scope`.
+Question posée avant d'écrire : le Siège garde-t-il l'exclusivité en ciblant
+une entité, ou chaque entité gère-t-elle les siens ? Réponse — **chaque
+entité gère les siens**, cohérente avec ce que la RLS attendait déjà.
+
+**Deux écrans, jamais un sélecteur d'entité — même doctrine que « une
+entité ne compose que pour elle-même » du lot 6 (rapports).**
+`/administration/parametres` garde les profils GLOBAUX (Siège,
+`settings.manage`), désormais filtré à `entity_id is null` pour ne plus
+montrer les profils locaux des autres entités. Nouvel écran
+`/administration/profils` (`permission.delegate`) pour les profils LOCAUX :
+l'entité n'est JAMAIS choisie, elle est celle de l'auteur — aucun sélecteur,
+aucune portée à discuter à l'écran.
+
+**`ReglagesProfils`/`ProfilDialog` gagnent un prop `entiteImposee` optionnel
+plutôt que deux composants** (règle 16) : absent sur l'écran Siège, fourni
+(l'entité de session, jamais un choix) sur l'écran local — même mécanisme
+que `RattachementImpose` pour la création d'un croyant.
+
+**L'habilitation d'une MODIFICATION se lit sur le profil EXISTANT en base,
+pas sur ce que le formulaire renvoie** (règle 19, dans l'autre sens) :
+`entity_id` n'est écrit qu'à la CRÉATION dans `enregistrerProfil` — jamais
+réécrit par une modification, qui va d'abord chercher la portée réelle du
+profil visé avant de décider quelle habilitation exiger. Sans cette
+précaution, un profil aurait pu changer de propriétaire par un simple
+enregistrement, si jamais `entiteImposee` divergeait un jour de ce que le
+profil portait déjà.
+
+**Troisième instance cette session d'une intention écrite sans appelant**
+(`promotionDuCroyant`, `organisation_settings.logo_key`, et maintenant les
+profils locaux) : `chargerProfilsHabilitation` vivait dans
+`lib/data/courriel.ts`, aux côtés d'`email_settings`, sans rapport
+fonctionnel avec le courriel — et son propre commentaire disait déjà que la
+portée « n'est pas encore exploitée par l'écran ». Extrait dans
+`lib/data/profils.ts` et `lib/actions/profils.ts`, ses propres fichiers.
+
+`pnpm verify` : 44 fichiers, 884 tests, build compris — vert. Aucun test
+neuf : la logique ajoutée est de l'autorisation dans des Server Actions,
+comme `comptes.ts`, jamais unitairement testée dans ce projet.
+
 ---
 
 ## Les décisions à ne pas défaire
@@ -101,15 +154,23 @@ d'un choix fait ligne par ligne dans le formulaire d'octroi. Toute demande
 future de « restreindre un droit à une sous-structure » doit repartir de
 cette conversation avant d'être reprise.
 
+**Une RLS déjà écrite pour un cas non exploité EST une spécification, pas un
+hasard.** La politique d'écriture de `permission_profiles` exigeait
+`permission.delegate` depuis `0008`, alors que l'écran n'a jamais utilisé
+que `settings.manage`. Ce n'était pas une incohérence à ignorer : c'était la
+conception voulue pour le cas local, jamais raccordée à un écran. Avant de
+choisir une conception pour une fonctionnalité à moitié construite, lire ce
+que la RLS vérifie déjà — elle a souvent la réponse.
+
 ---
 
 ## Ce qu'il reste
 
-**Inchangé depuis le 22 août — voir
+**EF-ADM-03 et EF-ADM-05 sortent tous deux de la liste des sujets ouverts**
+— la première **tranchée** (déclinée, voir plus haut), la seconde
+**livrée**. Pour le reste, voir
 [`2026-08-22_resumes-moi.md`](2026-08-22_resumes-moi.md#ce-quil-reste) et
-[`notes/todos.md`](../notes/todos.md).** EF-ADM-03 est retirée de la liste
-des sujets ouverts : elle n'est plus « à faire », elle est **tranchée**
-(déclinée), au même titre qu'un item explicitement écarté.
+[`notes/todos.md`](../notes/todos.md) — inchangé sinon ces deux points.
 
 ---
 
@@ -119,7 +180,7 @@ des sujets ouverts : elle n'est plus « à faire », elle est **tranchée**
 pnpm install      # installe aussi le hook pre-commit de détection de secrets
 cp .env.example .env.local   # puis renseigner : les valeurs sont dans Supabase
 pnpm exec next typegen       # sur un clone frais, AVANT le premier typecheck
-pnpm verify       # secrets + lint + types + 883 tests + build
+pnpm verify       # secrets + lint + types + 884 tests + build
 pnpm dev:propre   # cache Turbopack vidé — après toute série de modifications
 ```
 

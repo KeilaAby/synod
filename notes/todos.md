@@ -703,7 +703,50 @@ soldes consolidés — la décision a déjà été prise et tenue une fois.
       entité. **Ne pas rouvrir ce chantier sans reposer la question** — le
       besoin décrit par EF-ADM-03 (`cdg.md`) est *couvert autrement*, pas
       *non résolu*.
-- [ ] **Profils locaux** — la colonne existe, aucun écran ne la renseigne.
+- [x] **Profils locaux.** *(23 août 2026, EF-ADM-05 — sans migration.)*
+      `permission_profiles.entity_id` et la RLS qui le lit existaient depuis
+      la toute première migration (`0005`/`0008`) : la colonne était prête,
+      seul l'écran forçait `entity_id = null` sur tout profil créé, et
+      réservait toute la composition au Siège.
+
+      **Question posée avant d'écrire, la RLS elle-même pointant vers deux
+      réponses possibles** : la RLS d'écriture exige `permission.delegate`
+      sur l'entité visée — pas `settings.manage`, réservé aux profils
+      globaux. Fallait-il garder la composition au Siège avec une entité
+      ciblée, ou laisser chaque entité gérer les siens ? Réponse — **chaque
+      entité gère les siens**, cohérente avec la RLS déjà écrite.
+
+      **Deux écrans, jamais un sélecteur d'entité.** `/administration/
+      parametres` (Siège, `settings.manage`) garde les profils GLOBAUX,
+      inchangé sinon un filtre qui n'y montre plus que `entity_id is null` —
+      un profil local d'un district y aurait encombré l'écran du Siège sans
+      qu'il puisse le modifier. Nouvel écran `/administration/profils`
+      (`permission.delegate`) pour les profils LOCAUX : **l'entité ne se
+      choisit pas, elle est celle de l'auteur** — même doctrine que « une
+      entité ne compose que pour elle-même » du lot 6 (rapports). Carte
+      ajoutée au hub `/administration`.
+
+      **`ReglagesProfils`/`ProfilDialog` gagnent un prop `entiteImposee`
+      optionnel** (règle 16 : un seul composant pour les deux opérations,
+      pas deux formulaires qui divergeraient) — absent sur l'écran Siège,
+      fourni (l'entité de session, jamais un choix) sur l'écran local. Le
+      pop-up affiche l'entité en lecture seule quand elle est imposée, sur
+      le même patron que `RattachementImpose`.
+
+      **L'habilitation d'une MODIFICATION se lit sur le profil EXISTANT, pas
+      sur ce que le formulaire renvoie** (règle 19, dans l'autre sens) :
+      `entity_id` n'est écrit qu'à la création, jamais réécrit par une
+      modification — `enregistrerProfil` va chercher la portée en base avant
+      de décider quelle habilitation exiger, pour qu'aucun profil ne puisse
+      changer de propriétaire par un simple enregistrement.
+
+      **Extrait dans ses propres fichiers** (`lib/data/profils.ts`,
+      `lib/actions/profils.ts`) — la fonction de lecture vivait dans
+      `lib/data/courriel.ts` (« aux côtés d'`email_settings`, sans rapport
+      fonctionnel avec le courriel »), et son propre commentaire disait déjà
+      que la portée « n'est pas encore exploitée par l'écran » : une
+      troisième instance, cette session, d'une intention écrite sans
+      appelant (`promotionDuCroyant`, `organisation_settings.logo_key`).
 - [ ] La liste des habilitations fines des comptes doivent être mises à jour et 
       configurées si une des mises à jour dans ce Todos.md est susceptibles d'impacter les habilitations fines d'un utilisateur 
 

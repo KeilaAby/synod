@@ -40,7 +40,7 @@ import {
   supprimerCompte,
 } from '@/lib/actions/comptes';
 import type { CompteListe, CroyantEligible } from '@/lib/data/comptes';
-import type { ProfilEnregistre } from '@/lib/data/courriel';
+import type { ProfilEnregistre } from '@/lib/data/profils';
 import { type Permission, ROLE_LABELS } from '@/lib/domain/permissions';
 import { appelerAction } from '@/lib/utils/appeler-action';
 import { formatDateHeure } from '@/lib/utils/format';

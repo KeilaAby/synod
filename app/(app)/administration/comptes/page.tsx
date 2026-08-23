@@ -3,10 +3,10 @@ import { redirect } from 'next/navigation';
 
 import { PageHeader } from '@/components/shared/page-header';
 import { chargerComptes, croyantsEligiblesAuCompte } from '@/lib/data/comptes';
-import { chargerProfilsHabilitation } from '@/lib/data/courriel';
 import { getArbrePerimetre } from '@/lib/data/entities';
 import { versOptions } from '@/lib/data/entity-options';
 import { signerPhotos } from '@/lib/data/photos';
+import { chargerProfilsHabilitation } from '@/lib/data/profils';
 import { peut } from '@/lib/domain/permissions';
 import { getSession } from '@/lib/session';
 import { formatNombre } from '@/lib/utils/format';

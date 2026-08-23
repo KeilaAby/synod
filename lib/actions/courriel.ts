@@ -4,7 +4,6 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { envoyerMessage } from '@/lib/courriel/smtp';
-import { ALL_PERMISSIONS } from '@/lib/domain/permissions';
 import { type ActionResult, ko, ok } from '@/lib/domain/result';
 import { auditer, requirePermission, requireSession } from '@/lib/session';
 import { createClient } from '@/lib/supabase/server';
@@ -14,12 +13,17 @@ import { champsEnErreur } from '@/lib/validation/zod-errors';
 import { executerAction } from './executer';
 
 /**
- * Configuration d'envoi, modeles de message et profils — EF-ADM-13.
+ * Configuration d'envoi et modeles de message — EF-ADM-13.
  *
  * TOUT EST RESERVE A `settings.manage`, non delegable : ces reglages decrivent
- * l'infrastructure et les decoupages de droits de toute l'organisation. La RLS
- * des trois tables le dit aussi — ces actions ne font que rendre le refus
- * lisible avant qu'il ne vienne de la base.
+ * l'infrastructure de toute l'organisation. La RLS des deux tables le dit
+ * aussi — ces actions ne font que rendre le refus lisible avant qu'il ne
+ * vienne de la base.
+ *
+ * Les profils de privileges (EF-ADM-05) vivent desormais dans
+ * `lib/actions/profils.ts` — ils ne relevaient pas du courriel, et leur
+ * portee (globale au Siege, ou locale a une entite) n'a rien a voir avec
+ * `settings.manage` seul.
  */
 
 /** Un texte vide vaut ABSENT, jamais chaine vide (regle 12). */
@@ -248,138 +252,6 @@ export async function enregistrerModeleCourriel(
       table: 'email_templates',
       diff: { cle: v.cle, apres: { sujet: v.sujet, actif: v.actif } },
     });
-
-    revalidatePath('/administration/parametres');
-    return ok();
-  });
-}
-
-// -----------------------------------------------------------------------------
-
-const profilSchema = z.object({
-  /** Absent : creation. Present : modification. */
-  id: z.union([z.uuid(), z.null()]).default(null),
-  nom: z.string().trim().min(2, 'Le nom du profil est requis.').max(80),
-  description: optionnel,
-  permissions: z.array(z.string()).max(64).default([]),
-});
-
-/**
- * EF-ADM-04 — enregistrer un profil de privileges.
- *
- * UN PROFIL N'ACCORDE RIEN PAR LUI-MEME. Il ne fait que POSER des cases dans le
- * formulaire d'un compte ; c'est ce formulaire, et lui seul, qui verifie
- * `peutDeleguer` droit par droit. On peut donc definir ici un profil plus large
- * que ce qu'un administrateur de district pourra en tirer : chez lui, les
- * droits hors de sa portee resteront simplement eteints.
- *
- * RESERVE AU SIEGE, et pas seulement a `settings.manage`.
- *
- * Un profil est GLOBAL : il n'appartient a aucune entite, et il apparait dans
- * le formulaire de compte de TOUTES. Un district qui en creerait un le poserait
- * donc sous les yeux du Siege et de ses entites soeurs, sans qu'aucune l'ait
- * demande — c'est un vocabulaire commun, et un vocabulaire commun se decide au
- * meme endroit pour tout le monde.
- *
- * `settings.manage` est non delegable, donc en pratique le Siege est seul a le
- * detenir. Mais « en pratique » n'est pas une garantie : la regle qu'on veut
- * tenir s'ecrit, sinon elle depend d'une autre qui pourrait changer.
- */
-export async function enregistrerProfil(input: unknown): Promise<ActionResult<void>> {
-  return executerAction('enregistrerProfil', async () => {
-    const session = await requireSession();
-    await requirePermission(session, 'settings.manage');
-
-    if (session.entiteType !== 'SIEGE') {
-      return ko(
-        'Les profils de privilèges sont communs à toute l’organisation : ils se ' +
-          'définissent au Siège. Vos habilitations restent modifiables compte ' +
-          'par compte.',
-      );
-    }
-
-    const analyse = profilSchema.safeParse(input);
-    if (!analyse.success) {
-      return ko('Formulaire invalide.', champsEnErreur(analyse.error));
-    }
-    const v = analyse.data;
-
-    // Un droit inconnu vient d'une version anterieure : on l'ecarte plutot que
-    // de le conserver, sinon il resterait dans la colonne sans jamais servir.
-    const permissions = v.permissions.filter((p) =>
-      (ALL_PERMISSIONS as readonly string[]).includes(p),
-    );
-
-    const ligne = sanitizeAll({
-      nom: v.nom,
-      description: v.description,
-      permissions,
-    });
-
-    const sb = await createClient();
-
-    const { error } = v.id
-      ? await sb.from('permission_profiles').update(ligne).eq('id', v.id)
-      : await sb
-          .from('permission_profiles')
-          .insert({ ...ligne, created_by: session.profileId });
-
-    if (error) return ko("Le profil n'a pas pu etre enregistre.");
-
-    await auditer({
-      session,
-      action: v.id ? 'UPDATE' : 'CREATE',
-      table: 'permission_profiles',
-      recordId: v.id ?? undefined,
-      diff: { apres: ligne },
-    });
-
-    revalidatePath('/administration/parametres');
-    return ok();
-  });
-}
-
-/**
- * EF-ADM-04 — supprimer un profil.
- *
- * SANS CONSEQUENCE SUR LES COMPTES. Un profil pose des droits, il ne les
- * detient pas : les comptes qui en ont beneficie gardent les leurs, inscrits
- * un par un dans leurs habilitations. C'est precisement ce qui distingue un
- * raccourci d'un role — et ce qui rend cette suppression sans danger.
- *
- * RESERVEE AU SIEGE, pour la meme raison que la creation : un profil est
- * commun a toute l'organisation. Le retirer le retirerait a tout le monde —
- * n'autoriser que sa creation laisserait la porte ouverte du mauvais cote.
- */
-export async function supprimerProfil(input: unknown): Promise<ActionResult<void>> {
-  return executerAction('supprimerProfil', async () => {
-    const session = await requireSession();
-    await requirePermission(session, 'settings.manage');
-
-    if (session.entiteType !== 'SIEGE') {
-      return ko(
-        'Les profils de privilèges sont communs à toute l’organisation : seul ' +
-          'le Siège peut en retirer un.',
-      );
-    }
-
-    const analyse = z.object({ id: z.uuid() }).safeParse(input);
-    if (!analyse.success) return ko('Requete invalide.');
-
-    await auditer({
-      session,
-      action: 'DELETE',
-      table: 'permission_profiles',
-      recordId: analyse.data.id,
-    });
-
-    const sb = await createClient();
-    const { error } = await sb
-      .from('permission_profiles')
-      .delete()
-      .eq('id', analyse.data.id);
-
-    if (error) return ko("Le profil n'a pas pu etre supprime.");
 
     revalidatePath('/administration/parametres');
     return ok();
