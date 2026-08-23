@@ -831,19 +831,6 @@ de rattachement »). `resoudrePortee` bornait déjà tout côté serveur :
 élargir la liste à l'écran n'ouvrait aucune porte qu'il n'aurait pas
 refermée si nécessaire.
 
-**`EntityPicker` gagne un mode `discret`** — un déclencheur en texte
-cliquable, sans bordure ni fond, au lieu du bouton `h-10 w-full` habituel.
-Signalé à l'usage : treize droits accordés affichaient treize champs pleine
-largeur répétant « Toute l'entité de rattachement », fatigants avant même
-d'être lus. `discret` est opt-in (faux par défaut) : les autres usages du
-composant — formulaires, colonnes de grille — restent identiques. **La
-portée par défaut suit le droit, pas le sélecteur (RG-25)** : un droit
-`DESCENDANTE` (la majorité) couvre l'entité choisie ET tout son sous-arbre,
-qu'elle soit celle de rattachement ou un enfant restreint ; un droit
-`PROPRE` (les onze de `fn_permissions_portee_propre()`) couvre l'entité
-exacte, jamais ses descendantes — comportement de `porteeCouvre` depuis la
-migration `0050`, que le nouveau sélecteur rend seulement visible.
-
 Base à jour jusqu'à la migration `0073`, confirmée appliquée par
 l'utilisateur et vérifiée en conditions réelles. Fuseau
 `Indian/Antananarivo` (UTC+3).

@@ -53,7 +53,6 @@ export function EntityPicker({
   emptyMessage = 'Aucune entite disponible.',
   disabled,
   compact = false,
-  discret = false,
   id,
   'aria-invalid': ariaInvalid,
   'aria-describedby': ariaDescribedBy,
@@ -75,17 +74,6 @@ export function EntityPicker({
    * chemin complet sur chaque ligne.
    */
   compact?: boolean;
-  /**
-   * Declencheur DISCRET : un texte cliquable, pas un champ de formulaire.
-   *
-   * Pour une LISTE ou chaque ligne porte son propre selecteur — la portee
-   * d'un droit accorde, ligne par ligne (EF-ADM-03). Le declencheur plein
-   * (`h-10 w-full`, bordure) empile alors autant de champs que de droits
-   * actifs, et treize boites identiques disant « Toute l'entite de
-   * rattachement » fatiguent l'oeil avant d'etre lues. En mode discret, le
-   * declencheur se reduit a la taille de son texte, sans bordure ni fond.
-   */
-  discret?: boolean;
   id?: string;
   'aria-invalid'?: boolean;
   'aria-describedby'?: string;
@@ -116,7 +104,7 @@ export function EntityPicker({
         <Button
           id={id}
           type="button"
-          variant={discret ? 'ghost' : 'outline'}
+          variant="outline"
           role="combobox"
           aria-expanded={ouvert}
           aria-invalid={ariaInvalid}
@@ -124,18 +112,16 @@ export function EntityPicker({
           aria-required={ariaRequired}
           disabled={disabled || options.length === 0}
           className={cn(
-            discret
-              ? 'h-auto w-auto max-w-full gap-1 px-1.5 py-0.5 text-xs font-normal'
-              : 'h-10 w-full justify-between font-normal',
+            'h-10 w-full justify-between font-normal',
             !selectionnee && 'text-muted-foreground',
           )}
         >
           <span className="flex min-w-0 items-center gap-2">
             {selectionnee ? (
               <>
-                {!compact && !discret && <TypeBadge type={selectionnee.type} />}
+                {!compact && <TypeBadge type={selectionnee.type} />}
                 <span className="truncate">{selectionnee.nom}</span>
-                {!compact && !discret && (
+                {!compact && (
                   <span className="font-mono text-xs text-muted-foreground">
                     {selectionnee.code}
                   </span>
@@ -147,10 +133,7 @@ export function EntityPicker({
               </span>
             )}
           </span>
-          <ChevronsUpDown
-            className={cn('shrink-0 opacity-50', discret ? 'size-3' : 'ml-2 size-4')}
-            aria-hidden
-          />
+          <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" aria-hidden />
         </Button>
       </PopoverTrigger>
 

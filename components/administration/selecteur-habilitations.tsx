@@ -298,24 +298,15 @@ function GroupeHabilitations({
                 droit ACTIF (restreindre un droit qu'on n'accorde pas ne
                 voudrait rien dire) et quand une sous-structure existe (une
                 église n'a rien à proposer).
-
-                DÉCLENCHEUR DISCRET, PAS UN CHAMP DE FORMULAIRE. Un compte
-                porte souvent une vingtaine de droits actifs : autant de
-                champs pleine largeur, tous à répéter « Toute l'entité de
-                rattachement », fatiguent l'œil avant d'être lus. `discret`
-                réduit le déclencheur à la taille de son texte — la portée
-                se lit d'un coup d'œil, et ne se règle qu'au clic.
               */}
               {active && portee && optionsRestriction.length > 0 && (
-                <div className="mt-1 flex items-center gap-1.5 pl-3 text-xs text-muted-foreground">
-                  <span className="shrink-0">Portée :</span>
+                <div className="mt-1 pl-3">
                   <EntityPicker
                     options={optionsRestriction}
                     value={portee.parPermission[permission] ?? null}
                     onChange={(id) => portee.onChanger(permission, id)}
                     placeholder="Toute l’entité de rattachement"
                     compact
-                    discret
                   />
                 </div>
               )}

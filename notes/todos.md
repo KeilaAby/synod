@@ -718,15 +718,6 @@ soldes consolidés — la décision a déjà été prise et tenue une fois.
       rattachement », qui doit rester restreint). `resoudrePortee` borne de
       toute façon côté serveur : élargir la liste à l'écran n'ouvrait aucune
       porte que le serveur n'aurait pas déjà fermée s'il le fallait.
-
-      **⚠ Fatigue visuelle signalée en testant : un compte à treize droits
-      accordés affichait treize champs pleine largeur, chacun répétant
-      « Toute l'entité de rattachement ».** `EntityPicker` gagne un mode
-      `discret` (le trigger devient un texte cliquable, sans bordure ni
-      fond, taille de son contenu — au lieu du bouton `h-10 w-full` habituel)
-      — un opt-in qui ne change rien aux usages existants. La ligne se lit
-      désormais « Portée : Toute l'entité de rattachement » en petit texte
-      muet, cliquable pour ouvrir le même panneau qu'avant.
 - [ ] **Profils locaux** — la colonne existe, aucun écran ne la renseigne.
 - [ ] La liste des habilitations fines des comptes doivent être mises à jour et 
       configurées si une des mises à jour dans ce Todos.md est susceptibles d'impacter les habilitations fines d'un utilisateur 
