@@ -260,10 +260,7 @@ export function ComptesClient({
             email: enEdition.email.endsWith('@synod.invalid') ? '' : enEdition.email,
             entiteNom: enEdition.entite?.nom ?? '',
             entiteId: enEdition.entity_id,
-            accordees: enEdition.habilitations.map((h) => ({
-              permission: h.permission as Permission,
-              scopeEntityId: h.scope_entity_id,
-            })),
+            accordees: enEdition.habilitations.map((h) => h.permission as Permission),
           }}
           open
           onOpenChange={(ouvert) => !ouvert && setEnEdition(null)}

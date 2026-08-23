@@ -12,9 +12,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
-import { EntityPicker, type OptionEntite } from '@/components/structure/entity-picker';
 import { Switch } from '@/components/ui/switch';
-import { estDescendant } from '@/lib/domain/hierarchy';
 import {
   PERMISSIONS,
   PERMISSION_GROUPS,
@@ -78,7 +76,6 @@ export function SelecteurHabilitations({
   profils = PROFILS_RACCOURCIS,
   onRemplacer,
   onBasculer,
-  portee,
 }: {
   accordees: readonly Permission[];
   /**
@@ -93,21 +90,6 @@ export function SelecteurHabilitations({
   /** Un raccourci REMPLACE la sélection : c'est ce qu'on attend d'un préréglage. */
   onRemplacer: (permissions: Permission[]) => void;
   onBasculer: (permission: Permission, accordee: boolean) => void;
-  /**
-   * RG-25 — restreindre CHAQUE droit à une sous-structure, plutôt que
-   * toujours toute l'entité de rattachement. ABSENT quand ce sélecteur sert
-   * à définir un PROFIL (`reglages-profils.tsx`) : un profil est un jeu de
-   * clés, commun à toute l'organisation — il n'a pas d'entité à restreindre.
-   */
-  portee?: {
-    /** Entité de rattachement du compte bénéficiaire — la portée par défaut. */
-    entite: { id: string; path: string };
-    /** Sous-arbre proposé au choix (déjà chargé par l'écran). */
-    entites: readonly OptionEntite[];
-    /** `undefined`/absent pour un droit : toute l'entité de rattachement. */
-    parPermission: Readonly<Partial<Record<Permission, string | null>>>;
-    onChanger: (permission: Permission, scopeEntityId: string | null) => void;
-  };
 }) {
   return (
     <div className="space-y-8">
@@ -180,7 +162,6 @@ export function SelecteurHabilitations({
             accordees={accordees}
             delegables={delegables}
             onBasculer={onBasculer}
-            portee={portee}
           />
         ))}
       </section>
@@ -193,18 +174,11 @@ function GroupeHabilitations({
   accordees,
   delegables,
   onBasculer,
-  portee,
 }: {
   groupe: PermissionGroup;
   accordees: readonly Permission[];
   delegables: readonly Permission[];
   onBasculer: (permission: Permission, accordee: boolean) => void;
-  portee?: {
-    entite: { id: string; path: string };
-    entites: readonly OptionEntite[];
-    parPermission: Readonly<Partial<Record<Permission, string | null>>>;
-    onChanger: (permission: Permission, scopeEntityId: string | null) => void;
-  };
 }) {
   const cles = (Object.keys(PERMISSIONS) as Permission[]).filter(
     (p) => PERMISSIONS[p].group === groupe,
@@ -213,21 +187,6 @@ function GroupeHabilitations({
 
   const Icone = ICONES_GROUPE[groupe];
   const retenues = cles.filter((p) => accordees.includes(p)).length;
-
-  /**
-   * LE MÊME SOUS-ARBRE POUR TOUS LES DROITS DU GROUPE.
-   *
-   * `peutDeleguer` vérifie ensuite, côté serveur, que la portée choisie
-   * reste dans ce que le délégant détient lui-même pour CE droit précis
-   * (RG-24) — cette liste-ci ne fait qu'écarter ce qui n'aurait de toute
-   * façon aucun sens : une entité hors du compte lui-même. L'entité elle-même
-   * est exclue : la resélectionner équivaudrait à `null` (règle 12).
-   */
-  const optionsRestriction = portee
-    ? portee.entites.filter(
-        (e) => e.id !== portee.entite.id && estDescendant(e.path, portee.entite.path),
-      )
-    : [];
 
   return (
     <section className="space-y-2">
@@ -291,25 +250,6 @@ function GroupeHabilitations({
                   className="mt-0.5 shrink-0"
                 />
               </label>
-
-              {/*
-                EF-ADM-03, RG-25 — la portée par défaut est TOUTE l'entité de
-                rattachement ; ce sélecteur la RESTREINT. Uniquement pour un
-                droit ACTIF (restreindre un droit qu'on n'accorde pas ne
-                voudrait rien dire) et quand une sous-structure existe (une
-                église n'a rien à proposer).
-              */}
-              {active && portee && optionsRestriction.length > 0 && (
-                <div className="mt-1 pl-3">
-                  <EntityPicker
-                    options={optionsRestriction}
-                    value={portee.parPermission[permission] ?? null}
-                    onChange={(id) => portee.onChanger(permission, id)}
-                    placeholder="Toute l’entité de rattachement"
-                    compact
-                  />
-                </div>
-              )}
             </li>
           );
         })}

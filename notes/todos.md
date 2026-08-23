@@ -14,7 +14,8 @@
 
 ## ⚠ État de la base
 
-**Appliquées : `0001` à `0073`**, confirmé par l'utilisateur.
+**Appliquées : `0001` à `0072`. `0073` est écrite et attend confirmation**
+dans l'éditeur SQL Supabase.
 
 | N° | Ce qu'elle apporte | Sans elle |
 |---|---|---|
@@ -38,8 +39,8 @@ l'utilisateur le 22 août — `0071` vérifiée en conditions réelles après
 correction de deux défauts trouvés en test, voir l'item du lien conjugal.
 `0072`, écrite le 22 août pour le bloc dîmes ci-dessous, a été confirmée
 appliquée et testée en conditions réelles le même jour. `0073`, écrite le
-22 août pour l'en-tête par entité du bloc Image, a été confirmée appliquée
-le même jour.)*
+22 août pour l'en-tête par entité du bloc Image, attend la même
+confirmation.)*
 
 ---
 
@@ -671,37 +672,10 @@ soldes consolidés — la décision a déjà été prise et tenue une fois.
 
 ## 5. `/administration`
 
-- [x] **Portée par droit dans l'octroi.** *(22 août 2026, EF-ADM-03, RG-25 —
-      sans migration.)* `user_permissions.scope_entity_id` existait depuis la
-      toute première migration (`0005`) et `has_perm`/`peut()` savaient déjà
-      le lire : ce n'est pas la base qui manquait un champ, seulement l'écran,
-      qui a toujours forcé la portée à l'entité de rattachement du compte.
-      Confirmé en explorant avant d'écrire — le texte du formulaire
-      promettait même déjà « une portée plus fine se règle ensuite », sans
-      que rien ne la propose.
-
-      **Un sélecteur PAR DROIT coché, pas une portée globale pour tout
-      l'octroi** — question posée à l'utilisateur avant d'écrire : la base
-      permet une portée différente par ligne, un compte porte souvent une
-      vingtaine de droits actifs, et une seule portée pour tous aurait rendu
-      impossible de restreindre deux droits différemment en un seul passage.
-      `SelecteurHabilitations` reçoit un prop `portee` optionnel — absent
-      pour `reglages-profils.tsx` (un **profil** est un jeu de clés commun à
-      toute l'organisation, sans entité à restreindre) — qui affiche un
-      `EntityPicker` compact sous chaque droit **actif**, borné au sous-arbre
-      de l'entité de rattachement du compte (l'entité elle-même exclue :
-      la resélectionner équivaut à l'absence de restriction).
-
-      **`resoudrePortee`** (`lib/domain/permissions.ts`, testée) normalise et
-      valide chaque portée choisie : `null` quand rien n'est choisi ou que
-      l'entité choisie est celle du compte lui-même — l'écrire quand même
-      figerait la portée si le compte était un jour re-rattaché, là où `null`
-      suit toujours son entité courante ; refusée si l'entité est introuvable
-      ou hors du sous-arbre du compte. **Deux contrôles distincts et
-      nécessaires l'un et l'autre** : `resoudrePortee` vérifie que la portée
-      reste dans le sous-arbre du compte bénéficiaire, `peutDeleguer` (RG-24,
-      inchangée) vérifie ensuite qu'elle reste dans ce que le délégant
-      détient lui-même — la seconde ne remplace pas la première.
+- [ ] **Portée par droit dans l'octroi.** Aujourd'hui toute habilitation prend
+      la portée de l'entité de rattachement ; RG-25 distingue désormais `PROPRE`
+      et `DESCENDANTE` par droit, mais l'écran ne permet pas de choisir la
+      portée d'un octroi.
 - [ ] **Profils locaux** — la colonne existe, aucun écran ne la renseigne.
 - [ ] La liste des habilitations fines des comptes doivent être mises à jour et 
       configurées si une des mises à jour dans ce Todos.md est susceptibles d'impacter les habilitations fines d'un utilisateur 

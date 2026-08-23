@@ -8,16 +8,6 @@ import { z } from 'zod';
  * partout — le meme pour tous, ou le nom de l'entite suivi de l'annee.
  */
 
-/**
- * Un octroi — RG-25. `scopeEntityId` absent ou `null` : toute l'entite de
- * rattachement du compte. Fourni : restreint a cette sous-structure, verifie
- * cote serveur (`resoudrePortee`, `lib/actions/comptes.ts`).
- */
-const octroiSchema = z.object({
-  permission: z.string(),
-  scopeEntityId: z.union([z.uuid(), z.null()]).optional().default(null),
-});
-
 export const creerCompteSchema = z.object({
   /**
    * L'ADRESSE EST FACULTATIVE — beaucoup de croyants n'en ont pas.
@@ -61,10 +51,9 @@ export const creerCompteSchema = z.object({
    *
    * Chacune est verifiee par `peutDeleguer` : on n'accorde que ce qu'on
    * detient, a un compte de son perimetre, pour une portee incluse dans la
-   * sienne. La portee par defaut est celle de l'entite de rattachement du
-   * compte ; `scopeEntityId` la restreint a une sous-structure.
+   * sienne. La portee est celle de l'entite de rattachement du compte.
    */
-  permissions: z.array(octroiSchema).max(64).default([]),
+  permissions: z.array(z.string()).max(64).default([]),
 
   entityId: z.uuid("Choisissez l'entite de rattachement."),
 
@@ -106,7 +95,7 @@ export const modifierCompteSchema = z.object({
       return normalise === '' || normalise === null ? undefined : normalise;
     }, z.email('Adresse e-mail invalide.').optional())
     .transform((v) => v ?? null),
-  permissions: z.array(octroiSchema).max(64).default([]),
+  permissions: z.array(z.string()).max(64).default([]),
 });
 
 export type ModifierCompteInput = z.input<typeof modifierCompteSchema>;

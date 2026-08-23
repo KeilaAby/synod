@@ -26,7 +26,6 @@ import type { CroyantEligible } from '@/lib/data/comptes';
 import type { ProfilEnregistre } from '@/lib/data/courriel';
 import {
   ALL_PERMISSIONS,
-  type OctroiPortee,
   type Permission,
   permissionsDeleguables,
 } from '@/lib/domain/permissions';
@@ -69,7 +68,7 @@ export interface CompteModifiable {
   email: string;
   entiteNom: string;
   entiteId: string;
-  accordees: OctroiPortee[];
+  accordees: Permission[];
 }
 
 export function CompteDialog({
@@ -118,17 +117,7 @@ export function CompteDialog({
   const [nomComplet, setNomComplet] = useState(compte?.nomComplet ?? '');
   const [email, setEmail] = useState(compte?.email ?? '');
   const [entityId, setEntityId] = useState<string | null>(compte?.entiteId ?? null);
-  const [accordees, setAccordees] = useState<Permission[]>(
-    compte?.accordees.map((o) => o.permission) ?? [],
-  );
-  /**
-   * RG-25, EF-ADM-03 — la portée de CHAQUE droit, distincte de la liste des
-   * droits eux-mêmes : un raccourci ou une bascule ne connaît que des clés,
-   * la portée se règle à part, une fois le droit actif.
-   */
-  const [portees, setPortees] = useState<Partial<Record<Permission, string | null>>>(
-    Object.fromEntries(compte?.accordees.map((o) => [o.permission, o.scopeEntityId]) ?? []),
-  );
+  const [accordees, setAccordees] = useState<Permission[]>(compte?.accordees ?? []);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
   const [etape, setEtape] = useState(0);
@@ -181,13 +170,6 @@ export function CompteDialog({
     entites.find((e) => e.id === entiteEffective)?.nom ??
     croyantChoisi?.entite?.nom ??
     '';
-  /**
-   * RG-25, EF-ADM-03 — le chemin de l'entité de rattachement, pour borner le
-   * sélecteur de portée par droit. `undefined` quand l'entité n'apparaît pas
-   * dans `entites` (ex. désactivée depuis) : le sélecteur de portée
-   * disparaît alors plutôt que de proposer un sous-arbre incertain.
-   */
-  const entitePath = entites.find((e) => e.id === entiteEffective)?.path;
 
   /** La première étape suffit à ouvrir le compte : les droits peuvent attendre. */
   const premiereValide = nomComplet.trim().length >= 2 && Boolean(entiteEffective);
@@ -203,16 +185,9 @@ export function CompteDialog({
     setEmail('');
     setEntityId(null);
     setAccordees([]);
-    setPortees({});
     setErreur(null);
     setEtape(0);
   }
-
-  /** L'octroi complet — droits et leur portée — tel qu'envoyé au serveur. */
-  const octrois: OctroiPortee[] = accordees.map((permission) => ({
-    permission,
-    scopeEntityId: portees[permission] ?? null,
-  }));
 
   /**
    * Choisir un croyant AMORCE le nom — il ne l'impose pas : « Jean-Baptiste »
@@ -235,7 +210,7 @@ export function CompteDialog({
           profileId: compte.id,
           nomComplet,
           email,
-          permissions: octrois,
+          permissions: accordees,
         }),
       );
       setEnCours(false);
@@ -256,7 +231,7 @@ export function CompteDialog({
         nomComplet,
         entityId: entiteEffective,
         croyantId,
-        permissions: octrois,
+        permissions: accordees,
       }),
     );
     setEnCours(false);
@@ -419,32 +394,13 @@ export function CompteDialog({
                 accordees={accordees}
                 delegables={delegables}
                 profils={raccourcis}
-                onRemplacer={(permissions) => {
-                  setAccordees(permissions);
-                  // Un raccourci REMPLACE la sélection (règle 16) : les
-                  // portées d'une sélection précédente n'ont plus de sens.
-                  setPortees({});
-                }}
-                onBasculer={(permission, cochee) => {
+                onRemplacer={setAccordees}
+                onBasculer={(permission, cochee) =>
                   setAccordees((actuelles) =>
                     cochee
                       ? [...actuelles, permission]
                       : actuelles.filter((p) => p !== permission),
-                  );
-                  if (!cochee) {
-                    setPortees(({ [permission]: _retiree, ...reste }) => reste);
-                  }
-                }}
-                portee={
-                  entiteEffective && entitePath
-                    ? {
-                        entite: { id: entiteEffective, path: entitePath },
-                        entites,
-                        parPermission: portees,
-                        onChanger: (permission, scopeEntityId) =>
-                          setPortees((actuelles) => ({ ...actuelles, [permission]: scopeEntityId })),
-                      }
-                    : undefined
+                  )
                 }
               />
             </div>
