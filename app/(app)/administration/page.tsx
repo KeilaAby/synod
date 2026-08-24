@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import {
   ScrollText,
+  Server,
   Shield,
   Trash2,
   ShieldCheck,
@@ -89,6 +90,14 @@ const SECTIONS: readonly Section[] = [
       'Administrer les nomenclatures officielles : grades, fonctions ecclésiales, nationalités, catégories financières et événements de dîmes.',
     icone: ShieldCheck,
     permission: 'referentiel.manage',
+  },
+  {
+    href: '/administration/portabilite',
+    titre: 'Portabilité & Réversibilité',
+    description:
+      'Exporter l’intégralité des données (SQL + fichiers + manifeste) et consulter la procédure de restauration souveraine.',
+    icone: Server,
+    permission: 'settings.manage',
   },
 ];
 

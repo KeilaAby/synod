@@ -215,7 +215,7 @@ export async function imprimerOrganigramme(
   fenetre.document.open();
   fenetre.document.write(
     `${enTete}<style>` +
-      '@page { size: A4 landscape; margin: 8mm }' +
+      '@page { size: A4 landscape; margin: 4mm }' +
       'html, body { height: 100%; margin: 0 }' +
       // Le SVG occupe la page entiere ; son `preserveAspectRatio` le centre
       // sans jamais le rogner.

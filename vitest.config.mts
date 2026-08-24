@@ -7,6 +7,10 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'node',
+    env: {
+      NEXT_PUBLIC_SUPABASE_URL: 'http://localhost:54321',
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: 'test-anon-key',
+    },
     include: ['tests/**/*.test.{ts,tsx}'],
     globals: true,
     coverage: {
@@ -19,6 +23,9 @@ export default defineConfig({
     },
   },
   resolve: {
-    alias: { '@': path.resolve(import.meta.dirname, '.') },
+    alias: {
+      '@': path.resolve(import.meta.dirname, '.'),
+      'server-only': path.resolve(import.meta.dirname, 'tests/mocks/server-only.ts'),
+    },
   },
 });

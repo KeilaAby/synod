@@ -108,7 +108,7 @@ export function ChiffresEntiteBloc({
                   ? ` — mandat jusqu’au ${formatDateLongue(chiffres.bureau.dateFin)}`
                   : ' — mandat sans terme fixé'}
               </p>
-              <Lien href={`/bureaux/${chiffres.bureau.id}`}>
+              <Lien href={`/bureaux/${chiffres.bureau.id}/organigramme`}>
                 Ouvrir « {chiffres.bureau.libelle} »
               </Lien>
             </>

@@ -9,11 +9,11 @@
 
 ## ⚠ État de la base
 
-**Appliquées : `0001` à `0074`**, confirmé par l'utilisateur.
+**Appliquées : `0001` à `0075`**, confirmé par l'utilisateur.
 
 | N° | Ce qu'elle apporte | Sans elle |
 |---|---|---|
-| `0075` *(À appliquer)* | `grades.sexe_autorise` (`TOUS`, `M`, `F` avec check constraint) — restriction des sexes assignables à un grade ecclésial | Les grades acceptent indifféremment tout sexe sans contrôle ecclésial |
+| `0075` | `grades.sexe_autorise` (`TOUS`, `M`, `F` avec check constraint) — restriction des sexes assignables à un grade ecclésial | Les grades acceptent indifféremment tout sexe sans contrôle ecclésial |
 | `0074` | Table `evenements_dime` (`niveau_hote`, `ordre`, RLS), conversion de `finance_entries.dime_evenement` en `text` + FK, mise à jour de `fn_saisir_collecte_dime` et `fn_reordonner_referentiel` | Les événements de collecte de dîmes restent figés dans un enum PostgreSQL et du code TypeScript, sans écran d'administration |
 | `0073` | `entities.logo_key` — l'en-tête propre à chaque entité, source du bloc Image d'un rapport (EF-RAP-02) ; à défaut, le logo de l'organisation le remplace | Un seul logo pour toute l'organisation, alors que certaines entités ont leur propre en-tête |
 | `0072` | Élargit `dime_rapprochements` à l'**église résolue** (`select`/`write` RLS, `fn_resoudre_rapprochement`, nouvelle `fn_marquer_enveloppe_anonyme`) en plus de l'entité collectrice | Une église qui n'a rien collecté ne peut ni rapprocher, ni créer une fiche, ni déclarer anonyme une ligne que le fichier lui attribue |
@@ -40,5 +40,8 @@
 - [x] **6. Référentiel des Grades — Restriction des sexes assignables**
       Migration `0075_grades_sexe_autorise.sql` (bundle `install.sql` à jour), intégration dans `REFERENTIELS.grades`, `gradeEstCompatibleSexe`, validations serveur dans `creerCroyant` / `modifierCroyant`, et filtrage dynamique dans `croyant-form.tsx`.
 
-- [x] **7. Dîmes — Action "Remettre au Siège" directe avec entité verrouillée**
-      Dans `/finances/dimes`, le menu `⋮` déclenche directement `RemiseDialog` avec `entiteImposeeId` et `collecteImposeeId` pré-sélectionnés et verrouillés.
+- [x] **8. Organigramme — Raccordements latéraux & Rendu PDF**
+      4 connecteurs bidirectionnels, application stricte des 5 règles de tracé sans rupture hiérarchique, alignement horizontal de boîte à boîte sur le même rang dans l'impression PDF (`lib/domain/organigramme-svg.ts`).
+
+- [x] **9. Lot 8 — Portabilité & Réversibilité (ENF-POR-01 à 08, LIV-9)**
+      `S3StorageAdapter` (AWS SigV4 natif), module d'export intégral (`pnpm export:integral`, `manifest.json`, `database.sql`, `storage/`), Route API `/api/administration/portabilite/export`, écran `/administration/portabilite`, guide `RESTORE.md` et benchmark `scripts/benchmark-volume.ts`. 899 tests unitaires validés (46 fichiers).

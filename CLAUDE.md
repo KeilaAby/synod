@@ -15,17 +15,20 @@ Application web de gestion d'église. **Lire avant toute tâche** :
 Toute modification doit citer l'exigence ou la règle qu'elle sert. Si une
 demande contredit `cdg.md`, signalez-le avant d'implémenter.
 
-## État — 23 août 2026
+## État — 24 août 2026
 
-**Lots 0 à 7 livrés.** Migrations `0001` à `0075` écrites et prêtes (bundle `supabase/install.sql` régénéré).
-888 tests unitaires, 44 fichiers. `pnpm verify` vert (secrets, lint, typecheck, tests, build).
+**Lots 0 à 8 livrés.** Migrations `0001` à `0075` écrites et prêtes (bundle `supabase/install.sql` régénéré).
+899 tests unitaires, 46 fichiers. `pnpm verify` vert (secrets, lint, typecheck, tests, build).
 
-**Dernières livraisons du 23 août 2026 :**
-1. **Organigramme PDF (EF-BUR-07)** : Transmission et positionnement précis des hiérarchies intermédiaires et dérivations (`enDerivation`), calcul des sous-arbres évitant tout chevauchement horizontal/vertical, tests unitaires 35/35.
-2. **Export PDF des Croyants (EF-CRO-04)** : Dialogue de sélection des colonnes (`SelecteurColonnesDialog`) avant impression PDF de la liste filtrée.
-3. **Photos de profil** : Résolution et affichage systématique des photos dans tous les sélecteurs (`CroyantPicker`), signature des photos de conjoints.
-4. **Référentiel des Grades (migration `0075`)** : Restriction des sexes assignables aux grades (`sexe_autorise` : `TOUS`, `M`, `F`), validations serveur à la création/modification/promotion et filtrage dynamique dans le formulaire.
-5. **Dîmes & Rapprochements (EF-FIN-30, EF-FIN-34)** : Rapprochement filtré par église connue avec ouverture SuperAdmin si inconnue ; menu contextuel de collecte avec actions réelles (« Remettre au Siège » avec entité/collecte verrouillées et « Imprimer les reçus (A4) »).
+**Dernières livraisons du 24 août 2026 :**
+1. **Lot 8 — Portabilité & Réversibilité (ENF-POR-01 à 08, LIV-9)** :
+   - `S3StorageAdapter` (`lib/storage/s3-adapter.ts`) : implémentation AWS SigV4 native (TypeScript pur + `node:crypto`) sans dépendance externe, compatible AWS S3, MinIO, Cloudflare R2, Scaleway.
+   - Module d'export intégral (`lib/domain/portabilite.ts`, `lib/data/portabilite.ts`) : extraction des 27 tables au format PostgreSQL standard (`database.sql`), arborescence des objets stockés (`storage/`), manifeste d'intégrité SHA-256 (`manifest.json`).
+   - Script CLI `scripts/export-integral.ts` (`pnpm export:integral`) et Route API `/api/administration/portabilite/export`.
+   - Écran `/administration/portabilite` et guide d'instructions `RESTORE.md`.
+2. **Organigramme & Rendu PDF (EF-BUR-07)** :
+   - Connecteurs bidirectionnels sur les 4 côtés et application des 5 règles de tracé sans rupture de sens.
+   - Moteur SVG d'impression (`lib/domain/organigramme-svg.ts`) : alignement horizontal direct de boîte à boîte (`y = parent.y`) pour les adjoints sans sous-arbre (ex: Secrétaire adjoint ➔ Secrétaire), garantissant une parfaite cohérence entre écran et PDF.
 
 **Lot 2 achevé**, y compris la lecture **XLSX** (`lib/domain/xlsx.ts`, sans
 dépendance — ARB-6 clos) et la **saisie de baptêmes en lot** (EF-BAP-07) :

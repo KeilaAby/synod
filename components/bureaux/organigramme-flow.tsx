@@ -520,23 +520,46 @@ function Editeur({
         .map(([fonctionId, parent]) => {
           const id = `${parent}-${fonctionId}`;
           const choisie = aretesSelectionnees.includes(id);
+          const parentNoeud = noeuds.find((n) => n.id === parent);
+          const enfantNoeud = noeuds.find((n) => n.id === fonctionId);
+          const estAGaucheDuParent =
+            parentNoeud && enfantNoeud && enfantNoeud.position.x < parentNoeud.position.x;
+          const memeNiveauY =
+            parentNoeud &&
+            enfantNoeud &&
+            Math.abs(enfantNoeud.position.y - parentNoeud.position.y) < 70;
+
+          let sourceHandle = 'source-bas';
+          let targetHandle = 'haut';
+
+          if (enDerivation.has(fonctionId)) {
+            if (memeNiveauY) {
+              // Règle 4 et 5 : trait horizontal direct de boîte à boîte
+              if (estAGaucheDuParent) {
+                sourceHandle = 'source-gauche';
+                targetHandle = 'droite';
+              } else {
+                sourceHandle = 'source-droite';
+                targetHandle = 'gauche';
+              }
+            } else {
+              // Règle 2 et 3 : dérivation intermédiaire depuis le tronc
+              sourceHandle = 'source-bas';
+              targetHandle = estAGaucheDuParent ? 'droite' : 'gauche';
+            }
+          } else {
+            // Règle 1 : liaison hiérarchique verticale ordinaire
+            sourceHandle = 'source-bas';
+            targetHandle = 'haut';
+          }
+
           return {
             id,
             source: parent!,
+            sourceHandle,
             target: fonctionId,
-            /**
-             * EF-BUR-07 — UN ADJOINT REÇOIT LE TRAIT PAR LE CÔTÉ.
-             *
-             * Sans cela, l'écran montrait un subordonné ordinaire et le papier
-             * un rattachement latéral : deux dessins pour une même donnée, et
-             * personne pour dire lequel fait foi. La position se règle à
-             * l'écran, mais le SENS du lien doit s'y lire aussi.
-             */
-            targetHandle: enDerivation.has(fonctionId) ? 'gauche' : 'haut',
+            targetHandle,
             type: 'smoothstep',
-            // La sélection est tenue ICI : les arêtes sont recalculées quand un
-            // lien change, et une sélection laissée au magasin interne
-            // disparaîtrait — la touche Suppr. n'aurait plus rien à supprimer.
             selected: choisie,
             style: {
               stroke: choisie ? '#4f46e5' : '#cbd5e1',
@@ -544,7 +567,7 @@ function Editeur({
             },
           };
         }),
-    [liens, poses, enDerivation, aretesSelectionnees],
+    [liens, poses, enDerivation, aretesSelectionnees, noeuds],
   );
 
   const surChangementAretes = useCallback((changements: EdgeChange[]) => {
@@ -591,13 +614,13 @@ function Editeur({
        * directement. Le menu reste, pour défaire — et pour ceux qui ont relié
        * d'abord.
        */
-      const noeudsSuivants = parLaGauche
-        ? noeuds.map((n) =>
-            n.id === fonctionId ? { ...n, data: { ...n.data, enDerivation: true } } : n,
-          )
-        : noeuds;
+      const noeudsSuivants = noeuds.map((n) =>
+        n.id === fonctionId
+          ? { ...n, data: { ...n.data, enDerivation: parLaGauche } }
+          : n,
+      );
 
-      if (parLaGauche) setNoeuds(noeudsSuivants);
+      setNoeuds(noeudsSuivants);
 
       const suivants = { ...liens, [fonctionId]: parentId };
       setLiens(suivants);
@@ -606,15 +629,85 @@ function Editeur({
     [noeuds, liens, libelleDe, enregistrer, setNoeuds],
   );
 
-  const connexionValide = useCallback(
-    (connexion: Connection | Edge) =>
-      Boolean(connexion.source && connexion.target) &&
-      validerLien(
-        { id: connexion.target, libelle: libelleDe(connexion.target) },
-        { id: connexion.source, libelle: libelleDe(connexion.source) },
-        plan(noeuds, liens),
-      ).ok,
+  const resoudreSensConnexion = useCallback(
+    (
+      connexion: Connection | Edge,
+    ): {
+      valide: boolean;
+      subordonneId: string;
+      superieurId: string;
+      parLaDerivation: boolean;
+      erreur?: string;
+    } => {
+      if (!connexion.source || !connexion.target) {
+        return { valide: false, subordonneId: '', superieurId: '', parLaDerivation: false };
+      }
+
+      const sourceId = connexion.source;
+      const targetId = connexion.target;
+      const disposition = plan(noeuds, liens);
+
+      const sourceHandle = connexion.sourceHandle ?? '';
+      const targetHandle = connexion.targetHandle ?? '';
+
+      const estDerivation =
+        targetHandle === 'gauche' ||
+        targetHandle === 'droite' ||
+        sourceHandle === 'source-gauche' ||
+        sourceHandle === 'source-droite';
+
+      // 1. Sens normal : de la source (supérieur) vers la cible (subordonné)
+      const verdictDirect = validerLien(
+        { id: targetId, libelle: libelleDe(targetId) },
+        { id: sourceId, libelle: libelleDe(sourceId) },
+        disposition,
+      );
+
+      if (verdictDirect.ok) {
+        return {
+          valide: true,
+          subordonneId: targetId,
+          superieurId: sourceId,
+          parLaDerivation: estDerivation,
+        };
+      }
+
+      // 2. Si tiré à l'envers : de la cible (supérieur) vers la source (subordonné)
+      const verdictInverse = validerLien(
+        { id: sourceId, libelle: libelleDe(sourceId) },
+        { id: targetId, libelle: libelleDe(targetId) },
+        disposition,
+      );
+
+      if (verdictInverse.ok) {
+        return {
+          valide: true,
+          subordonneId: sourceId,
+          superieurId: targetId,
+          parLaDerivation: estDerivation,
+        };
+      }
+
+      const erreur = !verdictDirect.ok
+        ? verdictDirect.error
+        : !verdictInverse.ok
+          ? verdictInverse.error
+          : undefined;
+
+      return {
+        valide: false,
+        subordonneId: targetId,
+        superieurId: sourceId,
+        parLaDerivation: estDerivation,
+        erreur,
+      };
+    },
     [noeuds, liens, libelleDe],
+  );
+
+  const connexionValide = useCallback(
+    (connexion: Connection | Edge) => resoudreSensConnexion(connexion).valide,
+    [resoudreSensConnexion],
   );
 
   /** Retirer un trait détache le bloc : il redevient une racine. */
@@ -840,9 +933,14 @@ function Editeur({
           onNodesChange={surChangementNoeuds}
           onNodeDragStop={surFinDeplacement}
           onEdgesChange={surChangementAretes}
-          onConnect={(c) =>
-            c.source && c.target && relier(c.target, c.source, c.targetHandle === 'gauche')
-          }
+          onConnect={(c) => {
+            const res = resoudreSensConnexion(c);
+            if (!res.valide) {
+              if (res.erreur) avertir(res.erreur);
+              return;
+            }
+            relier(res.subordonneId, res.superieurId, res.parLaDerivation);
+          }}
           isValidConnection={connexionValide}
           onBeforeDelete={surAvantSuppression}
           onNodesDelete={surSuppressionNoeuds}

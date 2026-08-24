@@ -118,12 +118,40 @@ function dessinerPlan(
     });
 
     if (place.parentFonctionId && parFonction.has(place.parentFonctionId)) {
+      const parentPlace = plan.find((p) => p.fonctionId === place.parentFonctionId);
+      const estAGaucheDuParent = parentPlace && place.x < parentPlace.x;
+      const memeNiveauY = parentPlace && Math.abs(place.y - parentPlace.y) < 70;
+
+      let sourceHandle = 'source-bas';
+      let targetHandle = 'haut';
+
+      if (place.enDerivation) {
+        if (memeNiveauY) {
+          // Règle 4 et 5 : trait horizontal direct de boîte à boîte
+          if (estAGaucheDuParent) {
+            sourceHandle = 'source-gauche';
+            targetHandle = 'droite';
+          } else {
+            sourceHandle = 'source-droite';
+            targetHandle = 'gauche';
+          }
+        } else {
+          // Règle 2 et 3 : dérivation intermédiaire depuis le tronc
+          sourceHandle = 'source-bas';
+          targetHandle = estAGaucheDuParent ? 'droite' : 'gauche';
+        }
+      } else {
+        // Règle 1 : liaison hiérarchique verticale ordinaire
+        sourceHandle = 'source-bas';
+        targetHandle = 'haut';
+      }
+
       aretes.push({
         id: `${place.parentFonctionId}-${place.fonctionId}`,
         source: place.parentFonctionId,
+        sourceHandle,
         target: place.fonctionId,
-        // Un adjoint recoit le trait par le COTE, comme dans l editeur.
-        targetHandle: place.enDerivation ? 'gauche' : 'haut',
+        targetHandle,
         type: 'smoothstep',
         style: { stroke: '#cbd5e1', strokeWidth: 1.5 },
       });

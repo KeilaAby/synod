@@ -187,33 +187,80 @@ export function NoeudPoste({ data }: NodeProps) {
         tant que le bloc n'était pas déjà en dérivation rendait le geste
         indevinable. Elles se distinguent par la teinte, pas par la présence.
       */}
+      {/* Haut : entrée ou sortie vers le haut */}
       <Handle
         type="target"
         id="haut"
         position={Position.Top}
-        className="!size-2 !border-2 !border-card !bg-slate-300"
+        title="Rattacher en subordonné direct"
+        className="!size-2.5 !border-2 !border-card !bg-slate-300 hover:!bg-indigo-500 transition-colors"
       />
-      {/*
-        LA POIGNÉE DE GAUCHE **EST** LE GESTE, donc elle se voit.
+      <Handle
+        type="source"
+        id="source-haut"
+        position={Position.Top}
+        title="Tirer un lien vers le haut"
+        className="!size-2.5 !border-2 !border-card !bg-slate-300 hover:!bg-indigo-500 transition-colors"
+      />
 
-        Elle était masquée tant que le bloc n'était pas déjà en dérivation :
-        pour obtenir un adjoint, il fallait relier normalement puis trouver une
-        entrée de menu dont rien n'annonçait l'existence. Personne ne pouvait
-        le deviner.
-
-        Elle est donc visible, et déposer le trait dessus pose la dérivation
-        directement. Sa teinte la distingue de la poignée du haut — deux points
-        d'entrée identiques laisseraient croire qu'ils font la même chose.
-      */}
+      {/* Gauche : entrée ou sortie latérale gauche */}
       <Handle
         type="target"
         id="gauche"
         position={Position.Left}
-        title="Rattacher comme adjoint, à côté du tronc"
+        title="Rattacher comme adjoint latéral"
         className={cn(
-          '!size-2.5 !border-2 !border-card',
-          d.enDerivation ? '!bg-indigo-500' : '!bg-indigo-300',
+          '!size-2.5 !border-2 !border-card transition-colors',
+          d.enDerivation ? '!bg-indigo-500' : '!bg-indigo-300 hover:!bg-indigo-500',
         )}
+      />
+      <Handle
+        type="source"
+        id="source-gauche"
+        position={Position.Left}
+        title="Tirer un lien latéral"
+        className={cn(
+          '!size-2.5 !border-2 !border-card transition-colors',
+          d.enDerivation ? '!bg-indigo-500' : '!bg-indigo-300 hover:!bg-indigo-500',
+        )}
+      />
+
+      {/* Droite : entrée ou sortie latérale droite */}
+      <Handle
+        type="target"
+        id="droite"
+        position={Position.Right}
+        title="Rattacher comme adjoint latéral"
+        className={cn(
+          '!size-2.5 !border-2 !border-card transition-colors',
+          d.enDerivation ? '!bg-indigo-500' : '!bg-indigo-300 hover:!bg-indigo-500',
+        )}
+      />
+      <Handle
+        type="source"
+        id="source-droite"
+        position={Position.Right}
+        title="Tirer un lien latéral"
+        className={cn(
+          '!size-2.5 !border-2 !border-card transition-colors',
+          d.enDerivation ? '!bg-indigo-500' : '!bg-indigo-300 hover:!bg-indigo-500',
+        )}
+      />
+
+      {/* Bas : entrée ou sortie vers le bas */}
+      <Handle
+        type="target"
+        id="bas"
+        position={Position.Bottom}
+        title="Rattacher par le bas"
+        className="!size-2.5 !border-2 !border-card !bg-slate-400 hover:!bg-indigo-600 transition-colors"
+      />
+      <Handle
+        type="source"
+        id="source-bas"
+        position={Position.Bottom}
+        title="Tirer un lien vers un subordonné"
+        className="!size-2.5 !border-2 !border-card !bg-slate-400 hover:!bg-indigo-600 transition-colors cursor-crosshair"
       />
 
       <div className="space-y-3">

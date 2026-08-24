@@ -21,6 +21,13 @@ const schemaServeur = z.object({
   STORAGE_BUCKET: z.string().min(1).default('synod'),
   AUTH_PROVIDER: z.enum(['supabase']).default('supabase'),
   STORAGE_PROVIDER: z.enum(['supabase', 's3']).default('supabase'),
+  // Variables S3 (Lot 8 — portabilite ENF-POR-03)
+  S3_ENDPOINT: z.string().optional(),
+  S3_REGION: z.string().default('us-east-1'),
+  S3_ACCESS_KEY_ID: z.string().optional(),
+  S3_SECRET_ACCESS_KEY: z.string().optional(),
+  S3_BUCKET: z.string().optional(),
+  S3_FORCE_PATH_STYLE: z.string().default('true'),
 });
 
 /**
@@ -61,6 +68,12 @@ function lireEnvServeur() {
     STORAGE_BUCKET: vide(process.env.STORAGE_BUCKET),
     AUTH_PROVIDER: vide(process.env.AUTH_PROVIDER),
     STORAGE_PROVIDER: vide(process.env.STORAGE_PROVIDER),
+    S3_ENDPOINT: vide(process.env.S3_ENDPOINT),
+    S3_REGION: vide(process.env.S3_REGION),
+    S3_ACCESS_KEY_ID: vide(process.env.S3_ACCESS_KEY_ID),
+    S3_SECRET_ACCESS_KEY: vide(process.env.S3_SECRET_ACCESS_KEY),
+    S3_BUCKET: vide(process.env.S3_BUCKET),
+    S3_FORCE_PATH_STYLE: vide(process.env.S3_FORCE_PATH_STYLE),
   });
 
   if (!resultat.success) {

@@ -60,10 +60,10 @@ export interface BlocImprime {
  * gagnes ici sont ce qui permet a « RANOMENJANAHARY Christian Nicolas » de
  * tenir en entier — voir `replierTexte`.
  */
-const LARGEUR = 248;
-const HAUTEUR = 168;
-const MARGE = 48;
-const RAYON = 12;
+const LARGEUR = 232;
+const HAUTEUR = 144;
+const MARGE = 24;
+const RAYON = 10;
 
 /**
  * Echappe ce qui casserait le document.
@@ -191,30 +191,31 @@ const RAYON_PASTILLE = 18;
  * coude a mi-hauteur. C'est le trace d'un organigramme, celui que l'oeil suit
  * sans le lire.
  */
-function trait(parent: BlocImprime, enfant: BlocImprime): string {
-  const departX = parent.x + LARGEUR / 2;
-  const departY = parent.y + HAUTEUR;
-
-  /**
-   * EF-BUR-07 — UNE DERIVATION SE RACCROCHE AU TRONC, PAR LE COTE.
-   *
-   * Le trait ordinaire descend puis coude vers l'enfant, qui l'accueille par le
-   * HAUT. Un adjoint pose a mi-hauteur du tronc n'a pas de haut a offrir : le
-   * trait y arriverait en biais, ou par-dessus le bloc.
-   *
-   * On sort donc du tronc a la hauteur du bloc et on y entre par la GAUCHE.
-   * C'est ce qui produit le « T » couche du modele — et ce qui fait lire
-   * l'adjoint comme un rattachement lateral plutot que comme un subordonne de
-   * plus.
-   */
+function trait(
+  parent: BlocImprime,
+  enfant: BlocImprime,
+  parentHasChildren = false,
+): string {
   if (enfant.enDerivation) {
+    if (!parentHasChildren) {
+      // Dérivation directe de boîte à boîte sur la même rangée horizontale
+      const departX = parent.x + LARGEUR;
+      const milieuY = parent.y + HAUTEUR / 2;
+      return `M ${departX} ${milieuY} H ${enfant.x}`;
+    }
+
+    // Dérivation intermédiaire rattachée au tronc vertical
+    const departX = parent.x + LARGEUR / 2;
+    const departY = parent.y + HAUTEUR;
     const milieu = enfant.y + HAUTEUR / 2;
     return `M ${departX} ${departY} V ${milieu} H ${enfant.x}`;
   }
 
+  const departX = parent.x + LARGEUR / 2;
+  const departY = parent.y + HAUTEUR;
   const arriveeX = enfant.x + LARGEUR / 2;
   const arriveeY = enfant.y;
-  const coude = departY + (arriveeY - departY) / 2;
+  const coude = arriveeY - ECART_Y / 2;
 
   return `M ${departX} ${departY} V ${coude} H ${arriveeX} V ${arriveeY}`;
 }
@@ -252,10 +253,6 @@ export function disposerEnArbre(blocs: readonly BlocImprime[]): BlocImprime[] {
    * Ils dependent bien de leur superieur, mais ils ne participent NI a la
    * largeur du sous-arbre NI au centrage : les compter parmi les freres
    * decalerait la rangee entiere pour loger un bloc qui n'y figure pas.
-   *
-   * C'est le seul endroit ou la distinction se fait. Tout le reste — la
-   * largeur, le centrage, la profondeur — ignore leur existence, et c'est ce
-   * qui garde l'arbre identique a ce qu'il etait sans eux.
    */
   const derivations = new Map<string, BlocImprime[]>();
   const racines: BlocImprime[] = [];
@@ -265,9 +262,6 @@ export function disposerEnArbre(blocs: readonly BlocImprime[]): BlocImprime[] {
     const rattache = parent && parId.has(parent) && parent !== bloc.fonctionId;
 
     if (!rattache) {
-      // Une racine ne peut pas etre en derivation : il n'y a pas de tronc
-      // au-dessus d'elle. La base l'interdit (0064) ; ici on retombe sur le
-      // comportement ordinaire plutot que de perdre le bloc.
       racines.push(bloc);
       continue;
     }
@@ -297,13 +291,18 @@ export function disposerEnArbre(blocs: readonly BlocImprime[]): BlocImprime[] {
     const fils = enfants.get(bloc.fonctionId) ?? [];
     const deriv = derivations.get(bloc.fonctionId) ?? [];
 
-    const totalFils =
-      fils.length === 0
-        ? LARGEUR
-        : Math.max(
-            LARGEUR,
-            fils.reduce((n, f) => n + largeur(f), 0) + (fils.length - 1) * ECART_X,
-          );
+    if (fils.length === 0) {
+      // Dérivation directe de boîte à boîte sur le même rang
+      const total = deriv.length > 0 ? LARGEUR + ECART_X + LARGEUR : LARGEUR;
+      enCours.delete(bloc.fonctionId);
+      largeurs.set(bloc.fonctionId, total);
+      return total;
+    }
+
+    const totalFils = Math.max(
+      LARGEUR,
+      fils.reduce((n, f) => n + largeur(f), 0) + (fils.length - 1) * ECART_X,
+    );
 
     const parentXRelatif = (totalFils - LARGEUR) / 2;
     const largeurAvecDeriv =
@@ -320,51 +319,68 @@ export function disposerEnArbre(blocs: readonly BlocImprime[]): BlocImprime[] {
 
   const poses = new Set<string>();
 
-  function poser(bloc: BlocImprime, gauche: number, profondeur: number): void {
+  function poser(bloc: BlocImprime, gauche: number, y: number): void {
     if (poses.has(bloc.fonctionId)) return;
     poses.add(bloc.fonctionId);
 
     const fils = enfants.get(bloc.fonctionId) ?? [];
-    const totalFils =
-      fils.length === 0
-        ? LARGEUR
-        : Math.max(
-            LARGEUR,
-            fils.reduce((n, f) => n + (largeurs.get(f.fonctionId) ?? LARGEUR), 0) +
-              (fils.length - 1) * ECART_X,
-          );
-
-    // Le parent se CENTRE au-dessus de ses enfants ordinaires
-    places.set(bloc.fonctionId, {
-      x: gauche + (totalFils - LARGEUR) / 2,
-      y: profondeur * (HAUTEUR + ECART_Y),
-    });
-
-    let curseur = gauche;
-    for (const fils of enfants.get(bloc.fonctionId) ?? []) {
-      poser(fils, curseur, profondeur + 1);
-      curseur += largeur(fils) + ECART_X;
-    }
-
-    /**
-     * EF-BUR-07 — LES DERIVATIONS, APRES COUP ET A COTE DU TRONC.
-     *
-     * Elles se posent une fois le bloc placé, à droite du supérieur et
-     * rattachées latéralement au tronc.
-     */
-    const miHauteur = (HAUTEUR + ECART_Y) / 2;
-    const place = places.get(bloc.fonctionId)!;
     const deriv = derivations.get(bloc.fonctionId) ?? [];
 
+    if (fils.length === 0) {
+      // Dérivation directe de boîte à boîte : le premier adjoint est sur la même rangée horizontale
+      places.set(bloc.fonctionId, {
+        x: gauche,
+        y,
+      });
+
+      deriv.forEach((adjoint, rang) => {
+        if (poses.has(adjoint.fonctionId)) return;
+        poses.add(adjoint.fonctionId);
+
+        places.set(adjoint.fonctionId, {
+          x: gauche + LARGEUR + ECART_X,
+          y: y + rang * (HAUTEUR + 16),
+        });
+      });
+      return;
+    }
+
+    // Parent avec descendants ordinaires (tronc vertical)
+    const totalFils = Math.max(
+      LARGEUR,
+      fils.reduce((n, f) => n + (largeurs.get(f.fonctionId) ?? LARGEUR), 0) +
+        (fils.length - 1) * ECART_X,
+    );
+
+    // Le parent se CENTRE au-dessus de ses enfants ordinaires
+    const parentX = gauche + (totalFils - LARGEUR) / 2;
+    places.set(bloc.fonctionId, {
+      x: parentX,
+      y,
+    });
+
+    const d = deriv.length;
+    const hauteurDerivations = d > 0 ? d * HAUTEUR + (d - 1) * 16 : 0;
+    const hauteurTronc = d > 0 ? ECART_Y * 1.5 + hauteurDerivations : ECART_Y;
+
+    // Placer les dérivations à côté du tronc (à droite du supérieur)
     deriv.forEach((adjoint, rang) => {
       if (poses.has(adjoint.fonctionId)) return;
       poses.add(adjoint.fonctionId);
 
       places.set(adjoint.fonctionId, {
-        x: place.x + LARGEUR + ECART_X,
-        y: place.y + miHauteur + rang * (HAUTEUR + 16),
+        x: parentX + LARGEUR + ECART_X,
+        y: y + HAUTEUR + ECART_Y / 2 + rang * (HAUTEUR + 16),
       });
     });
+
+    // Placer les enfants sous le tronc (en dessous de toutes les dérivations)
+    const yEnfants = y + HAUTEUR + hauteurTronc;
+    let curseur = gauche;
+    for (const f of fils) {
+      poser(f, curseur, yEnfants);
+      curseur += largeur(f) + ECART_X;
+    }
   }
 
   let curseur = 0;
@@ -435,13 +451,20 @@ export function construireSvg(
   const origineX = minX - MARGE - (largeur - contenuLargeur) / 2;
   const origineY = minY - MARGE - HAUTEUR_ENTETE - (hauteur - contenuHauteur) / 2;
 
+  const enfantsParParent = new Set(
+    plan.filter((b) => !b.enDerivation && b.parentFonctionId).map((b) => b.parentFonctionId!),
+  );
+
   const traits = plan
     .filter((b) => b.parentFonctionId && parId.has(b.parentFonctionId))
-    .map(
-      (b) =>
-        `<path d="${trait(parId.get(b.parentFonctionId!)!, b)}" fill="none" ` +
-        `stroke="#94a3b8" stroke-width="1.5" />`,
-    )
+    .map((b) => {
+      const parent = parId.get(b.parentFonctionId!)!;
+      const parentHasChildren = enfantsParParent.has(b.parentFonctionId!);
+      return (
+        `<path d="${trait(parent, b, parentHasChildren)}" fill="none" ` +
+        `stroke="#94a3b8" stroke-width="1.5" />`
+      );
+    })
     .join('\n    ');
 
   /**

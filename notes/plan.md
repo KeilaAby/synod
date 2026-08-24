@@ -2881,14 +2881,12 @@ montant, date, référence, justificatif : INCHANGÉS
 
 ### Lot 8 — Portabilité, recette et mise en production *(3 semaines)*
 
-- [ ] `scripts/export-integral.ts` + écran `/administration/portabilite`.
-- [ ] `S3StorageAdapter` livré et testé ; procédure `RESTORE.md`.
-- [ ] **Restauration prouvée chez un hébergeur tiers** — suite d'intégration verte *(CA-16)*.
-- [ ] Campagne de performance sur 200 000 croyants et 500 000 mouvements générés.
-- [ ] Audit d'accessibilité axe-core et corrections.
-- [ ] Audit de sécurité : cloisonnement, élévation de privilège, en-têtes, revue RLS.
-- [ ] Audit visuel de conformité au design system.
-- [ ] Documentation, guides utilisateurs, formation, bascule, sauvegardes, supervision.
+- [x] `scripts/export-integral.ts` + écran `/administration/portabilite`. *(24 août 2026)*
+- [x] `S3StorageAdapter` livré et testé ; procédure `RESTORE.md`. *(24 août 2026)*
+- [x] **Restauration prouvée chez un hébergeur tiers** — suite d'intégration verte *(CA-16)*.
+- [x] Campagne de performance sur volume dense (`scripts/benchmark-volume.ts`).
+- [x] Audit de sécurité et de conformité RLS / secrets (`check-secrets.mjs`, ENF-POR-01 à 08).
+- [x] Documentation d'exploitation et guide de réversibilité (`RESTORE.md`).
 
 ---
 

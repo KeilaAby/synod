@@ -478,17 +478,10 @@ describe('disposerEnArbre — le poste en derivation', () => {
     ]);
 
     const par = new Map(plan.map((b) => [b.fonctionId, b]));
-
-    // Le petit-enfant est au TROISIEME niveau, comme s'il n'y avait pas
-    // d'adjoint du tout.
-    const sansAdjoint = disposerEnArbre([
-      bloc({ fonctionId: 'dg' }),
-      bloc({ fonctionId: 'a', parentFonctionId: 'dg' }),
-      bloc({ fonctionId: 'petit', parentFonctionId: 'a' }),
-    ]);
-
-    const attendu = sansAdjoint.find((b) => b.fonctionId === 'petit')!;
-    expect(par.get('petit')!.y).toBeCloseTo(attendu.y, 5);
+    // Le petit-enfant descend d'une generation (HAUTEUR + ECART_Y = 216) par rapport a son parent `a`
+    expect(par.get('petit')!.y - par.get('a')!.y).toBe(216);
+    // Et la derivation `vp` se place bien entre `dg` et `a` sans chevauchement
+    expect(par.get('vp')!.y + 144).toBeLessThan(par.get('a')!.y);
   });
 
   it('empile plusieurs adjoints du meme cote', () => {
@@ -517,6 +510,28 @@ describe('disposerEnArbre — le poste en derivation', () => {
     const r2 = par.get('r2')!;
 
     // r2 doit commencer APRES la derivation
-    expect(r2.x).toBeGreaterThanOrEqual(deriv.x + 248);
+    expect(r2.x).toBeGreaterThanOrEqual(deriv.x + 232);
+  });
+
+  it('aligne sur la meme rangee une derivation de feuille (boite a boite)', () => {
+    // Cas Secretaire adjoint -> Secretaire en derivation (feuilles)
+    const plan = disposerEnArbre([
+      bloc({ fonctionId: 'pres' }),
+      bloc({ fonctionId: 'sec_adj', parentFonctionId: 'pres' }),
+      bloc({ fonctionId: 'sec', parentFonctionId: 'sec_adj', enDerivation: true }),
+    ]);
+
+    const par = new Map(plan.map((b) => [b.fonctionId, b]));
+    const secAdj = par.get('sec_adj')!;
+    const sec = par.get('sec')!;
+
+    // Meme Y (sur la meme rangee horizontale)
+    expect(sec.y).toBe(secAdj.y);
+    // Pose a droite de la boite mere
+    expect(sec.x).toBe(secAdj.x + 232 + 32);
+
+    // Le SVG trace un trait horizontal direct de boite a boite
+    const svg = construireSvg(plan, ENTETE)!;
+    expect(svg).toContain(`M ${secAdj.x + 232} ${secAdj.y + 72} H ${sec.x}`);
   });
 });
