@@ -6116,6 +6116,13 @@ Sept points traités et vérifiés :
 - Bouton d'impression direct sur la table des baptêmes (`baptemes-client.tsx`) et sur la fiche individuelle du croyant (`croyants/[croyantId]/page.tsx`).
 - Tests unitaires validés (`tests/unit/certificat-bapteme.test.ts` et `tests/unit/documentation.test.ts`).
 
+**3. Traçabilité & Informations détaillées des Mouvements Financiers (`/finances`).**
+- Requête PostgREST `CHAMPS_LISTE` dans `lib/data/finances.ts` enrichie avec les rôles et entités des profils auteurs et validateurs.
+- Menu déroulant `⋮` de chaque mouvement enrichi d'une section non cliquable « Informations & Traçabilité » :
+  * Auteur de la saisie (nom complet, date de saisie, rôle, entité de rattachement, drapeau de saisie déléguée).
+  * Validateur officiel (nom complet, date de validation, rôle, entité d'exercice).
+  * Explication circonstanciée en l'absence de circuit (validation directe / immédiate sans passage en file d'attente, brouillon en cours de rédaction locale, rejet motivé ou annulation).
+
 `pnpm verify` : 48 suites de tests, 904 tests unitaires passés, 0 erreur TypeScript, 0 secret.
 
 
