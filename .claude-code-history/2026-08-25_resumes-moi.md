@@ -28,9 +28,14 @@
      * *Portabilité, Sauvegardes & S3* (Export intégral, Schéma PostgreSQL standard, Reprise d'activité `RESTORE.md`).
 
 3. **Expérience Utilisateur & Ergonomie (« High-Density Minimalist »)** :
-   - Écran `/documentation` avec barre latérale principale de l'application repliée par défaut (`CHEMINS_LARGES`) pour maximiser l'espace de lecture.
+   - **En-tête supérieur et barre de recherche figés au défilement (`sticky top-0 z-20`)** : restent parfaitement visibles lors du parcours de la page avec un effet de flou d'arrière-plan soigné (`backdrop-blur-md`).
+   - **Palette de recherche rapide instantanée sur raccourci clavier `CTRL+K` / `⌘K` (`components/documentation/documentation-recherche-dialog.tsx`)** :
+     * Déclencheur clavier global et bouton dédié dans la barre de recherche.
+     * Mémorisation et affichage des **Recherches récentes** (avec possibilité de purge).
+     * **Sujets fréquents & Raccourcis populaires** (Baptêmes, Mutations, Croyants, Dîmes, Organigrammes, Rapports, Habilitations, Sauvegarde S3).
+     * Recherche instantanée transversale dans tous les chapitres avec bascule automatique d'espace et défilement fluide vers la section ciblée.
+   - Barre latérale principale de l'application repliée par défaut (`CHEMINS_LARGES`) pour maximiser l'espace de lecture.
    - Barre latérale interne des thèmes et catégories **fixe au défilement** (`sticky`) pour une navigation fluide et continue dans les longs chapitres.
-   - Barre de recherche textuelle instantanée en temps réel.
    - Sélecteur d'espace (« Guide Utilisateur » / « Manuel Administration ») pour les administrateurs.
    - Encadrés pédagogiques (💡 *Astuces*, ⚠️ *Règles d’or*, 📌 *Cas pratiques*).
    - Accès direct depuis la barre latérale principale (`app-sidebar.tsx`), le menu utilisateur de l'en-tête (`topbar.tsx`), et le Hub d'Administration (`/administration`).

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   BookOpen,
   Compass,
@@ -27,9 +27,11 @@ import {
   AlertTriangle,
   Bookmark,
   CheckCircle2,
+  Command,
   type LucideIcon,
 } from 'lucide-react';
 
+import { DocumentationRechercheDialog } from './documentation-recherche-dialog';
 import { PageHeader } from '@/components/shared/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -63,20 +65,31 @@ const ICONES: Record<string, LucideIcon> = {
   Server,
 };
 
-interface Props {
+export function DocumentationClient({
+  estAdmin,
+}: {
   readonly estAdmin: boolean;
-}
-
-export function DocumentationClient({ estAdmin }: Props) {
+}) {
   const [espace, setEspace] = useState<EspaceDocumentation>('utilisateur');
   const [sectionActiveId, setSectionActiveId] = useState<string>('premiers-pas');
-  const [recherche, setRecherche] = useState<string>('');
+  const [recherche, setRecherche] = useState('');
+  const [dialogRechercheOuvert, setDialogRechercheOuvert] = useState(false);
+
+  // Déclencheur global au clavier CTRL+K / CMD+K
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.key === 'k' || e.key === 'K') && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setDialogRechercheOuvert((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const sectionsActuelles = useMemo(() => {
-    return espace === 'administration' && estAdmin
-      ? SECTIONS_ADMINISTRATION
-      : SECTIONS_UTILISATEUR;
-  }, [espace, estAdmin]);
+    return espace === 'administration' ? SECTIONS_ADMINISTRATION : SECTIONS_UTILISATEUR;
+  }, [espace]);
 
   // Filtrage instantané sur la recherche
   const sectionsFiltrees = useMemo(() => {
@@ -120,90 +133,131 @@ export function DocumentationClient({ estAdmin }: Props) {
     window.print();
   };
 
+  const selectionnerSectionDepuisDialog = (
+    nouvelEspace: EspaceDocumentation,
+    sectionId: string,
+    chapitreId?: string,
+  ) => {
+    setEspace(nouvelEspace);
+    setSectionActiveId(sectionId);
+    setRecherche('');
+
+    if (chapitreId) {
+      setTimeout(() => {
+        const el = document.getElementById(chapitreId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* En-tête principal & recherche */}
-      <div className="no-print flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <PageHeader
-          eyebrow="Centre d’Aide & Documentation"
-          title="Guide & Manuel d’Utilisation"
-          description="Tout comprendre de A à Z sur le fonctionnement de SYNOD, expliqué simplement sans jargon."
-        />
+      {/* Palette de recherche rapide CTRL+K */}
+      <DocumentationRechercheDialog
+        ouvert={dialogRechercheOuvert}
+        surChangerOuvert={setDialogRechercheOuvert}
+        estAdmin={estAdmin}
+        surSelectionner={selectionnerSectionDepuisDialog}
+      />
 
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Bascule d'espace pour les administrateurs */}
-          {estAdmin && (
-            <div className="flex items-center rounded-lg border border-slate-200 bg-slate-100 p-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setEspace('utilisateur');
-                  setSectionActiveId('premiers-pas');
-                }}
-                className={cn(
-                  'px-3 py-1.5 text-xs font-medium rounded-md transition-all',
-                  espace === 'utilisateur'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900',
-                )}
-              >
-                Guide Utilisateur
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setEspace('administration');
-                  setSectionActiveId('admin-comptes');
-                }}
-                className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all',
-                  espace === 'administration'
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900',
-                )}
-              >
-                <ShieldCheck className="size-3.5" />
-                Manuel Administration
-              </button>
-            </div>
-          )}
+      {/* En-tête principal & recherche — FIGÉ ET FIXÉ AU SCROLL */}
+      <div className="no-print sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md pt-2 pb-4 -mt-2 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 border-b border-slate-200/80 shadow-xs space-y-4">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <PageHeader
+            eyebrow="Centre d’Aide & Documentation"
+            title="Guide & Manuel d’Utilisation"
+            description="Tout comprendre de A à Z sur le fonctionnement de SYNOD, expliqué simplement sans jargon."
+          />
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={imprimer}
-            className="flex items-center gap-2 text-xs"
-          >
-            <Printer className="size-3.5" />
-            Imprimer ce guide
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Bascule d'espace pour les administrateurs */}
+            {estAdmin && (
+              <div className="flex items-center rounded-lg border border-slate-200 bg-slate-100 p-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEspace('utilisateur');
+                    setSectionActiveId('premiers-pas');
+                  }}
+                  className={cn(
+                    'px-3 py-1.5 text-xs font-medium rounded-md transition-all',
+                    espace === 'utilisateur'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900',
+                  )}
+                >
+                  Guide Utilisateur
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEspace('administration');
+                    setSectionActiveId('admin-comptes');
+                  }}
+                  className={cn(
+                    'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all',
+                    espace === 'administration'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900',
+                  )}
+                >
+                  <ShieldCheck className="size-3.5" />
+                  Manuel Administration
+                </button>
+              </div>
+            )}
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={imprimer}
+              className="flex items-center gap-2 text-xs"
+            >
+              <Printer className="size-3.5" />
+              Imprimer ce guide
+            </Button>
+          </div>
         </div>
-      </div>
 
-      {/* Barre de recherche */}
-      <div className="no-print relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
-        <Input
-          value={recherche}
-          onChange={(e) => setRecherche(e.target.value)}
-          placeholder="Rechercher un sujet, un module, une règle (ex: baptême, transfert, solde, dîme, mot de passe...)"
-          className="pl-9 bg-white border-slate-200 text-sm shadow-sm h-10"
-        />
-        {recherche && (
-          <button
-            type="button"
-            onClick={() => setRecherche('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600"
-          >
-            Effacer
-          </button>
-        )}
+        {/* Barre de recherche avec déclencheur direct CTRL+K */}
+        <div className="relative flex items-center">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+          <Input
+            value={recherche}
+            onChange={(e) => setRecherche(e.target.value)}
+            placeholder="Rechercher un sujet, un module, une règle (ex: baptême, transfert, solde, dîme, mot de passe...)"
+            className="pl-9 pr-24 bg-white border-slate-200 text-sm shadow-sm h-10"
+          />
+          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+            {recherche && (
+              <button
+                type="button"
+                onClick={() => setRecherche('')}
+                className="text-xs text-slate-400 hover:text-slate-600 px-1"
+              >
+                Effacer
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setDialogRechercheOuvert(true)}
+              className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-slate-500 bg-slate-100 hover:bg-slate-200 rounded border border-slate-200 transition-colors"
+              title="Ouvrir la recherche rapide (Ctrl+K)"
+            >
+              <kbd className="font-sans">Ctrl</kbd>
+              <span>+</span>
+              <kbd className="font-sans">K</kbd>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Disposition principale : Sidebar + Contenu */}
       <div className="grid gap-6 lg:grid-cols-12 items-start">
-        {/* Navigation latérale gauche — fixe au défilement */}
-        <aside className="no-print lg:col-span-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto space-y-2 pr-1">
+        {/* Navigation latérale gauche — fixe au défilement sous le header */}
+        <aside className="no-print lg:col-span-4 lg:sticky lg:top-40 lg:max-h-[calc(100vh-11rem)] lg:overflow-y-auto space-y-2 pr-1">
           <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 px-3 py-1 flex items-center justify-between sticky top-0 bg-slate-50/90 backdrop-blur-sm z-10">
             <span>{espace === 'administration' ? 'Manuel Administrateur' : 'Guide Utilisateur'}</span>
             <Badge variant="secondary" className="text-[10px] font-normal">
@@ -277,7 +331,11 @@ export function DocumentationClient({ estAdmin }: Props) {
               {/* Liste des chapitres */}
               <div className="space-y-6">
                 {sectionActive.chapitres.map((chapitre, index) => (
-                  <Card key={chapitre.id} className="rounded-xl border border-slate-200 shadow-sm bg-white overflow-hidden">
+                  <Card
+                    key={chapitre.id}
+                    id={chapitre.id}
+                    className="scroll-mt-48 rounded-xl border border-slate-200 shadow-sm bg-white overflow-hidden transition-all duration-300"
+                  >
                     <CardHeader className="bg-slate-50/50 border-b border-slate-100 pb-4">
                       <div className="flex items-center gap-2">
                         <Badge variant="outline" className="text-[10px] font-mono text-slate-500 bg-white">
