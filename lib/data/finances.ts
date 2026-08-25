@@ -38,8 +38,14 @@ const CHAMPS_LISTE = `
   est_delegue, saisi_par, created_at,
   entite:entities!finance_entries_entity_id_fkey (id, nom, code, type, path),
   categorie:finance_categories!finance_entries_categorie_id_fkey (id, libelle, sens),
-  auteur:profiles!finance_entries_saisi_par_fkey (id, nom_complet),
-  validateur:profiles!finance_entries_valide_par_fkey (id, nom_complet)
+  auteur:profiles!finance_entries_saisi_par_fkey (
+    id, nom_complet, role,
+    entite:entities!profiles_entity_id_fkey (id, nom, type)
+  ),
+  validateur:profiles!finance_entries_valide_par_fkey (
+    id, nom_complet, role,
+    entite:entities!profiles_entity_id_fkey (id, nom, type)
+  )
 ` as const;
 
 export interface MouvementListe {
@@ -65,8 +71,18 @@ export interface MouvementListe {
   created_at: string;
   entite: { id: string; nom: string; code: string; type: string; path: string } | null;
   categorie: { id: string; libelle: string; sens: SensFinance } | null;
-  auteur: { id: string; nom_complet: string } | null;
-  validateur: { id: string; nom_complet: string } | null;
+  auteur: {
+    id: string;
+    nom_complet: string;
+    role?: string;
+    entite?: { id: string; nom: string; type: string } | null;
+  } | null;
+  validateur: {
+    id: string;
+    nom_complet: string;
+    role?: string;
+    entite?: { id: string; nom: string; type: string } | null;
+  } | null;
 }
 
 

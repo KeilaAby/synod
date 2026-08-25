@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   FileEdit,
   FilterX,
+  Info,
   Landmark,
   Lock,
   MoreVertical,
@@ -104,6 +105,22 @@ const TON_STATUT: Record<StatutMouvement, Tone> = {
   REJETE: 'danger',
   ANNULE: 'neutral',
 };
+
+function formaterRole(role?: string | null): string {
+  if (!role) return 'Gestionnaire';
+  switch (role) {
+    case 'SUPERADMIN':
+      return 'SuperAdmin National';
+    case 'ENTITE_ADMIN':
+      return 'Administrateur d’entité';
+    case 'ENTITE_OPERATEUR':
+      return 'Opérateur / Secrétaire';
+    case 'LECTEUR':
+      return 'Lecteur';
+    default:
+      return role;
+  }
+}
 
 /** Ce qu'un motif accompagne. Les deux se motivent (EF-FIN-14, EF-FIN-20). */
 type ActionMotivee = { id: string; statut: 'REJETE' | 'ANNULE' } | null;
@@ -874,7 +891,7 @@ export function FinancesClient({
                         </Button>
                       </DropdownMenuTrigger>
 
-                      <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuContent align="end" className="w-72 sm:w-80">
                         {/*
                           RG-17 — « Modifier » n'apparaît pas sur un mouvement
                           validé. Proposer un bouton qui déclenchera une
@@ -939,7 +956,6 @@ export function FinancesClient({
 
                         {m.statut !== 'ANNULE' && (
                           <>
-                            <DropdownMenuSeparator />
                             {/* EF-FIN-20 — un validé ne se supprime pas, il
                                 s'annule, et l'annulation se motive. */}
                             <DropdownMenuItem
@@ -960,6 +976,97 @@ export function FinancesClient({
                             )}
                           </>
                         )}
+
+                        {/* Séparateur et section d'informations non cliquable */}
+                        <DropdownMenuSeparator />
+
+                        <div className="p-3 text-xs bg-slate-50/80 rounded-b-md space-y-2.5 select-text border-t border-slate-100">
+                          <div className="flex items-center gap-1.5 font-semibold text-slate-700">
+                            <Info className="size-3.5 text-indigo-600 shrink-0" />
+                            <span className="text-[11px] uppercase tracking-wider">Informations & Traçabilité</span>
+                          </div>
+
+                          {/* 1. Saisie */}
+                          <div className="space-y-0.5 border-l-2 border-slate-300 pl-2">
+                            <p className="text-[11px] text-slate-800">
+                              Saisi par : <span className="font-semibold text-slate-900">{m.auteur?.nom_complet ?? 'Auteur non renseigné'}</span>
+                              <span className="text-slate-500 font-normal"> le {formatDate(m.created_at || m.date_operation)}</span>
+                            </p>
+                            <p className="text-[10px] text-slate-500 italic">
+                              {formaterRole(m.auteur?.role)}
+                              {m.auteur?.entite?.nom ? ` • ${m.auteur.entite.nom}` : ''}
+                              {m.est_delegue && ' (Saisie déléguée)'}
+                            </p>
+                          </div>
+
+                          {/* 2. Validation / Circuit */}
+                          <div className="space-y-0.5 border-l-2 border-emerald-500 pl-2">
+                            {m.statut === 'VALIDE' ? (
+                              m.valide_par && m.validateur ? (
+                                <>
+                                  <p className="text-[11px] text-emerald-950">
+                                    Validé par : <span className="font-semibold text-emerald-900">{m.validateur.nom_complet}</span>
+                                    <span className="text-emerald-700 font-normal"> le {formatDate(m.valide_le || m.date_operation)}</span>
+                                  </p>
+                                  <p className="text-[10px] text-emerald-700 italic">
+                                    {formaterRole(m.validateur.role)}
+                                    {m.validateur.entite?.nom ? ` • ${m.validateur.entite.nom}` : ''}
+                                  </p>
+                                </>
+                              ) : (
+                                <>
+                                  <p className="text-[11px] font-medium text-emerald-900">
+                                    Validation directe : <span className="font-semibold">Sans circuit d’approbation</span>
+                                  </p>
+                                  <p className="text-[10px] text-slate-500 leading-relaxed">
+                                    Raison : Le workflow de validation est inactif pour cette entité ou le mouvement a été validé immédiatement à la saisie.
+                                  </p>
+                                </>
+                              )
+                            ) : m.statut === 'SOUMIS' ? (
+                              <>
+                                <p className="text-[11px] font-medium text-amber-900">
+                                  Statut : <span className="font-semibold">En attente de validation</span>
+                                </p>
+                                <p className="text-[10px] text-slate-500 leading-relaxed">
+                                  Soumis{m.soumis_le ? ` le ${formatDate(m.soumis_le)}` : ''} dans le circuit de validation de la trésorerie.
+                                </p>
+                              </>
+                            ) : m.statut === 'REJETE' ? (
+                              <>
+                                <p className="text-[11px] font-medium text-rose-900">
+                                  Statut : <span className="font-semibold">Rejeté par la trésorerie</span>
+                                  {m.valide_le && <span className="text-rose-700 font-normal"> le {formatDate(m.valide_le)}</span>}
+                                </p>
+                                {m.motif_rejet && (
+                                  <p className="text-[10px] text-rose-700 italic">
+                                    Motif : {m.motif_rejet}
+                                  </p>
+                                )}
+                              </>
+                            ) : m.statut === 'ANNULE' ? (
+                              <>
+                                <p className="text-[11px] font-medium text-slate-700">
+                                  Statut : <span className="font-semibold">Mouvement annulé</span>
+                                </p>
+                                {m.motif_annulation && (
+                                  <p className="text-[10px] text-slate-500 italic">
+                                    Motif : {m.motif_annulation}
+                                  </p>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <p className="text-[11px] font-medium text-slate-700">
+                                  Statut : <span className="font-semibold">Brouillon en cours</span>
+                                </p>
+                                <p className="text-[10px] text-slate-500 leading-relaxed">
+                                  Raison : Ce mouvement n’a pas encore été soumis au circuit de validation.
+                                </p>
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
