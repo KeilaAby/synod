@@ -3,6 +3,7 @@ import { WifiOff } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import { CertificatBaptemeBouton } from '@/components/baptemes/certificat-bapteme-bouton';
 import { ModifierCroyantDialog } from '@/components/croyants/croyant-dialog';
 import { HistoriqueCroyant } from '@/components/croyants/historique-croyant';
 import { PhotoUploader } from '@/components/croyants/photo-uploader';
@@ -264,14 +265,32 @@ export default async function FicheCroyantPage({ params }: Params) {
                   )}
                 </dd>
               </div>
-              <Donnee
-                libelle="Date de baptême"
-                valeur={
-                  croyant.date_bapteme
-                    ? formatDateLongue(croyant.date_bapteme)
-                    : 'Non renseignée'
-                }
-              />
+              <div className="space-y-2">
+                <Donnee
+                  libelle="Date de baptême"
+                  valeur={
+                    croyant.date_bapteme
+                      ? formatDateLongue(croyant.date_bapteme)
+                      : 'Non renseignée'
+                  }
+                />
+                {croyant.date_bapteme && (
+                  <CertificatBaptemeBouton
+                    certificat={{
+                      nom: croyant.nom,
+                      prenom: croyant.prenom,
+                      matricule: croyant.matricule,
+                      dateNaissance: croyant.date_naissance,
+                      eglise: croyant.eglise?.nom ?? 'Église Locale',
+                      dateBapteme: croyant.date_bapteme,
+                      celebrants: [],
+                      organisation: parametres.nom_organisation,
+                      logoUrl: null,
+                    }}
+                    className="w-full mt-2"
+                  />
+                )}
+              </div>
               <Donnee libelle="Matricule" valeur={croyant.matricule} mono />
             </dl>
           </CardContent>

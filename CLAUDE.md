@@ -18,14 +18,17 @@ demande contredit `cdg.md`, signalez-le avant d'implémenter.
 ## État — 25 août 2026
 
 **Lots 0 à 8 livrés.** Migrations `0001` à `0075` écrites et prêtes (bundle `supabase/install.sql` régénéré).
-903 tests unitaires, 47 fichiers. `pnpm verify` vert (secrets, lint, typecheck, tests, build).
+904 tests unitaires, 48 fichiers. `pnpm verify` vert (secrets, lint, typecheck, tests, build).
 
 **Dernières livraisons du 25 août 2026 :**
-1. **Centre d’Aide & Documentation Intégré (`/documentation`, `lib/domain/documentation.ts`)** :
+1. **Certificat Officiel de Baptême d'Eau (`components/baptemes/imprimer-certificat-bapteme.ts`)** :
+   - Mise en page A4 solennelle avec verset biblique (Matthieu 28:19), données d'état civil, matricule, officiants, sceau officiel de l'église et signatures.
+   - Boutons d'impression directe dans le tableau du registre des baptêmes (`/baptemes`) et sur la fiche du croyant baptisé (`/croyants/[croyantId]`).
+2. **Centre d’Aide & Documentation Intégré (`/documentation`, `lib/domain/documentation.ts`)** :
    - *Guide Utilisateur (Tous membres & Admins)* : manuel complet de A à Z rédigé sans jargon technique (version « pour les nuls »), structuré en 10 thèmes illustrés avec étapes pas à pas, conseils et cas pratiques.
    - *Manuel d’Administration (SuperAdmin & Habilités)* : guide exhaustif des 7 piliers de gouvernance avec bascule instantanée.
-   - *Navigation enrichie* : entrées directes dans la barre latérale (`app-sidebar.tsx`), le menu utilisateur (`topbar.tsx`) et le hub `/administration`.
-2. **Lot 8 — Portabilité & Réversibilité (ENF-POR-01 à 08, LIV-9)** :
+   - *Navigation enrichie* : barre latérale de l'application repliée par défaut (`CHEMINS_LARGES`), barre interne des catégories sticky au scroll, entrées directes dans la barre latérale (`app-sidebar.tsx`), le menu utilisateur (`topbar.tsx`) et le hub `/administration`.
+3. **Lot 8 — Portabilité & Réversibilité (ENF-POR-01 à 08, LIV-9)** :
    - `S3StorageAdapter` (`lib/storage/s3-adapter.ts`) : SigV4 natif compatible S3/R2/MinIO/Scaleway.
    - Module d'export intégral (`pnpm export:integral`, `manifest.json`, `database.sql`, `storage/`) et écran `/administration/portabilite`.
    - Script de génération de charge volumique `scripts/seed-volume.ts` (`pnpm seed:volume`, 200 000 croyants / 500 000 écritures).

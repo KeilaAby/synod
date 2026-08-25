@@ -35,13 +35,24 @@
    - Encadrés pédagogiques (💡 *Astuces*, ⚠️ *Règles d’or*, 📌 *Cas pratiques*).
    - Accès direct depuis la barre latérale principale (`app-sidebar.tsx`), le menu utilisateur de l'en-tête (`topbar.tsx`), et le Hub d'Administration (`/administration`).
 
+### Certificat Officiel de Baptême d'Eau (Génération & Impression A4)
+1. **Moteur d'Impression Solennel (`components/baptemes/imprimer-certificat-bapteme.ts`)** :
+   - Mise en page A4 portrait solennelle avec double cadre ornemental.
+   - En-tête officiel de l'organisation et nom de l'église locale.
+   - Verset biblique (Matthieu 28:19) et déclaration officielle d'immersion dans la foi chrétienne.
+   - Données d'état civil, matricule officiel, date et lieu de cérémonie.
+   - Cartouches de signatures : pasteur(s) célébrant(s), secrétariat / sceau officiel de l'église.
+2. **Points d'accès dans l'application** :
+   - Bouton d'action direct dans chaque ligne du tableau des baptêmes ([`/baptemes`](file:///d:/projet/synod/app/(app)/baptemes/page.tsx)).
+   - Bouton dédié sur la fiche complète du croyant baptisé ([`/croyants/[croyantId]`](file:///d:/projet/synod/app/(app)/croyants/[croyantId]/page.tsx)).
+
 ---
 
 ## 2. Validation & Tests
 - `pnpm check:secrets` : 0 secret détecté.
 - `pnpm lint` : 0 erreur, 0 warning.
 - `pnpm typecheck` : 0 erreur TypeScript.
-- `pnpm test` : **903 tests unitaires validés avec succès** (47 suites de tests Vitest).
+- `pnpm test` : **904 tests unitaires validés avec succès** (48 suites de tests Vitest).
 - `pnpm build` : Build de production Next.js 16 (Turbopack) validé avec 34 routes générées.
 
 ---

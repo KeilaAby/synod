@@ -1,10 +1,11 @@
 'use client';
 
-import { Droplets, Mars, Search, Sparkles, Venus, X } from 'lucide-react';
+import { Droplets, Mars, Printer, Search, Sparkles, Venus, X } from 'lucide-react';
 import Link from 'next/link';
 import { useDeferredValue, useMemo, useState } from 'react';
 
 import { BaptemeDialog } from '@/components/baptemes/bapteme-dialog';
+import { imprimerCertificatBapteme } from '@/components/baptemes/imprimer-certificat-bapteme';
 import { AvatarCroyant } from '@/components/croyants/avatar-croyant';
 import type { CelluleOption, OptionReferentiel } from '@/components/croyants/croyant-form';
 import { EmptyState } from '@/components/shared/empty-state';
@@ -215,6 +216,7 @@ export function BaptemesClient({
                     <TableHead>Date</TableHead>
                     <TableHead>Célébrants</TableHead>
                     <TableHead>Lieu ou cérémonie</TableHead>
+                    <TableHead className="text-right">Certificat</TableHead>
                   </TableRow>
                 </TableHeader>
 
@@ -262,6 +264,37 @@ export function BaptemesClient({
 
                       <TableCell className="max-w-48 truncate text-sm text-muted-foreground">
                         {b.session_libelle ?? b.lieu ?? '—'}
+                      </TableCell>
+
+                      <TableCell className="text-right">
+                        {b.croyant && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              if (!b.croyant) return;
+                              imprimerCertificatBapteme({
+                                nom: b.croyant.nom,
+                                prenom: b.croyant.prenom,
+                                matricule: b.croyant.matricule,
+                                dateNaissance: b.croyant.date_naissance,
+                                eglise: b.entite?.nom ?? 'Église Locale',
+                                dateBapteme: b.date_bapteme,
+                                lieu: b.lieu,
+                                sessionLibelle: b.session_libelle,
+                                celebrants: b.celebrants
+                                  .map((c) => c.croyant)
+                                  .filter((c): c is NonNullable<typeof c> => c !== null)
+                                  .map((c) => `${c.nom.toLocaleUpperCase('fr')} ${c.prenom}`),
+                              });
+                            }}
+                            className="h-8 gap-1.5 text-xs text-indigo-700 hover:text-indigo-900 hover:bg-indigo-50"
+                            title="Imprimer le certificat officiel de baptême"
+                          >
+                            <Printer className="size-3.5" />
+                            Certificat
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
