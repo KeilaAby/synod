@@ -25,7 +25,14 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 
 import {
-  CommandDialog,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Command,
   CommandEmpty,
   CommandGroup,
   CommandInput,
@@ -40,7 +47,6 @@ import {
   type SectionDoc,
 } from '@/lib/domain/documentation';
 import { normaliserRecherche } from '@/lib/domain/croyant';
-import { cn } from '@/lib/utils';
 
 const ICONES: Record<string, typeof BookOpen> = {
   HelpCircle,
@@ -163,7 +169,10 @@ export function DocumentationRechercheDialog({
   const enregistrerRecent = (terme: string) => {
     if (!terme.trim()) return;
     try {
-      const nouveau = [terme.trim(), ...recents.filter((t) => t.toLowerCase() !== terme.trim().toLowerCase())].slice(0, 5);
+      const nouveau = [
+        terme.trim(),
+        ...recents.filter((t) => t.toLowerCase() !== terme.trim().toLowerCase()),
+      ].slice(0, 5);
       setRecents(nouveau);
       localStorage.setItem(CLE_STOCKAGE_RECENTS, JSON.stringify(nouveau));
     } catch {
@@ -254,203 +263,113 @@ export function DocumentationRechercheDialog({
   }, [recherche, estAdmin]);
 
   return (
-    <CommandDialog
-      open={ouvert}
-      onOpenChange={surChangerOuvert}
-      title="Recherche rapide dans la documentation"
-      description="Tapez un mot-clé pour accéder instantanément à n'importe quel chapitre ou règle"
-    >
-      <div className="flex items-center border-b px-3">
-        <Search className="mr-2.5 size-4 shrink-0 text-slate-400" />
-        <CommandInput
-          value={recherche}
-          onValueChange={setRecherche}
-          placeholder="Rechercher (ex: baptême, transfert, solde, dîme, mot de passe...)"
-          className="h-12 border-0 focus:ring-0 text-sm"
-        />
-        {recherche && (
-          <button
-            type="button"
-            onClick={() => setRecherche('')}
-            className="text-xs text-slate-400 hover:text-slate-600 px-1"
-          >
-            <X className="size-3.5" />
-          </button>
-        )}
-      </div>
+    <Dialog open={ouvert} onOpenChange={surChangerOuvert}>
+      <DialogContent className="p-0 overflow-hidden max-w-xl rounded-xl border border-slate-200 shadow-xl bg-white top-1/4 translate-y-0">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Recherche rapide dans la documentation</DialogTitle>
+          <DialogDescription>Tapez un mot-clé pour accéder instantanément à un chapitre</DialogDescription>
+        </DialogHeader>
 
-      <CommandList className="max-h-[380px] p-2">
-        {/* Aucun résultat */}
-        <CommandEmpty className="py-6 text-center text-xs text-slate-500">
-          Aucun sujet ne correspond à « <span className="font-semibold text-slate-700">{recherche}</span> ».
-        </CommandEmpty>
-
-        {/* Sans recherche : Recherches récentes & Suggestions */}
-        {!recherche.trim() && (
-          <>
-            {recents.length > 0 && (
-              <CommandGroup
-                heading={
-                  <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
-                    <span className="flex items-center gap-1.5">
-                      <Clock className="size-3 text-slate-400" />
-                      Recherches récentes
-                    </span>
-                    <button
-                      type="button"
-                      onClick={effacerRecents}
-                      className="text-[10px] text-slate-400 hover:text-rose-600 font-normal transition-colors"
-                    >
-                      Effacer l’historique
-                    </button>
-                  </div>
-                }
+        <Command className="rounded-xl bg-white">
+          <div className="flex items-center border-b px-3">
+            <Search className="mr-2.5 size-4 shrink-0 text-slate-400" />
+            <CommandInput
+              value={recherche}
+              onValueChange={setRecherche}
+              placeholder="Rechercher (ex: baptême, transfert, solde, dîme, mot de passe...)"
+              className="h-12 border-0 focus:ring-0 text-sm w-full"
+            />
+            {recherche && (
+              <button
+                type="button"
+                onClick={() => setRecherche('')}
+                className="text-xs text-slate-400 hover:text-slate-600 px-1"
               >
-                {recents.map((terme) => (
-                  <CommandItem
-                    key={terme}
-                    value={terme}
-                    onSelect={() => setRecherche(terme)}
-                    className="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 rounded-lg cursor-pointer hover:bg-slate-100"
-                  >
-                    <History className="size-3.5 text-slate-400 shrink-0" />
-                    <span>{terme}</span>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
+                <X className="size-3.5" />
+              </button>
             )}
+          </div>
 
-            {recents.length > 0 && <CommandSeparator className="my-2" />}
+          <CommandList className="max-h-[360px] p-2 overflow-y-auto">
+            {/* Aucun résultat */}
+            <CommandEmpty className="py-6 text-center text-xs text-slate-500">
+              Aucun sujet ne correspond à « <span className="font-semibold text-slate-700">{recherche}</span> ».
+            </CommandEmpty>
 
-            <CommandGroup
-              heading={
-                <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-                  <Sparkles className="size-3 text-amber-500" />
-                  Sujets fréquents & Raccourcis
-                </span>
-              }
-            >
-              {SUGGESTIONS_POPULAIRES.filter(
-                (s) => s.espace === 'utilisateur' || estAdmin,
-              ).map((s) => {
-                const Icone = s.icone;
-                return (
-                  <CommandItem
-                    key={s.sectionId}
-                    value={s.titre}
-                    onSelect={() =>
-                      choisirElement(s.espace, s.sectionId, undefined, s.titre)
-                    }
-                    className="flex items-start gap-3 p-2.5 rounded-lg cursor-pointer hover:bg-indigo-50/70"
-                  >
-                    <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-indigo-50 text-indigo-600 mt-0.5 border border-indigo-100">
-                      <Icone className="size-3.5" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-xs font-semibold text-slate-900 leading-tight">
-                          {s.titre}
-                        </p>
-                        {s.espace === 'administration' && (
-                          <span className="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.2 rounded font-medium">
-                            Admin
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
-                        {s.description}
-                      </p>
-                    </div>
-                  </CommandItem>
-                );
-              })}
-            </CommandGroup>
-          </>
-        )}
-
-        {/* Résultats de recherche */}
-        {resultats && (
-          <>
-            {resultats.utilisateur.length > 0 && (
-              <CommandGroup
-                heading={
-                  <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                    <BookOpen className="size-3 text-indigo-600" />
-                    Guide Utilisateur ({resultats.utilisateur.length})
-                  </span>
-                }
-              >
-                {resultats.utilisateur.map((r, i) => {
-                  const Icone = ICONES[r.iconeNom] ?? BookOpen;
-                  return (
-                    <CommandItem
-                      key={`${r.sectionId}-${r.chapitreId ?? i}`}
-                      value={`${r.titre} ${r.sousTitre}`}
-                      onSelect={() =>
-                        choisirElement(
-                          'utilisateur',
-                          r.sectionId,
-                          r.chapitreId,
-                          recherche,
-                        )
-                      }
-                      className="flex items-start gap-3 p-2.5 rounded-lg cursor-pointer hover:bg-slate-100"
-                    >
-                      <span className="flex size-6 shrink-0 items-center justify-center rounded bg-slate-100 text-slate-600 mt-0.5">
-                        <Icone className="size-3.5" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold text-slate-900 leading-tight">
-                          {r.titre}
-                        </p>
-                        <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
-                          {r.sousTitre}
-                        </p>
-                      </div>
-                    </CommandItem>
-                  );
-                })}
-              </CommandGroup>
-            )}
-
-            {resultats.administration.length > 0 && (
+            {/* Sans recherche : Recherches récentes & Suggestions */}
+            {!recherche.trim() && (
               <>
-                {resultats.utilisateur.length > 0 && (
-                  <CommandSeparator className="my-2" />
+                {recents.length > 0 && (
+                  <CommandGroup
+                    heading={
+                      <div className="flex items-center justify-between text-xs font-semibold text-slate-500">
+                        <span className="flex items-center gap-1.5">
+                          <Clock className="size-3 text-slate-400" />
+                          Recherches récentes
+                        </span>
+                        <button
+                          type="button"
+                          onClick={effacerRecents}
+                          className="text-[10px] text-slate-400 hover:text-rose-600 font-normal transition-colors"
+                        >
+                          Effacer l’historique
+                        </button>
+                      </div>
+                    }
+                  >
+                    {recents.map((terme) => (
+                      <CommandItem
+                        key={terme}
+                        value={terme}
+                        onSelect={() => setRecherche(terme)}
+                        className="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 rounded-lg cursor-pointer hover:bg-slate-100"
+                      >
+                        <History className="size-3.5 text-slate-400 shrink-0" />
+                        <span>{terme}</span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
                 )}
+
+                {recents.length > 0 && <CommandSeparator className="my-2" />}
+
                 <CommandGroup
                   heading={
-                    <span className="flex items-center gap-1.5 text-xs font-semibold text-indigo-700">
-                      <ShieldCheck className="size-3 text-indigo-600" />
-                      Manuel Administration ({resultats.administration.length})
+                    <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+                      <Sparkles className="size-3 text-amber-500" />
+                      Sujets fréquents & Raccourcis
                     </span>
                   }
                 >
-                  {resultats.administration.map((r, i) => {
-                    const Icone = ICONES[r.iconeNom] ?? ShieldCheck;
+                  {SUGGESTIONS_POPULAIRES.filter(
+                    (s) => s.espace === 'utilisateur' || estAdmin,
+                  ).map((s) => {
+                    const Icone = s.icone;
                     return (
                       <CommandItem
-                        key={`${r.sectionId}-${r.chapitreId ?? i}`}
-                        value={`${r.titre} ${r.sousTitre}`}
+                        key={s.sectionId}
+                        value={s.titre}
                         onSelect={() =>
-                          choisirElement(
-                            'administration',
-                            r.sectionId,
-                            r.chapitreId,
-                            recherche,
-                          )
+                          choisirElement(s.espace, s.sectionId, undefined, s.titre)
                         }
-                        className="flex items-start gap-3 p-2.5 rounded-lg cursor-pointer hover:bg-indigo-50/60"
+                        className="flex items-start gap-3 p-2.5 rounded-lg cursor-pointer hover:bg-indigo-50/70"
                       >
-                        <span className="flex size-6 shrink-0 items-center justify-center rounded bg-indigo-50 text-indigo-600 mt-0.5 border border-indigo-100">
+                        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-indigo-50 text-indigo-600 mt-0.5 border border-indigo-100">
                           <Icone className="size-3.5" />
                         </span>
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs font-semibold text-slate-900 leading-tight">
-                            {r.titre}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs font-semibold text-slate-900 leading-tight">
+                              {s.titre}
+                            </p>
+                            {s.espace === 'administration' && (
+                              <span className="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.2 rounded font-medium">
+                                Admin
+                              </span>
+                            )}
+                          </div>
                           <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
-                            {r.sousTitre}
+                            {s.description}
                           </p>
                         </div>
                       </CommandItem>
@@ -459,9 +378,103 @@ export function DocumentationRechercheDialog({
                 </CommandGroup>
               </>
             )}
-          </>
-        )}
-      </CommandList>
-    </CommandDialog>
+
+            {/* Résultats de recherche */}
+            {resultats && (
+              <>
+                {resultats.utilisateur.length > 0 && (
+                  <CommandGroup
+                    heading={
+                      <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+                        <BookOpen className="size-3 text-indigo-600" />
+                        Guide Utilisateur ({resultats.utilisateur.length})
+                      </span>
+                    }
+                  >
+                    {resultats.utilisateur.map((r, i) => {
+                      const Icone = ICONES[r.iconeNom] ?? BookOpen;
+                      return (
+                        <CommandItem
+                          key={`${r.sectionId}-${r.chapitreId ?? i}`}
+                          value={`${r.titre} ${r.sousTitre}`}
+                          onSelect={() =>
+                            choisirElement(
+                              'utilisateur',
+                              r.sectionId,
+                              r.chapitreId,
+                              recherche,
+                            )
+                          }
+                          className="flex items-start gap-3 p-2.5 rounded-lg cursor-pointer hover:bg-slate-100"
+                        >
+                          <span className="flex size-6 shrink-0 items-center justify-center rounded bg-slate-100 text-slate-600 mt-0.5">
+                            <Icone className="size-3.5" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-semibold text-slate-900 leading-tight">
+                              {r.titre}
+                            </p>
+                            <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
+                              {r.sousTitre}
+                            </p>
+                          </div>
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                )}
+
+                {resultats.administration.length > 0 && (
+                  <>
+                    {resultats.utilisateur.length > 0 && (
+                      <CommandSeparator className="my-2" />
+                    )}
+                    <CommandGroup
+                      heading={
+                        <span className="flex items-center gap-1.5 text-xs font-semibold text-indigo-700">
+                          <ShieldCheck className="size-3 text-indigo-600" />
+                          Manuel Administration ({resultats.administration.length})
+                        </span>
+                      }
+                    >
+                      {resultats.administration.map((r, i) => {
+                        const Icone = ICONES[r.iconeNom] ?? ShieldCheck;
+                        return (
+                          <CommandItem
+                            key={`${r.sectionId}-${r.chapitreId ?? i}`}
+                            value={`${r.titre} ${r.sousTitre}`}
+                            onSelect={() =>
+                              choisirElement(
+                                'administration',
+                                r.sectionId,
+                                r.chapitreId,
+                                recherche,
+                              )
+                            }
+                            className="flex items-start gap-3 p-2.5 rounded-lg cursor-pointer hover:bg-indigo-50/60"
+                          >
+                            <span className="flex size-6 shrink-0 items-center justify-center rounded bg-indigo-50 text-indigo-600 mt-0.5 border border-indigo-100">
+                              <Icone className="size-3.5" />
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-semibold text-slate-900 leading-tight">
+                                {r.titre}
+                              </p>
+                              <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
+                                {r.sousTitre}
+                              </p>
+                            </div>
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </>
+                )}
+              </>
+            )}
+          </CommandList>
+        </Command>
+      </DialogContent>
+    </Dialog>
   );
 }

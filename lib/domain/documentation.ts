@@ -16,6 +16,8 @@ export interface SectionDoc {
   readonly sousTitre: string;
   readonly iconeNom: string;
   readonly descriptionCourte: string;
+  readonly filAriane?: string;
+  readonly lienAcces?: string;
   readonly chapitres: readonly ChapitreDoc[];
 }
 
@@ -42,6 +44,8 @@ export const SECTIONS_UTILISATEUR: readonly SectionDoc[] = [
     sousTitre: 'Bienvenue sur la plateforme SYNOD',
     iconeNom: 'Compass',
     descriptionCourte: 'Découvrez comment vous connecter, naviguer et comprendre votre périmètre d’action.',
+    filAriane: 'Menu principal ➔ Tableau de bord (/tableau-de-bord)',
+    lienAcces: '/tableau-de-bord',
     chapitres: [
       {
         id: 'connexion-securisee',
@@ -90,6 +94,8 @@ export const SECTIONS_UTILISATEUR: readonly SectionDoc[] = [
     sousTitre: 'L’arborescence des 6 niveaux d’organisation',
     iconeNom: 'Network',
     descriptionCourte: 'Comprendre l’organisation du Siège jusqu’aux cellules de prière de quartier.',
+    filAriane: 'Menu principal ➔ Structure (/structure)',
+    lienAcces: '/structure',
     chapitres: [
       {
         id: 'niveaux-hierarchiques',
@@ -128,6 +134,8 @@ export const SECTIONS_UTILISATEUR: readonly SectionDoc[] = [
     sousTitre: 'Fiches membres, familles et historique',
     iconeNom: 'Users',
     descriptionCourte: 'Enregistrer de nouveaux fidèles, gérer les familles, les photos et imprimer les listes.',
+    filAriane: 'Menu principal ➔ Croyants (/croyants)',
+    lienAcces: '/croyants',
     chapitres: [
       {
         id: 'nouvelle-fiche-croyant',
@@ -187,6 +195,8 @@ export const SECTIONS_UTILISATEUR: readonly SectionDoc[] = [
     sousTitre: 'Accompagner le déménagement d’un membre',
     iconeNom: 'ArrowLeftRight',
     descriptionCourte: 'Demander une mutation d’église, circuit de validation et attestation officielle.',
+    filAriane: 'Menu principal ➔ Transferts (/transferts)',
+    lienAcces: '/transferts',
     chapitres: [
       {
         id: 'demande-transfert',
@@ -218,6 +228,8 @@ export const SECTIONS_UTILISATEUR: readonly SectionDoc[] = [
     sousTitre: 'Saisie rapide en série et certificats',
     iconeNom: 'Droplets',
     descriptionCourte: 'Enregistrer une cérémonie collective de baptêmes d’eau et délivrer les attestations.',
+    filAriane: 'Menu principal ➔ Baptêmes (/baptemes)',
+    lienAcces: '/baptemes',
     chapitres: [
       {
         id: 'saisie-lot-baptemes',
@@ -241,6 +253,8 @@ export const SECTIONS_UTILISATEUR: readonly SectionDoc[] = [
     sousTitre: 'Équipes dirigeantes et représentations visuelles',
     iconeNom: 'Briefcase',
     descriptionCourte: 'Composer un bureau, dessiner l’organigramme hiérarchique et l’imprimer en haute qualité.',
+    filAriane: 'Menu principal ➔ Bureaux (/bureaux)',
+    lienAcces: '/bureaux',
     chapitres: [
       {
         id: 'composition-bureau',
@@ -275,6 +289,8 @@ export const SECTIONS_UTILISATEUR: readonly SectionDoc[] = [
     sousTitre: 'Recettes, dépenses et validation des pièces',
     iconeNom: 'Wallet',
     descriptionCourte: 'Tenir la comptabilité, téléverser les justificatifs et suivre le circuit de validation.',
+    filAriane: 'Menu principal ➔ Finances (/finances)',
+    lienAcces: '/finances',
     chapitres: [
       {
         id: 'triptyque-financier',
@@ -310,6 +326,8 @@ export const SECTIONS_UTILISATEUR: readonly SectionDoc[] = [
     sousTitre: 'Enveloppes, reçus individuels et remises au Siège',
     iconeNom: 'Coins',
     descriptionCourte: 'Gérer les enveloppes de dîmes, imprimer les reçus et préparer les versements au Siège.',
+    filAriane: 'Menu principal ➔ Finances ➔ Dîmes (/finances/dimes)',
+    lienAcces: '/finances/dimes',
     chapitres: [
       {
         id: 'principe-dime',
@@ -346,6 +364,8 @@ export const SECTIONS_UTILISATEUR: readonly SectionDoc[] = [
     sousTitre: 'Indicateurs visuels et personnalisation',
     iconeNom: 'LayoutDashboard',
     descriptionCourte: 'Suivre l’évolution des membres, des finances et adapter les cartes à vos besoins.',
+    filAriane: 'Menu principal ➔ Tableau de bord (/tableau-de-bord)',
+    lienAcces: '/tableau-de-bord',
     chapitres: [
       {
         id: 'indicateurs-cles',
@@ -375,6 +395,8 @@ export const SECTIONS_UTILISATEUR: readonly SectionDoc[] = [
     sousTitre: 'Modèles officiels, assemblage de blocs et export PDF',
     iconeNom: 'FileText',
     descriptionCourte: 'Produire des rapports d’activité mensuels ou annuels complets et prêts à imprimer.',
+    filAriane: 'Menu principal ➔ Rapports (/rapports)',
+    lienAcces: '/rapports',
     chapitres: [
       {
         id: 'modeles-rapports',
@@ -411,6 +433,8 @@ export const SECTIONS_ADMINISTRATION: readonly SectionDoc[] = [
     sousTitre: 'Création d’utilisateurs et mots de passe provisoires',
     iconeNom: 'UserCheck',
     descriptionCourte: 'Délivrer des accès aux secrétaires et trésoriers, réinitialiser des mots de passe en toute sécurité.',
+    filAriane: 'Administration ➔ Comptes utilisateurs (/administration/comptes)',
+    lienAcces: '/administration/comptes',
     chapitres: [
       {
         id: 'creation-compte-securisee',
@@ -434,6 +458,8 @@ export const SECTIONS_ADMINISTRATION: readonly SectionDoc[] = [
     sousTitre: 'Principe du Droit + Portée et profils réutilisables',
     iconeNom: 'ShieldCheck',
     descriptionCourte: 'Accorder des permissions précises sur un périmètre géographique strict.',
+    filAriane: 'Administration ➔ Profils & Droits (/administration/profils)',
+    lienAcces: '/administration/profils',
     chapitres: [
       {
         id: 'principe-droit-portee',
@@ -459,6 +485,8 @@ export const SECTIONS_ADMINISTRATION: readonly SectionDoc[] = [
     sousTitre: 'Grades, fonctions, catégories et événements',
     iconeNom: 'SlidersHorizontal',
     descriptionCourte: 'Gérer les nomenclatures officielles de l’organisation sans écrire une seule ligne de code.',
+    filAriane: 'Administration ➔ Référentiels (/referentiels)',
+    lienAcces: '/referentiels',
     chapitres: [
       {
         id: 'referentiel-grades',
@@ -486,6 +514,8 @@ export const SECTIONS_ADMINISTRATION: readonly SectionDoc[] = [
     sousTitre: 'Traçabilité inaltérable en langage naturel',
     iconeNom: 'ScrollText',
     descriptionCourte: 'Consulter l’historique des connexions, des modifications financières et des refus d’accès.',
+    filAriane: 'Administration ➔ Journal d’audit (/administration/audit)',
+    lienAcces: '/administration/audit',
     chapitres: [
       {
         id: 'consultation-audit',
@@ -505,6 +535,8 @@ export const SECTIONS_ADMINISTRATION: readonly SectionDoc[] = [
     sousTitre: 'Restauration en un clic et purge définitive',
     iconeNom: 'Trash2',
     descriptionCourte: 'Retrouver des croyants ou des entités supprimés par erreur et restaurer leurs liaisons.',
+    filAriane: 'Administration ➔ Corbeille (/administration/corbeille)',
+    lienAcces: '/administration/corbeille',
     chapitres: [
       {
         id: 'restauration-donnees',
@@ -524,6 +556,8 @@ export const SECTIONS_ADMINISTRATION: readonly SectionDoc[] = [
     sousTitre: 'Identité visuelle, fuseau horaire et serveur SMTP',
     iconeNom: 'Settings',
     descriptionCourte: 'Personnaliser le logo national, la devise, les délais de grâce et l’envoi des emails.',
+    filAriane: 'Administration ➔ Paramètres (/administration/parametres)',
+    lienAcces: '/administration/parametres',
     chapitres: [
       {
         id: 'reglages-smtp',
@@ -544,6 +578,8 @@ export const SECTIONS_ADMINISTRATION: readonly SectionDoc[] = [
     sousTitre: 'Zéro dépendance, réversibilité intégrale et reprise d’activité',
     iconeNom: 'Server',
     descriptionCourte: 'Télécharger la sauvegarde complète (SQL + photos) et restaurer sur n’importe quel serveur.',
+    filAriane: 'Administration ➔ Portabilité & Sauvegardes (/administration/portabilite)',
+    lienAcces: '/administration/portabilite',
     chapitres: [
       {
         id: 'garantie-souverainete',

@@ -163,7 +163,7 @@ export function DocumentationClient({
       />
 
       {/* En-tête principal & recherche — FIGÉ ET FIXÉ AU SCROLL */}
-      <div className="no-print sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md pt-2 pb-4 -mt-2 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 border-b border-slate-200/80 shadow-xs space-y-4">
+      <div className="no-print sticky top-0 z-20 bg-background/95 backdrop-blur-md pt-2 pb-4 border-b border-border/80 shadow-xs space-y-4">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <PageHeader
             eyebrow="Centre d’Aide & Documentation"
@@ -312,18 +312,38 @@ export function DocumentationClient({
         <main className="lg:col-span-8 space-y-6">
           {sectionActive ? (
             <div className="space-y-6">
-              {/* En-tête de la section active */}
-              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-3">
-                <div className="flex items-center gap-3">
-                  <span className="flex size-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                    <IconePrincipale className="size-5" />
-                  </span>
-                  <div>
-                    <h2 className="text-lg font-bold text-slate-900">{sectionActive.titre}</h2>
-                    <p className="text-xs font-medium text-indigo-700">{sectionActive.sousTitre}</p>
+              {/* En-tête de la section active avec Fil d'Ariane officiel */}
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-3">
+                    <span className="flex size-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
+                      <IconePrincipale className="size-5" />
+                    </span>
+                    <div>
+                      <h2 className="text-lg font-bold text-slate-900">{sectionActive.titre}</h2>
+                      <p className="text-xs font-medium text-indigo-700">{sectionActive.sousTitre}</p>
+                    </div>
                   </div>
+
+                  {sectionActive.filAriane && (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600">
+                      <span className="font-semibold text-slate-400">Accès :</span>
+                      {sectionActive.lienAcces ? (
+                        <a
+                          href={sectionActive.lienAcces}
+                          className="font-medium text-indigo-700 hover:text-indigo-900 hover:underline transition-colors"
+                          title={`Accéder directement au module ${sectionActive.titre}`}
+                        >
+                          {sectionActive.filAriane}
+                        </a>
+                      ) : (
+                        <span className="font-medium text-slate-700">{sectionActive.filAriane}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <p className="text-xs text-slate-600 leading-relaxed border-t border-slate-100 pt-3">
+
+                <p className="text-xs text-slate-600 leading-relaxed">
                   {sectionActive.descriptionCourte}
                 </p>
               </div>

@@ -28,9 +28,10 @@
      * *Portabilité, Sauvegardes & S3* (Export intégral, Schéma PostgreSQL standard, Reprise d'activité `RESTORE.md`).
 
 3. **Expérience Utilisateur & Ergonomie (« High-Density Minimalist »)** :
-   - **En-tête supérieur et barre de recherche figés au défilement (`sticky top-0 z-20`)** : restent parfaitement visibles lors du parcours de la page avec un effet de flou d'arrière-plan soigné (`backdrop-blur-md`).
+   - **En-tête supérieur et barre de recherche figés au défilement (`sticky top-0 z-20`)** : restent parfaitement visibles sans débordement sur la barre latérale rétractée.
+   - **Fil d'Ariane et chemin d’accès systématique dans chaque section** : chaque thème (Gestion des Croyants, Baptêmes, Finances, etc.) affiche désormais dans son en-tête le fil d'Ariane officiel à suivre dans l'application (`Accès : Menu principal ➔ ...`), avec lien cliquable direct.
    - **Palette de recherche rapide instantanée sur raccourci clavier `CTRL+K` / `⌘K` (`components/documentation/documentation-recherche-dialog.tsx`)** :
-     * Déclencheur clavier global et bouton dédié dans la barre de recherche.
+     * Résolution de l'encapsulation `Command` / `Dialog` pour une exécution 100% robuste.
      * Mémorisation et affichage des **Recherches récentes** (avec possibilité de purge).
      * **Sujets fréquents & Raccourcis populaires** (Baptêmes, Mutations, Croyants, Dîmes, Organigrammes, Rapports, Habilitations, Sauvegarde S3).
      * Recherche instantanée transversale dans tous les chapitres avec bascule automatique d'espace et défilement fluide vers la section ciblée.
