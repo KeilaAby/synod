@@ -162,8 +162,8 @@ export function DocumentationClient({
         surSelectionner={selectionnerSectionDepuisDialog}
       />
 
-      {/* En-tête principal & recherche — FIGÉ ET FIXÉ AU SCROLL */}
-      <div className="no-print sticky top-0 z-20 bg-background/95 backdrop-blur-md pt-2 pb-4 border-b border-border/80 shadow-xs space-y-4">
+      {/* En-tête principal & recherche — FIGÉ ET FIXÉ AU SCROLL (Fond blanc épuré) */}
+      <div className="no-print sticky top-0 z-20 bg-white/95 backdrop-blur-md pt-2 pb-4 border-b border-slate-200 shadow-xs space-y-4">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <PageHeader
             eyebrow="Centre d’Aide & Documentation"
@@ -258,7 +258,7 @@ export function DocumentationClient({
       <div className="grid gap-6 lg:grid-cols-12 items-start">
         {/* Navigation latérale gauche — fixe au défilement sous le header */}
         <aside className="no-print lg:col-span-4 lg:sticky lg:top-40 lg:max-h-[calc(100vh-11rem)] lg:overflow-y-auto space-y-2 pr-1">
-          <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 px-3 py-1 flex items-center justify-between sticky top-0 bg-slate-50/90 backdrop-blur-sm z-10">
+          <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 px-3 py-1 flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur-sm z-10">
             <span>{espace === 'administration' ? 'Manuel Administrateur' : 'Guide Utilisateur'}</span>
             <Badge variant="secondary" className="text-[10px] font-normal">
               {sectionsFiltrees.length} thèmes
