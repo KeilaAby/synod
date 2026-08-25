@@ -6099,4 +6099,24 @@ Sept points traités et vérifiés :
 
 `pnpm verify` : 0 secret, 0 lint error, 0 type error, 888 tests unitaires passés, build Next.js validé.
 
+## 25 août 2026 — Documentation intégrée dans l'application & Certificat Officiel de Baptême d'Eau A4
+
+**1. Centre d’Aide & Documentation intégrée (`/documentation`).**
+- Création de l’espace documentaire interactif avec deux modes :
+  * **Guide Utilisateur (10 sections complètes)** : Premiers pas, Structure ecclésiale, Gestion des croyants, Transferts & mutations, Cérémonies de baptême, Bureaux & organigrammes, Finances générales, Gestion des dîmes, Tableaux de bord, Générateur de rapports.
+  * **Manuel d'Administration (7 sections pour SuperAdmin et Administrateurs d'entité)** : Comptes & accès, Habilitations fines & délégations, Référentiels, Journal d'audit, Corbeille & rétention, Paramètres généraux & SMTP, Portabilité & reprise d'activité.
+- **Expérience utilisateur & Design High-Density Minimalist** :
+  * En-tête et barre de recherche figés au défilement (`sticky top-0 z-20`) sur fond blanc pur (`bg-white/95`).
+  * Barre latérale principale de l'application repliée par défaut (`CHEMINS_LARGES`) et barre des thèmes fixée au scroll (`sticky top-40`).
+  * Fil d'Ariane officiel mentionné et cliquable sur chaque thème (`Accès : Menu principal ➔ ...`).
+  * Palette de recherche instantanée `CTRL+K` / `⌘K` : popup élargie (`sm:max-w-3xl`), capsule de recherche arrondie (`rounded-full`) avec bordure grise douce sans contour noir au focus (`focus:ring-0`), bandeau de recherches récentes sous forme de puces interactives, et grille des raccourcis clés sur 2 colonnes avec navigation instantanée vers la section et le chapitre ciblé.
+
+**2. Certificat Officiel de Baptême d'Eau (A4 Portrait).**
+- Création de `components/baptemes/imprimer-certificat-bapteme.ts` : certificat solennel A4 portrait avec double cadre ornemental, verset biblique (Matthieu 28:19), matricule officiel, date/lieu/église, pasteurs officiants et blocs de signatures/sceau.
+- Bouton d'impression direct sur la table des baptêmes (`baptemes-client.tsx`) et sur la fiche individuelle du croyant (`croyants/[croyantId]/page.tsx`).
+- Tests unitaires validés (`tests/unit/certificat-bapteme.test.ts` et `tests/unit/documentation.test.ts`).
+
+`pnpm verify` : 48 suites de tests, 904 tests unitaires passés, 0 erreur TypeScript, 0 secret.
+
+
 
