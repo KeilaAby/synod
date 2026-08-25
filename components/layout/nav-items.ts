@@ -172,6 +172,7 @@ export const LIBELLES_SEGMENTS: Record<string, string> = {
   corbeille: 'Corbeille',
   parametres: 'Parametres',
   portabilite: 'Portabilite',
+  documentation: 'Documentation & Guide',
   'mon-compte': 'Mon compte',
 };
 

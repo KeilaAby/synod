@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import {
+  BookOpen,
   ScrollText,
   Server,
   Shield,
@@ -97,6 +98,14 @@ const SECTIONS: readonly Section[] = [
     description:
       'Exporter l’intégralité des données (SQL + fichiers + manifeste) et consulter la procédure de restauration souveraine.',
     icone: Server,
+    permission: 'settings.manage',
+  },
+  {
+    href: '/documentation',
+    titre: 'Manuel d’Administration & Guide',
+    description:
+      'Consulter le manuel complet d’administration, la gouvernance des accès, la portabilité et le guide utilisateur.',
+    icone: BookOpen,
     permission: 'settings.manage',
   },
 ];

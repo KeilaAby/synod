@@ -1,6 +1,6 @@
 'use client';
 
-import { LogOut, Menu, UserCog } from 'lucide-react';
+import { BookOpen, LogOut, Menu, UserCog } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
@@ -98,6 +98,13 @@ export function Topbar({ compteurs }: { compteurs: CompteursAttente }) {
           </DropdownMenuLabel>
 
           <DropdownMenuSeparator />
+
+          <DropdownMenuItem asChild>
+            <Link href="/documentation">
+              <BookOpen className="mr-2 size-4" aria-hidden />
+              Documentation & Guide
+            </Link>
+          </DropdownMenuItem>
 
           <DropdownMenuItem asChild>
             <Link href="/mon-compte">

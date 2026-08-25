@@ -45,3 +45,6 @@
 
 - [x] **9. Lot 8 — Portabilité & Réversibilité (ENF-POR-01 à 08, LIV-9)**
       `S3StorageAdapter` (AWS SigV4 natif), module d'export intégral (`pnpm export:integral`, `manifest.json`, `database.sql`, `storage/`), Route API `/api/administration/portabilite/export`, écran `/administration/portabilite`, guide `RESTORE.md` et benchmark `scripts/benchmark-volume.ts`. 899 tests unitaires validés (46 fichiers).
+
+- [x] **10. Centre d’Aide & Documentation Intégré (25 août 2026)**
+      Manuel d'Utilisation de A à Z rédigé sans jargon (10 thèmes illustrés), Manuel d'Administration pour les SuperAdmins (7 piliers), interface ergonomique `/documentation` avec recherche en direct, et intégration globale dans la navigation (`app-sidebar.tsx`, `topbar.tsx`, hub `/administration`). 903 tests unitaires passés.

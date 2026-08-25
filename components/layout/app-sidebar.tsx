@@ -1,6 +1,6 @@
 'use client';
 
-import { PanelLeftClose, PanelLeftOpen, Settings } from 'lucide-react';
+import { BookOpen, PanelLeftClose, PanelLeftOpen, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useSyncExternalStore } from 'react';
@@ -130,17 +130,12 @@ export function AppSidebar({ compteurs }: { compteurs: CompteursAttente }) {
 
       <Separator />
 
-      <div className="p-2">
-        {/*
-          L'ADMINISTRATION A PRIS LA PLACE DE « MON COMPTE », ET RIEN N'EST PERDU :
-          la barre du haut porte déjà « Mon compte » et « Se déconnecter » dans
-          son menu utilisateur. L'entrée d'ici faisait donc doublon, pendant que
-          l'administration n'était atteignable par aucun chemin.
+      <div className="p-2 space-y-1">
+        <LienNav
+          item={{ href: '/documentation', label: 'Documentation & Guide', icon: BookOpen }}
+          reduite={reduite}
+        />
 
-          Elle ne s'affiche qu'à qui détient AU MOINS un des droits
-          d'administration — le hub, lui, ne montre ensuite que les sections
-          correspondantes.
-        */}
         <PorteeAdministration>
           <LienNav
             item={{ href: '/administration', label: 'Administration', icon: Settings }}

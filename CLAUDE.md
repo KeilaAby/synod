@@ -15,20 +15,21 @@ Application web de gestion d'église. **Lire avant toute tâche** :
 Toute modification doit citer l'exigence ou la règle qu'elle sert. Si une
 demande contredit `cdg.md`, signalez-le avant d'implémenter.
 
-## État — 24 août 2026
+## État — 25 août 2026
 
 **Lots 0 à 8 livrés.** Migrations `0001` à `0075` écrites et prêtes (bundle `supabase/install.sql` régénéré).
-899 tests unitaires, 46 fichiers. `pnpm verify` vert (secrets, lint, typecheck, tests, build).
+903 tests unitaires, 47 fichiers. `pnpm verify` vert (secrets, lint, typecheck, tests, build).
 
-**Dernières livraisons du 24 août 2026 :**
-1. **Lot 8 — Portabilité & Réversibilité (ENF-POR-01 à 08, LIV-9)** :
-   - `S3StorageAdapter` (`lib/storage/s3-adapter.ts`) : implémentation AWS SigV4 native (TypeScript pur + `node:crypto`) sans dépendance externe, compatible AWS S3, MinIO, Cloudflare R2, Scaleway.
-   - Module d'export intégral (`lib/domain/portabilite.ts`, `lib/data/portabilite.ts`) : extraction des 27 tables au format PostgreSQL standard (`database.sql`), arborescence des objets stockés (`storage/`), manifeste d'intégrité SHA-256 (`manifest.json`).
-   - Script CLI `scripts/export-integral.ts` (`pnpm export:integral`) et Route API `/api/administration/portabilite/export`.
-   - Écran `/administration/portabilite` et guide d'instructions `RESTORE.md`.
-2. **Organigramme & Rendu PDF (EF-BUR-07)** :
-   - Connecteurs bidirectionnels sur les 4 côtés et application des 5 règles de tracé sans rupture de sens.
-   - Moteur SVG d'impression (`lib/domain/organigramme-svg.ts`) : alignement horizontal direct de boîte à boîte (`y = parent.y`) pour les adjoints sans sous-arbre (ex: Secrétaire adjoint ➔ Secrétaire), garantissant une parfaite cohérence entre écran et PDF.
+**Dernières livraisons du 25 août 2026 :**
+1. **Centre d’Aide & Documentation Intégré (`/documentation`, `lib/domain/documentation.ts`)** :
+   - *Guide Utilisateur (Tous membres & Admins)* : manuel complet de A à Z rédigé sans jargon technique (version « pour les nuls »), structuré en 10 thèmes illustrés avec étapes pas à pas, conseils et cas pratiques.
+   - *Manuel d’Administration (SuperAdmin & Habilités)* : guide exhaustif des 7 piliers de gouvernance avec bascule instantanée.
+   - *Navigation enrichie* : entrées directes dans la barre latérale (`app-sidebar.tsx`), le menu utilisateur (`topbar.tsx`) et le hub `/administration`.
+2. **Lot 8 — Portabilité & Réversibilité (ENF-POR-01 à 08, LIV-9)** :
+   - `S3StorageAdapter` (`lib/storage/s3-adapter.ts`) : SigV4 natif compatible S3/R2/MinIO/Scaleway.
+   - Module d'export intégral (`pnpm export:integral`, `manifest.json`, `database.sql`, `storage/`) et écran `/administration/portabilite`.
+   - Script de génération de charge volumique `scripts/seed-volume.ts` (`pnpm seed:volume`, 200 000 croyants / 500 000 écritures).
+   - Procédure de reprise d'activité `RESTORE.md` et compatibilité 100% validée avec Neon/PostgreSQL standard.
 
 **Lot 2 achevé**, y compris la lecture **XLSX** (`lib/domain/xlsx.ts`, sans
 dépendance — ARB-6 clos) et la **saisie de baptêmes en lot** (EF-BAP-07) :
