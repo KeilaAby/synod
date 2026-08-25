@@ -32,7 +32,7 @@
    - **Fil d'Ariane et chemin d’accès systématique dans chaque section** : chaque thème (Gestion des Croyants, Baptêmes, Finances, etc.) affiche désormais dans son en-tête le fil d'Ariane officiel à suivre dans l'application (`Accès : Menu principal ➔ ...`), avec lien cliquable direct.
    - **Palette de recherche rapide instantanée sur raccourci clavier `CTRL+K` / `⌘K` (`components/documentation/documentation-recherche-dialog.tsx`)** :
      * Largeur agrandie et aérée (`sm:max-w-3xl w-[95vw]`) pour une lecture confortable.
-     * Capsule de recherche arrondie (`rounded-full`) avec bordure grise douce (`border-slate-200`) sans contour noir au focus (`focus:ring-0 focus:outline-none`).
+     * Capsule de recherche arrondie (`rounded-full`) avec bordure grise douce (`border-slate-200`), largeur ajustée (`pr-14`) pour laisser place au bouton de fermeture sans superposition, et suppression absolue du contour noir au focus (`style={{ outline: 'none' }}` & `!outline-none !ring-0`).
      * Suppression de l'indication textuelle « Échap pour fermer ».
      * Affichage en tête des **Dernières recherches récentes** (badges interactifs) et des **Sujets fréquents & Raccourcis clés** en grille à deux colonnes.
      * Correction des identifiants de thèmes et chapitres : le clic sur n'importe quel raccourci ou suggestion ouvre et fait défiler immédiatement vers la bonne section documentaire.

@@ -275,32 +275,33 @@ export function DocumentationRechercheDialog({
 
   return (
     <Dialog open={ouvert} onOpenChange={surChangerOuvert}>
-      <DialogContent className="p-0 overflow-hidden sm:max-w-3xl w-[95vw] rounded-2xl border border-slate-200 shadow-2xl bg-white top-[15%] translate-y-0">
+      <DialogContent className="p-0 overflow-hidden sm:max-w-3xl w-[95vw] rounded-2xl border border-slate-200 shadow-2xl bg-white top-[15%] translate-y-0 [&_[data-slot=dialog-close]]:top-4 [&_[data-slot=dialog-close]]:right-4">
         <DialogHeader className="sr-only">
           <DialogTitle>Recherche rapide dans la documentation</DialogTitle>
           <DialogDescription>Tapez un mot-clé pour accéder instantanément à un chapitre</DialogDescription>
         </DialogHeader>
 
-        <Command className="rounded-2xl bg-white" shouldFilter={false}>
-          {/* Zone de recherche : capsule arrondie (rounded-full) avec bordure grise douce sans contour noir au focus */}
-          <div className="p-4 pb-3 border-b border-slate-100 bg-white">
-            <div className="flex items-center rounded-full border border-slate-200 bg-slate-50/60 px-4 h-12 transition-all hover:border-slate-300 focus-within:border-slate-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-slate-100">
-              <Search className="mr-3 size-4.5 shrink-0 text-slate-400" />
+        <Command className="rounded-2xl bg-white [&_input]:!outline-none [&_input]:!ring-0 [&_input]:!border-none [&_input]:!shadow-none" shouldFilter={false}>
+          {/* Zone de recherche : capsule arrondie (rounded-full) avec bordure grise douce, largeur ajustée (pr-14) pour laisser place au bouton de fermeture */}
+          <div className="p-3.5 pr-14 border-b border-slate-100 bg-white">
+            <div className="flex items-center rounded-full border border-slate-200 bg-slate-50/60 px-4 h-11 transition-all hover:border-slate-300 focus-within:border-slate-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-slate-100">
+              <Search className="mr-3 size-4 shrink-0 text-slate-400" />
               <CommandPrimitive.Input
                 value={recherche}
                 onValueChange={setRecherche}
                 placeholder="Rechercher un sujet, un module, une règle (ex: baptême, transfert, solde, dîme, mot de passe...)"
-                className="h-full w-full border-0 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:outline-none focus:ring-0 ring-0 focus-visible:ring-0 focus-visible:outline-none"
+                className="h-full w-full border-none bg-transparent text-sm text-slate-900 placeholder:text-slate-400 !outline-none !ring-0 !shadow-none !border-none focus:!outline-none focus:!ring-0 focus:!border-none focus:!shadow-none focus-visible:!outline-none focus-visible:!ring-0 focus-visible:!shadow-none"
+                style={{ outline: 'none', border: 'none', boxShadow: 'none' }}
                 autoFocus
               />
               {recherche && (
                 <button
                   type="button"
                   onClick={() => setRecherche('')}
-                  className="text-xs text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-200/60 transition-colors"
+                  className="text-xs text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-200/60 transition-colors"
                   title="Effacer la saisie"
                 >
-                  <X className="size-4" />
+                  <X className="size-3.5" />
                 </button>
               )}
             </div>
