@@ -167,8 +167,8 @@ export function DocumentationClient({
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <PageHeader
             eyebrow="Centre d’Aide & Documentation"
-            title="Guide & Manuel d’Utilisation"
-            description="Tout comprendre de A à Z sur le fonctionnement de SYNOD, expliqué simplement sans jargon."
+            title="Guide & Manuel d’utilisation"
+            description="Tout comprendre de A à Z sur le fonctionnement de SYNOD."
           />
 
           <div className="flex flex-wrap items-center gap-3">

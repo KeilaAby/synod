@@ -74,42 +74,48 @@ const SUGGESTIONS_POPULAIRES = [
   {
     titre: 'Enregistrer un baptême & Certificat',
     espace: 'utilisateur' as const,
-    sectionId: 'baptemes',
+    sectionId: 'baptemes-ceremonies',
+    chapitreId: 'saisie-lot-baptemes',
     icone: Droplets,
     description: 'Saisie collective en lot et certificat de baptême A4 officiel',
   },
   {
     titre: 'Demander ou approuver une mutation',
     espace: 'utilisateur' as const,
-    sectionId: 'transferts',
+    sectionId: 'transferts-mobilite',
+    chapitreId: 'demande-transfert',
     icone: Workflow,
     description: 'Circuit de mutation ecclésiale et lettre d’attestation officielle',
   },
   {
     titre: 'Fiche croyant, matricule & photo',
     espace: 'utilisateur' as const,
-    sectionId: 'croyants',
+    sectionId: 'gestion-croyants',
+    chapitreId: 'nouvelle-fiche-croyant',
     icone: Users,
     description: 'Matricule automatique, mariage et impression des listes filtrées',
   },
   {
     titre: 'Dîmes, enveloppes & remises au Siège',
     espace: 'utilisateur' as const,
-    sectionId: 'dimes',
+    sectionId: 'dimes-remises',
+    chapitreId: 'collecte-recus',
     icone: Coins,
     description: 'Collectes nominatives, reçus individuels et versement au Siège',
   },
   {
     titre: 'Organigramme interactif & Adjoints',
     espace: 'utilisateur' as const,
-    sectionId: 'bureaux',
+    sectionId: 'bureaux-organigrammes',
+    chapitreId: 'organigramme-interactif',
     icone: Workflow,
     description: 'Composition du bureau, liaisons de boîtes et export SVG/PDF',
   },
   {
     titre: 'Rapports, omission confidentielle RG-26 & Gel RG-27',
     espace: 'utilisateur' as const,
-    sectionId: 'rapports',
+    sectionId: 'generateur-rapports',
+    chapitreId: 'regles-confidentialite',
     icone: FileText,
     description: 'Générateur de rapports, masquage de données et gel des archives',
   },
@@ -117,6 +123,7 @@ const SUGGESTIONS_POPULAIRES = [
     titre: 'Habilitations, délégation & matrice des droits',
     espace: 'administration' as const,
     sectionId: 'admin-habilitations',
+    chapitreId: 'principe-droit-portee',
     icone: Shield,
     description: 'Gestion des rôles, portées hiérarchiques et profils réutilisables',
   },
@@ -124,6 +131,7 @@ const SUGGESTIONS_POPULAIRES = [
     titre: 'Sauvegarde intégrale & Restauration S3 / Postgres',
     espace: 'administration' as const,
     sectionId: 'admin-portabilite',
+    chapitreId: 'garantie-souverainete',
     icone: Settings,
     description: 'Export complet, schéma PostgreSQL standard et reprise d’activité',
   },
@@ -274,30 +282,28 @@ export function DocumentationRechercheDialog({
         </DialogHeader>
 
         <Command className="rounded-2xl bg-white" shouldFilter={false}>
-          {/* Barre de saisie sans double cadre ni fond gris */}
-          <div className="flex items-center border-b border-slate-200 px-4 bg-white h-14">
-            <Search className="mr-3 size-5 shrink-0 text-slate-400" />
-            <CommandPrimitive.Input
-              value={recherche}
-              onValueChange={setRecherche}
-              placeholder="Rechercher un sujet, un module, une règle (ex: baptême, transfert, solde, dîme, mot de passe...)"
-              className="h-full w-full border-0 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-0"
-              autoFocus
-            />
-            {recherche ? (
-              <button
-                type="button"
-                onClick={() => setRecherche('')}
-                className="text-xs text-slate-400 hover:text-slate-600 p-1.5 rounded-md hover:bg-slate-100 transition-colors"
-                title="Effacer la saisie"
-              >
-                <X className="size-4" />
-              </button>
-            ) : (
-              <span className="hidden sm:inline-flex items-center text-[10px] font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                Échap pour fermer
-              </span>
-            )}
+          {/* Zone de recherche : capsule arrondie (rounded-full) avec bordure grise douce sans contour noir au focus */}
+          <div className="p-4 pb-3 border-b border-slate-100 bg-white">
+            <div className="flex items-center rounded-full border border-slate-200 bg-slate-50/60 px-4 h-12 transition-all hover:border-slate-300 focus-within:border-slate-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-slate-100">
+              <Search className="mr-3 size-4.5 shrink-0 text-slate-400" />
+              <CommandPrimitive.Input
+                value={recherche}
+                onValueChange={setRecherche}
+                placeholder="Rechercher un sujet, un module, une règle (ex: baptême, transfert, solde, dîme, mot de passe...)"
+                className="h-full w-full border-0 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:outline-none focus:ring-0 ring-0 focus-visible:ring-0 focus-visible:outline-none"
+                autoFocus
+              />
+              {recherche && (
+                <button
+                  type="button"
+                  onClick={() => setRecherche('')}
+                  className="text-xs text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-200/60 transition-colors"
+                  title="Effacer la saisie"
+                >
+                  <X className="size-4" />
+                </button>
+              )}
+            </div>
           </div>
 
           <CommandList className="max-h-[440px] p-3 overflow-y-auto">
@@ -332,7 +338,7 @@ export function DocumentationRechercheDialog({
                           key={terme}
                           type="button"
                           onClick={() => setRecherche(terme)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 rounded-lg border border-slate-200/80 transition-all cursor-pointer"
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 rounded-full border border-slate-200/80 transition-all cursor-pointer"
                         >
                           <History className="size-3 text-slate-400" />
                           <span>{terme}</span>
@@ -363,7 +369,10 @@ export function DocumentationRechercheDialog({
                           key={s.sectionId}
                           value={s.titre}
                           onSelect={() =>
-                            choisirElement(s.espace, s.sectionId, undefined, s.titre)
+                            choisirElement(s.espace, s.sectionId, s.chapitreId, s.titre)
+                          }
+                          onClick={() =>
+                            choisirElement(s.espace, s.sectionId, s.chapitreId, s.titre)
                           }
                           className="flex items-start gap-3 p-3 rounded-xl cursor-pointer border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50/60 transition-all"
                         >
@@ -420,6 +429,14 @@ export function DocumentationRechercheDialog({
                                 recherche,
                               )
                             }
+                            onClick={() =>
+                              choisirElement(
+                                'utilisateur',
+                                r.sectionId,
+                                r.chapitreId,
+                                recherche,
+                              )
+                            }
                             className="flex items-start gap-3 p-3 rounded-xl cursor-pointer hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-all"
                           >
                             <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600 mt-0.5">
@@ -461,6 +478,14 @@ export function DocumentationRechercheDialog({
                               key={`${r.sectionId}-${r.chapitreId ?? i}`}
                               value={`${r.titre} ${r.sousTitre}`}
                               onSelect={() =>
+                                choisirElement(
+                                  'administration',
+                                  r.sectionId,
+                                  r.chapitreId,
+                                  recherche,
+                                )
+                              }
+                              onClick={() =>
                                 choisirElement(
                                   'administration',
                                   r.sectionId,
