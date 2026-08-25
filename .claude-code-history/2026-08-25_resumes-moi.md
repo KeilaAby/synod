@@ -31,9 +31,9 @@
    - **En-tête supérieur et barre de recherche figés au défilement (`sticky top-0 z-20`)** : restent parfaitement visibles sans débordement sur la barre latérale rétractée.
    - **Fil d'Ariane et chemin d’accès systématique dans chaque section** : chaque thème (Gestion des Croyants, Baptêmes, Finances, etc.) affiche désormais dans son en-tête le fil d'Ariane officiel à suivre dans l'application (`Accès : Menu principal ➔ ...`), avec lien cliquable direct.
    - **Palette de recherche rapide instantanée sur raccourci clavier `CTRL+K` / `⌘K` (`components/documentation/documentation-recherche-dialog.tsx`)** :
-     * Résolution de l'encapsulation `Command` / `Dialog` pour une exécution 100% robuste.
-     * Mémorisation et affichage des **Recherches récentes** (avec possibilité de purge).
-     * **Sujets fréquents & Raccourcis populaires** (Baptêmes, Mutations, Croyants, Dîmes, Organigrammes, Rapports, Habilitations, Sauvegarde S3).
+     * Largeur agrandie et aérée (`sm:max-w-3xl w-[95vw]`) pour une lecture confortable.
+     * Suppression du double cadre intérieur / icône en doublon pour une barre de saisie épurée sur fond blanc pur.
+     * Affichage en tête des **Dernières recherches récentes** (badges interactifs) et des **Sujets fréquents & Raccourcis clés** en grille à deux colonnes.
      * Recherche instantanée transversale dans tous les chapitres avec bascule automatique d'espace et défilement fluide vers la section ciblée.
    - Barre latérale principale de l'application repliée par défaut (`CHEMINS_LARGES`) pour maximiser l'espace de lecture.
    - Barre latérale interne des thèmes et catégories **fixe au défilement** (`sticky`) pour une navigation fluide et continue dans les longs chapitres.
