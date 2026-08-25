@@ -141,6 +141,11 @@ export const CHEMINS_LARGES: readonly string[] = [
    * table porte huit colonnes.
    */
   '/structure',
+  /*
+   * Le centre de documentation a besoin de toute la largeur pour son affichage
+   * en deux colonnes (liste des themes a gauche + guide de lecture a droite).
+   */
+  '/documentation',
 ];
 
 export function estEcranLarge(chemin: string): boolean {

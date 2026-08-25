@@ -28,7 +28,8 @@
      * *Portabilité, Sauvegardes & S3* (Export intégral, Schéma PostgreSQL standard, Reprise d'activité `RESTORE.md`).
 
 3. **Expérience Utilisateur & Ergonomie (« High-Density Minimalist »)** :
-   - Écran `/documentation` avec navigation latérale par catégories et icônes Lucide.
+   - Écran `/documentation` avec barre latérale principale de l'application repliée par défaut (`CHEMINS_LARGES`) pour maximiser l'espace de lecture.
+   - Barre latérale interne des thèmes et catégories **fixe au défilement** (`sticky`) pour une navigation fluide et continue dans les longs chapitres.
    - Barre de recherche textuelle instantanée en temps réel.
    - Sélecteur d'espace (« Guide Utilisateur » / « Manuel Administration ») pour les administrateurs.
    - Encadrés pédagogiques (💡 *Astuces*, ⚠️ *Règles d’or*, 📌 *Cas pratiques*).

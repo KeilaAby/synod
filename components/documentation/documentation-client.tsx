@@ -201,10 +201,10 @@ export function DocumentationClient({ estAdmin }: Props) {
       </div>
 
       {/* Disposition principale : Sidebar + Contenu */}
-      <div className="grid gap-6 lg:grid-cols-12">
-        {/* Navigation latérale gauche */}
-        <aside className="no-print lg:col-span-4 space-y-2">
-          <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 px-3 py-1 flex items-center justify-between">
+      <div className="grid gap-6 lg:grid-cols-12 items-start">
+        {/* Navigation latérale gauche — fixe au défilement */}
+        <aside className="no-print lg:col-span-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto space-y-2 pr-1">
+          <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 px-3 py-1 flex items-center justify-between sticky top-0 bg-slate-50/90 backdrop-blur-sm z-10">
             <span>{espace === 'administration' ? 'Manuel Administrateur' : 'Guide Utilisateur'}</span>
             <Badge variant="secondary" className="text-[10px] font-normal">
               {sectionsFiltrees.length} thèmes
