@@ -6117,11 +6117,15 @@ Sept points traités et vérifiés :
 - Tests unitaires validés (`tests/unit/certificat-bapteme.test.ts` et `tests/unit/documentation.test.ts`).
 
 **3. Traçabilité & Informations détaillées des Mouvements Financiers (`/finances`).**
-- Requête PostgREST `CHAMPS_LISTE` dans `lib/data/finances.ts` enrichie avec les rôles et entités des profils auteurs et validateurs.
+- **Migration `0076_finance_annule_par.sql`** : Ajout des colonnes `annule_par` (FK `profiles(id)`) et `annule_le` (`timestamptz`) dans `finance_entries`, avec mise à jour du trigger `fn_finance_before_write`.
+- Requête PostgREST `CHAMPS_LISTE` dans `lib/data/finances.ts` enrichie avec les profils d'auteurs, validateurs et annulateurs (`annulateur:profiles(...)`).
+- Server action `changerStatutMouvement` (`lib/actions/finances.ts`) mise à jour pour enregistrer l'auteur et la date d'annulation lors d'une transition vers `ANNULE`.
 - Menu déroulant `⋮` de chaque mouvement enrichi d'une section non cliquable « Informations & Traçabilité » :
   * Auteur de la saisie (nom complet, date de saisie, rôle, entité de rattachement, drapeau de saisie déléguée).
   * Validateur officiel (nom complet, date de validation, rôle, entité d'exercice).
-  * Explication circonstanciée en l'absence de circuit (validation directe / immédiate sans passage en file d'attente, brouillon en cours de rédaction locale, rejet motivé ou annulation).
+  * Opérateur ayant annulé le mouvement (nom complet, date, rôle, entité d'exercice, motif d'annulation).
+  * Explication circonstanciée en l'absence de circuit (validation directe / immédiate sans passage en file d'attente, brouillon en cours de rédaction locale, rejet motivé).
+  * Bordure sémantique dynamique (`emerald` pour validé, `amber` pour soumis, `rose` pour rejeté, `slate` pour annulé).
 
 `pnpm verify` : 48 suites de tests, 904 tests unitaires passés, 0 erreur TypeScript, 0 secret.
 

@@ -999,8 +999,20 @@ export function FinancesClient({
                             </p>
                           </div>
 
-                          {/* 2. Validation / Circuit */}
-                          <div className="space-y-0.5 border-l-2 border-emerald-500 pl-2">
+                          {/* 2. Validation / Statut & Circuit */}
+                          <div
+                            className={`space-y-0.5 border-l-2 pl-2 ${
+                              m.statut === 'VALIDE'
+                                ? 'border-emerald-500'
+                                : m.statut === 'SOUMIS'
+                                ? 'border-amber-500'
+                                : m.statut === 'REJETE'
+                                ? 'border-rose-500'
+                                : m.statut === 'ANNULE'
+                                ? 'border-slate-400'
+                                : 'border-slate-300'
+                            }`}
+                          >
                             {m.statut === 'VALIDE' ? (
                               m.valide_par && m.validateur ? (
                                 <>
@@ -1046,12 +1058,25 @@ export function FinancesClient({
                               </>
                             ) : m.statut === 'ANNULE' ? (
                               <>
-                                <p className="text-[11px] font-medium text-slate-700">
-                                  Statut : <span className="font-semibold">Mouvement annulé</span>
+                                <p className="text-[11px] font-medium text-slate-800">
+                                  {m.annulateur?.nom_complet ? (
+                                    <>
+                                      Annulé par : <span className="font-semibold text-slate-900">{m.annulateur.nom_complet}</span>
+                                      <span className="text-slate-500 font-normal"> le {formatDate(m.annule_le || m.created_at || m.date_operation)}</span>
+                                    </>
+                                  ) : (
+                                    <span className="font-semibold text-slate-800">Mouvement annulé</span>
+                                  )}
                                 </p>
-                                {m.motif_annulation && (
+                                {m.annulateur && (
                                   <p className="text-[10px] text-slate-500 italic">
-                                    Motif : {m.motif_annulation}
+                                    {formaterRole(m.annulateur.role)}
+                                    {m.annulateur.entite?.nom ? ` • ${m.annulateur.entite.nom}` : ''}
+                                  </p>
+                                )}
+                                {m.motif_annulation && (
+                                  <p className="text-[10px] text-slate-600">
+                                    <span className="font-medium text-slate-700">Motif :</span> {m.motif_annulation}
                                   </p>
                                 )}
                               </>

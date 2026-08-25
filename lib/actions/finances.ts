@@ -385,7 +385,11 @@ export async function changerStatutMouvement(
       ...(data.statut === 'VALIDE' ? { valide_par: session.profileId } : {}),
       ...(data.statut === 'REJETE' ? { motif_rejet: sanitize(data.motif ?? '') } : {}),
       ...(data.statut === 'ANNULE'
-        ? { motif_annulation: sanitize(data.motif ?? '') }
+        ? {
+            motif_annulation: sanitize(data.motif ?? ''),
+            annule_par: session.profileId,
+            annule_le: new Date().toISOString(),
+          }
         : {}),
     };
 

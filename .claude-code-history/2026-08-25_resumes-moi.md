@@ -55,13 +55,18 @@
    - Bouton dédié sur la fiche complète du croyant baptisé ([`/croyants/[croyantId]`](file:///d:/projet/synod/app/(app)/croyants/[croyantId]/page.tsx)).
 
 ### Traçabilité & Informations détaillées des Mouvements Financiers (`/finances`)
-1. **Enrichissement de la requête de chargement (`lib/data/finances.ts`)** :
-   - Jointures nommées PostgREST pour récupérer les rôles et entités des profils auteurs (`auteur:profiles(...)`) et validateurs (`validateur:profiles(...)`).
-2. **Menu d'Informations non cliquable (`app/(app)/finances/finances-client.tsx`)** :
+1. **Migration `0076_finance_annule_par.sql` & Trigger `fn_finance_before_write`** :
+   - Ajout des colonnes `annule_par` (FK `profiles(id)`) et `annule_le` (`timestamptz`) dans `finance_entries`.
+   - Mise à jour du trigger d'immuabilité et de workflow pour horodater l'annulation et préserver l'historique complet.
+2. **Enrichissement de la requête de chargement (`lib/data/finances.ts`)** :
+   - Jointures nommées PostgREST pour récupérer les rôles et entités des profils auteurs (`auteur`), validateurs (`validateur`) et annulateurs (`annulateur`).
+3. **Menu d'Informations non cliquable (`app/(app)/finances/finances-client.tsx`)** :
    - Insertion d'une section dédiée « Informations & Traçabilité » dans le menu `⋮` de chaque ligne après un séparateur :
      * **Saisi par** : Nom complet, date de saisie, rôle et entité d'appartenance (avec mention de saisie déléguée le cas échéant).
-     * **Validé par** : Nom complet du validateur, date de validation, rôle et entité.
-     * **Mention explicite en l'absence de circuit** : Explication claire en cas de validation directe / immédiate (workflow inactif), de document en cours de rédaction (brouillon), de rejet motivé ou d'annulation.
+     * **Validé par** : Nom complet du validateur, date de validation, rôle et entité d'exercice.
+     * **Annulé par** : Nom complet de l'opérateur ayant prononcé l'annulation, date et heure, rôle, entité et motif d'annulation.
+     * **Mention explicite en l'absence de circuit** : Explication claire en cas de validation directe / immédiate (workflow inactif), de document en cours de rédaction (brouillon), ou de rejet motivé.
+     * **Couleurs sémantiques dynamiques** : Barre latérale du statut ajustée selon l'état (`emerald` pour validé, `amber` pour soumis, `rose` pour rejeté, `slate` pour annulé).
 
 ---
 

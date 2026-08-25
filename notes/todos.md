@@ -11,8 +11,11 @@
 
 **Appliquées : `0001` à `0075`**, confirmé par l'utilisateur.
 
+### En attente d'application : `0076`
+
 | N° | Ce qu'elle apporte | Sans elle |
 |---|---|---|
+| `0076` | `finance_entries.annule_par` (FK profiles) et `finance_entries.annule_le` (timestamptz) avec mise à jour du trigger `fn_finance_before_write` | L'annulation d'un mouvement financier ne trace que le motif sans identifier l'opérateur ni la date précise |
 | `0075` | `grades.sexe_autorise` (`TOUS`, `M`, `F` avec check constraint) — restriction des sexes assignables à un grade ecclésial | Les grades acceptent indifféremment tout sexe sans contrôle ecclésial |
 | `0074` | Table `evenements_dime` (`niveau_hote`, `ordre`, RLS), conversion de `finance_entries.dime_evenement` en `text` + FK, mise à jour de `fn_saisir_collecte_dime` et `fn_reordonner_referentiel` | Les événements de collecte de dîmes restent figés dans un enum PostgreSQL et du code TypeScript, sans écran d'administration |
 | `0073` | `entities.logo_key` — l'en-tête propre à chaque entité, source du bloc Image d'un rapport (EF-RAP-02) ; à défaut, le logo de l'organisation le remplace | Un seul logo pour toute l'organisation, alors que certaines entités ont leur propre en-tête |

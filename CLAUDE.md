@@ -17,7 +17,7 @@ demande contredit `cdg.md`, signalez-le avant d'implémenter.
 
 ## État — 25 août 2026
 
-**Lots 0 à 8 livrés.** Migrations `0001` à `0075` écrites et prêtes (bundle `supabase/install.sql` régénéré).
+**Lots 0 à 8 livrés.** Migrations `0001` à `0076` écrites et prêtes (bundle `supabase/install.sql` régénéré).
 904 tests unitaires, 48 fichiers. `pnpm verify` vert (secrets, lint, typecheck, tests, build).
 
 **Dernières livraisons du 25 août 2026 :**
@@ -33,9 +33,9 @@ demande contredit `cdg.md`, signalez-le avant d'implémenter.
    - Module d'export intégral (`pnpm export:integral`, `manifest.json`, `database.sql`, `storage/`) et écran `/administration/portabilite`.
    - Script de génération de charge volumique `scripts/seed-volume.ts` (`pnpm seed:volume`, 200 000 croyants / 500 000 écritures).
    - Procédure de reprise d'activité `RESTORE.md` et compatibilité 100% validée avec Neon/PostgreSQL standard.
-4. **Traçabilité des Mouvements Financiers (`/finances`, `lib/data/finances.ts`)** :
-   - Requête PostgREST enrichie avec les profils d'auteurs et de validateurs (rôles et entités d'appartenance).
-   - Menu déroulant `⋮` avec section non cliquable « Informations & Traçabilité » détaillant qui a saisi, qui a validé, et la raison explicite en cas de validation directe / immédiate sans circuit.
+4. **Traçabilité des Mouvements Financiers (`/finances`, `lib/data/finances.ts`, `0076_finance_annule_par.sql`)** :
+   - Requête PostgREST enrichie avec les profils d'auteurs, validateurs et annulateurs (rôles et entités d'appartenance).
+   - Menu déroulant `⋮` avec section non cliquable « Informations & Traçabilité » détaillant qui a saisi, qui a validé, et qui a annulé le mouvement (avec date, rôle, entité et motif), ainsi que la raison explicite en cas de validation directe.
 
 **Lot 2 achevé**, y compris la lecture **XLSX** (`lib/domain/xlsx.ts`, sans
 dépendance — ARB-6 clos) et la **saisie de baptêmes en lot** (EF-BAP-07) :

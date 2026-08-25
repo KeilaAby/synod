@@ -35,6 +35,7 @@ const CHAMPS_LISTE = `
   id, entity_id, categorie_id, sens, montant, date_operation, periode,
   libelle, reference, justificatif_key, statut,
   soumis_par, soumis_le, valide_par, valide_le, motif_rejet, motif_annulation,
+  annule_par, annule_le,
   est_delegue, saisi_par, created_at,
   entite:entities!finance_entries_entity_id_fkey (id, nom, code, type, path),
   categorie:finance_categories!finance_entries_categorie_id_fkey (id, libelle, sens),
@@ -43,6 +44,10 @@ const CHAMPS_LISTE = `
     entite:entities!profiles_entity_id_fkey (id, nom, type)
   ),
   validateur:profiles!finance_entries_valide_par_fkey (
+    id, nom_complet, role,
+    entite:entities!profiles_entity_id_fkey (id, nom, type)
+  ),
+  annulateur:profiles!finance_entries_annule_par_fkey (
     id, nom_complet, role,
     entite:entities!profiles_entity_id_fkey (id, nom, type)
   )
@@ -66,6 +71,8 @@ export interface MouvementListe {
   valide_le: string | null;
   motif_rejet: string | null;
   motif_annulation: string | null;
+  annule_par?: string | null;
+  annule_le?: string | null;
   est_delegue: boolean;
   saisi_par: string | null;
   created_at: string;
@@ -78,6 +85,12 @@ export interface MouvementListe {
     entite?: { id: string; nom: string; type: string } | null;
   } | null;
   validateur: {
+    id: string;
+    nom_complet: string;
+    role?: string;
+    entite?: { id: string; nom: string; type: string } | null;
+  } | null;
+  annulateur?: {
     id: string;
     nom_complet: string;
     role?: string;
