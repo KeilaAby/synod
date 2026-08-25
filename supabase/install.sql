@@ -10,7 +10,7 @@
 --         pnpm db:bundle --depuis <derniere version appliquee>
 --     La derniere version appliquee se lit dans supabase/diagnostic.sql.
 --
--- Genere le 2026-08-25T12:57:00.712Z
+-- Genere le 2026-08-25T13:30:47.038Z
 -- Migrations : 76 + amorce
 -- =============================================================================
 
@@ -11053,6 +11053,27 @@ begin
   new.updated_at := now();
   return new;
 end $$;
+
+-- Rétro-remplissage des mouvements déjà annulés depuis le journal d'audit
+update finance_entries fe
+set
+  annule_par = coalesce(fe.annule_par, al.user_id),
+  annule_le  = coalesce(fe.annule_le, al.created_at)
+from (
+  select distinct on (record_id)
+    record_id, user_id, created_at
+  from audit_log
+  where table_name = 'finance_entries'
+    and (
+      diff->'apres'->>'statut' = 'ANNULE'
+      or diff->>'statut' = 'ANNULE'
+      or diff->'apres'->>'motif' is not null
+    )
+  order by record_id, created_at desc
+) al
+where fe.id = al.record_id
+  and fe.statut = 'ANNULE'
+  and (fe.annule_par is null or fe.annule_le is null);
 
 notify pgrst, 'reload schema';
 
