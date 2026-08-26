@@ -206,6 +206,7 @@ export function ListeStructureClient({
                   <TableHead>Niveau</TableHead>
                   <TableHead>Rattachement</TableHead>
                   <TableHead className="text-right">Sous-entites</TableHead>
+                  <TableHead className="text-right">Bureaux</TableHead>
                   <TableHead>Statut</TableHead>
                   <TableHead className="w-12 text-right">
                     <span className="sr-only">Options</span>
@@ -214,7 +215,13 @@ export function ListeStructureClient({
               </TableHeader>
 
               <TableBody>
-                {filtrees.map((entite) => (
+                {filtrees.map((entite) => {
+                  // Le MEME apercu que le menu de la ligne, deja borne aux
+                  // bureaux actifs : deux comptages auraient fini par se
+                  // contredire.
+                  const nbBureaux = etatBureau(entite).bureaux.length;
+
+                  return (
                   <TableRow key={entite.id} className="h-12">
                     <TableCell>
                       {/*
@@ -245,6 +252,29 @@ export function ListeStructureClient({
 
                     <TableCell className="text-right font-mono tabular-nums">
                       {formatNombre(entite.nbDescendants)}
+                    </TableCell>
+
+                    {/*
+                      EF-BUR-01, RG-10 — COMBIEN DE BUREAUX EN COURS.
+
+                      La colonne repond a une question qu'on ne pouvait poser
+                      qu'entite par entite, en ouvrant chaque menu : « lesquelles
+                      n'ont pas encore de bureau ? ». C'est un ZERO qu'on vient
+                      chercher ici, pas un grand nombre — il reste donc lisible,
+                      simplement plus discret, et n'est jamais remplace par un
+                      tiret : « — » se lit « on ne sait pas », alors qu'on sait.
+
+                      Le compte vient du MEME apercu que le menu
+                      (`apercuBureauxParEntite`), deja borne aux bureaux actifs :
+                      un second comptage aurait fini par annoncer autre chose que
+                      ce que le menu ouvre.
+                    */}
+                    <TableCell className="text-right font-mono tabular-nums">
+                      {nbBureaux === 0 ? (
+                        <span className="text-muted-foreground">0</span>
+                      ) : (
+                        formatNombre(nbBureaux)
+                      )}
                     </TableCell>
 
                     <TableCell>
@@ -279,7 +309,8 @@ export function ListeStructureClient({
                       />
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </CardContent>
