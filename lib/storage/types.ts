@@ -96,12 +96,25 @@ export type UsageFichier = keyof typeof CONTRAINTES_FICHIER;
 /**
  * EF-CRO-09 — cote du carre produit par le recadrage client.
  *
- * 512 px suffisent : la photo n'est jamais affichee plus grande que 64 px, et
- * le double permet les ecrans a haute densite. Envoyer l'original de 5 Mo sur
- * une liaison lente couterait plusieurs dizaines de secondes pour un resultat
- * strictement identique a l'ecran.
+ * 1024 px depuis le 26 aout 2026, contre 512 auparavant. LA RAISON EST UN
+ * CHANGEMENT D'AFFICHAGE, pas une preference : la fiche du croyant montre
+ * desormais un portrait de 192 px, et « Voir la photo » l'ouvre en grand. A
+ * 512 px de source, le premier etait deja a la limite sur un ecran a haute
+ * densite — qui demande le double de pixels physiques — et le second
+ * s'affichait franchement mou.
+ *
+ * ON NE MONTE PAS PLUS HAUT. Le cout n'est pas le stockage mais la LIAISON :
+ * chaque doublement du cote quadruple le nombre de pixels, donc le temps de
+ * televersement depuis un telephone sur un reseau lent. 1024 couvre le plus
+ * grand affichage prevu, retine comprise ; 2048 ne servirait qu'a l'impression,
+ * que personne n'a demandee.
+ *
+ * LES PHOTOS DEJA ENVOYEES RESTENT A 512 px. Elles ne sont pas reprises : ce
+ * serait retelecharger, redimensionner et renvoyer chaque portrait du
+ * perimetre pour un gain que seul un grand affichage revele. Elles se
+ * remplacent au fil de l'eau, en changeant la photo depuis la fiche.
  */
-export const COTE_PHOTO_PIXELS = 512;
+export const COTE_PHOTO_PIXELS = 1024;
 
 /** Signatures binaires (magic numbers) des formats autorises. */
 const SIGNATURES: ReadonlyArray<{ type: string; octets: readonly number[]; decalage: number }> = [

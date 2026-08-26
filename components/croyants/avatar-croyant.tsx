@@ -28,10 +28,22 @@ function teinte(cle: string): string {
   return TEINTES[somme % TEINTES.length]!;
 }
 
+/**
+ * `xl` EST LE PORTRAIT DE LA FICHE — EF-CRO-09, 26 aout 2026.
+ *
+ * Il grandit avec l'ecran plutot que de valoir 192 px partout : a cette
+ * taille, un portrait fixe pousserait le nom et les badges sous la ligne de
+ * flottaison sur un telephone, et la fiche commencerait par une photo au lieu
+ * de commencer par quelqu'un.
+ *
+ * 192 px au plus large, pour 1024 px de source : le rapport couvre les ecrans
+ * a haute densite, qui demandent le double de pixels physiques.
+ */
 const TAILLES = {
   sm: 'size-8 text-xs',
   md: 'size-10 text-sm',
   lg: 'size-16 text-lg',
+  xl: 'size-32 text-4xl sm:size-40 md:size-48',
 } as const;
 
 export function AvatarCroyant({
@@ -55,7 +67,7 @@ export function AvatarCroyant({
       // Pas de `next/image` : l'URL est signée, donc change à chaque rendu et
       // pointe hors du domaine. L'optimiseur la retéléchargerait à chaque
       // signature, et son cache ne servirait jamais deux fois. L'image est
-      // déjà réduite à 512 px au téléversement — il n'y a plus rien à optimiser.
+      // déjà réduite au téléversement (COTE_PHOTO_PIXELS) — plus rien à optimiser.
       // eslint-disable-next-line @next/next/no-img-element -- voir ci-dessus
       <img
         src={url}

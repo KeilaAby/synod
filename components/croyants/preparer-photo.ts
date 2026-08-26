@@ -3,10 +3,10 @@ import { COTE_PHOTO_PIXELS } from '@/lib/storage/types';
 /**
  * Recadrage et reduction d'une photo dans le NAVIGATEUR — EF-CRO-09.
  *
- * Une photo de telephone pese 3 a 5 Mo ; la meme en WebP 512 px en pese une
+ * Une photo de telephone pese 3 a 5 Mo ; la meme, recadree et en WebP, en pese une
  * cinquantaine de kilo-octets. Sur une liaison lente, c'est la difference
  * entre un envoi immediat et une minute d'attente — pour un resultat identique
- * a l'ecran, ou l'image ne depasse jamais 64 px.
+ * a l'ecran, ou l'image ne depasse jamais le portrait de la fiche.
  *
  * Le recadrage est CENTRE. Un cadrage interactif (glisser, zoomer) reste a
  * faire ; il n'ajoute rien tant que la photo n'est affichee qu'en vignette.

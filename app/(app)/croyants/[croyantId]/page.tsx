@@ -144,7 +144,20 @@ export default async function FicheCroyantPage({ params }: Params) {
         }
       />
 
-      <div className="flex flex-wrap items-center gap-6">
+      {/*
+        LE PORTRAIT ET LES BADGES, ALIGNES EN BAS — 26 aout 2026.
+
+        Avec un portrait de 64 px, `items-center` mettait les badges a hauteur
+        de visage et tout tenait sur une ligne. A 192 px, centrer les badges les
+        renverrait au milieu d'un grand rond de vide, loin du nom qu'ils
+        qualifient.
+
+        `items-end` les pose au PIED du portrait : c'est la que se trouve la
+        pastille d'appareil photo, et c'est la ligne que l'oeil suit apres avoir
+        regarde le visage. Sur un ecran etroit, `flex-wrap` les fait passer
+        dessous, ou ils gardent le meme sens.
+      */}
+      <div className="flex flex-wrap items-end gap-6">
         {/* EF-CRO-09 — l'avatar a initiales reste le repli. */}
         <PhotoUploader
           croyantId={croyant.id}
@@ -154,7 +167,7 @@ export default async function FicheCroyantPage({ params }: Params) {
           peutModifier={Boolean(eglise)}
         />
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 pb-2">
         <StatusBadge tone={TON_CROYANT[croyant.statut] ?? 'neutral'}>
           {LIBELLES_STATUT_CROYANT[croyant.statut as StatutCroyant] ?? croyant.statut}
         </StatusBadge>
