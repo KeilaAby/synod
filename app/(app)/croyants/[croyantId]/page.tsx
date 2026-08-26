@@ -25,7 +25,6 @@ import { chargerVersementsDuCroyant } from '@/lib/data/dimes';
 import type { ChampEditable as CleChamp, OptionChamp } from '@/lib/domain/champ-croyant';
 import { peut } from '@/lib/domain/permissions';
 import { requireSession } from '@/lib/session';
-import { evolutionDesDimes } from '@/lib/domain/dime-evolution';
 import { LIBELLES_EVENEMENT } from '@/lib/domain/dime';
 import { signerPhotos } from '@/lib/data/photos';
 import { getParametres } from '@/lib/data/settings';
@@ -586,12 +585,10 @@ export default async function FicheCroyantPage({ params }: Params) {
                       chercher.
                     */}
                     <CourbeDimes
-                      points={evolutionDesDimes(
-                        versements.map((v) => ({
-                          montant: Number(v.montant),
-                          date: v.entree?.date_operation,
-                        })),
-                      )}
+                      versements={versements.map((v) => ({
+                        montant: Number(v.montant),
+                        date: v.entree?.date_operation,
+                      }))}
                       devise={parametres.devise}
                     />
                   </CardContent>
