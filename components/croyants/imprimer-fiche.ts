@@ -323,23 +323,23 @@ function historiqueHtml(evenements: readonly EvenementImprimable[]): string {
   }
 
   /**
-   * L'ORDRE EST CROISSANT SUR LE PAPIER, à l'inverse de l'écran.
+   * L'ORDRE EST CELUI QU'ON A REÇU, et il ne se refait pas ici.
    *
-   * L'écran répond à « que s'est-il passé récemment ? » : le plus récent en
-   * tête, et l'on s'arrête après trois lignes. Une feuille imprimée se lit du
-   * haut vers le bas, en entier, et raconte un PARCOURS — qui commence par le
-   * commencement. Antichronologique, elle ferait lire une vie à l'envers.
+   * `construireHistorique` trie déjà — chronologique, « Fiche créée » épinglée
+   * en tête —, et l'écran affiche exactement cela. Re-trier sur la seule date
+   * romprait l'épinglage : un baptême de 1995 saisi en 2026 remonterait avant
+   * la création de la fiche, et le papier montrerait un autre ordre que l'écran
+   * qu'on vient de regarder.
    *
-   * La copie est délibérée : `sort` mute, et retourner le tableau de l'appelant
-   * inverserait aussi la frise à l'écran.
+   * Deux rendus d'une même frise doivent la raconter pareil : c'est la raison
+   * d'être du tri unique, dans le domaine.
    */
-  const chronologique = [...evenements].sort((a, b) => a.date.localeCompare(b.date));
 
   return `
 <section class="bloc">
   <h2>Historique</h2>
   <ul class="frise">
-    ${chronologique
+    ${evenements
       .map((e) => {
         const a = apparenceEvenement({
           type: e.type,

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
+import { ChampDate } from '@/components/shared/champ-date';
 import { Field, TextField } from '@/components/shared/field';
 import { PermissionGate } from '@/components/shared/permission-gate';
 import { EntityPicker, type OptionEntite } from '@/components/structure/entity-picker';
@@ -19,7 +20,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { modifierBureau, ouvrirMandat } from '@/lib/actions/bureaux';
 import { memeBureau } from '@/lib/domain/bureau';
 import { appelerAction } from '@/lib/utils/appeler-action';
@@ -279,12 +279,12 @@ export function MandatDialog({
             <div className="grid gap-6 sm:grid-cols-2">
               <Field label="Début du mandat" required>
                 {(aria) => (
-                  <Input
+                  <ChampDate
                     {...aria}
-                    type="date"
+                    
                     className="h-10 font-mono tabular-nums"
                     value={dateDebut}
-                    onChange={(e) => setDateDebut(e.target.value)}
+                    onChange={setDateDebut}
                   />
                 )}
               </Field>
@@ -314,12 +314,12 @@ export function MandatDialog({
                 }
               >
                 {(aria) => (
-                  <Input
+                  <ChampDate
                     {...aria}
-                    type="date"
+                    
                     className="h-10 font-mono tabular-nums"
                     value={dateFin}
-                    onChange={(e) => setDateFin(e.target.value)}
+                    onChange={setDateFin}
                   />
                 )}
               </Field>

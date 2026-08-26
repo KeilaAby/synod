@@ -3,6 +3,7 @@
 import { FileText, History, Loader2, Printer, Wallet } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
+import { ChampDate } from '@/components/shared/champ-date';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -20,7 +21,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/lib/utils/format';
 
@@ -121,10 +121,15 @@ export function ImprimerBouton({ contenu }: { contenu: ContenuImpression }) {
   }
 
   // Une plage à l'envers ne rendrait aucune ligne, sans dire pourquoi.
-  const plageInvalide = raccourci === 'PERSONNALISE' && Boolean(debut && fin) && debut > fin;
-  const pret = raccourci !== 'PERSONNALISE' || (Boolean(debut) && Boolean(fin) && !plageInvalide);
+  const plageInvalide =
+    raccourci === 'PERSONNALISE' && Boolean(debut && fin) && debut > fin;
+  const pret =
+    raccourci !== 'PERSONNALISE' || (Boolean(debut) && Boolean(fin) && !plageInvalide);
 
-  async function lancer(portee: PorteeImpression, plage?: { debut: string; fin: string } | null) {
+  async function lancer(
+    portee: PorteeImpression,
+    plage?: { debut: string; fin: string } | null,
+  ) {
     setEnCours(true);
     try {
       await imprimerFicheCroyant(portee, contenu, plage ?? null);
@@ -170,7 +175,10 @@ export function ImprimerBouton({ contenu }: { contenu: ContenuImpression }) {
               onSelect={() => choisir(portee)}
               className="flex items-start gap-3 py-2.5"
             >
-              <Icone className="text-muted-foreground mt-0.5 size-4 shrink-0" aria-hidden />
+              <Icone
+                className="text-muted-foreground mt-0.5 size-4 shrink-0"
+                aria-hidden
+              />
               <span className="flex flex-col gap-0.5">
                 <span className="text-sm font-medium">{libelle}</span>
                 {/*
@@ -232,23 +240,18 @@ export function ImprimerBouton({ contenu }: { contenu: ContenuImpression }) {
               <div className="grid grid-cols-2 gap-3 pt-1">
                 <label className="space-y-1">
                   <span className="text-muted-foreground text-xs">Du</span>
-                  <Input
-                    type="date"
-                    value={debut}
-                    max={fin || undefined}
-                    onChange={(e) => setDebut(e.target.value)}
-                    className="h-10 tabular-nums"
-                  />
+                  {/*
+                    Les bornes `min` et `max` etaient celles du champ NATIF :
+                    un champ texte ne les applique pas. Le controle « la fin
+                    precede le debut » vit en clair plus bas, avec son message
+                    — et lui, au moins, explique le refus au lieu de
+                    l'empecher en silence.
+                  */}
+                  <ChampDate value={debut} onChange={setDebut} />
                 </label>
                 <label className="space-y-1">
                   <span className="text-muted-foreground text-xs">Au</span>
-                  <Input
-                    type="date"
-                    value={fin}
-                    min={debut || undefined}
-                    onChange={(e) => setFin(e.target.value)}
-                    className="h-10 tabular-nums"
-                  />
+                  <ChampDate value={fin} onChange={setFin} />
                 </label>
               </div>
             )}

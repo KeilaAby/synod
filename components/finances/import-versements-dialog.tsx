@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
+import { ChampDate } from '@/components/shared/champ-date';
 import { Field } from '@/components/shared/field';
 import { avertir } from '@/components/shared/messages';
 import { TelechargerCanevas } from '@/components/shared/telecharger-canevas';
@@ -336,11 +337,11 @@ export function ImportVersementsDialog({
 
                   <Field label="Date du culte" required>
                     {(aria) => (
-                      <Input
+                      <ChampDate
                         {...aria}
-                        type="date"
+                        
                         value={dateOperation}
-                        onChange={(e) => setDateOperation(e.target.value)}
+                        onChange={setDateOperation}
                         className="h-10 tabular-nums"
                       />
                     )}

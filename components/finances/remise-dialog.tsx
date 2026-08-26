@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
+import { ChampDate } from '@/components/shared/champ-date';
 import { CroyantPicker, type OptionCroyant } from '@/components/croyants/croyant-picker';
 import { Field, TextField } from '@/components/shared/field';
 import { avertir } from '@/components/shared/messages';
@@ -18,7 +19,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { remettreCollectes } from '@/lib/actions/dimes';
 import { datesDuBordereau, estEnRetard } from '@/lib/domain/dime';
 import { formatDate, formatMontant, formatNombre } from '@/lib/utils/format';
@@ -234,11 +234,11 @@ export function RemiseDialog({
                 hint="Le jour où l’argent a été porté au Siège."
               >
                 {(aria) => (
-                  <Input
+                  <ChampDate
                     {...aria}
-                    type="date"
+                    
                     value={dateRemise}
-                    onChange={(e) => setDateRemise(e.target.value)}
+                    onChange={setDateRemise}
                     className="h-10 tabular-nums"
                   />
                 )}

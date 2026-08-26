@@ -4,7 +4,8 @@ import { AlertCircle, FileText, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { Field, TextField } from '@/components/shared/field';
+import { ChampDate } from '@/components/shared/champ-date';
+import { Field } from '@/components/shared/field';
 import { EmptyState } from '@/components/shared/empty-state';
 import { EntityPicker, type OptionEntite } from '@/components/structure/entity-picker';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -157,23 +158,12 @@ export function GenererClient({
         </div>
 
         <div className="grid gap-6 sm:grid-cols-2">
-          <TextField
-            label="Début de période"
-            required
-            type="date"
-            className="tabular-nums"
-            value={debut}
-            onChange={(e) => setDebut(e.target.value)}
-          />
-          <TextField
-            label="Fin de période"
-            required
-            type="date"
-            className="tabular-nums"
-            hint="Les deux bornes sont incluses."
-            value={fin}
-            onChange={(e) => setFin(e.target.value)}
-          />
+          <Field label="Début de période" required>
+            {(aria) => <ChampDate {...aria} value={debut} onChange={setDebut} />}
+          </Field>
+          <Field label="Fin de période" required hint="Les deux bornes sont incluses.">
+            {(aria) => <ChampDate {...aria} value={fin} onChange={setFin} />}
+          </Field>
         </div>
 
         {/* Dire ce qui va se passer AVANT de le faire : un rapport généré ne se

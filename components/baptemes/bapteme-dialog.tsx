@@ -7,6 +7,7 @@ import { useMemo, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
+import { ChampDate } from '@/components/shared/champ-date';
 import { avertir } from '@/components/shared/messages';
 import { AvatarCroyant } from '@/components/croyants/avatar-croyant';
 import type {
@@ -27,7 +28,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -273,11 +273,17 @@ export function BaptemeDialog({
                       error={errors.dateNaissance?.message}
                     >
                       {(aria) => (
-                        <Input
-                          {...aria}
-                          type="date"
-                          className="h-10 font-mono tabular-nums"
-                          {...register('dateNaissance')}
+                        <Controller
+                          control={control}
+                          name="dateNaissance"
+                          render={({ field }) => (
+                            <ChampDate
+                              {...aria}
+                              value={(field.value as string) ?? ''}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                            />
+                          )}
                         />
                       )}
                     </Field>
@@ -366,11 +372,17 @@ export function BaptemeDialog({
                       error={errors.dateBapteme?.message}
                     >
                       {(aria) => (
-                        <Input
-                          {...aria}
-                          type="date"
-                          className="h-10 font-mono tabular-nums"
-                          {...register('dateBapteme')}
+                        <Controller
+                          control={control}
+                          name="dateBapteme"
+                          render={({ field }) => (
+                            <ChampDate
+                              {...aria}
+                              value={(field.value as string) ?? ''}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                            />
+                          )}
                         />
                       )}
                     </Field>

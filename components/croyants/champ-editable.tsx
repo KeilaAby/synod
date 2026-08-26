@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { avertir } from '@/components/shared/messages';
+import { ChampDate } from '@/components/shared/champ-date';
 import { Input } from '@/components/ui/input';
 import { modifierChampCroyant } from '@/lib/actions/croyants';
 import { type ChampEditable, CHAMPS, type OptionChamp } from '@/lib/domain/champ-croyant';
@@ -179,10 +180,22 @@ export function ChampEditable({
             </option>
           ))}
         </select>
+      ) : definition.nature === 'date' ? (
+        /*
+          LA DATE NE PASSE PAS PAR UN CHAMP NATIF : il l'affiche dans la langue
+          DU NAVIGATEUR, si bien qu'un poste configure en anglais lit
+          « 04/07/1988 » comme le 7 avril. Le format est donc repris en main.
+        */
+        <ChampDate
+          value={brouillon}
+          onChange={setBrouillon}
+          disabled={enCours}
+          className="min-w-0 flex-1"
+        />
       ) : (
         <Input
           ref={champRef as React.Ref<HTMLInputElement>}
-          type={definition.nature === 'date' ? 'date' : 'text'}
+          type="text"
           value={brouillon}
           disabled={enCours}
           onChange={(e) => setBrouillon(e.target.value)}

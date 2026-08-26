@@ -54,9 +54,18 @@ describe('EF-CRO-06 — composition de la frise', () => {
     expect(frise.some((e) => e.type === 'BAPTEME')).toBe(false);
   });
 
-  it('classe du plus recent au plus ancien', () => {
+  /**
+   * L'ORDRE A CHANGE LE 26 AOUT 2026, sur decision de l'utilisateur : la
+   * frise se lit desormais du plus ANCIEN au plus recent, a l ecran comme
+   * sur le papier. Une frise raconte un parcours, et un parcours se lit dans
+   * le sens ou il a eu lieu.
+   *
+   * « Fiche creee » est EPINGLEE en tete :  date
+   * l'enregistrement, pas un evenement de la vie du croyant.
+   */
+  it('classe du plus ancien au plus recent, la creation en tete', () => {
     const frise = construireHistorique(croyant, [gabarit({})]);
-    expect(frise.map((e) => e.type)).toEqual(['TRANSFERT', 'BAPTEME', 'CREATION']);
+    expect(frise.map((e) => e.type)).toEqual(['CREATION', 'BAPTEME', 'TRANSFERT']);
   });
 });
 
@@ -64,20 +73,24 @@ describe('EF-TRF-08 — un transfert se lit a la date ou il a produit son effet'
   it('situe un transfert EFFECTUE a sa date d effet', () => {
     // Ce n'est pas le jour de la demande qui compte, c'est celui ou le croyant
     // a effectivement change d'eglise.
-    const [transfert] = construireHistorique(croyant, [gabarit({})]);
+    const transfert = construireHistorique(croyant, [gabarit({})]).find(
+      (e) => e.type === 'TRANSFERT',
+    );
     expect(transfert!.date).toBe('2026-06-03');
     expect(transfert!.titre).toContain('IAVOAMBONY');
     expect(transfert!.titre).toContain('AMBOHITRIMANJAKA');
   });
 
   it('situe un refus a la date de decision, et montre son motif', () => {
-    const [transfert] = construireHistorique(croyant, [
+    const transfert = construireHistorique(croyant, [
       gabarit({
         statut: 'REFUSE',
         date_effet: null,
         motif_refus: 'Effectif deja au complet',
       }),
-    ]);
+    ]).find(
+      (e) => e.type === 'TRANSFERT',
+    );
 
     expect(transfert!.date).toBe('2026-06-02T10:00:00Z');
     expect(transfert!.titre).toContain('refuse');
@@ -88,9 +101,11 @@ describe('EF-TRF-08 — un transfert se lit a la date ou il a produit son effet'
   });
 
   it('situe une demande en attente a sa date de demande, et la signale', () => {
-    const [transfert] = construireHistorique(croyant, [
+    const transfert = construireHistorique(croyant, [
       gabarit({ statut: 'DEMANDE', date_decision: null, date_effet: null }),
-    ]);
+    ]).find(
+      (e) => e.type === 'TRANSFERT',
+    );
 
     expect(transfert!.date).toBe('2026-06-01T10:00:00Z');
     // RG-11 — rien n'est encore arrive au croyant : la frise ne doit pas le
@@ -100,7 +115,9 @@ describe('EF-TRF-08 — un transfert se lit a la date ou il a produit son effet'
   });
 
   it('EF-TRF-06 — porte la chaine complete : qui a demande, qui a decide, quand', () => {
-    const [transfert] = construireHistorique(croyant, [gabarit({})]);
+    const transfert = construireHistorique(croyant, [gabarit({})]).find(
+      (e) => e.type === 'TRANSFERT',
+    );
 
     // L'evenement est situe au 3 juin (date d'effet) ; le recit doit donc
     // porter les DEUX autres dates, sans quoi l'ecart entre demande et
@@ -114,23 +131,29 @@ describe('EF-TRF-08 — un transfert se lit a la date ou il a produit son effet'
   it('nomme un compte supprime plutot que de laisser un blanc', () => {
     // `on delete set null` sur le demandeur : un blanc ferait croire a une
     // donnee manquante plutot qu'a un compte disparu.
-    const [transfert] = construireHistorique(croyant, [
+    const transfert = construireHistorique(croyant, [
       gabarit({ demandeur: null, decideur: null }),
-    ]);
+    ]).find(
+      (e) => e.type === 'TRANSFERT',
+    );
     expect(transfert!.detail).toContain('supprime');
   });
 
   it('marque un transfert approuve comme non encore applique', () => {
-    const [transfert] = construireHistorique(croyant, [
+    const transfert = construireHistorique(croyant, [
       gabarit({ statut: 'APPROUVE', date_effet: null }),
-    ]);
+    ]).find(
+      (e) => e.type === 'TRANSFERT',
+    );
     expect(transfert!.enAttente).toBe(true);
   });
 
   it('reste lisible quand une entite a disparu', () => {
     // `on delete set null` sur l'origine : une entite supprimee ne doit pas
     // produire « Transfere de undefined ».
-    const [transfert] = construireHistorique(croyant, [gabarit({ origine: null })]);
+    const transfert = construireHistorique(croyant, [gabarit({ origine: null })]).find(
+      (e) => e.type === 'TRANSFERT',
+    );
     expect(transfert!.titre).not.toContain('undefined');
     expect(transfert!.titre).toContain('AMBOHITRIMANJAKA');
   });
@@ -201,8 +224,9 @@ describe('EF-BUR-10 — les fonctions occupees rejoignent la frise', () => {
 
   it('s intercale chronologiquement avec les autres evenements', () => {
     const frise = construireHistorique(croyant, [], [mandat()]);
-    // Creation 15 janvier, mandat 1er fevrier, bapteme 20 mars.
-    expect(frise.map((e) => e.type)).toEqual(['BAPTEME', 'MANDAT', 'CREATION']);
+    // Creation 15 janvier, mandat 1er fevrier, bapteme 20 mars — et la
+    // creation reste en tete, ce que sa date confirme ici par hasard.
+    expect(frise.map((e) => e.type)).toEqual(['CREATION', 'MANDAT', 'BAPTEME']);
   });
 
   it('reste lisible quand une fonction ou une entite a disparu', () => {
@@ -304,5 +328,49 @@ describe('apparenceEvenement', () => {
     produites.add(apparenceEvenement({ type: 'TRANSFERT', enAttente: false }).icone);
 
     expect([...produites].sort()).toEqual([...CLES_ICONE].sort());
+  });
+});
+
+/**
+ * EF-CRO-06 — L'ORDRE DE LA FRISE, a l'ecran comme sur le papier.
+ *
+ * Les deux rendus montraient la meme vie dans deux sens opposes : qui
+ * verifiait l'un contre l'autre devait relire a l'envers, et finissait par
+ * douter des deux. Le tri est donc UNIQUE, dans le domaine.
+ */
+describe('L’ordre de la frise', () => {
+  const croyant: CroyantHistorique = {
+    // La fiche est SAISIE en 2026, pour un bapteme de 1995 : c'est le cas qui
+    // fait tout l'interet de l'epinglage.
+    created_at: '2026-08-24T09:00:00Z',
+    date_bapteme: '1995-04-12',
+    eglise: { nom: 'Ambohipo', type: 'EGLISE' },
+    createur: { nom_complet: 'Christian' },
+  };
+
+  it('se lit du plus ANCIEN au plus récent', () => {
+    const frise = construireHistorique(croyant, []);
+    const dates = frise.filter((e) => e.cle !== 'creation').map((e) => e.date);
+
+    expect([...dates].sort()).toEqual(dates);
+  });
+
+  /**
+   * `created_at` date l'ENREGISTREMENT, pas un evenement de la vie du croyant.
+   * Un tri sur les seules dates placerait le bapteme de 1995 AVANT la creation
+   * de 2026, et la frise commencerait par un evenement survenu dans un systeme
+   * qui n'existait pas encore.
+   */
+  it('EF-CRO-06 — « Fiche créée » est TOUJOURS en tête, même saisie après coup', () => {
+    const frise = construireHistorique(croyant, []);
+
+    expect(frise[0]?.cle).toBe('creation');
+    // Et la preuve que ce n'est pas la date qui l'y met :
+    expect(frise[0]!.date > frise[1]!.date).toBe(true);
+  });
+
+  it('garde la création en tête même quand elle précède tout le reste', () => {
+    const ancienne = { ...croyant, created_at: '1990-01-01T00:00:00Z' };
+    expect(construireHistorique(ancienne, [])[0]?.cle).toBe('creation');
   });
 });

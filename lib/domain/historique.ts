@@ -321,8 +321,34 @@ export function construireHistorique(
     });
   }
 
-  // Antechronologique : le plus recent en tete, comme partout ailleurs.
-  return evenements.sort((a, b) => b.date.localeCompare(a.date));
+  /**
+   * CHRONOLOGIQUE, LE PLUS ANCIEN EN TETE — a l'ecran COMME sur le papier.
+   *
+   * La frise raconte un PARCOURS, et un parcours se lit dans le sens ou il a eu
+   * lieu. L'ordre inverse — le plus recent d'abord, comme un journal — repondait
+   * a « que s'est-il passe recemment ? », mais ce n'est pas la question qu'on
+   * pose devant une fiche : on vient y comprendre une trajectoire.
+   *
+   * SURTOUT, LES DEUX RENDUS DOIVENT S'ACCORDER. L'ecran et le PDF montraient
+   * la meme vie dans deux sens opposes : qui verifiait l'un contre l'autre
+   * devait relire a l'envers, et finissait par douter des deux.
+   *
+   * « FICHE CREEE » EST TOUJOURS LE PREMIER, quelle que soit sa date.
+   *
+   * Ce n'est pas une exception decorative : `created_at` date l'ENREGISTREMENT,
+   * pas un evenement de la vie du croyant. Un bapteme de 1995 saisi en 2026 est
+   * anterieur de trente ans a la creation de sa fiche — un tri sur les seules
+   * dates le placerait donc AVANT elle, et la frise commencerait par un
+   * evenement survenu dans un systeme qui n'existait pas encore.
+   *
+   * On epingle donc la creation en tete plutot que de bricoler sa date : elle
+   * reste vraie, elle cesse seulement de decider du rang.
+   */
+  return evenements.sort((a, b) => {
+    if (a.cle === 'creation') return -1;
+    if (b.cle === 'creation') return 1;
+    return a.date.localeCompare(b.date);
+  });
 }
 
 // ---------------------------------------------------------------------------

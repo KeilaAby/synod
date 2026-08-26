@@ -7,6 +7,7 @@ import { useMemo, useState } from 'react';
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
+import { ChampDate } from '@/components/shared/champ-date';
 import { CroyantPicker } from '@/components/croyants/croyant-picker';
 import { SuggestionsEnveloppe } from '@/components/finances/suggestions-enveloppe';
 import { Field, TextField } from '@/components/shared/field';
@@ -489,11 +490,17 @@ export function CollecteDialog({
                     hint="Les dîmes doivent parvenir au Siège dans la semaine suivante."
                   >
                     {(aria) => (
-                      <Input
-                        {...aria}
-                        type="date"
-                        className="h-10 tabular-nums"
-                        {...register('dateOperation')}
+                      <Controller
+                        control={control}
+                        name="dateOperation"
+                        render={({ field }) => (
+                          <ChampDate
+                            {...aria}
+                            value={(field.value as string) ?? ''}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                          />
+                        )}
                       />
                     )}
                   </Field>

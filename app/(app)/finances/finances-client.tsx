@@ -26,6 +26,7 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
+import { ChampDate } from '@/components/shared/champ-date';
 import { BoutonExport } from '@/components/finances/bouton-export';
 import type { TableauExportable } from '@/components/finances/exporter';
 import { MontantSigne, MouvementDialog } from '@/components/finances/mouvement-dialog';
@@ -654,24 +655,20 @@ export function FinancesClient({
               août entier pour tout le monde sauf pour un informaticien. */}
           <Field label="Du" hint="Borne incluse.">
             {(aria) => (
-              <Input
+              <ChampDate
                 {...aria}
-                type="date"
                 value={criteres.du ?? ''}
-                onChange={(e) => poser({ du: e.target.value || null })}
-                className="h-10 tabular-nums"
+                onChange={(iso) => poser({ du: iso || null })}
               />
             )}
           </Field>
 
           <Field label="Au" hint="Borne incluse.">
             {(aria) => (
-              <Input
+              <ChampDate
                 {...aria}
-                type="date"
                 value={criteres.au ?? ''}
-                onChange={(e) => poser({ au: e.target.value || null })}
-                className="h-10 tabular-nums"
+                onChange={(iso) => poser({ au: iso || null })}
               />
             )}
           </Field>

@@ -7,6 +7,7 @@ import { useMemo, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
+import { ChampDate } from '@/components/shared/champ-date';
 import { Field, TextField } from '@/components/shared/field';
 import { avertir } from '@/components/shared/messages';
 import { PermissionGate } from '@/components/shared/permission-gate';
@@ -530,11 +531,17 @@ export function MouvementDialog({
                       error={errors.dateOperation?.message}
                     >
                       {(aria) => (
-                        <Input
-                          {...aria}
-                          type="date"
-                          className="h-10 tabular-nums"
-                          {...register('dateOperation')}
+                        <Controller
+                          control={control}
+                          name="dateOperation"
+                          render={({ field }) => (
+                            <ChampDate
+                              {...aria}
+                              value={(field.value as string) ?? ''}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                            />
+                          )}
                         />
                       )}
                     </Field>

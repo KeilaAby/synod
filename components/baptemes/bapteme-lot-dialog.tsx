@@ -7,6 +7,7 @@ import { useMemo, useState } from 'react';
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
+import { ChampDate } from '@/components/shared/champ-date';
 import { AvatarCroyant } from '@/components/croyants/avatar-croyant';
 import type {
   CelluleOption,
@@ -274,11 +275,17 @@ export function BaptemeLotDialog({
                     error={errors.dateBapteme?.message}
                   >
                     {(aria) => (
-                      <Input
-                        {...aria}
-                        type="date"
-                        className="h-10 font-mono tabular-nums"
-                        {...register('dateBapteme')}
+                      <Controller
+                        control={control}
+                        name="dateBapteme"
+                        render={({ field }) => (
+                          <ChampDate
+                            {...aria}
+                            value={(field.value as string) ?? ''}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                          />
+                        )}
                       />
                     )}
                   </Field>
@@ -632,12 +639,18 @@ function LigneBaptise({
       </TableCell>
 
       <TableCell>
-        <Input
-          type="date"
-          className={`${bordure(erreurs.dateNaissance)} font-mono tabular-nums`}
-          aria-label={`Date de naissance, ligne ${index + 1}`}
-          aria-invalid={Boolean(erreurs.dateNaissance)}
-          {...register(`lignes.${index}.dateNaissance`)}
+        <Controller
+          control={control}
+          name={`lignes.${index}.dateNaissance`}
+          render={({ field }) => (
+            <ChampDate
+              value={(field.value as string) ?? ''}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              className={bordure(erreurs.dateNaissance)}
+              aria-invalid={Boolean(erreurs.dateNaissance)}
+            />
+          )}
         />
         {erreurs.dateNaissance && (
           <p className="text-destructive mt-1 text-xs">{erreurs.dateNaissance}</p>

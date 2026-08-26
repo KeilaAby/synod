@@ -9,12 +9,12 @@ import { Controller, useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 
 import { avertir } from '@/components/shared/messages';
+import { ChampDate } from '@/components/shared/champ-date';
 import { Field, TextField } from '@/components/shared/field';
 import { EntityPicker, type OptionEntite } from '@/components/structure/entity-picker';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -189,7 +189,14 @@ const CHAMPS_PAR_ETAPE: readonly (keyof CroyantInput)[][] = [
   ['email', 'telephone', 'adresse'],
 ];
 
-/** Un `<input type="date">` attend le format `YYYY-MM-DD`. */
+/**
+ * L'ISO `AAAA-MM-JJ` — ce que le schema et la base attendent.
+ *
+ * L'AFFICHAGE, lui, est en jj/mm/aaaa : voir `ChampDate`. Un
+ * `<input type="date">` rendait la date dans la langue DU NAVIGATEUR, si
+ * bien qu'un poste configure en anglais lisait « 04/07/1988 » comme le
+ * 7 avril.
+ */
 function jour(valeur: string | Date | null | undefined): string {
   if (!valeur) return '';
   return new Date(valeur).toISOString().slice(0, 10);
@@ -578,7 +585,20 @@ export function CroyantForm(props: Props) {
               required
               error={errors.dateNaissance?.message}
             >
-              {(aria) => <Input {...aria} type="date" {...register('dateNaissance')} />}
+              {(aria) => (
+                <Controller
+                  control={control}
+                  name="dateNaissance"
+                  render={({ field }) => (
+                    <ChampDate
+                      {...aria}
+                      value={jour(field.value as string | Date | null)}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                    />
+                  )}
+                />
+              )}
             </Field>
 
             <Field label="Statut marital" error={errors.statutMarital?.message}>
@@ -804,7 +824,20 @@ export function CroyantForm(props: Props) {
               error={errors.dateBapteme?.message}
               hint="Facultative — peut être renseignée plus tard."
             >
-              {(aria) => <Input {...aria} type="date" {...register('dateBapteme')} />}
+              {(aria) => (
+                <Controller
+                  control={control}
+                  name="dateBapteme"
+                  render={({ field }) => (
+                    <ChampDate
+                      {...aria}
+                      value={jour(field.value as string | Date | null)}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                    />
+                  )}
+                />
+              )}
             </Field>
           </div>
 
