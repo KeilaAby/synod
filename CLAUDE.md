@@ -17,7 +17,8 @@ demande contredit `cdg.md`, signalez-le avant d'implémenter.
 
 ## État — 26 août 2026
 
-**Lots 0 à 8 livrés.** Migrations `0001` à `0077` écrites et prêtes (bundle `supabase/install.sql` régénéré).
+**Lots 0 à 8 livrés.** Migrations `0001` à `0077` **appliquées** — confirmé par
+l'utilisateur le 26 août 2026 (bundle `supabase/install.sql` régénéré).
 914 tests unitaires, 49 fichiers. `pnpm verify` vert (secrets, lint, typecheck, tests, build).
 
 **Dernières livraisons du 26 août 2026 :**

@@ -9,9 +9,16 @@
 
 ## ⚠ État de la base
 
-**Appliquées : `0001` à `0075`**, confirmé par l'utilisateur.
+**Appliquées : `0001` à `0077`**, confirmé par l'utilisateur le 26 août 2026.
 
-### En attente d'application : `0076`, `0077`
+**Aucune migration n'attend.**
+
+C'est **cette ligne** qui fait foi — pas le numéro le plus élevé de
+`supabase/migrations/`, qui dit ce qui est *écrit* et non ce qui est
+*appliqué*. Les migrations ne s'appliquent pas toutes seules : l'utilisateur
+les passe dans l'éditeur SQL Supabase et le confirme.
+
+### Le détail des sept dernières
 
 | N° | Ce qu'elle apporte | Sans elle |
 |---|---|---|
