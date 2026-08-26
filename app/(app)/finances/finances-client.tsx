@@ -83,6 +83,7 @@ import {
   soldePropre,
 } from '@/lib/domain/finance';
 import { formatDate, formatMontant, formatNombre } from '@/lib/utils/format';
+import { cn } from '@/lib/utils';
 
 import { MotifDialog } from './motif-dialog';
 
@@ -1141,22 +1142,22 @@ export function FinancesClient({
  */
 const HABITS_CARTE = {
   success: {
-    filet: 'from-emerald-400 to-teal-500',
-    pastille: 'bg-emerald-50 text-emerald-600',
-    chiffre: 'text-emerald-700',
-    jauge: 'from-emerald-400 to-teal-500',
+    filet: 'bg-foreground',
+    pastille: 'bg-muted text-foreground',
+    chiffre: 'text-foreground',
+    jauge: 'bg-foreground',
   },
   danger: {
-    filet: 'from-rose-400 to-orange-500',
+    filet: 'bg-gradient-to-r from-rose-400 to-orange-500',
     pastille: 'bg-rose-50 text-rose-600',
     chiffre: 'text-rose-700',
-    jauge: 'from-rose-400 to-orange-500',
+    jauge: 'bg-gradient-to-r from-rose-400 to-orange-500',
   },
   neutral: {
-    filet: 'from-indigo-400 to-violet-500',
-    pastille: 'bg-indigo-50 text-indigo-600',
+    filet: 'bg-foreground',
+    pastille: 'bg-muted text-foreground',
     chiffre: 'text-foreground',
-    jauge: 'from-indigo-400 to-violet-500',
+    jauge: 'bg-foreground',
   },
 } as const;
 
@@ -1190,7 +1191,7 @@ function CarteSolde({
     */
     <Card className="border-border/70 overflow-hidden py-0 shadow-sm">
       <span
-        className={`block h-1 bg-gradient-to-r ${habit.filet}`}
+        className={cn('block h-1', habit.filet)}
         aria-hidden
       />
 
@@ -1227,7 +1228,7 @@ function CarteSolde({
           <div className="space-y-1.5 pt-1">
             <span className="bg-muted block h-1.5 overflow-hidden rounded-full">
               <span
-                className={`block h-full rounded-full bg-gradient-to-r ${habit.jauge}`}
+                className={cn('block h-full rounded-full', habit.jauge)}
                 style={{ width: `${Math.min(100, Math.max(0, part))}%` }}
               />
             </span>

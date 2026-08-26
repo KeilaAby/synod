@@ -9,24 +9,47 @@ import {
   ChevronRight,
   Eye,
   EyeOff,
+  FileSpreadsheet,
+  FileText,
   GripVertical,
+  LayoutGrid,
   LayoutTemplate,
+  Menu,
   Printer,
   RotateCcw,
   SlidersHorizontal,
+  TrendingUp,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useMemo, useState, useTransition } from 'react';
 
-import { BoutonExport } from '@/components/finances/bouton-export';
+import { exporterCsv, exporterXlsx } from '@/components/finances/exporter';
 import { FiltreIcone, GroupeFiltres } from '@/components/shared/filtre-icone';
+import { CourbeEffectifs } from '@/components/tableau-de-bord/courbe-effectifs';
 import { IconeKpi } from '@/components/tableau-de-bord/icones-kpi';
 import { avertir } from '@/components/shared/messages';
 import { EntityPicker, type OptionEntite } from '@/components/structure/entity-picker';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { enregistrerDisposition } from '@/lib/actions/tableau-de-bord';
+import {
+  ABREVIATIONS_PERIODE_EVOLUTION,
+  LIBELLES_PERIODE_EVOLUTION,
+  PERIODES_EVOLUTION,
+  type DonneesEvolutionEffectifs,
+  type PeriodeEvolution,
+  type VariationKpi,
+  formatPourcentageVariation,
+} from '@/lib/domain/evolution-effectifs';
 import {
   DISPOSITION_VIDE,
   type DefinitionKpi,
@@ -75,6 +98,7 @@ export function TableauDeBordClient({
   entiteNom,
   granularite,
   ancre,
+  evolutionEffectifs,
   blocs = {},
 }: {
   /** Déjà filtrés par habilitation — EF-DSH-12 tient côté serveur. */
@@ -88,6 +112,7 @@ export function TableauDeBordClient({
   entiteNom: string;
   granularite: Granularite;
   ancre: string;
+  evolutionEffectifs?: DonneesEvolutionEffectifs;
   /**
    * EF-DSH-06 — le contenu des blocs qui ne sont pas un chiffre, PAR CLÉ.
    *
@@ -108,6 +133,11 @@ export function TableauDeBordClient({
   const [enregistrement, demarrer] = useTransition();
   const [rechargement, demarrerRechargement] = useTransition();
   const [saisi, setSaisi] = useState<string | null>(null);
+
+  /** Période de comparaison pour les variations d'effectifs (Mois dernier par défaut) */
+  const [periodeEvolution, setPeriodeEvolution] = useState<PeriodeEvolution>('MOIS');
+  /** Bascule discrète entre vue Cartes et vue Graphique en Aire pour les Effectifs */
+  const [vueEffectifs, setVueEffectifs] = useState<'cartes' | 'graphique'>('cartes');
 
   /**
    * EF-DSH-06 — LE RÉGLAGE REPART AU SERVEUR, et il n'y a pas de raccourci.
@@ -306,66 +336,119 @@ export function TableauDeBordClient({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/*
-            EF-DSH-10 — IMPRIMER, C'EST IMPRIMER L'ÉCRAN.
-
-            Refabriquer un document à partir des mêmes données aurait donné un
-            second rendu à maintenir, qui aurait divergé du premier (règle 16).
-            La feuille de style d'impression retire la navigation et les
-            contrôles ; ce qui reste est exactement ce qu'on lisait.
-          */}
-          {!personnalise && (
+          {personnalise && (
             <>
-              <Button variant="outline" className="h-10" onClick={() => window.print()}>
-                <Printer className="mr-2 size-4" aria-hidden />
-                Imprimer
+              <Button
+                variant="ghost"
+                className="h-10 text-muted-foreground hover:text-foreground"
+                disabled={enregistrement}
+                onClick={() => poser(DISPOSITION_VIDE)}
+              >
+                <RotateCcw className="mr-2 size-4" aria-hidden />
+                Rétablir l&apos;ordre d&apos;origine
               </Button>
-
-              <BoutonExport
-                nombre={chiffres.length}
-                libelle="Exporter"
-                // Pas de PDF ici : « Imprimer » le produit déjà, et fidèlement.
-                formats={['XLSX', 'CSV']}
-                tableau={() => ({
-                  titre: 'Tableau de bord',
-                  sousTitre: `${entiteNom} — ${libellePeriode(granularite, ancre)}`,
-                  entetes: ['Groupe', 'Indicateur', 'Valeur', 'Unité'],
-                  /*
-                    LA VALEUR PART EN NOMBRE, l'unité à côté. Écrire
-                    « 15 000 000 MGA » dans une cellule en ferait du texte, et
-                    la première chose qu'on fait d'un export est de le sommer.
-                  */
-                  lignes: chiffres.map((k) => [
-                    LIBELLES_GROUPE_KPI[k.groupe],
-                    k.libelle,
-                    mesures[k.cle] ?? 0,
-                    k.format === 'MONTANT' ? devise : 'personnes',
-                  ]),
-                })}
-              />
+              <Button
+                variant="default"
+                className="h-10"
+                onClick={() => setPersonnalise(false)}
+              >
+                Terminer
+              </Button>
             </>
           )}
-          {personnalise && (
-            <Button
-              variant="ghost"
-              className="h-10"
-              disabled={enregistrement}
-              onClick={() => poser(DISPOSITION_VIDE)}
-            >
-              <RotateCcw className="mr-2 size-4" aria-hidden />
-              Rétablir l&apos;ordre d&apos;origine
-            </Button>
-          )}
 
-          <Button
-            variant={personnalise ? 'default' : 'outline'}
-            className="h-10"
-            aria-pressed={personnalise}
-            onClick={() => setPersonnalise((v) => !v)}
-          >
-            <SlidersHorizontal className="mr-2 size-4" aria-hidden />
-            {personnalise ? 'Terminer' : 'Personnaliser'}
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-10 w-10"
+                aria-label="Menu des options du tableau de bord"
+                title="Options"
+              >
+                <Menu className="size-4" aria-hidden />
+              </Button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Options du tableau de bord
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem onSelect={() => window.print()}>
+                <Printer className="mr-2 size-4" aria-hidden />
+                Imprimer
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                disabled={chiffres.length === 0}
+                onSelect={() =>
+                  exporterXlsx({
+                    titre: 'Tableau de bord',
+                    sousTitre: `${entiteNom} — ${libellePeriode(granularite, ancre)}`,
+                    entetes: ['Groupe', 'Indicateur', 'Valeur', 'Unité'],
+                    lignes: chiffres.map((k) => [
+                      LIBELLES_GROUPE_KPI[k.groupe],
+                      k.libelle,
+                      mesures[k.cle] ?? 0,
+                      k.format === 'MONTANT' ? devise : 'personnes',
+                    ]),
+                  })
+                }
+              >
+                <FileSpreadsheet className="mr-2 size-4" aria-hidden />
+                <span className="flex flex-col">
+                  Exporter en Excel (.xlsx)
+                  <span className="text-[11px] text-muted-foreground">
+                    {chiffres.length} indicateur{chiffres.length > 1 ? 's' : ''}
+                  </span>
+                </span>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                disabled={chiffres.length === 0}
+                onSelect={() =>
+                  exporterCsv({
+                    titre: 'Tableau de bord',
+                    sousTitre: `${entiteNom} — ${libellePeriode(granularite, ancre)}`,
+                    entetes: ['Groupe', 'Indicateur', 'Valeur', 'Unité'],
+                    lignes: chiffres.map((k) => [
+                      LIBELLES_GROUPE_KPI[k.groupe],
+                      k.libelle,
+                      mesures[k.cle] ?? 0,
+                      k.format === 'MONTANT' ? devise : 'personnes',
+                    ]),
+                  })
+                }
+              >
+                <FileText className="mr-2 size-4" aria-hidden />
+                <span className="flex flex-col">
+                  Exporter en CSV (.csv)
+                  <span className="text-[11px] text-muted-foreground">
+                    Format texte brut
+                  </span>
+                </span>
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem onSelect={() => setPersonnalise((v) => !v)}>
+                <SlidersHorizontal className="mr-2 size-4" aria-hidden />
+                {personnalise ? 'Terminer la personnalisation' : 'Personnaliser l’affichage'}
+              </DropdownMenuItem>
+
+              {personnalise && (
+                <DropdownMenuItem
+                  disabled={enregistrement}
+                  onSelect={() => poser(DISPOSITION_VIDE)}
+                >
+                  <RotateCcw className="mr-2 size-4" aria-hidden />
+                  Rétablir l’ordre d’origine
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -468,9 +551,87 @@ export function TableauDeBordClient({
 
         return (
           <section key={groupe} className="space-y-3">
-            <p className="eyebrow">{LIBELLES_GROUPE_KPI[groupe as GroupeKpi]}</p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="eyebrow">{LIBELLES_GROUPE_KPI[groupe as GroupeKpi]}</p>
 
-            {deuxVoies ? (
+              {groupe === 'EFFECTIFS' && !personnalise && (
+                <div className="no-print flex items-center gap-2">
+                  {/* Sélecteur discret de période de comparaison */}
+                  {vueEffectifs === 'cartes' && (
+                    <div className="flex items-center gap-1 bg-muted/60 p-0.5 rounded-lg border border-border/50 text-xs">
+                      {PERIODES_EVOLUTION.map((p) => {
+                        const actif = periodeEvolution === p;
+                        return (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => setPeriodeEvolution(p)}
+                            title={`Comparer par rapport à : ${LIBELLES_PERIODE_EVOLUTION[p]}`}
+                            className={`px-2 py-0.5 rounded-md text-xs transition-colors ${
+                              actif
+                                ? 'bg-background text-foreground shadow-xs font-semibold'
+                                : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            {ABREVIATIONS_PERIODE_EVOLUTION[p]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Bascule discrète Vue Cartes / Vue Graphique en Aire */}
+                  {evolutionEffectifs?.serie && evolutionEffectifs.serie.length > 0 && (
+                    <div className="flex items-center gap-0.5 bg-muted/60 p-0.5 rounded-lg border border-border/50">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className={`size-7 rounded-md ${
+                          vueEffectifs === 'cartes'
+                            ? 'bg-background text-foreground shadow-xs'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                        title="Vue en cartes"
+                        aria-label="Afficher la vue en cartes"
+                        onClick={() => setVueEffectifs('cartes')}
+                      >
+                        <LayoutGrid className="size-3.5" aria-hidden />
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className={`size-7 rounded-md ${
+                          vueEffectifs === 'graphique'
+                            ? 'bg-background text-foreground shadow-xs'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                        title="Vue graphique en Aire (Évolution des effectifs)"
+                        aria-label="Afficher la vue graphique en aire"
+                        onClick={() => setVueEffectifs('graphique')}
+                      >
+                        <TrendingUp className="size-3.5" aria-hidden />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {groupe === 'EFFECTIFS' && vueEffectifs === 'graphique' && !personnalise ? (
+              <div className="space-y-4">
+                <Card className="p-5 border-border/70 shadow-sm">
+                  <CourbeEffectifs points={evolutionEffectifs?.serie ?? []} />
+                </Card>
+                {larges.length > 0 && (
+                  <div className="flex flex-wrap gap-4">
+                    {larges.map((k) => carte(k))}
+                  </div>
+                )}
+              </div>
+            ) : deuxVoies ? (
               <div className="grid gap-4 xl:grid-cols-2">
                 <div className={`grid grid-cols-2 gap-4 ${colonnes}`}>
                   {petites.map((k) => carte(k, true))}
@@ -478,25 +639,6 @@ export function TableauDeBordClient({
                 <div className="grid gap-4">{larges.map((k) => carte(k, true))}</div>
               </div>
             ) : (
-              /*
-                LES COMPTEURS ONT LEUR PROPRE RANGÉE.
-
-                Ils portent tous la même chose — un nombre et son libellé — et
-                doivent donc avoir la même largeur : c'est ce qui permet de les
-                parcourir d'un coup d'œil au lieu de les lire un par un. Laisser
-                un bloc large finir leur rangée les aurait rétrécis de façon
-                inégale, sans que rien ne le justifie.
-
-                EN FLEX, PAS EN GRILLE. Une grille à six colonnes laisse un TROU
-                dès que le nombre de cartes ne la divise pas : cinq compteurs y
-                occupaient cinq colonnes sur six, et la rangée s'arrêtait avant
-                le bord — ce que le lecteur prend pour une carte manquante, pas
-                pour un reste de division. Avec `grow`, chaque carte part d'une
-                largeur confortable puis s'étire pour absorber ce qui reste.
-
-                L'ordre choisi joue À L'INTÉRIEUR de chaque famille : on
-                réordonne ses compteurs entre eux, et ses blocs entre eux.
-              */
               <div className="space-y-4">
                 {petites.length > 0 && (
                   <div className="flex flex-wrap gap-4">
@@ -524,6 +666,11 @@ export function TableauDeBordClient({
    * diverger le glisser-déposer d'une voie à l'autre au premier ajustement.
    */
   function carte(kpi: DefinitionKpi, dansUneVoie = false) {
+    const variation =
+      kpi.groupe === 'EFFECTIFS' && evolutionEffectifs?.variations?.[kpi.cle]
+        ? evolutionEffectifs.variations[kpi.cle][periodeEvolution]
+        : undefined;
+
     return (
       <CarteKpi
         key={kpi.cle}
@@ -533,6 +680,8 @@ export function TableauDeBordClient({
         largeurAuto={dansUneVoie}
         valeur={mesures[kpi.cle] ?? 0}
         total={kpi.partDe ? (mesures[kpi.partDe] ?? 0) : null}
+        variation={variation}
+        abbreviationPeriode={ABREVIATIONS_PERIODE_EVOLUTION[periodeEvolution]}
         contenu={blocs[kpi.cle]}
         devise={devise}
         personnalise={personnalise}
@@ -627,6 +776,8 @@ function CarteKpi({
   definition,
   valeur,
   total,
+  variation,
+  abbreviationPeriode,
   contenu: contenuAlternatif,
   devise,
   largeurAuto = false,
@@ -644,6 +795,10 @@ function CarteKpi({
   valeur: number;
   /** L'effectif auquel ce chiffre se rapporte, ou `null` — EF-DSH-05. */
   total: number | null;
+  /** Variation temporelle pour les indicateurs d'effectifs */
+  variation?: VariationKpi;
+  /** Libellé court de la période de comparaison (ex: M-1, N-1) */
+  abbreviationPeriode?: string;
   /** Le rendu du bloc quand ce n'est pas un chiffre — EF-DSH-06. */
   contenu?: ReactNode;
   devise: string;
@@ -670,7 +825,7 @@ function CarteKpi({
    * discret, parce qu'une ombre marquée sur vingt cartes fabrique un bruit que
    * l'œil doit trier avant d'atteindre les chiffres.
    */
-  const largeur = `${largeurAuto ? '' : LARGEURS[definition.taille ?? 1]} border-border/70 shadow-sm`;
+  const largeur = `${largeurAuto ? '' : LARGEURS[definition.taille ?? 1]} border-border/70 shadow-sm flex flex-col justify-between h-full`;
   const part = definition.partDe ? partDeLEffectif(valeur, total ?? 0) : null;
 
   const contenu = (
@@ -682,72 +837,87 @@ function CarteKpi({
       lourd que celui des côtés. Deux pixels suffisent à rétablir l'équilibre —
       la valeur reste sur l'échelle Tailwind, pas en valeur arbitraire.
     */
-    <CardContent className="space-y-1.5 px-5 pt-4.5 pb-5">
-      {/*
-        UNE ICÔNE NE DÉCORE PAS, ELLE DISTINGUE. Sur une grille de vingt cartes,
-        on cherche « le solde » avant de lire les libellés : c'est la forme
-        qu'on reconnaît de loin, et la teinte dit la section.
+    <CardContent className="flex flex-col justify-between flex-1 px-5 pt-4.5 pb-5">
+      {/* Haut de la carte : Icône, Titre, Chiffre, Slot de pourcentage */}
+      <div>
+        <span
+          className={`mb-3 flex size-10 items-center justify-center rounded-xl ${TEINTES[definition.groupe]}`}
+        >
+          <IconeKpi cle={definition.cle} className="size-5" />
+        </span>
 
-        Elle est masquée aux lecteurs d'écran : elle ne porte rien que le
-        libellé n'ait déjà, et l'annoncer ferait entendre deux fois la même
-        chose.
-      */}
-      <span
-        className={`mb-3 flex size-10 items-center justify-center rounded-xl ${TEINTES[definition.groupe]}`}
-      >
-        <IconeKpi cle={definition.cle} className="size-5" />
-      </span>
+        <p className="text-muted-foreground flex items-center gap-1 text-sm font-medium">
+          {definition.libelle}
+          {definition.lien && !personnalise && (
+            <ArrowUpRight
+              className="size-3.5 opacity-0 transition-opacity group-hover:opacity-100"
+              aria-hidden
+            />
+          )}
+        </p>
 
-      <p className="text-muted-foreground flex items-center gap-1 text-sm font-medium">
-        {definition.libelle}
-        {definition.lien && !personnalise && (
-          <ArrowUpRight
-            className="size-3.5 opacity-0 transition-opacity group-hover:opacity-100"
-            aria-hidden
-          />
-        )}
-      </p>
-
-      {rendu === 'VALEUR' ? (
-        <>
-          {/*
-            LE CHIFFRE EST CE QU'ON VIENT LIRE : il domine la carte. Un montant
-            reste d'un cran plus petit — « 15 000 000 MGA » à la même taille
-            qu'un effectif se replierait en deux lignes.
-          */}
-          <p
-            className={`font-semibold tabular-nums ${
-              definition.format === 'MONTANT' ? 'text-2xl' : 'text-4xl'
-            } ${alerte ? 'text-rose-700' : 'text-foreground'}`}
-          >
-            {definition.format === 'MONTANT'
-              ? formatMontant(valeur, devise)
-              : formatNombre(valeur)}
-          </p>
-
-          {/*
-            EF-DSH-05 — LA PART, quand le chiffre se rapporte à un total.
-            « 1 240 femmes » ne dit rien seul ; « 53 % de l'effectif » se lit.
-          */}
-          {part !== null && (
-            <p className="text-muted-foreground text-sm font-medium tabular-nums">
-              {part.toFixed(1).replace('.', ',')} % de l’effectif
+        {rendu === 'VALEUR' ? (
+          <>
+            <p
+              className={`font-semibold tabular-nums mt-1.5 ${
+                definition.format === 'MONTANT' ? 'text-2xl' : 'text-4xl'
+              } ${alerte ? 'text-rose-700' : 'text-foreground'}`}
+            >
+              {definition.format === 'MONTANT'
+                ? formatMontant(valeur, devise)
+                : formatNombre(valeur)}
             </p>
-          )}
 
-          {definition.aide && (
-            <p className="text-muted-foreground text-xs">{definition.aide}</p>
-          )}
-        </>
-      ) : (
-        /*
-          UN BLOC SANS CONTENU NE SE TAIT PAS. Il est demandé par le registre,
-          donc attendu à l'écran : le voir vide dirait « il n'y a rien », quand
-          la cause peut être une lecture qui n'a pas abouti (règle 15).
-        */
-        (contenuAlternatif ?? (
-          <p className="text-muted-foreground text-sm">Ce bloc n’a pas pu être chargé.</p>
-        ))
+            {/*
+              Ligne contextuelle unique (part ou aide) :
+              Positionnée au-dessus du divider, elle garantit que toutes les cartes
+              ont la même hauteur compacte et un alignement horizontal parfait.
+            */}
+            <div
+              className="min-h-[1.25rem] mt-1 text-xs text-muted-foreground flex items-center truncate"
+              title={definition.aide ?? undefined}
+            >
+              {part !== null ? (
+                <span className="font-medium tabular-nums">
+                  {part.toFixed(1).replace('.', ',')} % de l’effectif
+                </span>
+              ) : definition.aide ? (
+                <span>{definition.aide}</span>
+              ) : null}
+            </div>
+          </>
+        ) : (
+          (contenuAlternatif ?? (
+            <p className="text-muted-foreground text-sm mt-2">Ce bloc n’a pas pu être chargé.</p>
+          ))
+        )}
+      </div>
+
+      {/* Bas de la carte : Divider + Évolution temporelle */}
+      {rendu === 'VALEUR' && variation && !personnalise && (
+        <div className="pt-2 border-t border-border/50 mt-2.5 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="font-medium text-[11px]">{abbreviationPeriode ?? 'M-1'} :</span>
+            <span className="bg-muted/80 px-1.5 py-0.5 rounded font-medium text-foreground tabular-nums text-xs">
+              {formatNombre(variation.valeurPrecedente)}
+            </span>
+          </div>
+
+          <span
+            className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-xs font-semibold tabular-nums ${
+              variation.sens === 'HAUSSE'
+                ? 'bg-emerald-100 text-emerald-700'
+                : variation.sens === 'BAISSE'
+                  ? 'bg-rose-100 text-rose-700'
+                  : 'bg-slate-100 text-slate-700'
+            }`}
+          >
+            {variation.sens === 'HAUSSE' && '↗ '}
+            {variation.sens === 'BAISSE' && '↘ '}
+            {variation.sens === 'STABLE' && '→ '}
+            {formatPourcentageVariation(variation.pourcentage)}
+          </span>
+        </div>
       )}
     </CardContent>
   );
@@ -768,7 +938,7 @@ function CarteKpi({
         {/* EF-DSH-09 — le chiffre mène à son détail. Voir « 12 transferts à
             décider » sans pouvoir y aller oblige à retrouver l'écran et à y
             reposer le filtre qu'on vient de lire. */}
-        <Link href={definition.lien} className="block">
+        <Link href={definition.lien} className="flex flex-col h-full">
           {contenu}
         </Link>
       </Card>

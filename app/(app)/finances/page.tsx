@@ -1,11 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { ChartColumn, ClipboardCheck, Coins, LayoutList } from 'lucide-react';
+import { ClipboardCheck } from 'lucide-react';
 
 import { AccesApplicationDialog } from '@/components/finances/acces-application-dialog';
-import { ClotureDialog } from '@/components/finances/cloture-dialog';
-import { WorkflowDialog } from '@/components/finances/workflow-dialog';
+import { FinancesActionsMenu } from '@/components/finances/finances-actions-menu';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
 import { chargerChiffresPerimetre, getArbrePerimetre } from '@/lib/data/entities';
@@ -163,50 +162,6 @@ export default async function FinancesPage() {
               </Button>
             )}
 
-            {/* EF-FIN-27 — les dîmes ont leur écran. Ce n'est pas un solde
-                mais un relevé de collecte, et les deux ne doivent surtout pas
-                se ressembler (RG-33). */}
-            <Button asChild variant="outline" className="h-10">
-              <Link href="/finances/dimes">
-                <Coins className="mr-2 size-4" aria-hidden />
-                Dîmes
-              </Link>
-            </Button>
-
-            {/* EF-FIN-24 — la synthèse périodique. Elle répond à « qu'avons-nous
-                fait ce trimestre ? », quand le triptyque ci-dessous répond à
-                « de combien disposons-nous ? ». Deux questions, deux écrans. */}
-            <Button asChild variant="outline" className="h-10">
-              <Link href="/finances/synthese">
-                <ChartColumn className="mr-2 size-4" aria-hidden />
-                Synthèse
-              </Link>
-            </Button>
-
-            {/* EF-FIN-11 — le solde de chaque entité, dès qu'il y en a
-                plusieurs à comparer. Sur une seule église, le triptyque
-                ci-dessous dit déjà tout. */}
-            {arbre.length > 1 && (
-              <Button asChild variant="outline" className="h-10">
-                <Link href="/finances/consolide">
-                  <LayoutList className="mr-2 size-4" aria-hidden />
-                  Vue consolidée
-                </Link>
-              </Button>
-            )}
-
-            {/* EF-FIN-26 — arrêter les comptes d'un mois. Le bouton porte le
-                nombre de périodes déjà closes : un verrou qu'on ne voit pas
-                se lit comme une panne le jour où il refuse une saisie. */}
-            <ClotureDialog
-              entites={versOptions(
-                arbre.filter((e) => e.is_active),
-                arbre,
-              )}
-              closes={closes}
-              mouvements={mouvements}
-            />
-
             {/* ARB-2 / EF-STR-10 — qui se connecte, et qui ne se connecte
                 pas. Le reglage vivait dans la fiche de chaque entite : pour
                 savoir lesquelles de ses vingt eglises saisissent elles-memes,
@@ -223,8 +178,16 @@ export default async function FinancesPage() {
                 }))}
             />
 
-            <WorkflowDialog
-              lignes={reglages}
+            {/* Menu Hamburger consolidé pour Dîmes, Synthèse, Vue consolidée, Clôture et Workflow */}
+            <FinancesActionsMenu
+              arbreLength={arbre.length}
+              entites={versOptions(
+                arbre.filter((e) => e.is_active),
+                arbre,
+              )}
+              closes={closes}
+              mouvements={mouvements}
+              reglages={reglages}
               defautOrganisation={parametres.finance_validation_active}
             />
           </div>

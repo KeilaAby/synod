@@ -7,7 +7,7 @@ import { CourbeFinances } from '@/components/tableau-de-bord/courbe-finances';
 import { DerniersCroyants } from '@/components/tableau-de-bord/derniers-croyants';
 import { Jauge } from '@/components/tableau-de-bord/jauge';
 import { RepartitionBarres } from '@/components/tableau-de-bord/repartition-barres';
-import { chargerSyntheseAnnuelle } from '@/lib/data/finances';
+import { chargerSyntheseAnnuelle, listerCategoriesFinance } from '@/lib/data/finances';
 import { signerPhotos } from '@/lib/data/photos';
 import { getArbrePerimetre } from '@/lib/data/entities';
 import { versOptions } from '@/lib/data/entity-options';
@@ -15,6 +15,7 @@ import { getParametres } from '@/lib/data/settings';
 import {
   chargerDerniersCroyants,
   chargerDisposition,
+  chargerEvolutionEffectifs,
   chargerRepartitions,
   chargerTableauDeBord,
 } from '@/lib/data/tableau-de-bord';
@@ -114,8 +115,16 @@ export default async function TableauDeBordPage({
     veut(`repartition_${d}`),
   );
 
-  const [resultat, disposition, parametres, derniers, synthese, repartitions] =
-    await Promise.all([
+  const [
+    resultat,
+    disposition,
+    parametres,
+    derniers,
+    synthese,
+    repartitions,
+    evolutionEffectifs,
+    categoriesFinance,
+  ] = await Promise.all([
     chargerTableauDeBord(entiteId, bornes.debut, bornes.fin),
     chargerDisposition(),
     getParametres(),
@@ -125,19 +134,6 @@ export default async function TableauDeBordPage({
      * rend déjà l'année entière, mois par mois et catégorie par catégorie.
      * Écrire une seconde fonction SQL pour la même somme aurait créé deux
      * chiffres que rien ne garantit égaux.
-     */
-    /**
-     * `catch` — UN BLOC QUI ÉCHOUE N'EMPORTE PAS LES DIX-NEUF AUTRES.
-     *
-     * `chargerSyntheseAnnuelle` LÈVE, et c'est juste sur `/finances/synthese`
-     * où elle EST l'écran : mieux vaut une erreur franche qu'une page vide.
-     * Ici elle n'alimente qu'un bloc parmi vingt, et sa panne faisait tomber le
-     * tableau de bord entier — effectifs, structure et gouvernance compris,
-     * qui n'ont rien à voir avec les finances.
-     *
-     * Toutes les autres lectures de cet écran dégradent déjà ainsi ; celle-ci
-     * était la seule à ne pas le faire, parce qu'elle avait été écrite pour un
-     * autre écran. Le bloc affiche alors « Ce bloc n'a pas pu être chargé ».
      */
     veut('evolution_finances')
       ? chargerSyntheseAnnuelle(entiteId, annee).catch(() => null)
@@ -151,6 +147,10 @@ export default async function TableauDeBordPage({
     veutUneRepartition
       ? chargerRepartitions(entiteId)
       : Promise.resolve([] as TrancheRepartition[]),
+    chargerEvolutionEffectifs(entiteId, ancre).catch(() => ({ variations: {}, serie: [] })),
+    veut('evolution_finances')
+      ? listerCategoriesFinance().catch(() => [])
+      : Promise.resolve([]),
   ]);
 
   // EF-CRO-09 — une seule signature pour tout le lot ; aucune requête si
@@ -206,6 +206,7 @@ export default async function TableauDeBordPage({
           kpis={visibles}
           mesures={resultat.mesures}
           disposition={disposition}
+          evolutionEffectifs={evolutionEffectifs}
           // EF-DSH-06 — le réglage voyage par l'URL, pas par la disposition.
           entites={versOptions(
             arbre.filter((e) => e.is_active),
@@ -241,6 +242,7 @@ export default async function TableauDeBordPage({
               <CourbeFinances
                 key="evolution_finances"
                 lignes={synthese.categories}
+                categoriesReferentiel={categoriesFinance}
                 annee={annee}
                 devise={parametres.devise}
               />

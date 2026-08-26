@@ -11,10 +11,11 @@
 
 **Appliquées : `0001` à `0075`**, confirmé par l'utilisateur.
 
-### En attente d'application : `0076`
+### En attente d'application : `0076`, `0077`
 
 | N° | Ce qu'elle apporte | Sans elle |
 |---|---|---|
+| `0077` | `fn_evolution_effectifs(p_entity, p_ancre)` — calcul des jalons comparatifs (S-1, M-1, T-1, Sem-1, N-1) et de la série mensuelle des effectifs sur 12 mois | Les cartes Croyants et la vue graphique en Aire ne disposent pas de l'historique d'évolution temporelle |
 | `0076` | `finance_entries.annule_par` (FK profiles) et `finance_entries.annule_le` (timestamptz) avec mise à jour du trigger `fn_finance_before_write` | L'annulation d'un mouvement financier ne trace que le motif sans identifier l'opérateur ni la date précise |
 | `0075` | `grades.sexe_autorise` (`TOUS`, `M`, `F` avec check constraint) — restriction des sexes assignables à un grade ecclésial | Les grades acceptent indifféremment tout sexe sans contrôle ecclésial |
 | `0074` | Table `evenements_dime` (`niveau_hote`, `ordre`, RLS), conversion de `finance_entries.dime_evenement` en `text` + FK, mise à jour de `fn_saisir_collecte_dime` et `fn_reordonner_referentiel` | Les événements de collecte de dîmes restent figés dans un enum PostgreSQL et du code TypeScript, sans écran d'administration |
@@ -22,6 +23,14 @@
 | `0072` | Élargit `dime_rapprochements` à l'**église résolue** (`select`/`write` RLS, `fn_resoudre_rapprochement`, nouvelle `fn_marquer_enveloppe_anonyme`) en plus de l'entité collectrice | Une église qui n'a rien collecté ne peut ni rapprocher, ni créer une fiche, ni déclarer anonyme une ligne que le fichier lui attribue |
 
 ---
+
+## Tâches Livrées (26 août 2026)
+
+- [x] **11. Tableau de bord — Évolution temporelle des Croyants et Vue Graphique en Aire**
+      - Migration `0077_evolution_effectifs.sql` et bundle `install.sql` : fonction SQL `fn_evolution_effectifs` calculant les 5 jalons de comparaison (`S-1`, `M-1`, `T-1`, `Sem-1`, `N-1`) et la série mensuelle des 12 derniers mois.
+      - Sélecteur discret de période de comparaison au niveau de la section Effectifs avec « Mois dernier » par défaut.
+      - Badges d'évolution sur les cartes Croyants (valeur passée de référence + badge avec flèche de tendance et pourcentage coloré).
+      - Bouton bascule discret Vue Cartes / Vue Graphique en Aire (`CourbeEffectifs` en SVG pur avec dégradé fluide, sélection de série et tooltip interactive). 914 tests unitaires validés (49 fichiers).
 
 ## Tâches Livrées (23 août 2026)
 

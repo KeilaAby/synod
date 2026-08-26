@@ -22,7 +22,7 @@ import {
   Workflow,
   X,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Command as CommandPrimitive } from 'cmdk';
 
 import {
@@ -158,24 +158,21 @@ export function DocumentationRechercheDialog({
   surSelectionner,
 }: Props) {
   const [recherche, setRecherche] = useState('');
-  const [recents, setRecents] = useState<string[]>(RECHERCHES_DEFAUT);
-
-  // Chargement des recherches récentes depuis le localStorage
-  useEffect(() => {
+  const [recents, setRecents] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return RECHERCHES_DEFAUT;
     try {
       const brut = localStorage.getItem(CLE_STOCKAGE_RECENTS);
       if (brut) {
         const parse = JSON.parse(brut);
         if (Array.isArray(parse) && parse.length > 0) {
-          setRecents(parse.slice(0, 6));
-          return;
+          return parse.slice(0, 6);
         }
       }
-      setRecents(RECHERCHES_DEFAUT);
     } catch {
-      setRecents(RECHERCHES_DEFAUT);
+      // Ignorer
     }
-  }, [ouvert]);
+    return RECHERCHES_DEFAUT;
+  });
 
   const enregistrerRecent = (terme: string) => {
     if (!terme.trim()) return;

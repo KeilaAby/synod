@@ -58,14 +58,25 @@ export function ClotureDialog({
   entites,
   closes,
   mouvements,
+  ouvert: ouvertProp,
+  surChangerOuvert,
+  sansDeclencheur = false,
 }: {
   entites: OptionEntite[];
   closes: PeriodeClose[];
   /** Sert à compter ce qui attend encore une décision dans le mois visé. */
   mouvements: readonly MouvementFiltrable[];
+  ouvert?: boolean;
+  surChangerOuvert?: (ouvert: boolean) => void;
+  sansDeclencheur?: boolean;
 }) {
   const router = useRouter();
-  const [ouvert, setOuvert] = useState(false);
+  const [ouvertInterne, setOuvertInterne] = useState(false);
+  const ouvert = ouvertProp !== undefined ? ouvertProp : ouvertInterne;
+  const setOuvert = (v: boolean) => {
+    setOuvertInterne(v);
+    surChangerOuvert?.(v);
+  };
   const [enCours, setEnCours] = useState(false);
 
   const [entiteId, setEntiteId] = useState<string | null>(null);
@@ -153,17 +164,19 @@ export function ClotureDialog({
 
   return (
     <>
-      <PermissionGate perm="finance.periode.close">
-        <Button variant="outline" className="h-10" onClick={() => setOuvert(true)}>
-          <CalendarCheck className="mr-2 size-4" aria-hidden />
-          Clôture
-          {closes.length > 0 && (
-            <span className="bg-foreground text-background ml-2 rounded-full px-2 py-0.5 text-xs tabular-nums">
-              {formatNombre(closes.length)}
-            </span>
-          )}
-        </Button>
-      </PermissionGate>
+      {!sansDeclencheur && (
+        <PermissionGate perm="finance.periode.close">
+          <Button variant="outline" className="h-10" onClick={() => setOuvert(true)}>
+            <CalendarCheck className="mr-2 size-4" aria-hidden />
+            Clôture
+            {closes.length > 0 && (
+              <span className="bg-foreground text-background ml-2 rounded-full px-2 py-0.5 text-xs tabular-nums">
+                {formatNombre(closes.length)}
+              </span>
+            )}
+          </Button>
+        </PermissionGate>
+      )}
 
       <Dialog open={ouvert} onOpenChange={setOuvert}>
         <DialogContent className="max-h-[92vh] w-[min(96vw,56rem)] overflow-x-hidden overflow-y-auto sm:max-w-none">

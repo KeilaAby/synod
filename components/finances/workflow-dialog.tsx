@@ -61,12 +61,23 @@ function choixDe(decide: boolean | null): Choix {
 export function WorkflowDialog({
   lignes,
   defautOrganisation,
+  ouvert: ouvertProp,
+  surChangerOuvert,
+  sansDeclencheur = false,
 }: {
   lignes: LigneReglage[];
   defautOrganisation: boolean;
+  ouvert?: boolean;
+  surChangerOuvert?: (ouvert: boolean) => void;
+  sansDeclencheur?: boolean;
 }) {
   const router = useRouter();
-  const [ouvert, setOuvert] = useState(false);
+  const [ouvertInterne, setOuvertInterne] = useState(false);
+  const ouvert = ouvertProp !== undefined ? ouvertProp : ouvertInterne;
+  const setOuvert = (v: boolean) => {
+    setOuvertInterne(v);
+    surChangerOuvert?.(v);
+  };
   const [enCours, setEnCours] = useState<string | null>(null);
 
   /**
@@ -144,12 +155,14 @@ export function WorkflowDialog({
 
   return (
     <>
-      <PermissionGate perm="finance.workflow.manage">
-        <Button variant="outline" className="h-10" onClick={() => setOuvert(true)}>
-          <SlidersHorizontal className="mr-2 size-4" aria-hidden />
-          Workflow de validation
-        </Button>
-      </PermissionGate>
+      {!sansDeclencheur && (
+        <PermissionGate perm="finance.workflow.manage">
+          <Button variant="outline" className="h-10" onClick={() => setOuvert(true)}>
+            <SlidersHorizontal className="mr-2 size-4" aria-hidden />
+            Workflow de validation
+          </Button>
+        </PermissionGate>
+      )}
 
       <Dialog open={ouvert} onOpenChange={setOuvert}>
         <DialogContent className="max-h-[92vh] w-[min(96vw,56rem)] overflow-x-hidden overflow-y-auto sm:max-w-none">

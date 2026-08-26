@@ -15,27 +15,25 @@ Application web de gestion d'église. **Lire avant toute tâche** :
 Toute modification doit citer l'exigence ou la règle qu'elle sert. Si une
 demande contredit `cdg.md`, signalez-le avant d'implémenter.
 
-## État — 25 août 2026
+## État — 26 août 2026
 
-**Lots 0 à 8 livrés.** Migrations `0001` à `0076` écrites et prêtes (bundle `supabase/install.sql` régénéré).
-904 tests unitaires, 48 fichiers. `pnpm verify` vert (secrets, lint, typecheck, tests, build).
+**Lots 0 à 8 livrés.** Migrations `0001` à `0077` écrites et prêtes (bundle `supabase/install.sql` régénéré).
+914 tests unitaires, 49 fichiers. `pnpm verify` vert (secrets, lint, typecheck, tests, build).
 
-**Dernières livraisons du 25 août 2026 :**
-1. **Certificat Officiel de Baptême d'Eau (`components/baptemes/imprimer-certificat-bapteme.ts`)** :
-   - Mise en page A4 solennelle avec verset biblique (Matthieu 28:19), données d'état civil, matricule, officiants, sceau officiel de l'église et signatures.
-   - Boutons d'impression directe dans le tableau du registre des baptêmes (`/baptemes`) et sur la fiche du croyant baptisé (`/croyants/[croyantId]`).
-2. **Centre d’Aide & Documentation Intégré (`/documentation`, `lib/domain/documentation.ts`)** :
-   - *Guide Utilisateur (Tous membres & Admins)* : manuel complet de A à Z rédigé sans jargon technique (version « pour les nuls »), structuré en 10 thèmes illustrés avec étapes pas à pas, conseils et cas pratiques.
-   - *Manuel d’Administration (SuperAdmin & Habilités)* : guide exhaustif des 7 piliers de gouvernance avec bascule instantanée.
-   - *Navigation enrichie* : barre latérale de l'application repliée par défaut (`CHEMINS_LARGES`), barre interne des catégories sticky au scroll, entrées directes dans la barre latérale (`app-sidebar.tsx`), le menu utilisateur (`topbar.tsx`) et le hub `/administration`.
-3. **Lot 8 — Portabilité & Réversibilité (ENF-POR-01 à 08, LIV-9)** :
-   - `S3StorageAdapter` (`lib/storage/s3-adapter.ts`) : SigV4 natif compatible S3/R2/MinIO/Scaleway.
-   - Module d'export intégral (`pnpm export:integral`, `manifest.json`, `database.sql`, `storage/`) et écran `/administration/portabilite`.
-   - Script de génération de charge volumique `scripts/seed-volume.ts` (`pnpm seed:volume`, 200 000 croyants / 500 000 écritures).
-   - Procédure de reprise d'activité `RESTORE.md` et compatibilité 100% validée avec Neon/PostgreSQL standard.
-4. **Traçabilité des Mouvements Financiers (`/finances`, `lib/data/finances.ts`, `0076_finance_annule_par.sql`)** :
-   - Requête PostgREST enrichie avec les profils d'auteurs, validateurs et annulateurs (rôles et entités d'appartenance).
-   - Menu déroulant `⋮` avec section non cliquable « Informations & Traçabilité » détaillant qui a saisi, qui a validé, et qui a annulé le mouvement (avec date, rôle, entité et motif), ainsi que la raison explicite en cas de validation directe.
+**Dernières livraisons du 26 août 2026 :**
+1. **Évolution temporelle des effectifs & Courbe en aire (`0077_evolution_effectifs.sql`, `CourbeEffectifs`)** :
+   - Fonction SQL `fn_evolution_effectifs` calculant les 5 jalons comparatifs (semaine passée, mois dernier par défaut, trimestre, semestre, année) et la série 12 mois.
+   - Barre d'évolution temporelle compacte au bas des cartes d'effectifs avec sélecteur discret.
+   - Vue graphique en aire interactive (SVG pur sans dépendance) pour visualiser la tendance des effectifs.
+   - Uniformisation stricte des dividers et des hauteurs de cartes sur le modèle *Femmes* / *Hommes*.
+2. **Évolution des finances — Sélecteur étendu (`components/tableau-de-bord/courbe-finances.tsx`)** :
+   - Regroupement de toutes les catégories financières du référentiel (recettes / dépenses) avec coloration dynamique.
+3. **Consolidation des en-têtes en menus Hamburger (`/tableau-de-bord` & `/finances`)** :
+   - Menu déroulant consolidé sur le tableau de bord (impression, exports, disposition).
+   - Menu déroulant consolidé sur `/finances` avec descriptions pédagogiques sous chaque outil (Dîmes, Synthèse, Vue consolidée, Clôture, Workflow) tout en conservant visibles les alertes prioritaires (*À valider*, *Accès application*).
+4. **Harmonisation des couleurs de trésorerie (`/finances`)** :
+   - Montants de recettes et bordures supérieures des cartes positives en noir (`text-foreground` / `bg-foreground`).
+   - Dépenses, chiffres négatifs et cartes déficitaires en rouge (`text-rose-700` / `from-rose-400 to-orange-500`).
 
 **Lot 2 achevé**, y compris la lecture **XLSX** (`lib/domain/xlsx.ts`, sans
 dépendance — ARB-6 clos) et la **saisie de baptêmes en lot** (EF-BAP-07) :

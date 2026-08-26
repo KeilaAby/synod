@@ -6,6 +6,13 @@ import {
   type TrancheRepartition,
   estDisposition,
 } from '@/lib/domain/kpi';
+import {
+  type DonneesEvolutionEffectifs,
+  type PointSerieEffectifs,
+  type PeriodeEvolution,
+  type VariationKpi,
+  calculerVariation,
+} from '@/lib/domain/evolution-effectifs';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -217,3 +224,64 @@ export async function chargerRepartitions(
     effectif: Number(t.effectif ?? 0),
   }));
 }
+
+/**
+ * Évolution temporelle et série chronologique des effectifs Croyants.
+ *
+ * UN SEUL ALLER-RETOUR : calcule les variations à S-1, M-1, T-1, Sem-1, N-1
+ * et les 12 points de la série mensuelle pour la vue en Aire.
+ */
+export async function chargerEvolutionEffectifs(
+  entityId: string,
+  ancre: string,
+): Promise<DonneesEvolutionEffectifs> {
+  const sb = await createClient();
+
+  const { data, error } = await sb.rpc('fn_evolution_effectifs', {
+    p_entity: entityId,
+    p_ancre: ancre,
+  });
+
+  const variations: Record<string, Record<PeriodeEvolution, VariationKpi>> = {};
+  let serie: PointSerieEffectifs[] = [];
+
+  if (error || !data) {
+    return { variations, serie };
+  }
+
+  const lignes = data as {
+    indicateur: string;
+    actuel: number;
+    val_semaine: number;
+    val_mois: number;
+    val_trimestre: number;
+    val_semestre: number;
+    val_annee: number;
+    serie_mensuelle: PointSerieEffectifs[];
+  }[];
+
+  for (const l of lignes) {
+    const actuel = Number(l.actuel ?? 0);
+    variations[l.indicateur] = {
+      SEMAINE: calculerVariation(actuel, Number(l.val_semaine ?? 0)),
+      MOIS: calculerVariation(actuel, Number(l.val_mois ?? 0)),
+      TRIMESTRE: calculerVariation(actuel, Number(l.val_trimestre ?? 0)),
+      SEMESTRE: calculerVariation(actuel, Number(l.val_semestre ?? 0)),
+      ANNEE: calculerVariation(actuel, Number(l.val_annee ?? 0)),
+    };
+
+    if (l.serie_mensuelle && Array.isArray(l.serie_mensuelle) && serie.length === 0) {
+      serie = l.serie_mensuelle.map((pt) => ({
+        mois: String(pt.mois),
+        libelle: String(pt.libelle),
+        croyants: Number(pt.croyants ?? 0),
+        femmes: Number(pt.femmes ?? 0),
+        hommes: Number(pt.hommes ?? 0),
+        encellules: Number(pt.encellules ?? 0),
+      }));
+    }
+  }
+
+  return { variations, serie };
+}
+

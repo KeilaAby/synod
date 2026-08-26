@@ -6129,5 +6129,31 @@ Sept points traités et vérifiés :
 
 `pnpm verify` : 48 suites de tests, 904 tests unitaires passés, 0 erreur TypeScript, 0 secret.
 
+## 26 août 2026 — Évolution temporelle des effectifs (Migration 0077), Menus Hamburger et Graphique Finances
+
+**1. Évolution temporelle multi-jalons et Courbe des Effectifs (`/tableau-de-bord`, `0077_evolution_effectifs.sql`).**
+- **Migration `0077_evolution_effectifs.sql`** : fonction `fn_evolution_effectifs(p_entity_id, p_inclure_perimetre)` calculant les 5 jalons comparatifs (semaine passée, mois dernier, trimestre dernier, semestre dernier, année dernière) et la série chronologique 12 mois en une requête SQL unique `SECURITY INVOKER`.
+- **Barre d'évolution temporelle compacte** : intégrée au bas de chaque carte KPI du groupe EFFECTIFS (*Nouveaux baptisés*, *Croyants*, *Femmes*, *Hommes*, *En cellule*) avec sélecteur discret et valeur par défaut sur « Le mois dernier ».
+- **Courbe d'évolution interactive (`components/tableau-de-bord/courbe-effectifs.tsx`)** : vue graphique en aire SVG sans dépendance pour visualiser la tendance des effectifs depuis 12 mois, commutable via un bouton discret en en-tête de section.
+- **Uniformisation stricte des cartes** : alignement parfait des dividers et hauteurs compactes identiques calquées sur les cartes *Femmes* et *Hommes*.
+
+**2. Sélecteur enrichi du Graphique des Finances (`components/tableau-de-bord/courbe-finances.tsx`).**
+- Intégration de toutes les catégories financières issues du référentiel (`listerCategoriesFinance`).
+- Regroupement structuré avec `<SelectGroup>` / `<SelectLabel>` (*Toutes les recettes*, *Toutes les dépenses*, *Types de recettes*, *Types de dépenses*).
+- Adaptation automatique de la couleur et du dégradé (recette / dépense) calculée en local mois par mois.
+
+**3. Épuration des en-têtes via menus Hamburger.**
+- **Tableau de bord (`tableau-de-bord-client.tsx`)** : consolidation de l'impression, exports Excel/CSV, personnalisation et réinitialisation de la disposition dans un menu déroulant Hamburger (`Menu`).
+- **Finances (`finances-actions-menu.tsx`, `/finances`)** :
+  * Maintien visible des alertes prioritaires : « À valider » et « Accès à l'application ».
+  * Consolidation des navigations et outils (Dîmes, Synthèse, Vue consolidée, Clôture, Workflow) avec sous-titres descriptifs dans un menu Hamburger.
+
+**4. Harmonisation des couleurs de la trésorerie (`/finances`).**
+- Montants de recettes (positifs) et bordures supérieures des cartes positives en noir (`text-foreground` / `bg-foreground`).
+- Dépenses, chiffres négatifs et cartes déficitaires en rouge (`text-rose-700` / `from-rose-400 to-orange-500`).
+
+`pnpm verify` : 49 suites de tests, 914 tests unitaires passés, 0 erreur TypeScript, 0 secret, build Next.js validé.
+
+
 
 

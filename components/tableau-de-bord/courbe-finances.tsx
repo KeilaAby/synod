@@ -5,11 +5,13 @@ import { useMemo, useState } from 'react';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { LigneSynthese } from '@/lib/data/finances';
+import type { CategorieFinance, LigneSynthese } from '@/lib/data/finances';
 import { libelleMois } from '@/lib/domain/synthese';
 import { formatMontant } from '@/lib/utils/format';
 
@@ -17,21 +19,16 @@ import { formatMontant } from '@/lib/utils/format';
  * L'évolution des finances sur douze mois — EF-DSH-05, EF-DSH-06.
  *
  * TROIS CHIFFRES DU MOIS NE DISENT PAS S'IL EST BON : c'est la comparaison aux
- * onze précédents qui le dit. La catégorie se choisit, parce que « les recettes
- * baissent » et « les dîmes baissent » n'appellent pas la même réaction.
+ * onze précédents qui le dit.
  *
- * LES DONNÉES SONT DÉJÀ LÀ. `fn_finance_synthese_categories` (migration 0039)
- * rend le détail mensuel par catégorie pour l'année entière : changer de
- * catégorie ou de sens est une somme faite dans le navigateur, sans le moindre
- * aller-retour (règles 17 et 28).
+ * Permet de sélectionner :
+ * - Toutes les recettes
+ * - Toutes les dépenses
+ * - Chaque type/catégorie de finance individuellement (Dîmes, Quêtes, Offrandes,
+ *   Dons, Cotisations, Fonctionnement, Travaux, etc.).
  *
- * EN SVG ÉCRIT À LA MAIN, comme la courbe de la synthèse : Recharts pèse
- * quelques centaines de kilooctets pour une aire et douze points (règle 29).
- *
- * UNE AIRE ET NON DES BARRES, ici — contrairement à la synthèse. La question
- * n'est pas « combien en août ? » mais « dans quel sens allons-nous ? », et
- * c'est une pente qui répond à cela. Les deux lectures coexistent parce
- * qu'elles ne posent pas la même question.
+ * EN SVG ÉCRIT À LA MAIN (règle 29) : dégradé subtil, graduations, infobulle
+ * interactive au survol.
  */
 
 const L = 720;
@@ -40,10 +37,12 @@ const MARGE = { haut: 16, bas: 28, gauche: 68, droite: 16 };
 
 export function CourbeFinances({
   lignes,
+  categoriesReferentiel = [],
   annee,
   devise,
 }: {
   lignes: LigneSynthese[];
+  categoriesReferentiel?: CategorieFinance[];
   annee: number;
   devise: string;
 }) {
@@ -51,14 +50,48 @@ export function CourbeFinances({
   const [choix, setChoix] = useState('RECETTE');
   const [survole, setSurvole] = useState<number | null>(null);
 
-  /** Les catégories réellement mouvementées : proposer les autres ne mène à rien. */
+  /**
+   * Liste complète de toutes les catégories financières du référentiel
+   * enrichie de celles éventuellement présentes dans les lignes.
+   */
   const categories = useMemo(() => {
-    const vues = new Map<string, { libelle: string; sens: string }>();
-    for (const l of lignes) vues.set(l.categorieId, { libelle: l.libelle, sens: l.sens });
-    return [...vues.entries()]
-      .map(([id, v]) => ({ id, ...v }))
-      .sort((a, b) => a.sens.localeCompare(b.sens) || a.libelle.localeCompare(b.libelle, 'fr'));
-  }, [lignes]);
+    const map = new Map<string, { id: string; libelle: string; sens: string }>();
+
+    for (const c of categoriesReferentiel) {
+      map.set(c.id, { id: c.id, libelle: c.libelle, sens: c.sens });
+    }
+
+    for (const l of lignes) {
+      if (!map.has(l.categorieId)) {
+        map.set(l.categorieId, { id: l.categorieId, libelle: l.libelle, sens: l.sens });
+      }
+    }
+
+    const toutes = [...map.values()];
+    const recettes = toutes
+      .filter((c) => c.sens === 'RECETTE')
+      .sort((a, b) => a.libelle.localeCompare(b.libelle, 'fr'));
+    const depenses = toutes
+      .filter((c) => c.sens === 'DEPENSE')
+      .sort((a, b) => a.libelle.localeCompare(b.libelle, 'fr'));
+
+    return { recettes, depenses, toutes };
+  }, [lignes, categoriesReferentiel]);
+
+  // Déterminer le sens (recette ou dépense) de la sélection active
+  const sensActif = useMemo(() => {
+    if (choix === 'DEPENSE') return 'DEPENSE';
+    if (choix === 'RECETTE') return 'RECETTE';
+    const cat = categories.toutes.find((c) => c.id === choix);
+    return cat?.sens ?? 'RECETTE';
+  }, [choix, categories]);
+
+  const libelleSelection = useMemo(() => {
+    if (choix === 'RECETTE') return 'Toutes les recettes';
+    if (choix === 'DEPENSE') return 'Toutes les dépenses';
+    const cat = categories.toutes.find((c) => c.id === choix);
+    return cat?.libelle ?? 'Catégorie';
+  }, [choix, categories]);
 
   const points = useMemo(() => {
     const parMois = new Map<string, number>();
@@ -75,9 +108,7 @@ export function CourbeFinances({
 
       const courant = parMois.get(l.mois);
       if (courant === undefined) continue;
-      // Le CONSOLIDÉ : le tableau de bord parle du périmètre entier, comme les
-      // cartes qui l'entourent. Mélanger les deux portées sur un même écran
-      // ferait comparer des nombres qui ne comptent pas la même chose.
+      // Le CONSOLIDÉ : le tableau de bord parle du périmètre entier
       parMois.set(l.mois, courant + l.montantConsolide);
     }
 
@@ -96,38 +127,66 @@ export function CourbeFinances({
     `${ligne} L ${x(points.length - 1)} ${MARGE.haut + hauteurUtile}` +
     ` L ${x(0)} ${MARGE.haut + hauteurUtile} Z`;
 
-  // Quatre graduations : au-delà, elles encombrent plus qu'elles ne repèrent.
+  // 4 graduations
   const graduations = [0, 0.25, 0.5, 0.75, 1].map((f) => f * maximum);
 
   const total = points.reduce((s, p) => s + p.valeur, 0);
   const actif = survole !== null ? points[survole] : null;
 
+  const estRecette = sensActif === 'RECETTE';
+  const couleurStroke = estRecette ? '#059669' : '#e11d48';
+  const couleurStop = estRecette ? 'text-emerald-500' : 'text-rose-500';
+  const degradeId = estRecette ? 'degrade-finances-recette' : 'degrade-finances-depense';
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-muted-foreground text-xs font-medium">
-            Cumul {annee}
+          <p className="text-xs font-medium text-muted-foreground">
+            Cumul {annee} — {libelleSelection}
           </p>
-          <p className="text-3xl font-semibold tabular-nums">
+          <p
+            className={`text-3xl font-semibold tabular-nums ${
+              estRecette ? 'text-foreground' : 'text-rose-700'
+            }`}
+          >
             {formatMontant(total, devise)}
           </p>
         </div>
 
-        {/* Ensemble OUVERT — un référentiel que l'administration alimente :
-            sélecteur, pas pictogrammes (règle 18). */}
         <Select value={choix} onValueChange={setChoix}>
-          <SelectTrigger className="h-9 w-56" aria-label="Catégorie suivie">
+          <SelectTrigger className="h-9 w-64" aria-label="Type ou catégorie financière suivie">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="max-h-80">
             <SelectItem value="RECETTE">Toutes les recettes</SelectItem>
             <SelectItem value="DEPENSE">Toutes les dépenses</SelectItem>
-            {categories.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.libelle}
-              </SelectItem>
-            ))}
+
+            {categories.recettes.length > 0 && (
+              <SelectGroup>
+                <SelectLabel className="px-2 py-1.5 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                  Types de recettes
+                </SelectLabel>
+                {categories.recettes.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.libelle}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            )}
+
+            {categories.depenses.length > 0 && (
+              <SelectGroup>
+                <SelectLabel className="px-2 py-1.5 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                  Types de dépenses
+                </SelectLabel>
+                {categories.depenses.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.libelle}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            )}
           </SelectContent>
         </Select>
       </div>
@@ -137,17 +196,16 @@ export function CourbeFinances({
           viewBox={`0 0 ${L} ${H}`}
           className="h-60 w-full min-w-[32rem]"
           role="img"
-          aria-label={`Évolution mensuelle — ${formatMontant(total, devise)} sur ${annee}`}
+          aria-label={`Évolution mensuelle — ${formatMontant(total, devise)} sur ${annee} (${libelleSelection})`}
         >
           <defs>
-            <linearGradient id="degrade-finances" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" className="text-emerald-500" stopColor="currentColor" stopOpacity="0.28" />
-              <stop offset="100%" className="text-emerald-500" stopColor="currentColor" stopOpacity="0" />
+            <linearGradient id={degradeId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" className={couleurStop} stopColor="currentColor" stopOpacity="0.28" />
+              <stop offset="100%" className={couleurStop} stopColor="currentColor" stopOpacity="0" />
             </linearGradient>
           </defs>
 
-          {/* Les graduations sont DERRIÈRE l'aire : posées devant, elles la
-              barreraient de traits qu'on prendrait pour des données. */}
+          {/* Graduations */}
           {graduations.map((valeur) => (
             <g key={valeur}>
               <line
@@ -170,11 +228,11 @@ export function CourbeFinances({
             </g>
           ))}
 
-          <path d={aire} fill="url(#degrade-finances)" />
+          <path d={aire} fill={`url(#${degradeId})`} />
           <path
             d={ligne}
             fill="none"
-            className="stroke-emerald-600"
+            stroke={couleurStroke}
             strokeWidth={2.5}
             strokeLinejoin="round"
             strokeLinecap="round"
@@ -182,11 +240,6 @@ export function CourbeFinances({
 
           {points.map((p, i) => (
             <g key={p.mois}>
-              {/*
-                UNE BANDE INVISIBLE PAR MOIS. Viser un point de trois pixels à
-                la souris est un exercice d'adresse ; viser sa colonne ne l'est
-                pas.
-              */}
               <rect
                 x={x(i) - largeurUtile / 24}
                 y={MARGE.haut}
@@ -215,7 +268,7 @@ export function CourbeFinances({
                 y1={MARGE.haut}
                 x2={x(survole)}
                 y2={MARGE.haut + hauteurUtile}
-                className="stroke-emerald-600"
+                stroke={couleurStroke}
                 strokeWidth={1}
                 strokeDasharray="4 3"
               />
@@ -223,14 +276,10 @@ export function CourbeFinances({
                 cx={x(survole)}
                 cy={y(actif.valeur)}
                 r={5}
-                className="fill-emerald-600 stroke-white"
+                fill={couleurStroke}
+                className="stroke-white"
                 strokeWidth={2}
               />
-              {/*
-                L'ÉTIQUETTE SE RABAT AUX BORDS. Ancrée au centre partout, elle
-                déborderait du cadre sur janvier et sur décembre — et un
-                montant coupé est pire qu'un montant absent.
-              */}
               <text
                 x={x(survole)}
                 y={Math.max(MARGE.haut + 12, y(actif.valeur) - 12)}
@@ -251,10 +300,6 @@ export function CourbeFinances({
 
 /**
  * L'échelle verticale, abrégée.
- *
- * C'EST LE SEUL ENDROIT OÙ L'ON ABRÈGE UN MONTANT, et c'est admissible : une
- * graduation REPÈRE, elle ne se lit pas. Le montant exact reste au survol et
- * dans le cumul, en toutes lettres de chiffres.
  */
 function abreger(valeur: number): string {
   if (valeur >= 1_000_000) return `${Math.round(valeur / 100_000) / 10} M`;

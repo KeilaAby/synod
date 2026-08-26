@@ -27,7 +27,6 @@ import {
   AlertTriangle,
   Bookmark,
   CheckCircle2,
-  Command,
   type LucideIcon,
 } from 'lucide-react';
 

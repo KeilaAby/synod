@@ -650,7 +650,7 @@ export function MontantSigne({
     <span
       className={
         sens === 'RECETTE'
-          ? 'tabular-nums font-semibold text-emerald-700'
+          ? 'tabular-nums font-semibold text-foreground'
           : 'tabular-nums font-semibold text-rose-700'
       }
     >
