@@ -8,6 +8,9 @@ import { ModifierCroyantDialog } from '@/components/croyants/croyant-dialog';
 import { HistoriqueCroyant } from '@/components/croyants/historique-croyant';
 import { OngletsFiche } from '@/components/croyants/onglets-fiche';
 import { PhotoUploader } from '@/components/croyants/photo-uploader';
+import { CourbeDimes } from '@/components/croyants/courbe-dimes';
+import { ImprimerBouton } from '@/components/croyants/imprimer-bouton';
+import type { ContenuImpression } from '@/components/croyants/imprimer-fiche';
 import { VersementsCroyant } from '@/components/croyants/versements-croyant';
 import { TransfertBouton } from '@/components/transferts/transfert-bouton';
 import { PageHeader } from '@/components/shared/page-header';
@@ -17,6 +20,8 @@ import { getCroyant } from '@/lib/data/croyants';
 import { getOptionsCroyant } from '@/lib/data/croyant-options';
 import { getArbrePerimetre, cheminLisible, indexerParChemin } from '@/lib/data/entities';
 import { chargerVersementsDuCroyant } from '@/lib/data/dimes';
+import { evolutionDesDimes } from '@/lib/domain/dime-evolution';
+import { LIBELLES_EVENEMENT } from '@/lib/domain/dime';
 import { signerPhotos } from '@/lib/data/photos';
 import { getParametres } from '@/lib/data/settings';
 import { fonctionsDuCroyant } from '@/lib/data/bureaux';
@@ -94,6 +99,94 @@ export default async function FicheCroyantPage({ params }: Params) {
     croyant.date_bapteme ? new Date(croyant.date_bapteme) : null,
   );
 
+  /**
+   * CE QUE LES TROIS DOCUMENTS IMPRIMENT — EF-CRO-06, EF-FIN-35.
+   *
+   * Prepare ICI, cote serveur, et non dans le bouton : les libelles viennent
+   * des memes registres que l'ecran (`LIBELLES_SEXE`, `LIBELLES_EVENEMENT`,
+   * `cheminLisible`), et les recalculer cote client les ferait diverger de ce
+   * que la page affiche — un papier qui contredit l'ecran est pire qu'un papier
+   * absent.
+   *
+   * L'EN-TETE EST COMMUN AUX TROIS : une feuille de versements sans nom ni
+   * eglise est un document ANONYME, qui ne prouve rien et ne se classe nulle
+   * part.
+   */
+  const contenuImpression: ContenuImpression = {
+    entete: {
+      nom: croyant.nom,
+      prenom: croyant.prenom,
+      matricule: croyant.matricule,
+      eglise: eglise ? cheminLisible(eglise, index) : '—',
+      urlPhoto: croyant.photo_key ? (photos.get(croyant.photo_key) ?? null) : null,
+    },
+    devise: parametres.devise,
+    sections: [
+      {
+        titre: 'Identité',
+        donnees: [
+          { libelle: 'Nom', valeur: croyant.nom.toLocaleUpperCase('fr') },
+          { libelle: 'Prénom', valeur: croyant.prenom },
+          { libelle: 'Sexe', valeur: LIBELLES_SEXE[croyant.sexe] },
+          {
+            libelle: 'Date de naissance',
+            valeur: `${formatDateLongue(croyant.date_naissance)} · ${age} ans`,
+          },
+          {
+            libelle: 'Statut marital',
+            valeur: croyant.statut_marital
+              ? (LIBELLES_STATUT_MARITAL[croyant.statut_marital as StatutMarital] ??
+                croyant.statut_marital)
+              : 'Non renseigné',
+          },
+          {
+            libelle: 'Statut',
+            valeur:
+              LIBELLES_STATUT_CROYANT[croyant.statut as StatutCroyant] ?? croyant.statut,
+          },
+        ],
+      },
+      {
+        titre: 'Coordonnées',
+        donnees: [
+          { libelle: 'Adresse', valeur: croyant.adresse || 'Non renseignée' },
+          { libelle: 'Téléphone', valeur: croyant.telephone || 'Non renseigné' },
+          { libelle: 'Adresse e-mail', valeur: croyant.email || 'Non renseignée' },
+        ],
+      },
+      {
+        titre: 'Rattachement ecclésial',
+        donnees: [
+          { libelle: 'Église', valeur: croyant.eglise?.nom ?? '—' },
+          { libelle: 'Cellule', valeur: croyant.cellule?.nom ?? 'Aucune' },
+          { libelle: 'Grade', valeur: croyant.grade?.libelle ?? '—' },
+          { libelle: 'Nationalité', valeur: croyant.nationalite?.libelle ?? '—' },
+          {
+            libelle: 'Date de baptême',
+            valeur: croyant.date_bapteme
+              ? formatDateLongue(croyant.date_bapteme)
+              : 'Non renseignée',
+          },
+        ],
+      },
+    ],
+    versements: versements.map((v) => ({
+      date: v.entree?.date_operation ?? null,
+      evenement: v.entree?.dime_evenement
+        ? (LIBELLES_EVENEMENT[v.entree.dime_evenement] ?? v.entree.dime_evenement)
+        : '—',
+      enveloppe: v.enveloppe_numero,
+      recu: v.recu_numero,
+      montant: Number(v.montant),
+    })),
+    evenements: evenements.map((e) => ({
+      date: e.date,
+      titre: e.titre,
+      detail: e.detail,
+      note: e.note,
+    })),
+  };
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -143,6 +236,14 @@ export default async function FicheCroyantPage({ params }: Params) {
         actions={
           eglise && (
             <>
+              {/*
+                L'IMPRESSION EST OUVERTE A TOUS ceux qui voient la fiche : elle
+                ne fait que mettre sur papier ce que la RLS a deja laisse lire.
+                La borner a un droit refuserait a une eglise le releve de son
+                propre croyant.
+              */}
+              <ImprimerBouton contenu={contenuImpression} />
+
               {/* EF-TRF-01 — en pop-up : la page /transferer n'a jamais existé,
                   le lien qui y menait était mort. */}
               <TransfertBouton
@@ -383,6 +484,26 @@ export default async function FicheCroyantPage({ params }: Params) {
                         prenom: croyant.prenom,
                         matricule: croyant.matricule,
                       }}
+                      devise={parametres.devise}
+                    />
+
+                    {/*
+                      LA COURBE SOUS LE TABLEAU, jamais a sa place.
+
+                      Le tableau repond a « combien, quand », a l'ariary pres —
+                      c'est la question qu'on pose a un bureau. La courbe repond
+                      a « dans quel sens allons-nous », que douze lignes ne
+                      disent pas. Deux lectures, deux objets : remplacer le
+                      premier par le second perdrait le detail qu'on vient
+                      chercher.
+                    */}
+                    <CourbeDimes
+                      points={evolutionDesDimes(
+                        versements.map((v) => ({
+                          montant: Number(v.montant),
+                          date: v.entree?.date_operation,
+                        })),
+                      )}
                       devise={parametres.devise}
                     />
                   </CardContent>
