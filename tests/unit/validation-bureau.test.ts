@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { entreeBureauDeEntite } from '@/lib/domain/bureau';
+import { entreeBureauDeEntite, peutOuvrirUnAutreBureau } from '@/lib/domain/bureau';
 import {
   cloreMandatSchema,
   modifierBureauSchema,
@@ -192,5 +192,49 @@ describe('Regle 12 — les schemas partages sont idempotents', () => {
     const chaine = cloreMandatSchema.parse({ bureauId: BUREAU, dateFin: '2026-08-08' });
     const objet = cloreMandatSchema.parse({ bureauId: BUREAU, dateFin: chaine.dateFin });
     expect(objet.dateFin.getTime()).toBe(chaine.dateFin.getTime());
+  });
+});
+
+/**
+ * RG-10 — OUVRIR UN AUTRE BUREAU, alors qu'il en existe deja.
+ *
+ * LE DEFAUT QUE CES TESTS VERROUILLENT (signale le 26 aout 2026) : le menu ne
+ * rendait QU'UNE entree, choisie sur l'etat. Des le premier bureau cree, elle
+ * basculait sur « composer » puis « consulter », et « ouvrir un bureau »
+ * disparaissait — une entite n'en avait donc plus jamais un second, alors que
+ * la regle l'autorise et que le pop-up des bureaux l'annonce.
+ */
+describe('RG-10 — ouvrir un bureau de plus', () => {
+  it('se propose des qu un bureau existe et qu on peut gerer', () => {
+    expect(peutOuvrirUnAutreBureau([{ nbMembres: 0 }], true)).toBe(true);
+    expect(peutOuvrirUnAutreBureau([{ nbMembres: 7 }], true)).toBe(true);
+  });
+
+  /**
+   * SANS AUCUN BUREAU, L'ENTREE D'ETAT VAUT DEJA « creer ». Un second
+   * « creer » ferait douter de la difference entre les deux, et l'utilisateur
+   * ouvrirait l'un puis l'autre pour comprendre.
+   */
+  it('ne DOUBLE PAS l entree « creer » quand il n y a aucun bureau', () => {
+    expect(peutOuvrirUnAutreBureau([], true)).toBe(false);
+  });
+
+  /**
+   * Une entree qui ouvrirait sur un refus vaut moins qu'une entree absente —
+   * meme raisonnement que pour `entreeBureauDeEntite`.
+   */
+  it('reste absente sans droit de gestion', () => {
+    expect(peutOuvrirUnAutreBureau([{ nbMembres: 3 }], false)).toBe(false);
+    expect(peutOuvrirUnAutreBureau([], false)).toBe(false);
+  });
+
+  /**
+   * LES DEUX ENTREES COHABITENT, et c'est le point : l'une dit ou en est le
+   * bureau, l'autre en ouvre un autre. Les confondre a produit le defaut.
+   */
+  it('coexiste avec l entree d etat, sans la remplacer', () => {
+    const bureaux = [{ nbMembres: 7 }];
+    expect(entreeBureauDeEntite(bureaux, true)).toBe('consulter');
+    expect(peutOuvrirUnAutreBureau(bureaux, true)).toBe(true);
   });
 });

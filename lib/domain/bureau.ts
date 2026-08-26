@@ -353,6 +353,35 @@ export function entreeBureauDeEntite(
   return titulaires === 0 ? 'composer' : 'consulter';
 }
 
+/**
+ * RG-10 — UNE ENTITE PEUT AVOIR PLUSIEURS BUREAUX, et le menu doit le permettre.
+ *
+ * LE DEFAUT QUE CECI CORRIGE (signale le 26 aout 2026). `entreeBureauDeEntite`
+ * rend UNE seule entree, choisie sur l'etat : des qu'un premier bureau
+ * existait, elle basculait sur `composer` ou `consulter` — et « ouvrir un
+ * bureau » DISPARAISSAIT du menu. Une entite qui en avait un n'en avait donc
+ * plus jamais un second, alors que la regle l'autorise expressement et que le
+ * pop-up des bureaux l'annonce en toutes lettres.
+ *
+ * POURQUOI UNE SECONDE ENTREE, ET NON UN QUATRIEME ETAT. Les trois valeurs de
+ * `entreeBureauDeEntite` sont trois VUES de la meme chose — ou en est le bureau
+ * de cette entite. Les proposer ensemble obligerait a ouvrir chacune pour
+ * savoir laquelle mene quelque part, et c'est precisement la raison d'etre de
+ * ce calcul.
+ *
+ * « Ouvrir un autre bureau » n'est pas une vue : c'est un ACTE, qui ecrit. Il
+ * cohabite donc avec l'entree d'etat au lieu de la remplacer — et il ne
+ * s'affiche que la ou il ajoute quelque chose : sans aucun bureau, l'entree
+ * d'etat vaut deja `creer`, et un second « creer » ferait douter de la
+ * difference entre les deux.
+ */
+export function peutOuvrirUnAutreBureau(
+  bureauxActifs: readonly { nbMembres: number }[],
+  peutGerer: boolean,
+): boolean {
+  return peutGerer && bureauxActifs.length > 0;
+}
+
 // ---------------------------------------------------------------------------
 // EF-BUR-08 — retirer un titulaire : une erreur, ou une decision
 // ---------------------------------------------------------------------------

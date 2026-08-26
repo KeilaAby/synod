@@ -21,7 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { entreeBureauDeEntite } from '@/lib/domain/bureau';
+import { entreeBureauDeEntite, peutOuvrirUnAutreBureau } from '@/lib/domain/bureau';
 import { ENTITY_LABELS, type EntityType, typeEnfantDe } from '@/lib/domain/hierarchy';
 import { cn } from '@/lib/utils';
 
@@ -159,6 +159,25 @@ export function EntityMenu({
                 {bureau!.bureaux.reduce((n, b) => n + b.nbMembres, 0)}
               </span>
             )}
+          </DropdownMenuItem>
+        )}
+
+        {/*
+          RG-10 — UNE ENTITE PEUT AVOIR PLUSIEURS BUREAUX.
+
+          L'entree ci-dessus dit OU EN EST le bureau ; celle-ci en ouvre un
+          AUTRE. Sans elle, une entite qui avait deja un bureau n'en avait plus
+          jamais un second : l'entree d'etat basculait sur « composer » ou
+          « consulter », et « ouvrir un bureau » disparaissait du menu — alors
+          que le pop-up des bureaux annonce la regle en toutes lettres.
+
+          Elle ne s'affiche que la ou elle ajoute quelque chose : sans aucun
+          bureau, l'entree d'etat vaut deja « creer ».
+        */}
+        {bureau && onBureaux && peutOuvrirUnAutreBureau(bureau.bureaux, bureau.peutGerer) && (
+          <DropdownMenuItem onSelect={() => onBureaux(id, 'creer')}>
+            <Briefcase className="mr-2 size-4" aria-hidden />
+            Créer un nouveau bureau
           </DropdownMenuItem>
         )}
 
