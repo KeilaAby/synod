@@ -36,14 +36,14 @@ function teinte(cle: string): string {
  * flottaison sur un telephone, et la fiche commencerait par une photo au lieu
  * de commencer par quelqu'un.
  *
- * 192 px au plus large, pour 1024 px de source : le rapport couvre les ecrans
+ * 224 px au plus large, pour 1024 px de source : le rapport couvre les ecrans
  * a haute densite, qui demandent le double de pixels physiques.
  */
 const TAILLES = {
   sm: 'size-8 text-xs',
   md: 'size-10 text-sm',
   lg: 'size-16 text-lg',
-  xl: 'size-32 text-4xl sm:size-40 md:size-48',
+  xl: 'size-36 text-5xl sm:size-48 md:size-56',
 } as const;
 
 export function AvatarCroyant({
