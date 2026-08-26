@@ -1,4 +1,10 @@
 import { avertir } from '@/components/shared/messages';
+import {
+  type CleIcone,
+  type TypeEvenement,
+  apparenceEvenement,
+} from '@/lib/domain/historique';
+import type { StatutTransfert } from '@/lib/domain/transfert';
 import { formatDate, formatDateHeure, formatMontant } from '@/lib/utils/format';
 
 /**
@@ -68,6 +74,10 @@ export interface EvenementImprimable {
   readonly titre: string;
   readonly detail?: string;
   readonly note?: string;
+  /** De quoi retrouver la MEME pastille qu a l ecran — voir apparenceEvenement. */
+  readonly type: TypeEvenement;
+  readonly statut?: StatutTransfert;
+  readonly enAttente: boolean;
 }
 
 export interface ContenuImpression {
@@ -189,11 +199,39 @@ function sectionsHtml(sections: readonly SectionImprimable[]): string {
 }
 
 function versementsHtml(
-  versements: readonly VersementImprimable[],
+  tous: readonly VersementImprimable[],
   devise: string,
+  plage: { readonly debut: string; readonly fin: string } | null,
 ): string {
+  /**
+   * LES DEUX BORNES SONT INCLUSES, et la comparaison se fait EN CHAINES.
+   *
+   * Les dates sont des jours ISO (`YYYY-MM-DD`) : leur ordre lexicographique
+   * est leur ordre chronologique. Passer par `Date` introduirait un fuseau —
+   * et un versement du 1er janvier basculerait au 31 décembre pour un lecteur
+   * situé à l'ouest. Même choix que les filtres du registre financier.
+   */
+  const versements = plage
+    ? tous.filter((v) => v.date !== null && v.date >= plage.debut && v.date <= plage.fin)
+    : tous;
+
+  /**
+   * LE DOCUMENT DIT TOUJOURS CE QU'IL COUVRE.
+   *
+   * Un relevé partiel dont rien n'annonce la période se lit comme un relevé
+   * complet : le total paraît faux, et personne ne peut le vérifier — sur une
+   * feuille, on ne peut pas rouvrir les filtres pour comprendre (règle 33).
+   */
+  const periode = plage
+    ? `Du ${formatDate(plage.debut)} au ${formatDate(plage.fin)}`
+    : 'Tous les versements enregistrés';
+
   if (versements.length === 0) {
-    return '<section class="bloc"><p class="vide">Aucun versement enregistré.</p></section>';
+    return `<section class="bloc">
+  <h2>Versements de dîme</h2>
+  <p class="periode">${echapper(periode)}</p>
+  <p class="vide">Aucun versement sur cette période.</p>
+</section>`;
   }
 
   const total = versements.reduce((s, v) => s + v.montant, 0);
@@ -201,6 +239,7 @@ function versementsHtml(
   return `
 <section class="bloc">
   <h2>Versements de dîme</h2>
+  <p class="periode">${echapper(periode)}</p>
   <table>
     <thead>
       <tr>
@@ -238,26 +277,90 @@ function versementsHtml(
 </section>`;
 }
 
+/**
+ * LA MOITIE « PAPIER » DU RENDU DES ICONES — EF-CRO-06.
+ *
+ * L'ecran rend la cle par un composant de la bibliotheque ; ici il n'y a pas de
+ * React, donc le trace est ecrit en clair. Il est RECOPIE DE LUCIDE, pas
+ * redessine : une icone approchante sur le papier et l'exacte a l'ecran se
+ * remarquent aussitot mises cote a cote.
+ *
+ * `currentColor` fait tout le travail de couleur : la teinte vient du domaine,
+ * posee sur la pastille, et le trace en herite.
+ */
+const TRACES: Record<CleIcone, string> = {
+  creation:
+    '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/>',
+  bapteme:
+    '<path d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.84-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z"/><path d="M12.56 6.6A10.97 10.97 0 0 0 14 3.02c.5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a6.98 6.98 0 0 1-11.91 4.97"/>',
+  mandat:
+    '<path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/>',
+  grade:
+    '<path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"/><circle cx="12" cy="8" r="6"/>',
+  'grade-attente':
+    '<path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"/><circle cx="12" cy="8" r="6"/>',
+  'transfert-effectue': '<path d="M20 6 9 17l-5-5"/>',
+  'transfert-refuse': '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  'transfert-annule':
+    '<circle cx="12" cy="12" r="10"/><path d="M4.929 4.929 19.07 19.071"/>',
+  'transfert-attente': '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  transfert:
+    '<path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/>',
+};
+
+/** La pastille ronde et coloree, telle qu'elle parait a l'ecran. */
+function pastille(cle: CleIcone, fond: string, trait: string): string {
+  return (
+    `<span class="pastille" style="background:${fond};color:${trait}">` +
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+    `stroke-linecap="round" stroke-linejoin="round">${TRACES[cle]}</svg></span>`
+  );
+}
+
 function historiqueHtml(evenements: readonly EvenementImprimable[]): string {
   if (evenements.length === 0) {
     return '<section class="bloc"><p class="vide">Aucun événement enregistré.</p></section>';
   }
 
+  /**
+   * L'ORDRE EST CROISSANT SUR LE PAPIER, à l'inverse de l'écran.
+   *
+   * L'écran répond à « que s'est-il passé récemment ? » : le plus récent en
+   * tête, et l'on s'arrête après trois lignes. Une feuille imprimée se lit du
+   * haut vers le bas, en entier, et raconte un PARCOURS — qui commence par le
+   * commencement. Antichronologique, elle ferait lire une vie à l'envers.
+   *
+   * La copie est délibérée : `sort` mute, et retourner le tableau de l'appelant
+   * inverserait aussi la frise à l'écran.
+   */
+  const chronologique = [...evenements].sort((a, b) => a.date.localeCompare(b.date));
+
   return `
 <section class="bloc">
   <h2>Historique</h2>
   <ul class="frise">
-    ${evenements
-      .map(
-        (e) => `<li>
-      <span class="mono date">${echapper(formatDate(e.date))}</span>
+    ${chronologique
+      .map((e) => {
+        const a = apparenceEvenement({
+          type: e.type,
+          statut: e.statut,
+          enAttente: e.enAttente,
+        });
+
+        return `<li>
+      ${pastille(a.icone, a.fond, a.trait)}
       <span class="corps">
-        <strong>${echapper(e.titre)}</strong>
-        ${e.detail ? `<span class="detail">${echapper(e.detail)}</span>` : ''}
+        <span class="titre-evt">
+          <strong>${echapper(e.titre)}</strong>
+          ${e.enAttente ? '<span class="attente">En attente</span>' : ''}
+        </span>
+        <span class="detail"><span class="mono">${echapper(formatDate(e.date))}</span>${
+          e.detail ? ` · ${echapper(e.detail)}` : ''
+        }</span>
         ${e.note ? `<span class="note-evt">« ${echapper(e.note)} »</span>` : ''}
       </span>
-    </li>`,
-      )
+    </li>`;
+      })
       .join('')}
   </ul>
 </section>`;
@@ -320,11 +423,31 @@ tr { break-inside: avoid }
 tfoot td { font-weight: 700; border-top: 2px solid #0f172a; border-bottom: none }
 
 .frise { list-style: none; margin: 0; padding: 0 }
-.frise li { display: flex; gap: 12px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; break-inside: avoid }
-.frise .date { flex: none; width: 78px; color: #64748b }
-.corps { display: flex; flex-direction: column; gap: 2px }
+.frise li { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid #f1f5f9; break-inside: avoid }
+/*
+  LA PASTILLE EST IMPRIMEE EN COULEUR, comme a l'ecran.
+
+  La propriete print-color-adjust est INDISPENSABLE : par defaut, les navigateurs
+  suppriment les fonds a l'impression pour economiser l'encre, et les dix
+  pastilles sortiraient blanches — donc indistinctes, ce qui retire a la frise
+  le signal qui la rend lisible d'un coup d'oeil.
+*/
+.pastille {
+  flex: none; width: 22px; height: 22px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.pastille svg { width: 13px; height: 13px }
+.corps { display: flex; flex-direction: column; gap: 2px; padding-top: 2px }
+.titre-evt { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap }
+.attente {
+  font-size: 8px; padding: 1px 5px; border-radius: 4px;
+  background: #fef3c7; color: #b45309;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
 .detail, .note-evt { font-size: 10px; color: #64748b }
 
+.periode { margin: -4px 0 8px; font-size: 10px; color: #475569; font-weight: 600 }
 .vide { color: #94a3b8; font-style: italic }
 .note { margin: 8px 0 0; font-size: 9px; color: #94a3b8 }
 .pied {
@@ -345,6 +468,14 @@ tfoot td { font-weight: 700; border-top: 2px solid #0f172a; border-bottom: none 
 export async function imprimerFicheCroyant(
   portee: PorteeImpression,
   contenu: ContenuImpression,
+  /**
+   * EF-FIN-35 — les bornes retenues pour le releve de dimes.
+   *
+   * Absentes : tous les versements. Le document DIT toujours ce qu il
+   * couvre — un releve partiel dont rien n annonce la periode se lit comme
+   * un releve complet, et le total parait faux.
+   */
+  plage?: { readonly debut: string; readonly fin: string } | null,
 ): Promise<void> {
   const fenetre = window.open('', '_blank', 'width=1024,height=768');
   if (!fenetre) {
@@ -370,7 +501,7 @@ export async function imprimerFicheCroyant(
     portee === 'FICHE'
       ? sectionsHtml(contenu.sections)
       : portee === 'DIMES'
-        ? versementsHtml(contenu.versements, contenu.devise)
+        ? versementsHtml(contenu.versements, contenu.devise, plage ?? null)
         : historiqueHtml(contenu.evenements);
 
   fenetre.document.open();

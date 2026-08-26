@@ -324,3 +324,87 @@ export function construireHistorique(
   // Antechronologique : le plus recent en tete, comme partout ailleurs.
   return evenements.sort((a, b) => b.date.localeCompare(a.date));
 }
+
+// ---------------------------------------------------------------------------
+// EF-CRO-06 — l'apparence d'un evenement : une CLE, jamais un composant
+// ---------------------------------------------------------------------------
+
+/**
+ * LES CLES D'ICONE, et pourquoi elles vivent dans le domaine.
+ *
+ * La frise a l'ecran et la frise IMPRIMEE doivent porter le meme pictogramme
+ * et la meme teinte : un bapteme bleu a l'ecran et gris sur le papier feraient
+ * douter qu'il s'agisse du meme evenement.
+ *
+ * Or une icone est une FONCTION REACT : elle ne traverse pas vers un document
+ * HTML ecrit a la main (regle 24). C'est donc la CLE qui voyage, et chaque
+ * cote la rend a sa facon — le composant par un `<Icone/>` de la bibliotheque,
+ * l'impression par un `<svg>` en clair. La DECISION, elle, n'est ecrite qu'ici.
+ *
+ * Un test verifie que chaque cle possede ses deux rendus : sans lui, ajouter un
+ * type d'evenement laisserait un trou dans l'un des deux, et c'est le papier
+ * qu'on ne regarde qu'apres impression.
+ */
+export const CLES_ICONE = [
+  'creation',
+  'bapteme',
+  'mandat',
+  'grade',
+  'grade-attente',
+  'transfert-effectue',
+  'transfert-refuse',
+  'transfert-annule',
+  'transfert-attente',
+  'transfert',
+] as const;
+
+export type CleIcone = (typeof CLES_ICONE)[number];
+
+export interface ApparenceEvenement {
+  readonly icone: CleIcone;
+  /** Teintes litterales : elles servent AUSSI au HTML imprime, sans Tailwind. */
+  readonly fond: string;
+  readonly trait: string;
+}
+
+/**
+ * L'ordre des cas est celui de leur PRECISION : les types propres d'abord, le
+ * statut du transfert ensuite, le cas general en dernier.
+ */
+export function apparenceEvenement(evenement: {
+  readonly type: TypeEvenement;
+  readonly statut?: StatutTransfert;
+  readonly enAttente: boolean;
+}): ApparenceEvenement {
+  if (evenement.type === 'CREATION') {
+    return { icone: 'creation', fond: '#f1f5f9', trait: '#475569' };
+  }
+  if (evenement.type === 'BAPTEME') {
+    return { icone: 'bapteme', fond: '#e0f2fe', trait: '#0369a1' };
+  }
+  // Une prise de fonction n'est pas un mouvement dans la structure : c'est une
+  // responsabilite, et elle a sa propre teinte.
+  if (evenement.type === 'MANDAT') {
+    return { icone: 'mandat', fond: '#ede9fe', trait: '#6d28d9' };
+  }
+  if (evenement.type === 'GRADE') {
+    // Un refus garde l'icone du GRADE et non celle d'un rejet : c'est la
+    // reconnaissance qui a ete refusee, pas la personne.
+    return evenement.enAttente
+      ? { icone: 'grade-attente', fond: '#fef3c7', trait: '#b45309' }
+      : { icone: 'grade', fond: '#ccfbf1', trait: '#0f766e' };
+  }
+
+  switch (evenement.statut) {
+    case 'EFFECTUE':
+      return { icone: 'transfert-effectue', fond: '#d1fae5', trait: '#047857' };
+    case 'REFUSE':
+      return { icone: 'transfert-refuse', fond: '#ffe4e6', trait: '#be123c' };
+    case 'ANNULE':
+      return { icone: 'transfert-annule', fond: '#f1f5f9', trait: '#64748b' };
+    case 'DEMANDE':
+      return { icone: 'transfert-attente', fond: '#fef3c7', trait: '#b45309' };
+    default:
+      return { icone: 'transfert', fond: '#e0e7ff', trait: '#4338ca' };
+  }
+}

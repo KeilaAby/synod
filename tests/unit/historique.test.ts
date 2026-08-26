@@ -4,6 +4,8 @@ import {
   type CroyantHistorique,
   type MandatHistorique,
   type TransfertHistorique,
+  CLES_ICONE,
+  apparenceEvenement,
   construireHistorique,
 } from '@/lib/domain/historique';
 
@@ -212,5 +214,95 @@ describe('EF-BUR-10 — les fonctions occupees rejoignent la frise', () => {
 
     expect(evenement?.titre).not.toContain('undefined');
     expect(evenement?.detail).not.toContain('undefined');
+  });
+});
+
+/**
+ * EF-CRO-06 — L'ECRAN ET LE PAPIER MONTRENT LA MEME PASTILLE.
+ *
+ * La decision vit dans le domaine ; chaque cote la REND a sa facon — le
+ * composant par une icone de la bibliotheque, l'impression par un `<svg>` ecrit
+ * en clair. Ces tests verrouillent l'accord : sans eux, ajouter un type
+ * d'evenement laisserait un trou dans l'un des deux rendus, et c'est le PAPIER
+ * qu'on ne regarde qu'apres impression.
+ */
+describe('apparenceEvenement', () => {
+  const cas = [
+    ['CREATION', 'creation'],
+    ['BAPTEME', 'bapteme'],
+    ['MANDAT', 'mandat'],
+  ] as const;
+
+  it.each(cas)('rend une clé stable pour %s', (type, attendue) => {
+    expect(
+      apparenceEvenement({ type, enAttente: false }).icone,
+    ).toBe(attendue);
+  });
+
+  /**
+   * Un refus garde l'icone du GRADE et non celle d'un rejet : c'est la
+   * reconnaissance qui a ete refusee, pas la personne, et la frise raconte un
+   * parcours, pas un verdict.
+   */
+  it('EF-CRO-12 — un grade en attente se distingue d’un grade décidé', () => {
+    expect(apparenceEvenement({ type: 'GRADE', enAttente: true }).icone).toBe(
+      'grade-attente',
+    );
+    expect(apparenceEvenement({ type: 'GRADE', enAttente: false }).icone).toBe('grade');
+  });
+
+  it('distingue les quatre issues d’un transfert', () => {
+    const issue = (statut: 'EFFECTUE' | 'REFUSE' | 'ANNULE' | 'DEMANDE') =>
+      apparenceEvenement({ type: 'TRANSFERT', statut, enAttente: false }).icone;
+
+    expect(issue('EFFECTUE')).toBe('transfert-effectue');
+    expect(issue('REFUSE')).toBe('transfert-refuse');
+    expect(issue('ANNULE')).toBe('transfert-annule');
+    expect(issue('DEMANDE')).toBe('transfert-attente');
+  });
+
+  /**
+   * UN STATUT INCONNU NE FAIT PAS TOMBER LA FRISE : il retombe sur l'icone
+   * generique du transfert. Une pastille manquante laisserait un trou dans un
+   * document imprime, sans rien dire.
+   */
+  it('retombe sur l’icône générique pour un statut non prévu', () => {
+    expect(apparenceEvenement({ type: 'TRANSFERT', enAttente: false }).icone).toBe(
+      'transfert',
+    );
+  });
+
+  /** Les teintes servent AUSSI au HTML imprime : elles doivent etre litterales. */
+  it('rend des couleurs littérales, utilisables hors de Tailwind', () => {
+    for (const type of ['CREATION', 'BAPTEME', 'MANDAT', 'GRADE', 'TRANSFERT'] as const) {
+      const a = apparenceEvenement({ type, enAttente: false });
+      expect(a.fond, type).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(a.trait, type).toMatch(/^#[0-9a-f]{6}$/i);
+    }
+  });
+
+  /**
+   * TOUTE CLE DECLAREE DOIT ETRE ATTEIGNABLE. Une cle que rien ne produit est
+   * du rendu mort dans les deux tables — et si l'inverse arrive (une cle
+   * produite sans entree de table), le typage `Record<CleIcone, …>` le refuse
+   * a la compilation.
+   */
+  it('ne déclare aucune clé que rien ne produit', () => {
+    const produites = new Set<string>();
+
+    for (const type of ['CREATION', 'BAPTEME', 'MANDAT'] as const) {
+      produites.add(apparenceEvenement({ type, enAttente: false }).icone);
+    }
+    for (const enAttente of [true, false]) {
+      produites.add(apparenceEvenement({ type: 'GRADE', enAttente }).icone);
+    }
+    for (const statut of ['EFFECTUE', 'REFUSE', 'ANNULE', 'DEMANDE'] as const) {
+      produites.add(
+        apparenceEvenement({ type: 'TRANSFERT', statut, enAttente: false }).icone,
+      );
+    }
+    produites.add(apparenceEvenement({ type: 'TRANSFERT', enAttente: false }).icone);
+
+    expect([...produites].sort()).toEqual([...CLES_ICONE].sort());
   });
 });

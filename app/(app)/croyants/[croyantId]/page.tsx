@@ -14,6 +14,7 @@ import type { ContenuImpression } from '@/components/croyants/imprimer-fiche';
 import { VersementsCroyant } from '@/components/croyants/versements-croyant';
 import { TransfertBouton } from '@/components/transferts/transfert-bouton';
 import { PageHeader } from '@/components/shared/page-header';
+import { PermissionGate } from '@/components/shared/permission-gate';
 import { StatusBadge, TON_CROYANT } from '@/components/shared/status-badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { getCroyant } from '@/lib/data/croyants';
@@ -184,6 +185,11 @@ export default async function FicheCroyantPage({ params }: Params) {
       titre: e.titre,
       detail: e.detail,
       note: e.note,
+      // De quoi retrouver la MEME pastille qu'a l'ecran : la decision est
+      // dans le domaine, et les deux rendus la lisent.
+      type: e.type,
+      statut: e.statut,
+      enAttente: e.enAttente,
     })),
   };
 
@@ -237,12 +243,20 @@ export default async function FicheCroyantPage({ params }: Params) {
           eglise && (
             <>
               {/*
-                L'IMPRESSION EST OUVERTE A TOUS ceux qui voient la fiche : elle
-                ne fait que mettre sur papier ce que la RLS a deja laisse lire.
-                La borner a un droit refuserait a une eglise le releve de son
-                propre croyant.
+                EF-CRO-06 — IMPRIMER N'EST PAS CONSULTER, et ce commentaire
+                disait exactement le contraire il y a deux jours.
+
+                Le raisonnement d'alors — « elle ne fait que mettre sur papier
+                ce que la RLS laisse deja lire » — etait juste sur les DONNEES
+                et faux sur le DOCUMENT. Ce qui sort porte le portrait, le
+                matricule et l'en-tete de l'entite ; il circule hors de
+                l'application et se presente ailleurs. Un releve de dimes remis
+                a la mauvaise personne ne se rattrape pas : le papier est deja
+                parti, la ou fermer un onglet suffit a corriger une lecture.
               */}
-              <ImprimerBouton contenu={contenuImpression} />
+              <PermissionGate perm="croyant.print" scope={eglise.path}>
+                <ImprimerBouton contenu={contenuImpression} />
+              </PermissionGate>
 
               {/* EF-TRF-01 — en pop-up : la page /transferer n'a jamais existé,
                   le lien qui y menait était mort. */}

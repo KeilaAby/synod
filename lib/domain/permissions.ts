@@ -106,6 +106,29 @@ export const PERMISSIONS = {
     group: 'Croyants',
     description: 'Placer une fiche en corbeille (suppression réversible conservant l’historique).',
   },
+  /**
+   * EF-CRO-06 — IMPRIMER N'EST PAS CONSULTER, et c'est un revirement assume.
+   *
+   * Ce droit n'existait pas : l'impression etait ouverte a quiconque voyait la
+   * fiche, au motif qu'elle ne fait que mettre sur papier ce que la RLS laisse
+   * deja lire. Le raisonnement etait juste sur les DONNEES et faux sur le
+   * DOCUMENT.
+   *
+   * Ce qui sort n'est pas un ecran : c'est une piece qui porte l'en-tete de
+   * l'entite, le portrait et le matricule, qui circule hors de l'application et
+   * qu'on presente ailleurs. Un releve de dimes remis a la mauvaise personne ne
+   * se rattrape pas — le papier est deja parti. Consulter se corrige en fermant
+   * l'onglet ; imprimer, non.
+   *
+   * DELEGABLE, parce qu'une eglise edite les documents de SES croyants ; portee
+   * DESCENDANTE par defaut, comme la lecture qu'il accompagne.
+   */
+  'croyant.print': {
+    label: 'Imprimer les documents d’un croyant',
+    group: 'Croyants',
+    description:
+      'Éditer la fiche, le relevé de dîmes ou l’historique d’un croyant en PDF imprimable.',
+  },
   'croyant.transfer': {
     label: 'Demander un transfert',
     group: 'Croyants',
@@ -400,6 +423,7 @@ export const ROLE_TEMPLATES: Record<UserRole, readonly Permission[]> = {
     'croyant.create',
     'croyant.update',
     'croyant.delete',
+    'croyant.print',
     'croyant.transfer',
     'transfer.approve',
     'transfer.certify',

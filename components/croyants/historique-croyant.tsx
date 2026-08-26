@@ -11,7 +11,11 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
-import { type EvenementCroyant } from '@/lib/domain/historique';
+import {
+  type CleIcone,
+  type EvenementCroyant,
+  apparenceEvenement,
+} from '@/lib/domain/historique';
 import { formatDateLongue } from '@/lib/utils/format';
 import { cn } from '@/lib/utils';
 
@@ -27,50 +31,50 @@ import { cn } from '@/lib/utils';
  * porte l'issue. Trois signaux distincts, aucun redondant.
  */
 
-/** Une icône par nature d'événement, une teinte par issue. */
+/**
+ * La CLE d'icone se rend en composant — la DECISION, elle, est dans le domaine.
+ *
+ * Une icone est une fonction React : elle ne traverse pas vers le document HTML
+ * de l'impression (règle 24). C'est donc la clé qui voyage, et cette table est
+ * la moitié « écran » du rendu ; l'autre vit dans `imprimer-fiche.ts`.
+ */
+const ICONES: Record<CleIcone, LucideIcon> = {
+  creation: UserPlus,
+  bapteme: Droplets,
+  mandat: Briefcase,
+  grade: Award,
+  'grade-attente': Award,
+  'transfert-effectue': Check,
+  'transfert-refuse': X,
+  'transfert-annule': Ban,
+  'transfert-attente': Clock,
+  transfert: ArrowRightLeft,
+};
+
+/**
+ * Les teintes de Tailwind, par clé.
+ *
+ * Elles ne se déduisent pas des couleurs littérales du domaine : Tailwind lit
+ * le SOURCE, et une classe composée à l'exécution n'existe dans aucune feuille
+ * (règle 32). La table est donc littérale, et le test d'exhaustivité garantit
+ * qu'aucune clé n'y manque.
+ */
+const TEINTES_UI: Record<CleIcone, string> = {
+  creation: 'bg-slate-100 text-slate-600 ring-slate-200',
+  bapteme: 'bg-sky-100 text-sky-700 ring-sky-200',
+  mandat: 'bg-violet-100 text-violet-700 ring-violet-200',
+  grade: 'bg-teal-100 text-teal-700 ring-teal-200',
+  'grade-attente': 'bg-amber-100 text-amber-700 ring-amber-200',
+  'transfert-effectue': 'bg-emerald-100 text-emerald-700 ring-emerald-200',
+  'transfert-refuse': 'bg-rose-100 text-rose-700 ring-rose-200',
+  'transfert-annule': 'bg-slate-100 text-slate-500 ring-slate-200',
+  'transfert-attente': 'bg-amber-100 text-amber-700 ring-amber-200',
+  transfert: 'bg-indigo-100 text-indigo-700 ring-indigo-200',
+};
+
 function apparence(evenement: EvenementCroyant): { icone: LucideIcon; classe: string } {
-  if (evenement.type === 'CREATION') {
-    return { icone: UserPlus, classe: 'bg-slate-100 text-slate-600 ring-slate-200' };
-  }
-  if (evenement.type === 'BAPTEME') {
-    return { icone: Droplets, classe: 'bg-sky-100 text-sky-700 ring-sky-200' };
-  }
-  // EF-BUR-10 — une prise de fonction. Teinte distincte des transferts : ce
-  // n'est pas un mouvement dans la structure, c'est une responsabilite.
-  if (evenement.type === 'MANDAT') {
-    return { icone: Briefcase, classe: 'bg-violet-100 text-violet-700 ring-violet-200' };
-  }
-
-  /*
-    EF-CRO-12 — UN CHANGEMENT DE GRADE.
-
-    Sa TEINTE dit son issue, comme pour un transfert : ambre tant qu'on attend
-    la décision de l'entité supérieure, ardoise une fois qu'elle est prise. Un
-    refus, lui, garde l'icône du grade et non celle d'un rejet — c'est la
-    reconnaissance qui a été refusée, pas la personne, et la frise raconte un
-    parcours, pas un verdict.
-  */
-  if (evenement.type === 'GRADE') {
-    return evenement.enAttente
-      ? { icone: Award, classe: 'bg-amber-100 text-amber-700 ring-amber-200' }
-      : { icone: Award, classe: 'bg-teal-100 text-teal-700 ring-teal-200' };
-  }
-
-  switch (evenement.statut) {
-    case 'EFFECTUE':
-      return { icone: Check, classe: 'bg-emerald-100 text-emerald-700 ring-emerald-200' };
-    case 'REFUSE':
-      return { icone: X, classe: 'bg-rose-100 text-rose-700 ring-rose-200' };
-    case 'ANNULE':
-      return { icone: Ban, classe: 'bg-slate-100 text-slate-500 ring-slate-200' };
-    case 'DEMANDE':
-      return { icone: Clock, classe: 'bg-amber-100 text-amber-700 ring-amber-200' };
-    default:
-      return {
-        icone: ArrowRightLeft,
-        classe: 'bg-indigo-100 text-indigo-700 ring-indigo-200',
-      };
-  }
+  const { icone } = apparenceEvenement(evenement);
+  return { icone: ICONES[icone], classe: TEINTES_UI[icone] };
 }
 
 export function HistoriqueCroyant({ evenements }: { evenements: EvenementCroyant[] }) {
