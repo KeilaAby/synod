@@ -8,6 +8,7 @@ import { ModifierCroyantDialog } from '@/components/croyants/croyant-dialog';
 import { HistoriqueCroyant } from '@/components/croyants/historique-croyant';
 import { OngletsFiche } from '@/components/croyants/onglets-fiche';
 import { PhotoUploader } from '@/components/croyants/photo-uploader';
+import { ChampEditable } from '@/components/croyants/champ-editable';
 import { CourbeDimes } from '@/components/croyants/courbe-dimes';
 import { ImprimerBouton } from '@/components/croyants/imprimer-bouton';
 import type { ContenuImpression } from '@/components/croyants/imprimer-fiche';
@@ -21,6 +22,9 @@ import { getCroyant } from '@/lib/data/croyants';
 import { getOptionsCroyant } from '@/lib/data/croyant-options';
 import { getArbrePerimetre, cheminLisible, indexerParChemin } from '@/lib/data/entities';
 import { chargerVersementsDuCroyant } from '@/lib/data/dimes';
+import type { ChampEditable as CleChamp, OptionChamp } from '@/lib/domain/champ-croyant';
+import { peut } from '@/lib/domain/permissions';
+import { requireSession } from '@/lib/session';
 import { evolutionDesDimes } from '@/lib/domain/dime-evolution';
 import { LIBELLES_EVENEMENT } from '@/lib/domain/dime';
 import { signerPhotos } from '@/lib/data/photos';
@@ -113,6 +117,29 @@ export default async function FicheCroyantPage({ params }: Params) {
    * eglise est un document ANONYME, qui ne prouve rien et ne se classe nulle
    * part.
    */
+  /**
+   * EF-CRO-01 — QUI PEUT CORRIGER SUR PLACE, et sur quelles listes.
+   *
+   * Le droit s'evalue AVEC SA PORTEE (regle 3) : detenir `croyant.update`
+   * ne suffit pas, encore faut-il le detenir sur l'eglise de CE croyant.
+   * L'action le revalide, ce controle-ci ne fait qu'eviter d'afficher un
+   * crayon qui ouvrirait sur un refus.
+   *
+   * LES CELLULES SONT BORNEES A SON EGLISE (RG-05) : proposer celles des
+   * autres ferait choisir une valeur que le serveur refuserait ensuite.
+   */
+  const session = await requireSession();
+  const peutModifier = eglise ? peut(session, 'croyant.update', eglise.path) : false;
+
+  const optionsNationalite = options.nationalites.map((n) => ({
+    valeur: n.id,
+    libelle: n.libelle,
+  }));
+
+  const optionsCellule = options.cellules
+    .filter((c) => c.egliseId === croyant.eglise_id)
+    .map((c) => ({ valeur: c.id, libelle: c.nom }));
+
   const contenuImpression: ContenuImpression = {
     entete: {
       nom: croyant.nom,
@@ -335,12 +362,34 @@ export default async function FicheCroyantPage({ params }: Params) {
                         <Donnee
                           libelle="Nom"
                           valeur={croyant.nom.toLocaleUpperCase('fr')}
+                          champ="nom"
+                          brute={croyant.nom}
+                          croyantId={croyant.id}
+                          modifiable={peutModifier}
                         />
-                        <Donnee libelle="Prénom" valeur={croyant.prenom} />
-                        <Donnee libelle="Sexe" valeur={LIBELLES_SEXE[croyant.sexe]} />
+                        <Donnee
+                          libelle="Prénom"
+                          valeur={croyant.prenom}
+                          champ="prenom"
+                          brute={croyant.prenom}
+                          croyantId={croyant.id}
+                          modifiable={peutModifier}
+                        />
+                        <Donnee
+                          libelle="Sexe"
+                          valeur={LIBELLES_SEXE[croyant.sexe]}
+                          champ="sexe"
+                          brute={croyant.sexe}
+                          croyantId={croyant.id}
+                          modifiable={peutModifier}
+                        />
                         <Donnee
                           libelle="Date de naissance"
                           valeur={`${formatDateLongue(croyant.date_naissance)} · ${age} ans`}
+                          champ="dateNaissance"
+                          brute={croyant.date_naissance}
+                          croyantId={croyant.id}
+                          modifiable={peutModifier}
                         />
                         <Donnee
                           libelle="Statut marital"
@@ -383,6 +432,11 @@ export default async function FicheCroyantPage({ params }: Params) {
                         <Donnee
                           libelle="Nationalité"
                           valeur={croyant.nationalite?.libelle ?? '—'}
+                          champ="nationaliteId"
+                          brute={croyant.nationalite_id}
+                          options={optionsNationalite}
+                          croyantId={croyant.id}
+                          modifiable={peutModifier}
                         />
                       </dl>
                     </CardContent>
@@ -392,15 +446,30 @@ export default async function FicheCroyantPage({ params }: Params) {
                     <CardContent className="space-y-6 p-6">
                       <p className="eyebrow">Coordonnées</p>
                       <dl className="space-y-4">
-                        <Donnee libelle="Adresse" valeur={croyant.adresse} />
+                        <Donnee
+                          libelle="Adresse"
+                          valeur={croyant.adresse}
+                          champ="adresse"
+                          brute={croyant.adresse}
+                          croyantId={croyant.id}
+                          modifiable={peutModifier}
+                        />
                         <Donnee
                           libelle="Téléphone"
                           valeur={croyant.telephone ?? 'Non renseigné'}
                           mono
+                          champ="telephone"
+                          brute={croyant.telephone}
+                          croyantId={croyant.id}
+                          modifiable={peutModifier}
                         />
                         <Donnee
                           libelle="Adresse e-mail"
                           valeur={croyant.email ?? 'Non renseignée'}
+                          champ="email"
+                          brute={croyant.email}
+                          croyantId={croyant.id}
+                          modifiable={peutModifier}
                         />
                       </dl>
                     </CardContent>
@@ -414,6 +483,11 @@ export default async function FicheCroyantPage({ params }: Params) {
                         <Donnee
                           libelle="Cellule de prière"
                           valeur={croyant.cellule?.nom ?? 'Aucune'}
+                          champ="celluleId"
+                          brute={croyant.cellule_id}
+                          options={optionsCellule}
+                          croyantId={croyant.id}
+                          modifiable={peutModifier}
                         />
                         <div className="space-y-1">
                           <dt className="text-muted-foreground text-xs">Grade</dt>
@@ -559,22 +633,57 @@ export default async function FicheCroyantPage({ params }: Params) {
   );
 }
 
+/**
+ * Une donnée de la fiche — EF-CRO-06.
+ *
+ * `champ` LA REND MODIFIABLE SUR PLACE. Sans lui, elle reste en lecture seule :
+ * c'est le cas de tout ce qui déclenche un circuit — l'église (un transfert),
+ * le grade (une promotion), le conjoint (un lien symétrique) — et de ce qui est
+ * calculé, comme l'âge.
+ */
 function Donnee({
   libelle,
   valeur,
   mono,
+  croyantId,
+  champ,
+  brute,
+  options,
+  modifiable,
 }: {
   libelle: string;
   valeur: string;
   mono?: boolean;
+  croyantId?: string;
+  champ?: CleChamp;
+  /** La valeur telle que le contrôle doit la porter, si elle diffère du texte. */
+  brute?: string | null;
+  options?: readonly OptionChamp[];
+  modifiable?: boolean;
 }) {
   return (
     <div className="space-y-1">
       <dt className="text-muted-foreground text-xs">{libelle}</dt>
-      <dd
-        className={mono ? 'text-foreground font-mono text-sm' : 'text-foreground text-sm'}
-      >
-        {valeur}
+      <dd>
+        {champ && croyantId ? (
+          <ChampEditable
+            croyantId={croyantId}
+            champ={champ}
+            affichage={valeur}
+            brute={brute ?? null}
+            options={options}
+            modifiable={Boolean(modifiable)}
+            mono={mono}
+          />
+        ) : (
+          <span
+            className={
+              mono ? 'text-foreground font-mono text-sm' : 'text-foreground text-sm'
+            }
+          >
+            {valeur}
+          </span>
+        )}
       </dd>
     </div>
   );

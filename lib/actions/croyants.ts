@@ -6,22 +6,29 @@ import { chercherDoublons, getCroyant } from '@/lib/data/croyants';
 import { listerGradesOrdonnes } from '@/lib/data/croyant-options';
 import { type NoeudEntite, getArbrePerimetre } from '@/lib/data/entities';
 import { getParametres } from '@/lib/data/settings';
-import { gradeEstCompatibleSexe, nomComplet, validerDatesCroyant } from '@/lib/domain/croyant';
+import {
+  gradeEstCompatibleSexe,
+  nomComplet,
+  validerDatesCroyant,
+} from '@/lib/domain/croyant';
 import {
   arbitreDePromotion,
   correctionDeGradePossible,
   motifDeRetrogradationManquant,
   promotionSoumiseAValidation,
 } from '@/lib/domain/promotion';
+import { colonneDe } from '@/lib/domain/champ-croyant';
 import { type ActionResult, ko, ok } from '@/lib/domain/result';
 import { auditer, requirePermission, requireSession } from '@/lib/session';
 import { executerAction } from './executer';
 import { createClient } from '@/lib/supabase/server';
 import { sanitize } from '@/lib/utils/sanitize';
 import {
+  champCroyantSchema,
   croyantSchema,
   modifierCroyantSchema,
   supprimerCroyantSchema,
+  valeurDeChamp,
 } from '@/lib/validation/croyant';
 import { champsEnErreur } from '@/lib/validation/zod-errors';
 
@@ -54,9 +61,7 @@ function messageErreurSql(erreur: { code?: string; message?: string }): string {
  * pas retrancher la branche d'erreur, les deux formes étant structurellement
  * compatibles.
  */
-type Rattachement =
-  | { ok: false; erreur: string }
-  | { ok: true; eglise: NoeudEntite };
+type Rattachement = { ok: false; erreur: string } | { ok: true; eglise: NoeudEntite };
 
 async function resoudreRattachement(
   egliseId: string,
@@ -79,10 +84,16 @@ async function resoudreRattachement(
   const eglise = arbre.find((e) => e.id === egliseId);
 
   if (!eglise) {
-    return { ok: false, erreur: 'Cette église est introuvable ou hors de votre périmètre.' };
+    return {
+      ok: false,
+      erreur: 'Cette église est introuvable ou hors de votre périmètre.',
+    };
   }
   if (eglise.type !== 'EGLISE') {
-    return { ok: false, erreur: 'RG-04 : le rattachement principal doit être une Église.' };
+    return {
+      ok: false,
+      erreur: 'RG-04 : le rattachement principal doit être une Église.',
+    };
   }
 
   if (celluleId) {
@@ -133,7 +144,10 @@ async function resoudreConjoint(
   // volontaire (règle 15 mise à part, on ne confirme ni n'infirme ici
   // l'existence d'une fiche hors de portée).
   if (error || !candidat) {
-    return { ok: false, erreur: 'Ce conjoint est introuvable ou hors de votre périmètre.' };
+    return {
+      ok: false,
+      erreur: 'Ce conjoint est introuvable ou hors de votre périmètre.',
+    };
   }
   if (candidat.sexe === sexe) {
     return { ok: false, erreur: 'EF-CRO-14 : le conjoint doit être de sexe opposé.' };
@@ -229,7 +243,9 @@ export async function creerCroyant(
         email: data.email,
         telephone: data.telephone,
         date_naissance: data.dateNaissance.toISOString().slice(0, 10),
-        date_bapteme: data.dateBapteme ? data.dateBapteme.toISOString().slice(0, 10) : null,
+        date_bapteme: data.dateBapteme
+          ? data.dateBapteme.toISOString().slice(0, 10)
+          : null,
         adresse: sanitize(data.adresse),
         eglise_id: data.egliseId,
         cellule_id: data.celluleId ?? null,
@@ -338,7 +354,10 @@ export async function modifierCroyant(input: unknown): Promise<ActionResult<void
     const changeDeGrade = existant.grade_id !== data.gradeId;
 
     if (changeDeGrade) {
-      const compatibiliteGrade = await validerCompatibiliteGradeSexe(data.gradeId, data.sexe);
+      const compatibiliteGrade = await validerCompatibiliteGradeSexe(
+        data.gradeId,
+        data.sexe,
+      );
       if (!compatibiliteGrade.ok) {
         return ko(compatibiliteGrade.erreur, { gradeId: [compatibiliteGrade.erreur] });
       }
@@ -369,9 +388,9 @@ export async function modifierCroyant(input: unknown): Promise<ActionResult<void
 
     if (changeDeGrade && data.natureGrade === 'ERREUR' && !correction) {
       return ko(
-        `Cette fiche a plus de ${joursDelai} jours : son grade ne se corrige `
-          + 'plus comme une erreur de saisie. Enregistrez le changement comme une '
-          + 'decision, en indiquant le motif s il s agit d une descente.',
+        `Cette fiche a plus de ${joursDelai} jours : son grade ne se corrige ` +
+          'plus comme une erreur de saisie. Enregistrez le changement comme une ' +
+          'decision, en indiquant le motif s il s agit d une descente.',
       );
     }
 
@@ -385,8 +404,8 @@ export async function modifierCroyant(input: unknown): Promise<ActionResult<void
       })
     ) {
       return ko(
-        'Ce grade est inferieur a celui que porte la fiche : indiquez pourquoi. '
-          + 'Une montee en grade se justifie d elle-meme, une descente non.',
+        'Ce grade est inferieur a celui que porte la fiche : indiquez pourquoi. ' +
+          'Une montee en grade se justifie d elle-meme, une descente non.',
         { motifGrade: ['Motif obligatoire pour une descente en grade.'] },
       );
     }
@@ -409,7 +428,9 @@ export async function modifierCroyant(input: unknown): Promise<ActionResult<void
         email: data.email,
         telephone: data.telephone,
         date_naissance: data.dateNaissance.toISOString().slice(0, 10),
-        date_bapteme: data.dateBapteme ? data.dateBapteme.toISOString().slice(0, 10) : null,
+        date_bapteme: data.dateBapteme
+          ? data.dateBapteme.toISOString().slice(0, 10)
+          : null,
         adresse: sanitize(data.adresse),
         // L'église ne change PAS ici : c'est un transfert (EF-TRF-01).
         cellule_id: data.celluleId ?? null,
@@ -472,10 +493,10 @@ export async function modifierCroyant(input: unknown): Promise<ActionResult<void
       if (erreurDemande) {
         return ko(
           erreurDemande.code === '23505'
-            ? 'Une demande de promotion est deja en attente pour ce croyant. '
-              + 'Le reste de la fiche a bien ete enregistre.'
-            : 'La fiche est enregistree, mais la demande de promotion n a pas pu partir. '
-              + 'Reessayez depuis la fiche.',
+            ? 'Une demande de promotion est deja en attente pour ce croyant. ' +
+                'Le reste de la fiche a bien ete enregistre.'
+            : 'La fiche est enregistree, mais la demande de promotion n a pas pu partir. ' +
+                'Reessayez depuis la fiche.',
         );
       }
 
@@ -611,6 +632,138 @@ export async function restaurerCroyant(input: unknown): Promise<ActionResult<voi
 
     revalidatePath('/croyants');
     revalidatePath('/administration/corbeille');
+    return ok();
+  });
+}
+
+// -----------------------------------------------------------------------------
+
+/**
+ * EF-CRO-01 — modifier UN champ depuis la fiche, sans rouvrir le formulaire.
+ *
+ * POURQUOI UNE ACTION A PART, et non `modifierCroyant` avec un objet partiel.
+ *
+ * La règle 19 dit qu'une action n'écrit que les champs dont son formulaire est
+ * la source. Ici la source est UN champ : l'action en écrit exactement un, et
+ * la colonne visée ne peut venir que du registre (`colonneDe`). Un appel forgé
+ * qui demanderait `eglise_id` ou `matricule` n'a donc aucun chemin — non parce
+ * qu'une liste noire les refuse, mais parce qu'aucune clé ne les désigne.
+ *
+ * Passer par `modifierCroyant` aurait demandé de lui envoyer TOUTE la fiche
+ * pour n'en changer qu'un mot : c'est ce que le crayon existe pour éviter, et
+ * le moindre champ oublié dans la charge utile aurait effacé sa donnée.
+ *
+ * TROIS GARDE-FOUS MÉTIER, tous côté serveur.
+ */
+export async function modifierChampCroyant(input: unknown): Promise<ActionResult<void>> {
+  return executerAction('modifierChampCroyant', async () => {
+    const session = await requireSession();
+
+    const analyse = champCroyantSchema.safeParse(input);
+    if (!analyse.success) return ko('Requête invalide.');
+    const { id, champ, valeur: brute } = analyse.data;
+
+    const existant = await getCroyant(id);
+    if (!existant) return ko('Ce croyant est introuvable ou hors de votre périmètre.');
+
+    const eglise = (await getArbrePerimetre()).find((e) => e.id === existant.eglise_id);
+    if (!eglise) return ko('Son église est hors de votre périmètre.');
+
+    await requirePermission(session, 'croyant.update', eglise.path);
+
+    const lue = valeurDeChamp(champ, brute);
+    if (!lue.ok) return ko(lue.erreur);
+    const valeur = lue.valeur;
+
+    /**
+     * 1. LES DEUX DATES SE TIENNENT — on ne naît pas après son baptême.
+     *
+     * La règle est celle du formulaire complet : on lui passe la date qui
+     * change ET celle qui ne change pas, sinon elle jugerait sur la moitié de
+     * ce qu'elle doit comparer.
+     */
+    if (champ === 'dateNaissance' || champ === 'dateBapteme') {
+      const naissance = champ === 'dateNaissance' ? valeur! : existant.date_naissance;
+      const bapteme = champ === 'dateBapteme' ? valeur : existant.date_bapteme;
+
+      const dates = validerDatesCroyant(
+        new Date(naissance),
+        bapteme ? new Date(bapteme) : null,
+      );
+      if (!dates.ok) return ko(dates.error);
+    }
+
+    /**
+     * 2. LE SEXE DOIT RESTER COMPATIBLE AVEC LE GRADE EN COURS (`0075`).
+     *
+     * Certains grades sont réservés à un sexe. Le formulaire complet filtre les
+     * grades selon le sexe choisi ; ici c'est l'inverse qui arrive — on change
+     * le sexe d'une fiche dont le grade est déjà posé —, et rien ne l'aurait
+     * arrêté. La base a une contrainte, mais son message ne dirait pas lequel
+     * des deux corriger.
+     */
+    if (champ === 'sexe' && existant.grade_id) {
+      const sb = await createClient();
+      const { data: grade } = await sb
+        .from('grades')
+        .select('libelle, sexe_autorise')
+        .eq('id', existant.grade_id)
+        .maybeSingle<{ libelle: string; sexe_autorise: string | null }>();
+
+      if (grade && !gradeEstCompatibleSexe(grade.sexe_autorise, valeur)) {
+        return ko(
+          `Le grade « ${grade.libelle} » n’est pas ouvert à ce sexe. ` +
+            'Changez d’abord le grade, ou corrigez la fiche depuis le formulaire complet.',
+        );
+      }
+    }
+
+    /**
+     * 3. RG-05 — LA CELLULE APPARTIENT À L'ÉGLISE DU CROYANT.
+     *
+     * L'écran ne propose que les bonnes, mais un client non rafraîchi peut
+     * porter la liste d'un autre croyant : on revalide contre l'arbre, qui est
+     * déjà chargé.
+     */
+    if (champ === 'celluleId' && valeur) {
+      const rattachement = await resoudreRattachement(existant.eglise_id, valeur);
+      if (!rattachement.ok) return ko(rattachement.erreur);
+    }
+
+    const sb = await createClient();
+    const { error } = await sb
+      .from('croyants')
+      // La colonne vient du REGISTRE, jamais de la charge utile.
+      .update({
+        [colonneDe(champ)]: typeof valeur === 'string' ? sanitize(valeur) : valeur,
+      })
+      .eq('id', id);
+
+    if (error) return ko(messageErreurSql(error));
+
+    /**
+     * L'AUDIT NOMME LE CHAMP ET SES DEUX VALEURS.
+     *
+     * C'est la forme que `decrireOperation` sait mettre en phrase — « Statut :
+     * actif → inactif ». Une correction faite d'un clic est justement celle
+     * dont on cherchera la trace, parce qu'elle n'a laissé aucun formulaire
+     * derrière elle.
+     */
+    await auditer({
+      session,
+      action: 'UPDATE',
+      table: 'croyants',
+      recordId: id,
+      entityId: existant.eglise_id,
+      diff: {
+        champ: colonneDe(champ),
+        avant: (existant as unknown as Record<string, unknown>)[colonneDe(champ)] ?? null,
+        apres: valeur,
+      },
+    });
+
+    revalidatePath('/croyants');
+    revalidatePath(`/croyants/${id}`);
     return ok();
   });
 }

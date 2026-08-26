@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { type ChampEditable, CHAMPS, CHAMPS_EDITABLES } from '@/lib/domain/champ-croyant';
 import { SEXES, STATUTS_CROYANT, STATUTS_MARITAUX } from '@/lib/domain/croyant';
 
 /**
@@ -159,3 +160,103 @@ export const supprimerCroyantSchema = z.object({ id: z.uuid() });
  * navigateur. Voir `lib/data/croyants.ts` pour la raison — un aller-retour par
  * frappe coutait pres de deux secondes — et la limite qui borne ce choix.
  */
+
+/**
+ * EF-CRO-01 — la modification d'UN SEUL champ, depuis la fiche.
+ *
+ * UN SCHEMA PAR CHAMP, et non un schéma partiel du croyant. Un
+ * `croyantSchema.partial()` accepterait n'importe quelle combinaison — donc
+ * aussi `egliseId`, que ce chemin ne doit jamais écrire. Ici la clé est bornée
+ * au registre, et la valeur est validée par la règle de CE champ.
+ *
+ * LA VALEUR ARRIVE EN CHAÎNE, toujours : un `<input>` et un `<select>` ne
+ * produisent que cela. La conversion — date, `null` pour un champ vidé — se
+ * fait donc ici, une fois, plutôt que dans chaque branche de l'action.
+ */
+export const champCroyantSchema = z.object({
+  id: z.uuid(),
+  champ: z.enum(CHAMPS_EDITABLES),
+  /**
+   * `''` est une valeur LÉGITIME : c'est ainsi qu'on vide un téléphone ou une
+   * date de baptême. Le refus d'un vide sur un champ obligatoire se fait plus
+   * bas, par `valeurDeChamp`, qui connaît le champ.
+   */
+  valeur: z.string().max(255),
+});
+
+export type ChampCroyantInput = z.input<typeof champCroyantSchema>;
+
+/**
+ * La valeur PRÊTE POUR LA BASE, ou le message qui explique le refus.
+ *
+ * Elle rend `Date | string | null` : c'est le type qu'attend la colonne, pas
+ * celui qu'a envoyé l'écran. Le faire ici plutôt que dans l'action garde la
+ * règle testable sans base.
+ */
+export function valeurDeChamp(
+  champ: ChampEditable,
+  brute: string,
+): { ok: true; valeur: string | null } | { ok: false; erreur: string } {
+  const def = CHAMPS[champ];
+  const texte = brute.trim();
+
+  if (texte === '') {
+    return def.facultatif
+      ? { ok: true, valeur: null }
+      : { ok: false, erreur: `${def.label} ne peut pas être vide.` };
+  }
+
+  switch (def.nature) {
+    case 'choix': {
+      // L'ensemble est CLOS : une valeur hors liste vient d'un appel forgé, pas
+      // d'un écran. On la refuse sans chercher à l'interpréter.
+      const connue = def.options?.some((o) => o.valeur === texte);
+      return connue
+        ? { ok: true, valeur: texte }
+        : { ok: false, erreur: `Valeur inconnue pour ${def.label.toLowerCase()}.` };
+    }
+
+    case 'reference': {
+      const uuid = z.uuid().safeParse(texte);
+      return uuid.success
+        ? { ok: true, valeur: texte }
+        : { ok: false, erreur: `${def.label} : référence invalide.` };
+    }
+
+    case 'date': {
+      // Le format d'un `<input type="date">`. On ne passe PAS par `Date` : un
+      // fuseau ferait glisser le 1er janvier au 31 décembre.
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(texte)) {
+        return { ok: false, erreur: `${def.label} : date invalide.` };
+      }
+      const [a, m, j] = texte.split('-').map(Number) as [number, number, number];
+      const d = new Date(Date.UTC(a, m - 1, j));
+      const reelle =
+        d.getUTCFullYear() === a && d.getUTCMonth() === m - 1 && d.getUTCDate() === j;
+
+      return reelle
+        ? { ok: true, valeur: texte }
+        : { ok: false, erreur: `${def.label} : cette date n’existe pas.` };
+    }
+
+    case 'texte': {
+      /**
+       * LES BORNES SONT CELLES DU FORMULAIRE COMPLET, et c'est délibéré : deux
+       * chemins qui écrivent la même colonne avec deux règles finiraient par
+       * accepter ici ce que l'autre refuse.
+       */
+      if (champ === 'email') {
+        return z.email().safeParse(texte).success
+          ? { ok: true, valeur: texte }
+          : { ok: false, erreur: 'Adresse e-mail invalide.' };
+      }
+      if ((champ === 'nom' || champ === 'prenom') && texte.length < 2) {
+        return { ok: false, erreur: `${def.label} : deux caractères au minimum.` };
+      }
+      if (champ === 'adresse' && texte.length < 3) {
+        return { ok: false, erreur: 'L’adresse est trop courte.' };
+      }
+      return { ok: true, valeur: texte };
+    }
+  }
+}
