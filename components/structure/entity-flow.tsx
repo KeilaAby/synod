@@ -34,6 +34,7 @@ import type { ApercuBureaux } from '@/lib/data/bureaux';
 import type { ChiffresStructure } from '@/lib/data/structure-chiffres';
 
 import type { EntiteFlux } from './entite';
+import { MenuEntiteUnique } from './entity-menu';
 import { NoeudEntite } from './entity-node';
 import { useEntityDialogs } from './use-entity-dialogs';
 
@@ -586,13 +587,24 @@ export default function EntityFlow({
 }) {
   return (
     <ReactFlowProvider>
-      <Organigramme
-        entites={entites}
-        apercuBureaux={apercuBureaux}
-        optionsCroyant={optionsCroyant}
-        chiffresStructure={chiffresStructure}
-        joursDelai={joursDelai}
-      />
+      {/*
+        UN SEUL MENU D'ENTITE OUVERT A LA FOIS.
+
+        React Flow intercepte les evenements pointeur de son canevas, si bien
+        que Radix ne voyait jamais le clic « au dehors » qui ferme le menu
+        precedent : trois clics successifs laissaient trois menus empiles sur
+        le plan. Le fournisseur tient un seul identifiant ouvert, et le
+        second clic ferme le premier par construction.
+      */}
+      <MenuEntiteUnique>
+        <Organigramme
+          entites={entites}
+          apercuBureaux={apercuBureaux}
+          optionsCroyant={optionsCroyant}
+          chiffresStructure={chiffresStructure}
+          joursDelai={joursDelai}
+        />
+      </MenuEntiteUnique>
     </ReactFlowProvider>
   );
 }

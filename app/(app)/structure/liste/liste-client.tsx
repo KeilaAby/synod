@@ -8,7 +8,7 @@ import { useSession } from '@/components/shared/session-provider';
 import { StatusBadge } from '@/components/shared/status-badge';
 import type { EntiteFlux } from '@/components/structure/entite';
 import { EntityFilters, type FiltreActif } from '@/components/structure/entity-filters';
-import { EntityMenu } from '@/components/structure/entity-menu';
+import { EntityMenu, MenuEntiteUnique } from '@/components/structure/entity-menu';
 import { TypeBadge } from '@/components/structure/type-badge';
 import type { OptionsCroyant } from '@/components/croyants/croyant-dialog';
 import { useEntityDialogs } from '@/components/structure/use-entity-dialogs';
@@ -157,6 +157,14 @@ export function ListeStructureClient({
   }
 
   return (
+    /*
+      UN SEUL MENU OUVERT A LA FOIS — le MEME comportement que
+      l'organigramme (EF-STR-08). La liste n'a pas le canevas de React Flow
+      qui avale les clics, mais deux ecrans qui partagent un menu doivent le
+      faire se comporter pareil : sans cela, l'utilisateur reapprend celui
+      qu'il ouvre le moins souvent.
+    */
+    <MenuEntiteUnique>
     <div className="space-y-8">
       <EntityFilters
         recherche={recherche}
@@ -280,5 +288,6 @@ export function ListeStructureClient({
 
       {dialogues}
     </div>
+    </MenuEntiteUnique>
   );
 }

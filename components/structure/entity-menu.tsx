@@ -1,5 +1,7 @@
 'use client';
 
+import { createContext, useContext, useMemo, useState } from 'react';
+
 import {
   Briefcase,
   ChevronDown,
@@ -24,6 +26,47 @@ import {
 import { entreeBureauDeEntite, peutOuvrirUnAutreBureau } from '@/lib/domain/bureau';
 import { ENTITY_LABELS, type EntityType, typeEnfantDe } from '@/lib/domain/hierarchy';
 import { cn } from '@/lib/utils';
+
+/**
+ * UN SEUL MENU OUVERT A LA FOIS — signale le 26 aout 2026.
+ *
+ * LE DEFAUT. Sur l'organigramme, cliquer successivement le « ⋮ » de trois
+ * entites laissait les TROIS menus ouverts, empiles sur le plan. Chaque
+ * `DropdownMenu` de Radix gere son etat pour lui seul : c'est le clic « au
+ * dehors » qui ferme le precedent, et React Flow intercepte les evenements
+ * pointeur de son canevas avant que la couche de Radix ne les voie.
+ *
+ * POURQUOI ON NE CORRIGE PAS LA PROPAGATION. Parier sur l'ordre dans lequel
+ * deux bibliotheques se passent un evenement pointeur, c'est reparer un
+ * symptome dont la cause peut se deplacer a la prochaine mise a jour de l'une
+ * ou de l'autre. Ici l'etat DEVIENT explicite : un seul identifiant ouvert,
+ * tenu au-dessus des menus. Ouvrir le second ferme le premier PAR
+ * CONSTRUCTION, quel que soit le chemin qu'a pris le clic.
+ *
+ * LE CONTEXTE EST FACULTATIF. Sans fournisseur, chaque menu reste autonome,
+ * exactement comme avant — aucun appelant existant n'a a etre modifie pour
+ * continuer de fonctionner. Les deux ecrans de la structure en posent un ;
+ * un troisieme, plus tard, choisira.
+ */
+interface MenuUnique {
+  readonly ouvertId: string | null;
+  readonly setOuvertId: (id: string | null) => void;
+}
+
+const ContexteMenuUnique = createContext<MenuUnique | null>(null);
+
+export function MenuEntiteUnique({ children }: { children: React.ReactNode }) {
+  const [ouvertId, setOuvertId] = useState<string | null>(null);
+
+  // La valeur est memoisee : sans cela, chaque rendu de l'ecran donnerait un
+  // objet neuf, et TOUS les menus se re-rendraient a chaque frappe dans la
+  // recherche.
+  const valeur = useMemo<MenuUnique>(() => ({ ouvertId, setOuvertId }), [ouvertId]);
+
+  return (
+    <ContexteMenuUnique.Provider value={valeur}>{children}</ContexteMenuUnique.Provider>
+  );
+}
 
 /**
  * Menu d'actions d'une entite — EF-STR-01, EF-STR-06, EF-STR-08.
@@ -74,6 +117,21 @@ export function EntityMenu({
   repli?: { replie: boolean; nbEnfants: number; onBasculer: (id: string) => void };
   className?: string;
 }) {
+  /**
+   * L'OUVERTURE EST CONTROLEE DES QU'UN FOURNISSEUR EST PRESENT.
+   *
+   * `open` et `onOpenChange` ne sont passes que dans ce cas : les fournir a
+   * `undefined` ferait basculer Radix en mode controle avec un etat qui ne
+   * change jamais, et le menu ne s'ouvrirait plus du tout.
+   */
+  const unique = useContext(ContexteMenuUnique);
+  const controle = unique
+    ? {
+        open: unique.ouvertId === id,
+        onOpenChange: (ouvert: boolean) => unique.setOuvertId(ouvert ? id : null),
+      }
+    : {};
+
   const typeEnfant = typeEnfantDe(type);
 
   // La REGLE est dans le domaine (`entreeBureauDeEntite`) ; ici, seulement de
@@ -91,7 +149,7 @@ export function EntityMenu({
   } as const;
 
   return (
-    <DropdownMenu>
+    <DropdownMenu {...controle}>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
