@@ -6152,8 +6152,34 @@ Sept points traités et vérifiés :
 - Montants de recettes (positifs) et bordures supérieures des cartes positives en noir (`text-foreground` / `bg-foreground`).
 - Dépenses, chiffres négatifs et cartes déficitaires en rouge (`text-rose-700` / `from-rose-400 to-orange-500`).
 
-`pnpm verify` : 49 suites de tests, 914 tests unitaires passés, 0 erreur TypeScript, 0 secret, build Next.js validé.
+## 27 août 2026 — Module de Planification des Visites Pastorales & Ordres de Mission (Migration 0078)
 
+**1. Conception & Validation du Mockup Interactif (`public/mockup-visites-pastorales.html`).**
+- Calendrier horizontal fluide de 31 jours défilable sur l'ensemble du mois en cours (`scroll-x`, jours passés et à venir).
+- Bouton `+` discret dans l'en-tête de chaque jour pour pré-sélectionner la date de la visite pastorale.
+- Bouton crayon `pencil` discret sur les cartes pour modifier les visites modifiables (`PLANIFIE` et `CONFIRME`).
+- Drag & Drop interactif pour reprogrammer la date d'une visite au glisser-déposer sur un autre jour.
+- Formulaire de planification avec saisies libres pour le Type de Culte / Célébration et le Rôle de chaque missionnaire au sein de la délégation.
+- Modale et document officiel d'Ordre de Mission Pastoral au format A4 avec portraits signés des gradés désignés, références, verset biblique et blocs de signatures/sceaux.
 
+**2. Base de données & Migration SQL (`supabase/migrations/0078_visites_pastorales.sql`, `supabase/install.sql`).**
+- Tables relationnelles `visites_pastorales` et `visites_pastorales_delegues` avec clés étrangères vers `entities`, `croyants` et `profiles`.
+- Génération automatique des références officielles d'ordre de mission `OM-SYNOD-AAAA-MM/XXX` par trigger PostgreSQL.
+- Politiques RLS fines : lecture autorisée pour l'entité initiatrice et pour l'entité cible accueillante ; création, modification, validation et annulation restreintes à l'entité initiatrice.
+- Déclaration des portées propres dans `fn_permissions_portee_propre()` : `visite.create`, `visite.update`, `visite.validate`, `visite.delete`, `trash.purge`.
 
+**3. Habilitations Fines & Domaine (`lib/domain/permissions.ts`, `lib/domain/profils-habilitation.ts`, `lib/domain/visites-pastorales.ts`).**
+- Déclaration des 6 permissions fines : `visite.read`, `visite.create` (PROPRE), `visite.update` (PROPRE), `visite.validate` (PROPRE), `visite.print`, `visite.delete` (PROPRE).
+- Intégration dans `ROLE_TEMPLATES` (`SUPERADMIN`, `ENTITE_ADMIN`, `ENTITE_OPERATEUR`, `LECTEUR`) et dans `PROFILS_RACCOURCIS` (`RESPONSABLE`, `SECRETAIRE`, `CONSULTATION`).
+- Types et schémas de validation Zod (`CreerVisiteSchema`, `ModifierVisiteSchema`, `ReprogrammerVisiteSchema`).
+- Règle métier `peutDeplacerVisite(statut)` : seules les visites en statut `PLANIFIE` et `CONFIRME` peuvent être déplacées ou modifiées.
 
+**4. Composants & Écrans Applicatifs (`/visites`).**
+- Entrée de menu principale `Visites pastorales` dans la barre de navigation latérale (`components/layout/nav-items.ts`).
+- Server component `app/(app)/visites/page.tsx` avec chargement concurrent sécurisé (`requireSession`, `listerVisitesPastorales`, `listerEntitesDisponibles`, `listerCroyantsCandidats`, `getParametres`).
+- Client component `app/(app)/visites/visites-client.tsx` avec cartes KPI synthétiques, barre d'actions & filtres (par entité, par statut, recherche textuelle en temps réel), bascule Vue Calendrier Horizontal / Vue Liste.
+- Calendrier horizontal `components/visites/calendrier-horizontal.tsx` : affichage des 31 colonnes de jours, dimanches sobres conformes à la charte, boutons discrets `+` et crayon, glisser-déposer avec retour visuel et mise à jour en temps réel.
+- Dialogue de planification `components/visites/visite-dialog.tsx` : sélection des entités organisatrices et cibles, date/heure, type de culte en saisie libre, sélecteur de croyants candidats avec photos et saisie libre du rôle missionnaire.
+- Modale et impression A4 `components/visites/ordre-mission-dialog.tsx` et `components/visites/imprimer-ordre-mission.ts`.
+
+`pnpm verify` : 54 suites de tests, 1056 tests unitaires passés, 0 erreur TypeScript, 0 problème ESLint, 0 secret, bundle `install.sql` et build Next.js validés.

@@ -39,7 +39,7 @@ export const PROFILS_RACCOURCIS: readonly ProfilRaccourci[] = [
   {
     cle: 'RESPONSABLE',
     libelle: 'Responsable d’entité',
-    description: 'Structure, croyants, bureaux et rapports de son entité.',
+    description: 'Structure, croyants, bureaux, visites pastorales et rapports de son entité.',
     permissions: [
       'entity.read',
       'entity.create',
@@ -52,6 +52,11 @@ export const PROFILS_RACCOURCIS: readonly ProfilRaccourci[] = [
       'transfer.approve',
       'transfer.certify',
       'bapteme.create',
+      'visite.read',
+      'visite.create',
+      'visite.update',
+      'visite.validate',
+      'visite.print',
       'bureau.read',
       'bureau.manage',
       'report.read',
@@ -79,7 +84,7 @@ export const PROFILS_RACCOURCIS: readonly ProfilRaccourci[] = [
   {
     cle: 'SECRETAIRE',
     libelle: 'Secrétaire',
-    description: 'Tenue du registre des croyants, transferts et baptêmes.',
+    description: 'Tenue du registre des croyants, transferts, baptêmes et visites pastorales.',
     permissions: [
       'entity.read',
       'croyant.read',
@@ -89,6 +94,9 @@ export const PROFILS_RACCOURCIS: readonly ProfilRaccourci[] = [
       'croyant.transfer',
       'transfer.certify',
       'bapteme.create',
+      'visite.read',
+      'visite.create',
+      'visite.print',
       'bureau.read',
       'report.read',
     ],
@@ -100,6 +108,7 @@ export const PROFILS_RACCOURCIS: readonly ProfilRaccourci[] = [
     permissions: [
       'entity.read',
       'croyant.read',
+      'visite.read',
       'bureau.read',
       'finance.read',
       'report.read',

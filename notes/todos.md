@@ -1,6 +1,6 @@
 # TODO — Demandes en cours de planification
 
-> Liste réinitialisée et tenue à jour au **23 août 2026**.
+> Liste réinitialisée et tenue à jour au **27 août 2026**.
 >
 > **À lire avant de commencer** : [`.agents/rules/reprise.md`](../.agents/rules/reprise.md),
 > puis `CLAUDE.md`, [`cdg.md`](cdg.md) et [`plan.md`](plan.md).
@@ -11,25 +11,37 @@
 
 **Appliquées : `0001` à `0077`**, confirmé par l'utilisateur le 26 août 2026.
 
-**Aucune migration n'attend.**
+**1 migration attend son application :**
+- `0078_visites_pastorales.sql` (Tables `visites_pastorales`, `visites_pastorales_delegues`, triggers de numérotation d'ordres de mission, RLS et fonction des portées propres `fn_permissions_portee_propre`).
 
 C'est **cette ligne** qui fait foi — pas le numéro le plus élevé de
 `supabase/migrations/`, qui dit ce qui est *écrit* et non ce qui est
 *appliqué*. Les migrations ne s'appliquent pas toutes seules : l'utilisateur
 les passe dans l'éditeur SQL Supabase et le confirme.
 
-### Le détail des sept dernières
+### Le détail des huit dernières
 
 | N° | Ce qu'elle apporte | Sans elle |
 |---|---|---|
+| `0078` | Tables `visites_pastorales` et `visites_pastorales_delegues`, séquence de référence `OM-SYNOD-AAAA-MM/XXX`, politiques RLS et portées propres des droits de visite | Le module de planification des visites pastorales et ordres de mission ne peut persister ses données |
 | `0077` | `fn_evolution_effectifs(p_entity, p_ancre)` — calcul des jalons comparatifs (S-1, M-1, T-1, Sem-1, N-1) et de la série mensuelle des effectifs sur 12 mois | Les cartes Croyants et la vue graphique en Aire ne disposent pas de l'historique d'évolution temporelle |
 | `0076` | `finance_entries.annule_par` (FK profiles) et `finance_entries.annule_le` (timestamptz) avec mise à jour du trigger `fn_finance_before_write` | L'annulation d'un mouvement financier ne trace que le motif sans identifier l'opérateur ni la date précise |
 | `0075` | `grades.sexe_autorise` (`TOUS`, `M`, `F` avec check constraint) — restriction des sexes assignables à un grade ecclésial | Les grades acceptent indifféremment tout sexe sans contrôle ecclésial |
 | `0074` | Table `evenements_dime` (`niveau_hote`, `ordre`, RLS), conversion de `finance_entries.dime_evenement` en `text` + FK, mise à jour de `fn_saisir_collecte_dime` et `fn_reordonner_referentiel` | Les événements de collecte de dîmes restent figés dans un enum PostgreSQL et du code TypeScript, sans écran d'administration |
 | `0073` | `entities.logo_key` — l'en-tête propre à chaque entité, source du bloc Image d'un rapport (EF-RAP-02) ; à défaut, le logo de l'organisation le remplace | Un seul logo pour toute l'organisation, alors que certaines entités ont leur propre en-tête |
 | `0072` | Élargit `dime_rapprochements` à l'**église résolue** (`select`/`write` RLS, `fn_resoudre_rapprochement`, nouvelle `fn_marquer_enveloppe_anonyme`) en plus de l'entité collectrice | Une église qui n'a rien collecté ne peut ni rapprocher, ni créer une fiche, ni déclarer anonyme une ligne que le fichier lui attribue |
+| `0071` | `croyants.conjoint_id` (FK croyants, ON DELETE SET NULL), trigger de réciprocité conjugale `fn_croyants_conjoint_reciprocite` | Le lien conjugal reste une métadonnée textuelle non relationnelle |
 
 ---
+
+## Tâches Livrées (27 août 2026)
+
+- [x] **12. Module de Planification des Visites Pastorales & Ordres de Mission**
+      - Migration `0078_visites_pastorales.sql` et bundle `install.sql` : tables `visites_pastorales`, `visites_pastorales_delegues`, triggers de séquence `OM-SYNOD-AAAA-MM/XXX`, RLS et portées propres dans `fn_permissions_portee_propre()`.
+      - Calendrier horizontal fluide (31 jours du mois) avec navigation rapide de mois, bouton centrage sur aujourd'hui, bouton discret `+` par jour pour planifier, bouton discret crayon pour modifier les visites actives, drag & drop interactif pour reprogrammer les visites planifiées et confirmées.
+      - Saisie libre pour le type de culte et le rôle de chaque missionnaire désigné, sélecteur de croyants gradés avec portraits signés.
+      - Générateur et modale d'impression officielle au format A4 de l'Ordre de Mission Pastoral avec portraits, sceaux et signatures.
+      - 6 permissions fines (`visite.read`, `visite.create`, `visite.update`, `visite.validate`, `visite.print`, `visite.delete`) intégrées aux gabarits et profils d'habilitation. 1056 tests unitaires validés (54 fichiers).
 
 ## Tâches Livrées (26 août 2026)
 

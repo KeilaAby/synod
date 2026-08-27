@@ -157,6 +157,42 @@ export const PERMISSIONS = {
     description: 'Enregistrer une cérémonie de baptême (crée automatiquement les fiches de croyants correspondantes).',
   },
 
+  // --- Visites pastorales ----------------------------------------------------
+  'visite.read': {
+    label: 'Consulter les visites pastorales',
+    group: 'Croyants',
+    description: 'Consulter le calendrier, la liste et les détails des visites pastorales du périmètre.',
+  },
+  'visite.create': {
+    portee: 'PROPRE',
+    label: 'Planifier une visite pastorale',
+    group: 'Croyants',
+    description: 'Désigner des serviteurs gradés et planifier une visite pastorale pour son entité.',
+  },
+  'visite.update': {
+    portee: 'PROPRE',
+    label: 'Modifier une visite pastorale',
+    group: 'Croyants',
+    description: 'Reprogrammer la date, le culte ou modifier la délégation d’une visite pastorale.',
+  },
+  'visite.validate': {
+    portee: 'PROPRE',
+    label: 'Valider et délivrer un ordre de mission',
+    group: 'Croyants',
+    description: 'Confirmer la visite pastorale et valider l’ordre de mission officiel.',
+  },
+  'visite.print': {
+    label: 'Imprimer l’ordre de mission',
+    group: 'Croyants',
+    description: 'Éditer et imprimer l’ordre de mission pastoral officiel au format A4.',
+  },
+  'visite.delete': {
+    portee: 'PROPRE',
+    label: 'Annuler une visite pastorale',
+    group: 'Croyants',
+    description: 'Annuler ou supprimer une visite pastorale planifiée.',
+  },
+
   // --- Bureaux ---------------------------------------------------------------
   'bureau.read': {
     label: 'Consulter les bureaux',
@@ -429,6 +465,12 @@ export const ROLE_TEMPLATES: Record<UserRole, readonly Permission[]> = {
     'transfer.certify',
     'croyant.grade.approve',
     'bapteme.create',
+    'visite.read',
+    'visite.create',
+    'visite.update',
+    'visite.validate',
+    'visite.print',
+    'visite.delete',
     'bureau.read',
     'bureau.manage',
     'finance.read',
@@ -458,6 +500,10 @@ export const ROLE_TEMPLATES: Record<UserRole, readonly Permission[]> = {
     'croyant.create',
     'croyant.update',
     'bapteme.create',
+    'visite.read',
+    'visite.create',
+    'visite.update',
+    'visite.print',
     'bureau.read',
     'finance.read',
     'finance.create',
@@ -472,6 +518,7 @@ export const ROLE_TEMPLATES: Record<UserRole, readonly Permission[]> = {
   LECTEUR: [
     'entity.read',
     'croyant.read',
+    'visite.read',
     'bureau.read',
     'finance.read',
     'report.read',

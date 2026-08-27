@@ -1,6 +1,7 @@
 import {
   ArrowLeftRight,
   Briefcase,
+  CalendarCheck2,
   Droplets,
   FileText,
   LayoutDashboard,
@@ -74,6 +75,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: 'Baptemes',
     icon: Droplets,
     permission: 'croyant.read',
+  },
+  {
+    href: '/visites',
+    label: 'Visites pastorales',
+    icon: CalendarCheck2,
+    permission: 'visite.read',
   },
   {
     href: '/bureaux',

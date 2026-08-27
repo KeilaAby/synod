@@ -41,6 +41,8 @@ export const LIBELLES_TABLE: Record<string, string> = {
   email_templates: 'Modèles de message',
   report_templates: 'Modèles de rapport',
   report_instances: 'Rapports générés',
+  visites_pastorales: 'Visites pastorales',
+  visites_pastorales_delegues: 'Délégations de visite pastorale',
 };
 
 export function libelleDomaine(table: string): string {

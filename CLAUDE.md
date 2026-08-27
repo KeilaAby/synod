@@ -15,13 +15,20 @@ Application web de gestion d'église. **Lire avant toute tâche** :
 Toute modification doit citer l'exigence ou la règle qu'elle sert. Si une
 demande contredit `cdg.md`, signalez-le avant d'implémenter.
 
-## État — 26 août 2026
+## État — 27 août 2026
 
-**Lots 0 à 8 livrés.** Migrations `0001` à `0077` **appliquées** — confirmé par
-l'utilisateur le 26 août 2026 (bundle `supabase/install.sql` régénéré).
-914 tests unitaires, 49 fichiers. `pnpm verify` vert (secrets, lint, typecheck, tests, build).
+**Lots 0 à 8 livrés + Module Visites Pastorales.** Migrations `0001` à `0077` appliquées, migration `0078_visites_pastorales.sql` écrite (bundle `supabase/install.sql` régénéré).
+1056 tests unitaires, 54 fichiers. `pnpm verify` vert (secrets, lint, typecheck, tests, build).
 
-**Dernières livraisons du 26 août 2026 :**
+**Dernières livraisons du 27 août 2026 :**
+1. **Module de Planification des Visites Pastorales & Ordres de Mission (`/visites`, `0078_visites_pastorales.sql`)** :
+   - Base de données : tables `visites_pastorales` et `visites_pastorales_delegues`, triggers de numérotation séquentielle `OM-SYNOD-AAAA-MM/XXX`, RLS et portées propres dans `fn_permissions_portee_propre()`.
+   - Habilitations : 6 permissions fines (`visite.read`, `visite.create`, `visite.update`, `visite.validate`, `visite.print`, `visite.delete`) intégrées aux gabarits de rôles et profils d'habilitation.
+   - Calendrier horizontal fluide : défilement sur 31 jours (`scroll-x`, sans blocage sur les jours passés), bouton discret `+` par date, bouton discret crayon sur cartes actives, Drag & Drop interactif avec reprogrammation immédiate et sécurisée.
+   - Formulaire ergonomique : saisie libre du Type de Culte / Célébration, saisie libre du Rôle missionnaire de chaque gradé désigné, sélecteur de croyants candidats avec portraits signés.
+   - Ordre de mission solennel A4 : document officiel prêt à l'impression avec photos des membres, références, verset biblique et blocs de signatures/sceaux.
+
+**Livraisons précédentes (26 août 2026) :**
 1. **Évolution temporelle des effectifs & Courbe en aire (`0077_evolution_effectifs.sql`, `CourbeEffectifs`)** :
    - Fonction SQL `fn_evolution_effectifs` calculant les 5 jalons comparatifs (semaine passée, mois dernier par défaut, trimestre, semestre, année) et la série 12 mois.
    - Barre d'évolution temporelle compacte au bas des cartes d'effectifs avec sélecteur discret.

@@ -1,0 +1,2002 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SYNOD — Planification des Visites Pastorales</title>
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    :root {
+      --bg: #F8FAFC;
+      --card: #FFFFFF;
+      --foreground: #0F172A;
+      --muted: #F1F5F9;
+      --muted-foreground: #64748B;
+      --border: #E2E8F0;
+      --border-focus: #0F172A;
+      --primary: #0F172A;
+      --primary-foreground: #FFFFFF;
+      --accent: #0F172A;
+      --accent-soft: #F1F5F9;
+      --accent-foreground: #0F172A;
+      --emerald: #10B981;
+      --emerald-soft: #ECFDF5;
+      --emerald-foreground: #047857;
+      --amber: #F59E0B;
+      --amber-soft: #FFFBEB;
+      --amber-foreground: #B45309;
+      --rose: #EF4444;
+      --rose-soft: #FEF2F2;
+      --rose-foreground: #B91C1C;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --radius-xl: 20px;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
+      --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.06);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--foreground);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Nav */
+    header.synod-topbar {
+      background: #FFFFFF;
+      border-bottom: 1px solid var(--border);
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+    }
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-size: 1.15rem;
+      letter-spacing: -0.02em;
+    }
+    .brand-badge {
+      background: var(--muted);
+      color: var(--muted-foreground);
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Main Container */
+    .app-layout {
+      display: flex;
+      flex: 1;
+    }
+    .sidebar-stub {
+      width: 240px;
+      background: #FFFFFF;
+      border-right: 1px solid var(--border);
+      padding: 20px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--muted-foreground);
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    .nav-link:hover {
+      background: var(--muted);
+      color: var(--foreground);
+    }
+    .nav-link.active {
+      background: var(--primary);
+      color: var(--primary-foreground);
+      font-weight: 600;
+    }
+
+    main.content-area {
+      flex: 1;
+      padding: 28px 36px;
+      max-width: 1560px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* Header Page */
+    .page-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .eyebrow {
+      font-size: 0.725rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted-foreground);
+      margin-bottom: 4px;
+    }
+    .page-title {
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--foreground);
+      line-height: 1.2;
+    }
+    .page-subtitle {
+      font-size: 0.875rem;
+      color: var(--muted-foreground);
+      margin-top: 4px;
+    }
+
+    /* Button Styles */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      padding: 9px 16px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: var(--primary-foreground);
+    }
+    .btn-primary:hover {
+      background: #1e293b;
+    }
+    .btn-outline {
+      background: #FFFFFF;
+      border-color: var(--border);
+      color: var(--foreground);
+    }
+    .btn-outline:hover {
+      background: var(--muted);
+    }
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      border-radius: var(--radius-sm);
+    }
+    .btn-icon {
+      padding: 8px;
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-md);
+    }
+
+    /* KPI Cards Summary */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .kpi-card {
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--primary);
+    }
+    .kpi-card.kpi-emerald::before { background: var(--emerald); }
+    .kpi-card.kpi-amber::before { background: var(--amber); }
+
+    .kpi-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted-foreground);
+    }
+    .kpi-value {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: var(--foreground);
+      margin: 4px 0 2px;
+      letter-spacing: -0.02em;
+    }
+    .kpi-sub {
+      font-size: 0.775rem;
+      color: var(--muted-foreground);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Control Toolbar */
+    .toolbar-box {
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      gap: 12px;
+      flex-wrap: wrap;
+      box-shadow: var(--shadow-sm);
+    }
+    .toolbar-left, .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .select-custom {
+      height: 38px;
+      padding: 0 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: #FFFFFF;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--foreground);
+      outline: none;
+      cursor: pointer;
+    }
+    .select-custom:focus {
+      border-color: var(--border-focus);
+    }
+
+    .search-input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .search-input-wrapper input {
+      height: 38px;
+      padding: 0 12px 0 34px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      font-size: 0.85rem;
+      outline: none;
+      width: 250px;
+      transition: all 0.15s;
+    }
+    .search-input-wrapper input:focus {
+      border-color: var(--border-focus);
+      width: 290px;
+    }
+    .search-input-wrapper i, .search-input-wrapper svg {
+      position: absolute;
+      left: 10px;
+      width: 16px;
+      height: 16px;
+      color: var(--muted-foreground);
+      pointer-events: none;
+    }
+
+    .view-toggle {
+      display: inline-flex;
+      background: var(--muted);
+      padding: 3px;
+      border-radius: var(--radius-md);
+      gap: 2px;
+    }
+    .view-btn {
+      border: none;
+      background: transparent;
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--muted-foreground);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+    .view-btn.active {
+      background: #FFFFFF;
+      color: var(--foreground);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    }
+
+    /* HORIZONTAL SCROLL CALENDAR */
+    .calendar-container {
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 24px;
+    }
+    .calendar-month-header {
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      background: #FAFAFA;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .current-month-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .month-picker-input {
+      height: 34px;
+      padding: 0 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: #FFFFFF;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--foreground);
+      outline: none;
+      cursor: pointer;
+    }
+
+    /* Horizontal Scroll Area */
+    .horizontal-scroll-track-wrapper {
+      position: relative;
+      width: 100%;
+    }
+    .horizontal-scroll-container {
+      display: flex;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scroll-behavior: smooth;
+      padding: 16px 20px;
+      gap: 12px;
+      background: #F8FAFC;
+      scrollbar-width: thin;
+      scrollbar-color: #CBD5E1 #F1F5F9;
+    }
+    .horizontal-scroll-container::-webkit-scrollbar {
+      height: 10px;
+    }
+    .horizontal-scroll-container::-webkit-scrollbar-track {
+      background: #F1F5F9;
+      border-radius: 6px;
+    }
+    .horizontal-scroll-container::-webkit-scrollbar-thumb {
+      background: #CBD5E1;
+      border-radius: 6px;
+    }
+    .horizontal-scroll-container::-webkit-scrollbar-thumb:hover {
+      background: #94A3B8;
+    }
+
+    /* Day Column Card (Sans bleu sur dimanche) */
+    .day-column-card {
+      flex: 0 0 250px;
+      min-width: 250px;
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      display: flex;
+      flex-direction: column;
+      min-height: 480px;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.15s ease;
+    }
+    /* Dimanche Sobre (Couleurs neutres) */
+    .day-column-card.is-sunday {
+      border: 1px solid var(--border);
+      background: #FFFFFF;
+    }
+    .day-column-card.is-today {
+      border: 2px solid var(--primary);
+      box-shadow: var(--shadow-md);
+    }
+    .day-column-card.is-past {
+      background: #FAFAFB;
+      opacity: 0.94;
+    }
+    .day-column-card.drag-over {
+      background: #F1F5F9 !important;
+      border: 2px dashed var(--primary) !important;
+      transform: scale(1.02);
+    }
+
+    /* Day Column Header */
+    .day-col-header {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #FFFFFF;
+      border-top-left-radius: var(--radius-md);
+      border-top-right-radius: var(--radius-md);
+      gap: 6px;
+    }
+    .day-col-header-left {
+      display: flex;
+      flex-direction: column;
+    }
+    .day-col-weekday {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted-foreground);
+    }
+    .day-col-date-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 1px;
+    }
+    .day-col-number {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--foreground);
+    }
+    .day-col-pill-today {
+      background: var(--primary);
+      color: #FFFFFF;
+      font-size: 0.62rem;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    .day-col-pill-cult {
+      background: var(--muted);
+      color: var(--foreground);
+      border: 1px solid var(--border);
+      font-size: 0.62rem;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    /* Bouton Discret "+" d'ajout de visite par jour */
+    .btn-add-day {
+      width: 26px;
+      height: 26px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: #FFFFFF;
+      color: var(--muted-foreground);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-add-day:hover {
+      background: var(--primary);
+      color: var(--primary-foreground);
+      border-color: var(--primary);
+    }
+
+    /* Drop Body in Day Column */
+    .day-col-body {
+      flex: 1;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 380px;
+    }
+    .day-empty-hint {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      border: 1px dashed #CBD5E1;
+      border-radius: var(--radius-sm);
+      color: #94A3B8;
+      font-size: 0.75rem;
+      font-weight: 500;
+      padding: 20px 10px;
+      text-align: center;
+      background: rgba(248, 250, 252, 0.5);
+    }
+
+    /* DRAGGABLE VISIT CARD CHIP */
+    .visit-card-chip {
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--primary);
+      border-radius: var(--radius-md);
+      padding: 10px 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+      user-select: none;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      position: relative;
+    }
+    .visit-card-chip[draggable="true"] {
+      cursor: grab;
+    }
+    .visit-card-chip[draggable="true"]:active {
+      cursor: grabbing;
+    }
+    .visit-card-chip.dragging {
+      opacity: 0.35;
+      transform: scale(0.95);
+    }
+    .visit-card-chip:hover {
+      box-shadow: var(--shadow-md);
+      border-color: #CBD5E1;
+      transform: translateY(-2px);
+    }
+    .visit-card-chip.status-confirme { border-left-color: var(--emerald); }
+    .visit-card-chip.status-planifie { border-left-color: var(--amber); }
+    .visit-card-chip.status-effectue {
+      border-left-color: #94A3B8;
+      background: #F8FAFC;
+      cursor: not-allowed !important;
+    }
+
+    .chip-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+    .chip-cult-time {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--muted-foreground);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .chip-actions-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    /* Bouton Crayon (Pencil) discret d'édition */
+    .btn-chip-edit {
+      width: 22px;
+      height: 22px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--muted-foreground);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-chip-edit:hover {
+      background: var(--muted);
+      color: var(--foreground);
+      border-color: var(--border);
+    }
+
+    .chip-target-church {
+      font-size: 0.84rem;
+      font-weight: 700;
+      color: var(--foreground);
+      line-height: 1.3;
+    }
+    .chip-cult-theme {
+      font-size: 0.75rem;
+      color: var(--muted-foreground);
+      font-style: italic;
+      line-height: 1.3;
+      border-left: 2px solid var(--border);
+      padding-left: 6px;
+    }
+    .chip-delegates-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding-top: 4px;
+      border-top: 1px dashed var(--border);
+    }
+    .avatar-group {
+      display: flex;
+      align-items: center;
+    }
+    .avatar-mini {
+      width: 24px;
+      height: 24px;
+      border-radius: 9999px;
+      border: 2px solid #FFFFFF;
+      margin-left: -7px;
+      object-fit: cover;
+      background: #E2E8F0;
+    }
+    .avatar-mini:first-child {
+      margin-left: 0;
+    }
+    .chip-primary-name {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--foreground);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Scroll Navigation Controls */
+    .scroll-nav-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 20px;
+      background: #FFFFFF;
+      border-top: 1px solid var(--border);
+    }
+    .scroll-nav-hint {
+      font-size: 0.78rem;
+      color: var(--muted-foreground);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Toast notification */
+    .toast-box {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #0F172A;
+      color: #FFFFFF;
+      padding: 12px 20px;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-xl);
+      font-size: 0.875rem;
+      display: none;
+      align-items: center;
+      gap: 10px;
+      z-index: 100;
+      animation: slideUp 0.2s ease-out;
+    }
+    .toast-box.show {
+      display: flex;
+    }
+
+    /* List View Table */
+    .visits-table-card {
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+    .table-responsive {
+      width: 100%;
+      overflow-x: auto;
+    }
+    table.visits-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.875rem;
+    }
+    table.visits-table th {
+      background: #F8FAFC;
+      padding: 12px 18px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted-foreground);
+      border-bottom: 1px solid var(--border);
+    }
+    table.visits-table td {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    table.visits-table tr:hover td {
+      background: #FBFCFD;
+    }
+
+    .badge-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 9px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .badge-status.confirme {
+      background: var(--emerald-soft);
+      color: var(--emerald-foreground);
+    }
+    .badge-status.planifie {
+      background: var(--amber-soft);
+      color: var(--amber-foreground);
+    }
+    .badge-status.effectue {
+      background: #F1F5F9;
+      color: #475569;
+    }
+
+    .pastor-avatar-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .pastor-img {
+      width: 38px;
+      height: 38px;
+      border-radius: 9999px;
+      object-fit: cover;
+      border: 1.5px solid var(--border);
+      background: #E2E8F0;
+    }
+    .pastor-info-name {
+      font-weight: 700;
+      color: var(--foreground);
+      font-size: 0.875rem;
+    }
+    .pastor-info-grade {
+      font-size: 0.75rem;
+      color: var(--muted-foreground);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .grade-tag {
+      background: #F1F5F9;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 0.7rem;
+    }
+
+    /* Modal Styles */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(4px);
+      z-index: 50;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      animation: fadeIn 0.15s ease-out;
+    }
+    .modal-backdrop.active {
+      display: flex;
+    }
+    .modal-box {
+      background: #FFFFFF;
+      border-radius: var(--radius-xl);
+      max-width: 680px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-xl);
+      border: 1px solid var(--border);
+    }
+    .modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-title {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    .modal-body {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      background: #FAFAFA;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .form-label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--foreground);
+    }
+    .form-label span.req { color: var(--rose); margin-left: 2px; }
+    .form-input, .form-textarea {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+      background: #FFFFFF;
+      outline: none;
+      transition: border 0.15s;
+    }
+    .form-input:focus, .form-textarea:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 1px var(--border-focus);
+    }
+    .form-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    /* Delegate Selector Box */
+    .delegates-picker-box {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      background: #F8FAFC;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .delegate-item {
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .delegate-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+    }
+    .delegate-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 9999px;
+      object-fit: cover;
+    }
+
+    /* Print Preview Modal (Ordre de Mission A4) */
+    .a4-preview-box {
+      background: #FFFFFF;
+      border: 2px solid #0F172A;
+      padding: 40px;
+      border-radius: 4px;
+      font-family: 'Times New Roman', Georgia, serif;
+      color: #111827;
+      position: relative;
+    }
+    .a4-header {
+      text-align: center;
+      border-bottom: 2px double #0F172A;
+      padding-bottom: 16px;
+      margin-bottom: 24px;
+    }
+    .a4-org {
+      font-size: 1.25rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .a4-suborg {
+      font-size: 0.9rem;
+      font-style: italic;
+      color: #4B5563;
+      margin-top: 2px;
+    }
+    .a4-title {
+      margin-top: 14px;
+      font-size: 1.35rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      text-decoration: underline;
+    }
+    .a4-ref {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      margin-top: 4px;
+      color: #6B7280;
+    }
+    .a4-body {
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+    .a4-delegates-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin: 20px 0;
+      padding: 16px;
+      background: #F9FAFB;
+      border: 1px dashed #9CA3AF;
+      border-radius: 6px;
+    }
+    .a4-delegate-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .a4-delegate-card img {
+      width: 48px;
+      height: 48px;
+      border-radius: 9999px;
+      border: 1px solid #111827;
+      object-fit: cover;
+    }
+    .a4-signatures {
+      margin-top: 40px;
+      display: flex;
+      justify-content: space-between;
+      text-align: center;
+      padding: 0 20px;
+    }
+    .a4-sign-box {
+      width: 200px;
+    }
+    .a4-sign-line {
+      margin-top: 50px;
+      border-top: 1px solid #111827;
+      padding-top: 6px;
+      font-size: 0.85rem;
+      font-weight: bold;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.98); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Topbar -->
+  <header class="synod-topbar">
+    <div class="brand-logo">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+      </svg>
+      SYNOD
+      <span class="brand-badge">Projet Église</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 16px;">
+      <span style="font-size: 0.85rem; font-weight: 600; color: var(--muted-foreground);">
+        Siège National (Foibe) — Pasteur Responsable
+      </span>
+      <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" style="width:36px; height:36px; border-radius:9999px; object-fit:cover;" alt="Avatar" />
+    </div>
+  </header>
+
+  <div class="app-layout">
+    <!-- Sidebar Stub -->
+    <aside class="sidebar-stub">
+      <a href="#" class="nav-link"><i data-lucide="layout-dashboard"></i> Tableau de bord</a>
+      <a href="#" class="nav-link"><i data-lucide="network"></i> Structure & Églises</a>
+      <a href="#" class="nav-link"><i data-lucide="users"></i> Croyants & Fiches</a>
+      <a href="#" class="nav-link active"><i data-lucide="calendar-check-2"></i> Visites Pastorales</a>
+      <a href="#" class="nav-link"><i data-lucide="award"></i> Baptêmes</a>
+      <a href="#" class="nav-link"><i data-lucide="wallet"></i> Finances & Dîmes</a>
+      <a href="#" class="nav-link"><i data-lucide="file-text"></i> Rapports & Bilans</a>
+      <a href="#" class="nav-link"><i data-lucide="settings"></i> Administration</a>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="content-area">
+      
+      <!-- Page Header -->
+      <div class="page-header">
+        <div>
+          <p class="eyebrow">Missions & Ministère</p>
+          <h1 class="page-title">Planification des Visites Pastorales</h1>
+          <p class="page-subtitle">Organisation des délégations ecclésiales, calendrier horizontal du mois et délivrance des ordres de mission.</p>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-outline" onclick="openPrintModal()">
+            <i data-lucide="printer"></i> Imprimer le Planning
+          </button>
+          <button class="btn btn-primary" onclick="openPlanModal()">
+            <i data-lucide="plus-circle"></i> Planifier une Visite
+          </button>
+        </div>
+      </div>
+
+      <!-- KPI Summary Cards -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <p class="kpi-label">Visites ce mois</p>
+          <p class="kpi-value" id="kpiTotal">12</p>
+          <p class="kpi-sub"><i data-lucide="calendar" style="width:14px;height:14px;"></i> Sur 31 jours du mois</p>
+        </div>
+        <div class="kpi-card kpi-emerald">
+          <p class="kpi-label">Visites Confirmées</p>
+          <p class="kpi-value" id="kpiConfirme">9</p>
+          <p class="kpi-sub"><i data-lucide="check-circle" style="width:14px;height:14px;color:var(--emerald);"></i> Ordres de mission délivrés</p>
+        </div>
+        <div class="kpi-card kpi-amber">
+          <p class="kpi-label">En attente de validation</p>
+          <p class="kpi-value" id="kpiPlanifie">3</p>
+          <p class="kpi-sub"><i data-lucide="clock" style="width:14px;height:14px;color:var(--amber);"></i> Composition en cours</p>
+        </div>
+        <div class="kpi-card">
+          <p class="kpi-label">Gradés mobilisés</p>
+          <p class="kpi-value">24</p>
+          <p class="kpi-sub"><i data-lucide="users" style="width:14px;height:14px;"></i> Pasteurs, Évangélistes, Diacres</p>
+        </div>
+      </div>
+
+      <!-- CONTROL TOOLBAR -->
+      <div class="toolbar-box">
+        <div class="toolbar-left">
+          <!-- 1. Filtre Entité -->
+          <select class="select-custom" id="filterEntite" onchange="appliquerFiltres()">
+            <option value="all">Toutes les Entités Initiatrices</option>
+            <option value="foibe" selected>Siège National (Foibe)</option>
+            <option value="reg-tana">Régional Analamanga</option>
+            <option value="dist-centre">District Tana Centre</option>
+            <option value="par-antsaha">Paroisse Antsahatsiresy</option>
+          </select>
+
+          <!-- 2. Filtre Statut Dynamique -->
+          <select class="select-custom" id="filterStatus" onchange="appliquerFiltres()">
+            <option value="all">Tous les Statuts</option>
+            <option value="PLANIFIE">Planifiées (En attente)</option>
+            <option value="CONFIRME">Confirmées (Validées)</option>
+            <option value="EFFECTUE">Effectuées (Passées)</option>
+          </select>
+
+          <!-- 3. Recherche d'une personne / délégué -->
+          <div class="search-input-wrapper">
+            <i data-lucide="search"></i>
+            <input type="text" id="searchPerson" placeholder="Rechercher une personne / délégué..." oninput="appliquerFiltres()" />
+          </div>
+        </div>
+
+        <div class="toolbar-right">
+          <div class="view-toggle">
+            <button class="view-btn active" id="btnViewCal" onclick="switchView('calendar')">
+              <i data-lucide="calendar"></i> Vue Calendrier
+            </button>
+            <button class="view-btn" id="btnViewList" onclick="switchView('list')">
+              <i data-lucide="list"></i> Vue Liste
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CALENDAR VIEW (SCROLL HORIZONTAL + BOUTON '+' DISCRET + PENCIL EDIT + DIMANCHE SANS BLEU) -->
+      <div class="calendar-container" id="calendarView">
+        <div class="calendar-month-header">
+          <div class="current-month-title">
+            <i data-lucide="calendar-days" style="color:var(--foreground);"></i>
+            <span id="labelMois">Août 2026</span>
+          </div>
+
+          <!-- Choix rapide du mois dans le passé ou le futur & Défilement horizontal -->
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <label for="monthPicker" style="font-size: 0.8rem; font-weight: 600; color: var(--muted-foreground);">
+              Changer de mois :
+            </label>
+            <input type="month" id="monthPicker" class="month-picker-input" value="2026-08" onchange="changerMoisRapide(this.value)" />
+            
+            <button class="btn btn-outline btn-sm" onclick="scrollToToday()">
+              <i data-lucide="locate"></i> Aujourd'hui (27 Août)
+            </button>
+
+            <div style="display: inline-flex; gap: 4px;">
+              <button class="btn btn-outline btn-sm" onclick="scrollCalendarHorizontal(-300)" title="Défiler vers la gauche">
+                <i data-lucide="chevron-left"></i>
+              </button>
+              <button class="btn btn-outline btn-sm" onclick="scrollCalendarHorizontal(300)" title="Défiler vers la droite">
+                <i data-lucide="chevron-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Horizontal Scrollable Timeline of Days (1st to 31st of the month) -->
+        <div class="horizontal-scroll-track-wrapper">
+          <div class="horizontal-scroll-container" id="horizontalCalendar">
+
+            <!-- Day 1 (Samedi - Passé) -->
+            <div class="day-column-card is-past" data-date="2026-08-01">
+              <div class="day-col-header">
+                <div class="day-col-header-left">
+                  <span class="day-col-weekday">Samedi</span>
+                  <span class="day-col-number">1</span>
+                </div>
+                <button class="btn-add-day" onclick="openPlanModalForDate('2026-08-01')" title="Créer une visite pour ce jour"><i data-lucide="plus" style="width:14px;height:14px;"></i></button>
+              </div>
+              <div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-01')">
+                <div class="day-empty-hint">Aucune visite</div>
+              </div>
+            </div>
+
+            <!-- Day 2 (Dimanche Culte - Passé / Effectué - SANS BLEU) -->
+            <div class="day-column-card is-sunday is-past" data-date="2026-08-02">
+              <div class="day-col-header">
+                <div class="day-col-header-left">
+                  <span class="day-col-weekday">Dimanche</span>
+                  <div class="day-col-date-row">
+                    <span class="day-col-number">2</span>
+                    <span class="day-col-pill-cult">Culte</span>
+                  </div>
+                </div>
+                <button class="btn-add-day" onclick="openPlanModalForDate('2026-08-02')" title="Créer une visite pour ce culte"><i data-lucide="plus" style="width:14px;height:14px;"></i></button>
+              </div>
+              <div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-02')">
+                <!-- Visite 1 (Effectuée -> Pas de pencil, non modifiable) -->
+                <div class="visit-card-chip status-effectue" id="card-1" data-status="EFFECTUE" data-personnes="Pasteur Rabe Michel, Diacre Jean" draggable="false" onclick="openDetailsModal(1)" title="Visite effectuée">
+                  <div class="chip-header-row">
+                    <span class="chip-cult-time">09:00 • Effectué (Passé)</span>
+                  </div>
+                  <div class="chip-target-church">Église FJKM Ambohitantely</div>
+                  <div class="chip-cult-theme">Culte d'inauguration et célébration</div>
+                  <div class="chip-delegates-row">
+                    <div class="avatar-group">
+                      <img class="avatar-mini" src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100" />
+                      <img class="avatar-mini" src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100" />
+                    </div>
+                    <span class="chip-primary-name">Pasteur Rabe + 1</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Day 3 to 8 (Passés) -->
+            <div class="day-column-card is-past" data-date="2026-08-03">
+              <div class="day-col-header">
+                <div class="day-col-header-left"><span class="day-col-weekday">Lundi</span><span class="day-col-number">3</span></div>
+                <button class="btn-add-day" onclick="openPlanModalForDate('2026-08-03')"><i data-lucide="plus" style="width:14px;height:14px;"></i></button>
+              </div>
+              <div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-03')"><div class="day-empty-hint">Aucune visite</div></div>
+            </div>
+            <div class="day-column-card is-past" data-date="2026-08-04">
+              <div class="day-col-header">
+                <div class="day-col-header-left"><span class="day-col-weekday">Mardi</span><span class="day-col-number">4</span></div>
+                <button class="btn-add-day" onclick="openPlanModalForDate('2026-08-04')"><i data-lucide="plus" style="width:14px;height:14px;"></i></button>
+              </div>
+              <div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-04')"><div class="day-empty-hint">Aucune visite</div></div>
+            </div>
+            <div class="day-column-card is-past" data-date="2026-08-05">
+              <div class="day-col-header">
+                <div class="day-col-header-left"><span class="day-col-weekday">Mercredi</span><span class="day-col-number">5</span></div>
+                <button class="btn-add-day" onclick="openPlanModalForDate('2026-08-05')"><i data-lucide="plus" style="width:14px;height:14px;"></i></button>
+              </div>
+              <div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-05')"><div class="day-empty-hint">Aucune visite</div></div>
+            </div>
+            <div class="day-column-card is-past" data-date="2026-08-06">
+              <div class="day-col-header">
+                <div class="day-col-header-left"><span class="day-col-weekday">Jeudi</span><span class="day-col-number">6</span></div>
+                <button class="btn-add-day" onclick="openPlanModalForDate('2026-08-06')"><i data-lucide="plus" style="width:14px;height:14px;"></i></button>
+              </div>
+              <div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-06')"><div class="day-empty-hint">Aucune visite</div></div>
+            </div>
+            <div class="day-column-card is-past" data-date="2026-08-07">
+              <div class="day-col-header">
+                <div class="day-col-header-left"><span class="day-col-weekday">Vendredi</span><span class="day-col-number">7</span></div>
+                <button class="btn-add-day" onclick="openPlanModalForDate('2026-08-07')"><i data-lucide="plus" style="width:14px;height:14px;"></i></button>
+              </div>
+              <div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-07')"><div class="day-empty-hint">Aucune visite</div></div>
+            </div>
+            <div class="day-column-card is-past" data-date="2026-08-08">
+              <div class="day-col-header">
+                <div class="day-col-header-left"><span class="day-col-weekday">Samedi</span><span class="day-col-number">8</span></div>
+                <button class="btn-add-day" onclick="openPlanModalForDate('2026-08-08')"><i data-lucide="plus" style="width:14px;height:14px;"></i></button>
+              </div>
+              <div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-08')"><div class="day-empty-hint">Aucune visite</div></div>
+            </div>
+
+            <!-- Day 9 (Dimanche Culte - SANS BLEU) -->
+            <div class="day-column-card is-sunday is-past" data-date="2026-08-09">
+              <div class="day-col-header">
+                <div class="day-col-header-left">
+                  <span class="day-col-weekday">Dimanche</span>
+                  <div class="day-col-date-row">
+                    <span class="day-col-number">9</span>
+                    <span class="day-col-pill-cult">Culte</span>
+                  </div>
+                </div>
+                <button class="btn-add-day" onclick="openPlanModalForDate('2026-08-09')"><i data-lucide="plus" style="width:14px;height:14px;"></i></button>
+              </div>
+              <div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-09')">
+                <!-- Visite 2 (Effectuée -> Pas de pencil) -->
+                <div class="visit-card-chip status-effectue" id="card-2" data-status="EFFECTUE" data-personnes="Évangéliste Rakoto" draggable="false" onclick="openDetailsModal(2)">
+                  <div class="chip-header-row">
+                    <span class="chip-cult-time">08:30 • Effectué (Passé)</span>
+                  </div>
+                  <div class="chip-target-church">Paroisse Manjakaray</div>
+                  <div class="chip-cult-theme">Culte d'action de grâce et témoignages</div>
+                  <div class="chip-delegates-row">
+                    <div class="avatar-group">
+                      <img class="avatar-mini" src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100" />
+                    </div>
+                    <span class="chip-primary-name">Évang. Rakoto</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Day 10 to 15 (Passés) -->
+            <div class="day-column-card is-past" data-date="2026-08-10"><div class="day-col-header"><div class="day-col-header-left"><span class="day-col-weekday">Lundi</span><span class="day-col-number">10</span></div><button class="btn-add-day" onclick="openPlanModalForDate('2026-08-10')"><i data-lucide="plus" style="width:14px;height:14px;"></i></button></div><div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-10')"><div class="day-empty-hint">Aucune visite</div></div></div>
+            <div class="day-column-card is-past" data-date="2026-08-11"><div class="day-col-header"><div class="day-col-header-left"><span class="day-col-weekday">Mardi</span><span class="day-col-number">11</span></div><button class="btn-add-day" onclick="openPlanModalForDate('2026-08-11')"><i data-lucide="plus" style="width:14px;height:14px;"></i></button></div><div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-11')"><div class="day-empty-hint">Aucune visite</div></div></div>
+            <div class="day-column-card is-past" data-date="2026-08-12"><div class="day-col-header"><div class="day-col-header-left"><span class="day-col-weekday">Mercredi</span><span class="day-col-number">12</span></div><button class="btn-add-day" onclick="openPlanModalForDate('2026-08-12')"><i data-lucide="plus" style="width:14px;height:14px;"></i></button></div><div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-12')"><div class="day-empty-hint">Aucune visite</div></div></div>
+            <div class="day-column-card is-past" data-date="2026-08-13"><div class="day-col-header"><div class="day-col-header-left"><span class="day-col-weekday">Jeudi</span><span class="day-col-number">13</span></div><button class="btn-add-day" onclick="openPlanModalForDate('2026-08-13')"><i data-lucide="plus" style="width:14px;height:14px;"></i></button></div><div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-13')"><div class="day-empty-hint">Aucune visite</div></div></div>
+            <div class="day-column-card is-past" data-date="2026-08-14"><div class="day-col-header"><div class="day-col-header-left"><span class="day-col-weekday">Vendredi</span><span class="day-col-number">14</span></div><button class="btn-add-day" onclick="openPlanModalForDate('2026-08-14')"><i data-lucide="plus" style="width:14px;height:14px;"></i></button></div><div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-14')"><div class="day-empty-hint">Aucune visite</div></div></div>
+            <div class="day-column-card is-past" data-date="2026-08-15"><div class="day-col-header"><div class="day-col-header-left"><span class="day-col-weekday">Samedi</span><span class="day-col-number">15</span></div><button class="btn-add-day" onclick="openPlanModalForDate('2026-08-15')"><i data-lucide="plus" style="width:14px;height:14px;"></i></button></div><div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-15')"><div class="day-empty-hint">Aucune visite</div></div></div>
+
+            <!-- Day 16 (Dimanche Culte - SANS BLEU) -->
+            <div class="day-column-card is-sunday is-past" data-date="2026-08-16">
+              <div class="day-col-header">
+                <div class="day-col-header-left">
+                  <span class="day-col-weekday">Dimanche</span>
+                  <div class="day-col-date-row">
+                    <span class="day-col-number">16</span>
+                    <span class="day-col-pill-cult">Culte</span>
+                  </div>
+                </div>
+                <button class="btn-add-day" onclick="openPlanModalForDate('2026-08-16')"><i data-lucide="plus" style="width:14px;height:14px;"></i></button>
+              </div>
+              <div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-16')">
+                <!-- Visite 3 (Confirmée -> AVEC PENCIL) -->
+                <div class="visit-card-chip status-confirme" id="card-3" data-status="CONFIRME" data-personnes="Pasteur Andry, Voahangy, Michel" draggable="true" ondragstart="onDragStart(event, 'card-3', 'CONFIRME')" onclick="openDetailsModal(3)">
+                  <div class="chip-header-row">
+                    <span class="chip-cult-time">09:00 • <strong style="color:var(--emerald-foreground);">Confirmé</strong></span>
+                    <div class="chip-actions-group" onclick="event.stopPropagation();">
+                      <button class="btn-chip-edit" onclick="editerVisite(3, 'Église Mahamasina', '2026-08-16', 'Culte de louange et prédication')" title="Modifier cette visite"><i data-lucide="pencil" style="width:12px;height:12px;"></i></button>
+                    </div>
+                  </div>
+                  <div class="chip-target-church">Église Mahamasina</div>
+                  <div class="chip-cult-theme">Culte de louange et prédication</div>
+                  <div class="chip-delegates-row">
+                    <div class="avatar-group">
+                      <img class="avatar-mini" src="https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=100" />
+                      <img class="avatar-mini" src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100" />
+                    </div>
+                    <span class="chip-primary-name">Past. Andry + 2</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Day 17 to 22 -->
+            <div class="day-column-card is-past" data-date="2026-08-17"><div class="day-col-header"><div class="day-col-header-left"><span class="day-col-weekday">Lundi</span><span class="day-col-number">17</span></div><button class="btn-add-day" onclick="openPlanModalForDate('2026-08-17')"><i data-lucide="plus" style="width:14px;height:14px;"></i></button></div><div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-17')"><div class="day-empty-hint">Aucune visite</div></div></div>
+            <div class="day-column-card is-past" data-date="2026-08-18"><div class="day-col-header"><div class="day-col-header-left"><span class="day-col-weekday">Mardi</span><span class="day-col-number">18</span></div><button class="btn-add-day" onclick="openPlanModalForDate('2026-08-18')"><i data-lucide="plus" style="width:14px;height:14px;"></i></button></div><div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-18')"><div class="day-empty-hint">Aucune visite</div></div></div>
+            <div class="day-column-card is-past" data-date="2026-08-19"><div class="day-col-header"><div class="day-col-header-left"><span class="day-col-weekday">Mercredi</span><span class="day-col-number">19</span></div><button class="btn-add-day" onclick="openPlanModalForDate('2026-08-19')"><i data-lucide="plus" style="width:14px;height:14px;"></i></button></div><div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-19')"><div class="day-empty-hint">Aucune visite</div></div></div>
+            <div class="day-column-card is-past" data-date="2026-08-20"><div class="day-col-header"><div class="day-col-header-left"><span class="day-col-weekday">Jeudi</span><span class="day-col-number">20</span></div><button class="btn-add-day" onclick="openPlanModalForDate('2026-08-20')"><i data-lucide="plus" style="width:14px;height:14px;"></i></button></div><div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-20')"><div class="day-empty-hint">Aucune visite</div></div></div>
+            <div class="day-column-card is-past" data-date="2026-08-21"><div class="day-col-header"><div class="day-col-header-left"><span class="day-col-weekday">Vendredi</span><span class="day-col-number">21</span></div><button class="btn-add-day" onclick="openPlanModalForDate('2026-08-21')"><i data-lucide="plus" style="width:14px;height:14px;"></i></button></div><div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-21')"><div class="day-empty-hint">Aucune visite</div></div></div>
+            <div class="day-column-card is-past" data-date="2026-08-22"><div class="day-col-header"><div class="day-col-header-left"><span class="day-col-weekday">Samedi</span><span class="day-col-number">22</span></div><button class="btn-add-day" onclick="openPlanModalForDate('2026-08-22')"><i data-lucide="plus" style="width:14px;height:14px;"></i></button></div><div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-22')"><div class="day-empty-hint">Aucune visite</div></div></div>
+
+            <!-- Day 23 (Dimanche Culte - SANS BLEU) -->
+            <div class="day-column-card is-sunday is-past" data-date="2026-08-23">
+              <div class="day-col-header">
+                <div class="day-col-header-left">
+                  <span class="day-col-weekday">Dimanche</span>
+                  <div class="day-col-date-row">
+                    <span class="day-col-number">23</span>
+                    <span class="day-col-pill-cult">Culte</span>
+                  </div>
+                </div>
+                <button class="btn-add-day" onclick="openPlanModalForDate('2026-08-23')"><i data-lucide="plus" style="width:14px;height:14px;"></i></button>
+              </div>
+              <div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-23')">
+                <!-- Visite 4 (Planifiée -> AVEC PENCIL) -->
+                <div class="visit-card-chip status-planifie" id="card-4" data-status="PLANIFIE" data-personnes="Diacre Jean Rakotomalala" draggable="true" ondragstart="onDragStart(event, 'card-4', 'PLANIFIE')" onclick="openDetailsModal(4)">
+                  <div class="chip-header-row">
+                    <span class="chip-cult-time">08:30 • <strong style="color:var(--amber-foreground);">Planifié</strong></span>
+                    <div class="chip-actions-group" onclick="event.stopPropagation();">
+                      <button class="btn-chip-edit" onclick="editerVisite(4, 'Église Antsirabe Ville', '2026-08-23', 'Affermissement et partage fraternel')" title="Modifier cette visite"><i data-lucide="pencil" style="width:12px;height:12px;"></i></button>
+                    </div>
+                  </div>
+                  <div class="chip-target-church">Église Antsirabe Ville</div>
+                  <div class="chip-cult-theme">Affermissement et partage fraternel</div>
+                  <div class="chip-delegates-row">
+                    <div class="avatar-group">
+                      <img class="avatar-mini" src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100" />
+                    </div>
+                    <span class="chip-primary-name">Diacre Jean</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Day 24 to 26 -->
+            <div class="day-column-card is-past" data-date="2026-08-24"><div class="day-col-header"><div class="day-col-header-left"><span class="day-col-weekday">Lundi</span><span class="day-col-number">24</span></div><button class="btn-add-day" onclick="openPlanModalForDate('2026-08-24')"><i data-lucide="plus" style="width:14px;height:14px;"></i></button></div><div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-24')"><div class="day-empty-hint">Aucune visite</div></div></div>
+            <div class="day-column-card is-past" data-date="2026-08-25"><div class="day-col-header"><div class="day-col-header-left"><span class="day-col-weekday">Mardi</span><span class="day-col-number">25</span></div><button class="btn-add-day" onclick="openPlanModalForDate('2026-08-25')"><i data-lucide="plus" style="width:14px;height:14px;"></i></button></div><div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-25')"><div class="day-empty-hint">Aucune visite</div></div></div>
+            <div class="day-column-card is-past" data-date="2026-08-26"><div class="day-col-header"><div class="day-col-header-left"><span class="day-col-weekday">Mercredi</span><span class="day-col-number">26</span></div><button class="btn-add-day" onclick="openPlanModalForDate('2026-08-26')"><i data-lucide="plus" style="width:14px;height:14px;"></i></button></div><div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-26')"><div class="day-empty-hint">Aucune visite</div></div></div>
+
+            <!-- Day 27 (AUJOURD'HUI) -->
+            <div class="day-column-card is-today" id="day-today" data-date="2026-08-27">
+              <div class="day-col-header" style="background:#F1F5F9;">
+                <div class="day-col-header-left">
+                  <span class="day-col-weekday" style="color:var(--primary); font-weight:800;">Jeudi</span>
+                  <div class="day-col-date-row">
+                    <span class="day-col-number" style="color:var(--primary);">27</span>
+                    <span class="day-col-pill-today">Aujourd'hui</span>
+                  </div>
+                </div>
+                <button class="btn-add-day" onclick="openPlanModalForDate('2026-08-27')"><i data-lucide="plus" style="width:14px;height:14px;"></i></button>
+              </div>
+              <div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-27')">
+                <div class="day-empty-hint" style="border-color:var(--primary);">Déposer une visite ici</div>
+              </div>
+            </div>
+
+            <!-- Day 28 to 29 (Futur) -->
+            <div class="day-column-card" data-date="2026-08-28">
+              <div class="day-col-header">
+                <div class="day-col-header-left"><span class="day-col-weekday">Vendredi</span><span class="day-col-number">28</span></div>
+                <button class="btn-add-day" onclick="openPlanModalForDate('2026-08-28')"><i data-lucide="plus" style="width:14px;height:14px;"></i></button>
+              </div>
+              <div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-28')"><div class="day-empty-hint">Glisser une visite ici</div></div>
+            </div>
+            <div class="day-column-card" data-date="2026-08-29">
+              <div class="day-col-header">
+                <div class="day-col-header-left"><span class="day-col-weekday">Samedi</span><span class="day-col-number">29</span></div>
+                <button class="btn-add-day" onclick="openPlanModalForDate('2026-08-29')"><i data-lucide="plus" style="width:14px;height:14px;"></i></button>
+              </div>
+              <div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-29')"><div class="day-empty-hint">Glisser une visite ici</div></div>
+            </div>
+
+            <!-- Day 30 (Dimanche Culte Prochain - SANS BLEU) -->
+            <div class="day-column-card is-sunday" data-date="2026-08-30">
+              <div class="day-col-header">
+                <div class="day-col-header-left">
+                  <span class="day-col-weekday" style="font-weight:800;">Dimanche</span>
+                  <div class="day-col-date-row">
+                    <span class="day-col-number">30</span>
+                    <span class="day-col-pill-cult">Prochain Culte</span>
+                  </div>
+                </div>
+                <button class="btn-add-day" onclick="openPlanModalForDate('2026-08-30')" title="Créer une visite pour ce culte"><i data-lucide="plus" style="width:14px;height:14px;"></i></button>
+              </div>
+              <div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-30')">
+                <!-- Visite 5 (Confirmée -> AVEC PENCIL) -->
+                <div class="visit-card-chip status-confirme" id="card-5" data-status="CONFIRME" data-personnes="Pasteur Rajaona Michel, Diaconesse Voahangy" draggable="true" ondragstart="onDragStart(event, 'card-5', 'CONFIRME')" onclick="openDetailsModal(5)">
+                  <div class="chip-header-row">
+                    <span class="chip-cult-time">09:00 • <strong style="color:var(--emerald-foreground);">Confirmé</strong></span>
+                    <div class="chip-actions-group" onclick="event.stopPropagation();">
+                      <button class="btn-chip-edit" onclick="editerVisite(5, 'Paroisse Toamasina Port', '2026-08-30', 'Culte de Sainte-Cène & Consécration')" title="Modifier cette visite"><i data-lucide="pencil" style="width:12px;height:12px;"></i></button>
+                    </div>
+                  </div>
+                  <div class="chip-target-church">Paroisse Toamasina Port</div>
+                  <div class="chip-cult-theme">Culte de Sainte-Cène & Consécration</div>
+                  <div class="chip-delegates-row">
+                    <div class="avatar-group">
+                      <img class="avatar-mini" src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100" />
+                      <img class="avatar-mini" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100" />
+                    </div>
+                    <span class="chip-primary-name">Past. Rajaona + 1</span>
+                  </div>
+                </div>
+
+                <!-- Visite 6 (Planifiée -> AVEC PENCIL) -->
+                <div class="visit-card-chip status-planifie" id="card-6" data-status="PLANIFIE" data-personnes="Évangéliste Solofo Jean" draggable="true" ondragstart="onDragStart(event, 'card-6', 'PLANIFIE')" onclick="openDetailsModal(6)">
+                  <div class="chip-header-row">
+                    <span class="chip-cult-time">14:30 • <strong style="color:var(--amber-foreground);">Planifié</strong></span>
+                    <div class="chip-actions-group" onclick="event.stopPropagation();">
+                      <button class="btn-chip-edit" onclick="editerVisite(6, 'Cellule Fitahiana Ilafy', '2026-08-30', 'Culte d\'Après-midi & Réveil')" title="Modifier cette visite"><i data-lucide="pencil" style="width:12px;height:12px;"></i></button>
+                    </div>
+                  </div>
+                  <div class="chip-target-church">Cellule Fitahiana Ilafy</div>
+                  <div class="chip-cult-theme">Culte d'Après-midi & Réveil</div>
+                  <div class="chip-delegates-row">
+                    <div class="avatar-group">
+                      <img class="avatar-mini" src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100" />
+                    </div>
+                    <span class="chip-primary-name">Évang. Solofo</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Day 31 (Lundi) -->
+            <div class="day-column-card" data-date="2026-08-31">
+              <div class="day-col-header">
+                <div class="day-col-header-left"><span class="day-col-weekday">Lundi</span><span class="day-col-number">31</span></div>
+                <button class="btn-add-day" onclick="openPlanModalForDate('2026-08-31')"><i data-lucide="plus" style="width:14px;height:14px;"></i></button>
+              </div>
+              <div class="day-col-body" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '2026-08-31')"><div class="day-empty-hint">Glisser une visite ici</div></div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Scroll navigation bar at bottom -->
+        <div class="scroll-nav-bar">
+          <div class="scroll-nav-hint">
+            <i data-lucide="arrow-left-right" style="width:14px;height:14px;color:var(--foreground);"></i>
+            <span>Faites défiler horizontalement avec la molette ou les flèches pour parcourir les 31 jours du mois.</span>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-outline btn-sm" onclick="scrollCalendarHorizontal(-400)">
+              <i data-lucide="chevron-left"></i> Défiler vers les jours passés
+            </button>
+            <button class="btn btn-outline btn-sm" onclick="scrollCalendarHorizontal(400)">
+              Défiler vers les jours à venir <i data-lucide="chevron-right"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- LIST VIEW -->
+      <div class="visits-table-card" id="listView" style="display: none;">
+        <div class="table-responsive">
+          <table class="visits-table">
+            <thead>
+              <tr>
+                <th>Date & Culte</th>
+                <th>Entité Initiatrice</th>
+                <th>Église Destination</th>
+                <th>Délégation (Gradés désignés)</th>
+                <th>Statut</th>
+                <th style="text-align:right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="listTableBody">
+              <tr data-status="CONFIRME" data-personnes="Pasteur Rajaona Michel, Diaconesse Voahangy">
+                <td>
+                  <div style="font-weight:700;">Dimanche 30 Août 2026</div>
+                  <div style="font-size:0.75rem; color:var(--muted-foreground);">09:00 — Culte de Sainte-Cène</div>
+                </td>
+                <td>
+                  <div style="font-weight:600;">Siège National (Foibe)</div>
+                  <div style="font-size:0.75rem; color:var(--muted-foreground);">Bureau Exécutif</div>
+                </td>
+                <td>
+                  <div style="font-weight:700; color:var(--foreground);">Paroisse Toamasina Port</div>
+                  <div style="font-size:0.75rem; color:var(--muted-foreground);">District Est • Régional Atsinanana</div>
+                </td>
+                <td>
+                  <div class="pastor-avatar-box">
+                    <img class="pastor-img" src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100" />
+                    <div>
+                      <div class="pastor-info-name">Pasteur RAJAONA Michel</div>
+                      <div class="pastor-info-grade">
+                        <span class="grade-tag">Pasteur</span> • Prédicateur Principal
+                      </div>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <span class="badge-status confirme"><i data-lucide="check-circle" style="width:12px;height:12px;"></i> Confirmée</span>
+                </td>
+                <td style="text-align:right; display:flex; justify-content:flex-end; gap:6px;">
+                  <button class="btn btn-outline btn-sm" onclick="editerVisite(5, 'Paroisse Toamasina Port', '2026-08-30', 'Culte de Sainte-Cène & Consécration')">
+                    <i data-lucide="pencil"></i> Modifier
+                  </button>
+                  <button class="btn btn-outline btn-sm" onclick="openPrintModal()">
+                    <i data-lucide="file-text"></i> Ordre de mission
+                  </button>
+                </td>
+              </tr>
+
+              <tr data-status="PLANIFIE" data-personnes="Évangéliste Solofo Jean">
+                <td>
+                  <div style="font-weight:700;">Dimanche 30 Août 2026</div>
+                  <div style="font-size:0.75rem; color:var(--muted-foreground);">14:30 — Culte d'Après-midi & Réveil</div>
+                </td>
+                <td>
+                  <div style="font-weight:600;">District Tana Nord</div>
+                  <div style="font-size:0.75rem; color:var(--muted-foreground);">Paroisse Analamahitsy</div>
+                </td>
+                <td>
+                  <div style="font-weight:700; color:var(--foreground);">Cellule Fitahiana Ilafy</div>
+                  <div style="font-size:0.75rem; color:var(--muted-foreground);">Sous-section Rurale</div>
+                </td>
+                <td>
+                  <div class="pastor-avatar-box">
+                    <img class="pastor-img" src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100" />
+                    <div>
+                      <div class="pastor-info-name">Évangéliste SOLOFO Jean</div>
+                      <div class="pastor-info-grade">
+                        <span class="grade-tag">Évangéliste</span> • Délégué pastoral
+                      </div>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <span class="badge-status planifie"><i data-lucide="clock" style="width:12px;height:12px;"></i> Planifiée</span>
+                </td>
+                <td style="text-align:right; display:flex; justify-content:flex-end; gap:6px;">
+                  <button class="btn btn-outline btn-sm" onclick="editerVisite(6, 'Cellule Fitahiana Ilafy', '2026-08-30', 'Culte d\'Après-midi & Réveil')">
+                    <i data-lucide="pencil"></i> Modifier
+                  </button>
+                  <button class="btn btn-outline btn-sm" onclick="openPrintModal()">
+                    <i data-lucide="file-text"></i> Ordre de mission
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div class="toast-box" id="toast">
+    <i data-lucide="check-circle" style="color:var(--emerald);"></i>
+    <span id="toastMsg">Visite déplacée avec succès !</span>
+  </div>
+
+  <!-- MODAL: PLANIFIER / MODIFIER UNE VISITE PASTORALE -->
+  <div class="modal-backdrop" id="modalPlan">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title" id="modalPlanTitle">Planifier une Visite Pastorale</div>
+          <div style="font-size:0.8rem; color:var(--muted-foreground); margin-top:2px;">
+            Désignation des délégués et émission de l'ordre de mission officiel
+          </div>
+        </div>
+        <button class="btn btn-outline btn-icon" onclick="closePlanModal()"><i data-lucide="x"></i></button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Form Section 1: Entités -->
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">Entité Initiatrice (Organisatrice)<span class="req">*</span></label>
+            <select class="form-input">
+              <option>Siège National (Foibe) — Bureau National</option>
+              <option>Régional Analamanga</option>
+              <option>District Tana Centre</option>
+              <option>Paroisse Antsahatsiresy</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Église / Entité Destinataire (Visité)<span class="req">*</span></label>
+            <select class="form-input" id="formEgliseDest">
+              <option value="Paroisse Toamasina Port">Paroisse Toamasina Port</option>
+              <option value="Église FJKM Ambohitantely">Église FJKM Ambohitantely</option>
+              <option value="Église Mahamasina">Église Mahamasina</option>
+              <option value="Cellule Fitahiana Ilafy">Cellule Fitahiana Ilafy</option>
+              <option value="Église Antsirabe Ville">Église Antsirabe Ville</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Form Section 2: Date & Culte (Saisie Libre demandée) -->
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">Date de la Visite<span class="req">*</span></label>
+            <input type="date" class="form-input" id="formDateVisite" value="2026-08-30" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Type de Culte / Célébration (Saisie Libre)<span class="req">*</span></label>
+            <input type="text" class="form-input" id="formTypeCulte" placeholder="Ex: Culte dominical du matin, Sainte-Cène, Culte de réveil, Action de grâce..." value="Culte de Sainte-Cène & Consécration" />
+          </div>
+        </div>
+
+        <!-- Form Section 3: Sélection des Gradés Visiteurs avec Rôle en Saisie Libre -->
+        <div class="form-group">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label class="form-label">Délégation Pastorale (Gradés désignés)<span class="req">*</span></label>
+            <button type="button" class="btn btn-outline btn-sm" style="font-size:0.75rem; padding:3px 8px;" onclick="ajouterMissionnaire()">
+              <i data-lucide="user-plus" style="width:12px;height:12px;"></i> Ajouter un missionnaire
+            </button>
+          </div>
+
+          <div class="delegates-picker-box" id="delegatesContainer">
+            <!-- Delegate 1 -->
+            <div class="delegate-item">
+              <div class="delegate-left">
+                <img class="delegate-avatar" src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100" />
+                <div>
+                  <div style="font-weight:700; font-size:0.85rem;">Pasteur RAJAONA Michel</div>
+                  <div style="font-size:0.72rem; color:var(--muted-foreground);"><span class="grade-tag">Pasteur</span> • Matricule C-00142</div>
+                </div>
+              </div>
+              <div style="display:flex; align-items:center; gap:8px; flex:1; max-width:260px;">
+                <!-- Rôle en saisie libre -->
+                <input type="text" class="form-input" style="height:32px; font-size:0.78rem; padding:4px 8px;" placeholder="Rôle (saisie libre)..." value="Prédicateur Principal" />
+                <button class="btn btn-outline btn-sm" style="color:var(--rose); padding:4px 6px;" onclick="this.closest('.delegate-item').remove()"><i data-lucide="trash-2" style="width:14px;height:14px;"></i></button>
+              </div>
+            </div>
+
+            <!-- Delegate 2 -->
+            <div class="delegate-item">
+              <div class="delegate-left">
+                <img class="delegate-avatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100" />
+                <div>
+                  <div style="font-weight:700; font-size:0.85rem;">Diaconesse RAKOTOMALALA Voahangy</div>
+                  <div style="font-size:0.72rem; color:var(--muted-foreground);"><span class="grade-tag">Diacre</span> • Matricule C-00512</div>
+                </div>
+              </div>
+              <div style="display:flex; align-items:center; gap:8px; flex:1; max-width:260px;">
+                <!-- Rôle en saisie libre -->
+                <input type="text" class="form-input" style="height:32px; font-size:0.78rem; padding:4px 8px;" placeholder="Rôle (saisie libre)..." value="Accompagnateur & Témoignage" />
+                <button class="btn btn-outline btn-sm" style="color:var(--rose); padding:4px 6px;" onclick="this.closest('.delegate-item').remove()"><i data-lucide="trash-2" style="width:14px;height:14px;"></i></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Form Section 4: Objectif & Motif -->
+        <div class="form-group">
+          <label class="form-label">Ordre de mission / Thème de la prédication</label>
+          <textarea class="form-textarea" rows="2" placeholder="Ex: Édification fraternelle, administration de la Sainte-Cène et inspection des registres paroissiaux.">« Fortifiez-vous dans le Seigneur et par sa force toute-puissante » — Visite pastorale trimestrielle et affermissement des serviteurs.</textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closePlanModal()">Annuler</button>
+        <button class="btn btn-outline" onclick="openPrintModal()"><i data-lucide="file-check"></i> Prévisualiser l'Ordre de Mission</button>
+        <button class="btn btn-primary" onclick="showToast('Visite pastorale enregistrée avec succès !'); closePlanModal();">
+          <i data-lucide="check"></i> Enregistrer
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ORDRE DE MISSION A4 OFFICIEL -->
+  <div class="modal-backdrop" id="modalPrint">
+    <div class="modal-box" style="max-width: 760px;">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title">Document Officiel — Ordre de Mission Pastorale</div>
+          <div style="font-size:0.8rem; color:var(--muted-foreground);">Attestation solennelle à remettre à l'église accueillante</div>
+        </div>
+        <button class="btn btn-outline btn-icon" onclick="closePrintModal()"><i data-lucide="x"></i></button>
+      </div>
+
+      <div class="modal-body">
+        <!-- A4 Sheet Mockup -->
+        <div class="a4-preview-box">
+          <div class="a4-header">
+            <div class="a4-org">ÉGLISE SYNODALE DE MADAGASCAR</div>
+            <div class="a4-suborg">SIÈGE NATIONAL • DÉPARTEMENT DU MINISTÈRE PASTORAL</div>
+            <div class="a4-title">ORDRE DE MISSION PASTORALE</div>
+            <div class="a4-ref">RÉF : OM-SYNOD-2026-08/042 • DELIVRÉ LE 27 AOÛT 2026</div>
+          </div>
+
+          <div class="a4-body">
+            <p>Il est attesté par la présente que les serviteurs et gradés désignés ci-après sont officiellement mandatés par le <strong>Siège National (Foibe)</strong> pour effectuer une <strong>Visite Pastorale Officielle</strong> :</p>
+            
+            <div style="margin: 14px 0; padding: 10px 14px; background: #F8FAFC; border-left: 3px solid #0F172A;">
+              <strong>Église & Destination d'Accueil :</strong> Paroisse Toamasina Port (District Est)<br>
+              <strong>Date & Culte :</strong> Dimanche 30 Août 2026 à 09h00 (Culte de Sainte-Cène)<br>
+              <strong>Objet du mandat :</strong> Prédication de la Parole, affermissement de l'Église et communion fraternelle.
+            </div>
+
+            <p><strong>Composition officielle de la délégation mandatée :</strong></p>
+            
+            <div class="a4-delegates-grid">
+              <div class="a4-delegate-card">
+                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100" />
+                <div>
+                  <div style="font-weight:bold; font-size:0.9rem;">Pasteur RAJAONA Michel</div>
+                  <div style="font-size:0.75rem; color:#4B5563;">Grade : Pasteur Titulaire</div>
+                  <div style="font-size:0.75rem; font-style:italic;">Rôle : Prédicateur Principal</div>
+                </div>
+              </div>
+
+              <div class="a4-delegate-card">
+                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100" />
+                <div>
+                  <div style="font-weight:bold; font-size:0.9rem;">Diac. RAKOTOMALALA V.</div>
+                  <div style="font-size:0.75rem; color:#4B5563;">Grade : Diaconesse</div>
+                  <div style="font-size:0.75rem; font-style:italic;">Rôle : Accompagnateur & Témoignage</div>
+                </div>
+              </div>
+            </div>
+
+            <p style="font-style: italic; font-size: 0.85rem; color: #4B5563; text-align: center; margin-top: 14px;">
+              « Recevez-les donc dans le Seigneur avec une joie entière, et ayez de l'estime pour de tels serviteurs. » (Philippiens 2:29)
+            </p>
+
+            <div class="a4-signatures">
+              <div class="a4-sign-box">
+                <div>Le Secrétariat Général</div>
+                <div class="a4-sign-line">Sceau Officiel de l'Église</div>
+              </div>
+              <div class="a4-sign-box">
+                <div>Le Président / Responsable</div>
+                <div class="a4-sign-line">Signature autorisée</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closePrintModal()">Fermer</button>
+        <button class="btn btn-primary" onclick="window.print()">
+          <i data-lucide="printer"></i> Lancer l'Impression A4
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Initialize Icons
+    lucide.createIcons();
+
+    // Scroll helper for horizontal calendar
+    function scrollCalendarHorizontal(offset) {
+      const container = document.getElementById('horizontalCalendar');
+      container.scrollBy({ left: offset, behavior: 'smooth' });
+    }
+
+    function scrollToToday() {
+      const todayCard = document.getElementById('day-today');
+      if (todayCard) {
+        todayCard.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    }
+
+    // View switcher
+    function switchView(view) {
+      const cal = document.getElementById('calendarView');
+      const list = document.getElementById('listView');
+      const btnCal = document.getElementById('btnViewCal');
+      const btnList = document.getElementById('btnViewList');
+
+      if (view === 'calendar') {
+        cal.style.display = 'block';
+        list.style.display = 'none';
+        btnCal.classList.add('active');
+        btnList.classList.remove('active');
+      } else {
+        cal.style.display = 'none';
+        list.style.display = 'block';
+        btnList.classList.add('active');
+        btnCal.classList.remove('active');
+      }
+    }
+
+    // Modal helpers
+    function openPlanModal() {
+      document.getElementById('modalPlanTitle').innerText = 'Planifier une Visite Pastorale';
+      document.getElementById('modalPlan').classList.add('active');
+    }
+    function openPlanModalForDate(dateStr) {
+      document.getElementById('modalPlanTitle').innerText = 'Planifier une Visite Pastorale';
+      document.getElementById('formDateVisite').value = dateStr;
+      document.getElementById('modalPlan').classList.add('active');
+    }
+    function closePlanModal() {
+      document.getElementById('modalPlan').classList.remove('active');
+    }
+
+    // Modifier une visite (au clic sur le crayon)
+    function editerVisite(id, eglise, date, theme) {
+      document.getElementById('modalPlanTitle').innerText = 'Modifier la Visite Pastorale #' + id;
+      document.getElementById('formEgliseDest').value = eglise;
+      document.getElementById('formDateVisite').value = date;
+      document.getElementById('formTypeCulte').value = theme;
+      document.getElementById('modalPlan').classList.add('active');
+    }
+
+    function openPrintModal() {
+      document.getElementById('modalPrint').classList.add('active');
+    }
+    function closePrintModal() {
+      document.getElementById('modalPrint').classList.remove('active');
+    }
+    function openDetailsModal(id) {
+      openPrintModal();
+    }
+
+    // Quick Month Picker
+    function changerMoisRapide(valeurMois) {
+      if (!valeurMois) return;
+      const [annee, mois] = valeurMois.split('-');
+      const nomsMois = [
+        'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+        'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+      ];
+      const nomMoisTexte = nomsMois[parseInt(mois, 10) - 1] + ' ' + annee;
+      document.getElementById('labelMois').innerText = nomMoisTexte;
+      showToast('Affichage du calendrier pour : ' + nomMoisTexte);
+    }
+
+    // Toast helper
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toastMsg').innerText = message;
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3500);
+    }
+
+    // Drag & Drop Implementation across horizontal day columns
+    let draggedCardId = null;
+    let draggedCardStatus = null;
+
+    function onDragStart(event, cardId, status) {
+      if (status === 'EFFECTUE') {
+        event.preventDefault();
+        return false;
+      }
+      draggedCardId = cardId;
+      draggedCardStatus = status;
+      event.dataTransfer.setData('text/plain', cardId);
+      event.target.classList.add('dragging');
+    }
+
+    function onDragOver(event) {
+      event.preventDefault();
+      const col = event.currentTarget.closest('.day-column-card');
+      if (col) col.classList.add('drag-over');
+    }
+
+    function onDragLeave(event) {
+      const col = event.currentTarget.closest('.day-column-card');
+      if (col) col.classList.remove('drag-over');
+    }
+
+    function onDrop(event, dateCible) {
+      event.preventDefault();
+      const col = event.currentTarget.closest('.day-column-card');
+      if (col) col.classList.remove('drag-over');
+
+      if (!draggedCardId) return;
+
+      const card = document.getElementById(draggedCardId);
+      if (!card) return;
+
+      card.classList.remove('dragging');
+
+      if (draggedCardStatus === 'EFFECTUE') {
+        showToast('Impossible de déplacer une visite pastorale déjà effectuée.');
+        return;
+      }
+
+      // Move element to target body
+      const targetBody = col.querySelector('.day-col-body');
+      const emptyHint = targetBody.querySelector('.day-empty-hint');
+      if (emptyHint) emptyHint.style.display = 'none';
+
+      targetBody.appendChild(card);
+
+      const dateFormatee = new Date(dateCible).toLocaleDateString('fr-FR', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+
+      showToast('Visite pastorale reprogrammée au ' + dateFormatee + ' !');
+      draggedCardId = null;
+      draggedCardStatus = null;
+    }
+
+    // Dynamic Filter function
+    function appliquerFiltres() {
+      const statusFiltre = document.getElementById('filterStatus').value;
+      const rechercheTexte = document.getElementById('searchPerson').value.toLowerCase().trim();
+
+      // Filter in Calendar
+      const chips = document.querySelectorAll('.visit-card-chip');
+      chips.forEach(chip => {
+        const chipStatus = chip.getAttribute('data-status');
+        const personnes = (chip.getAttribute('data-personnes') || '').toLowerCase();
+        const church = chip.querySelector('.chip-target-church')?.innerText.toLowerCase() || '';
+
+        const correspondStatut = (statusFiltre === 'all' || chipStatus === statusFiltre);
+        const correspondPersonne = (!rechercheTexte || personnes.includes(rechercheTexte) || church.includes(rechercheTexte));
+
+        if (correspondStatut && correspondPersonne) {
+          chip.style.display = 'flex';
+        } else {
+          chip.style.display = 'none';
+        }
+      });
+
+      // Filter in List Table
+      const rows = document.querySelectorAll('#listTableBody tr');
+      rows.forEach(row => {
+        const rowStatus = row.getAttribute('data-status');
+        const personnes = (row.getAttribute('data-personnes') || '').toLowerCase();
+        const text = row.innerText.toLowerCase();
+
+        const correspondStatut = (statusFiltre === 'all' || rowStatus === statusFiltre);
+        const correspondPersonne = (!rechercheTexte || personnes.includes(rechercheTexte) || text.includes(rechercheTexte));
+
+        if (correspondStatut && correspondPersonne) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+    }
+
+    // Helper to add missionary dynamically in modal
+    function ajouterMissionnaire() {
+      const container = document.getElementById('delegatesContainer');
+      const newDiv = document.createElement('div');
+      newDiv.className = 'delegate-item';
+      newDiv.innerHTML = `
+        <div class="delegate-left">
+          <img class="delegate-avatar" src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100" />
+          <div>
+            <div style="font-weight:700; font-size:0.85rem;">Évangéliste RAKOTOARIJAONA Paul</div>
+            <div style="font-size:0.72rem; color:var(--muted-foreground);"><span class="grade-tag">Évangéliste</span> • Matricule C-00824</div>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; flex:1; max-width:260px;">
+          <input type="text" class="form-input" style="height:32px; font-size:0.78rem; padding:4px 8px;" placeholder="Rôle (saisie libre)..." value="Célébrant & Prédicateur adjoint" />
+          <button class="btn btn-outline btn-sm" style="color:var(--rose); padding:4px 6px;" onclick="this.closest('.delegate-item').remove()"><i data-lucide="trash-2" style="width:14px;height:14px;"></i></button>
+        </div>
+      `;
+      container.appendChild(newDiv);
+      lucide.createIcons();
+    }
+  </script>
+</body>
+</html>
