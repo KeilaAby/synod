@@ -70,7 +70,10 @@ import { DecisionDialog } from './decision-dialog';
  * Filtrage instantané en mémoire, comme les autres listes de l'application.
  */
 
-const TONS: Record<StatutTransfert, 'success' | 'warning' | 'danger' | 'neutral' | 'accent'> = {
+const TONS: Record<
+  StatutTransfert,
+  'success' | 'warning' | 'danger' | 'neutral' | 'accent'
+> = {
   DEMANDE: 'warning',
   APPROUVE: 'accent',
   EFFECTUE: 'success',
@@ -223,7 +226,7 @@ export function TransfertsClient({
           <section className="space-y-4">
             <div className="flex items-center gap-2">
               <Inbox className="size-4 text-amber-600" aria-hidden />
-              <h2 className="text-sm font-semibold text-foreground">
+              <h2 className="text-foreground text-sm font-semibold">
                 {formatNombre(aDeciderParMoi.length)} demande
                 {aDeciderParMoi.length > 1 ? 's' : ''} à trancher
               </h2>
@@ -244,33 +247,38 @@ export function TransfertsClient({
                       <div className="min-w-0 flex-1 space-y-1">
                         <Link
                           href={`/croyants/${t.croyant_id}`}
-                          className="block truncate font-medium text-foreground transition-colors hover:text-indigo-700"
+                          className="text-foreground block truncate font-medium transition-colors hover:text-indigo-700"
                         >
                           {t.croyant
                             ? nomComplet(t.croyant.nom, t.croyant.prenom)
                             : 'Croyant'}
                         </Link>
-                        <p className="font-mono text-xs text-muted-foreground">
+                        <p className="text-muted-foreground font-mono text-xs">
                           {t.croyant?.matricule}
                         </p>
                       </div>
-                      <TypeBadge type={t.niveau_transfert} />
+                      <span
+                        title="Niveau constaté au jour de la demande. Une réorganisation ultérieure ne le modifie pas."
+                        className="cursor-help"
+                      >
+                        <TypeBadge type={t.niveau_transfert} />
+                      </span>
                     </div>
 
                     <Trajet transfert={t} />
 
                     {t.motif && (
-                      <p className="rounded-md bg-slate-50 p-3 text-sm text-muted-foreground">
+                      <p className="text-muted-foreground rounded-md bg-slate-50 p-3 text-sm">
                         « {t.motif} »
                       </p>
                     )}
 
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-muted-foreground text-xs">
                       Demandé le {formatDate(t.date_demande)}
                       {t.demandeur ? ` par ${t.demandeur.nom_complet}` : ''}
                     </p>
 
-                    <div className="flex justify-end gap-2 border-t border-border pt-4">
+                    <div className="border-border flex justify-end gap-2 border-t pt-4">
                       {/*
                         EF-TRF-08 — la pièce de dossier se lit AVANT de
                         trancher, pas après : elle précède le bouton qui
@@ -306,7 +314,7 @@ export function TransfertsClient({
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <div className="relative">
               <Search
-                className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2"
                 aria-hidden
               />
               <Input
@@ -368,7 +376,7 @@ export function TransfertsClient({
             )}
 
             <span
-              className="ml-auto font-mono text-xs tabular-nums text-muted-foreground"
+              className="text-muted-foreground ml-auto font-mono text-xs tabular-nums"
               aria-live="polite"
             >
               {formatNombre(filtres.length)} / {formatNombre(transferts.length)}
@@ -397,7 +405,25 @@ export function TransfertsClient({
                     <TableRow className="hover:bg-transparent">
                       <TableHead>Croyant</TableHead>
                       <TableHead>Trajet</TableHead>
-                      <TableHead>Niveau</TableHead>
+                      {/*
+                        LE NIVEAU DIT JUSQU'OU LE CROYANT A REMONTE dans la
+                        structure pour changer d'eglise — deux eglises d'une
+                        meme paroisse donnent « Eglise », deux districts
+                        donnent « District ».
+
+                        Et il est FIGE au jour de la demande : confronte a la
+                        structure du jour, il parait faux apres une
+                        reorganisation. L'infobulle evite ce malentendu, qui
+                        s'est reellement produit.
+                      */}
+                      <TableHead>
+                        <span
+                          title="Jusqu’où le croyant remonte dans la structure pour changer d’église. Constaté au jour de la demande : une réorganisation ultérieure ne le modifie pas."
+                          className="cursor-help border-b border-dotted border-slate-300"
+                        >
+                          Niveau
+                        </span>
+                      </TableHead>
                       <TableHead>Demande</TableHead>
                       <TableHead>Décision</TableHead>
                       <TableHead>Statut</TableHead>
@@ -411,10 +437,13 @@ export function TransfertsClient({
                         <TableCell>
                           <Link
                             href={`/croyants/${t.croyant_id}`}
-                            className="flex items-center gap-3 font-medium text-foreground transition-colors hover:text-indigo-700"
+                            className="text-foreground flex items-center gap-3 font-medium transition-colors hover:text-indigo-700"
                           >
                             {t.croyant && (
-                              <AvatarCroyant nom={t.croyant.nom} prenom={t.croyant.prenom} />
+                              <AvatarCroyant
+                                nom={t.croyant.nom}
+                                prenom={t.croyant.prenom}
+                              />
                             )}
                             <span className="truncate">
                               {t.croyant
@@ -424,12 +453,17 @@ export function TransfertsClient({
                           </Link>
                         </TableCell>
 
-                        <TableCell className="text-xs text-muted-foreground">
+                        <TableCell className="text-muted-foreground text-xs">
                           <Trajet transfert={t} compact />
                         </TableCell>
 
                         <TableCell>
-                          <TypeBadge type={t.niveau_transfert} />
+                          <span
+                            title="Niveau constaté au jour de la demande. Une réorganisation ultérieure ne le modifie pas."
+                            className="cursor-help"
+                          >
+                            <TypeBadge type={t.niveau_transfert} />
+                          </span>
                         </TableCell>
 
                         {/* EF-TRF-06 — qui, et quand : le dossier doit repondre
@@ -448,7 +482,7 @@ export function TransfertsClient({
                               auteur={t.decideur?.nom_complet}
                             />
                           ) : (
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-muted-foreground text-xs">
                               En attente
                             </span>
                           )}
@@ -505,7 +539,10 @@ export function TransfertsClient({
                               onClick={() => retirer(t)}
                             >
                               {enCours && (
-                                <Loader2 className="mr-2 size-3 animate-spin" aria-hidden />
+                                <Loader2
+                                  className="mr-2 size-3 animate-spin"
+                                  aria-hidden
+                                />
                               )}
                               Retirer
                             </Button>
@@ -576,18 +613,22 @@ function Trajet({
   const vers = transfert.destination?.nom ?? '—';
 
   return (
-    <span className={compact ? 'flex items-center gap-1.5' : 'flex items-center gap-2 text-sm'}>
+    <span
+      className={
+        compact ? 'flex items-center gap-1.5' : 'flex items-center gap-2 text-sm'
+      }
+    >
       <span className="truncate">
         {de}
         {transfert.celluleOrigine && !compact && (
           <span className="text-muted-foreground"> · {transfert.celluleOrigine.nom}</span>
         )}
       </span>
-      <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+      <ArrowRight className="text-muted-foreground size-3.5 shrink-0" aria-hidden />
       <span className="truncate font-medium">
         {vers}
         {transfert.celluleDestination && !compact && (
-          <span className="font-normal text-muted-foreground">
+          <span className="text-muted-foreground font-normal">
             {' '}
             · {transfert.celluleDestination.nom}
           </span>
@@ -606,10 +647,10 @@ function Trajet({
 function Horodatage({ date, auteur }: { date: string; auteur?: string }) {
   return (
     <span className="block space-y-0.5">
-      <span className="block font-mono text-xs tabular-nums text-foreground">
+      <span className="text-foreground block font-mono text-xs tabular-nums">
         {formatDate(date)}
       </span>
-      <span className="block truncate text-xs text-muted-foreground">
+      <span className="text-muted-foreground block truncate text-xs">
         {auteur ?? 'Compte supprimé'}
       </span>
     </span>

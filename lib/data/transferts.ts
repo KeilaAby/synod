@@ -24,7 +24,7 @@ const CHAMPS = `
   destination:entities!transferts_to_eglise_id_fkey (id, nom, code, path, type),
   celluleOrigine:entities!transferts_from_cellule_id_fkey (id, nom),
   celluleDestination:entities!transferts_to_cellule_id_fkey (id, nom),
-  arbitre:entities!transferts_ancetre_commun_id_fkey (id, nom, path),
+  arbitre:entities!transferts_ancetre_commun_id_fkey (id, nom, path, type),
   demandeur:profiles!transferts_demande_par_fkey (id, nom_complet),
   decideur:profiles!transferts_decide_par_fkey (id, nom_complet)
 ` as const;
@@ -61,7 +61,7 @@ export interface TransfertListe {
   celluleOrigine: Reference | null;
   celluleDestination: Reference | null;
   /** Entite qui borne les approbateurs competents (RG-12), figee a la demande. */
-  arbitre: (Reference & { path: string }) | null;
+  arbitre: (Reference & { path: string; type: EntityType }) | null;
   demandeur: { id: string; nom_complet: string } | null;
   decideur: { id: string; nom_complet: string } | null;
 }

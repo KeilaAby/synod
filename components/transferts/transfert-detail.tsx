@@ -2,6 +2,7 @@ import { ArrowRight, Ban, Check, Clock, ShieldCheck, X } from 'lucide-react';
 
 import { StatusBadge } from '@/components/shared/status-badge';
 import { TypeBadge } from '@/components/structure/type-badge';
+import { ENTITY_LABELS } from '@/lib/domain/hierarchy';
 import { Separator } from '@/components/ui/separator';
 import type { TransfertListe } from '@/lib/data/transferts';
 import { LIBELLES_STATUT_TRANSFERT, type StatutTransfert } from '@/lib/domain/transfert';
@@ -20,7 +21,10 @@ import { formatDateLongue } from '@/lib/utils/format';
  * du même dossier auraient fini par ne plus dire la même chose.
  */
 
-const TONS: Record<StatutTransfert, 'success' | 'warning' | 'danger' | 'neutral' | 'accent'> = {
+const TONS: Record<
+  StatutTransfert,
+  'success' | 'warning' | 'danger' | 'neutral' | 'accent'
+> = {
   DEMANDE: 'warning',
   APPROUVE: 'accent',
   EFFECTUE: 'success',
@@ -42,27 +46,27 @@ export function TransfertDetail({ transfert }: { transfert: TransfertListe }) {
   return (
     <div className="space-y-6">
       {/* --- Trajet --- */}
-      <div className="flex flex-wrap items-center gap-4 rounded-md border border-border bg-slate-50 p-4">
+      <div className="border-border flex flex-wrap items-center gap-4 rounded-md border bg-slate-50 p-4">
         <div className="space-y-1">
-          <p className="text-xs text-muted-foreground">Origine</p>
-          <p className="text-sm font-medium text-foreground">
+          <p className="text-muted-foreground text-xs">Origine</p>
+          <p className="text-foreground text-sm font-medium">
             {transfert.origine?.nom ?? '—'}
           </p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-muted-foreground text-xs">
             {transfert.celluleOrigine
               ? `Cellule ${transfert.celluleOrigine.nom}`
               : 'Aucune cellule'}
           </p>
         </div>
 
-        <ArrowRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+        <ArrowRight className="text-muted-foreground size-5 shrink-0" aria-hidden />
 
         <div className="space-y-1">
-          <p className="text-xs text-muted-foreground">Destination</p>
-          <p className="text-sm font-medium text-foreground">
+          <p className="text-muted-foreground text-xs">Destination</p>
+          <p className="text-foreground text-sm font-medium">
             {transfert.destination?.nom ?? '—'}
           </p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-muted-foreground text-xs">
             {transfert.celluleDestination
               ? `Cellule ${transfert.celluleDestination.nom}`
               : 'Aucune cellule'}
@@ -74,7 +78,24 @@ export function TransfertDetail({ transfert }: { transfert: TransfertListe }) {
             <Icone className="mr-1 size-3" aria-hidden />
             {LIBELLES_STATUT_TRANSFERT[transfert.statut]}
           </StatusBadge>
-          <TypeBadge type={transfert.niveau_transfert} />
+          {/*
+            LE NIVEAU EST UNE PHOTOGRAPHIE, pas un état courant.
+
+            Il dit jusqu'où le croyant a dû remonter dans la structure pour
+            changer d'église — et il est calculé UNE FOIS, à la demande. Une
+            réorganisation ultérieure ne le réécrit pas : c'est ce qui permet
+            de comprendre, des années plus tard, pourquoi tel district avait eu
+            à se prononcer.
+
+            L'infobulle le dit, parce que la valeur seule se lit comme un état
+            d'aujourd'hui — et se confronte alors à une structure qui a changé.
+          */}
+          <span
+            title="Niveau constaté au jour de la demande. Une réorganisation ultérieure ne le modifie pas."
+            className="cursor-help"
+          >
+            <TypeBadge type={transfert.niveau_transfert} />
+          </span>
         </div>
       </div>
 
@@ -109,12 +130,38 @@ export function TransfertDetail({ transfert }: { transfert: TransfertListe }) {
           />
         )}
 
-        {/* RG-12 — au nom de quoi la décision est prise, ou le sera. */}
-        {transfert.arbitre && (
+        {/*
+          RG-12 — AU NOM DE QUOI LA DÉCISION EST PRISE, ET À QUELLE DATE.
+
+          Cette ligne répond à une question qui s'est réellement posée : « ce
+          transfert est marqué District, or les deux églises sont dans la même
+          paroisse — est-ce une erreur ? ». Non : le niveau est FIGÉ au jour de
+          la demande, et la structure a changé depuis.
+
+          Sans l'entité nommée, la valeur restait invérifiable — on ne pouvait
+          que la croire ou en douter. Avec elle, le lecteur reconstitue de
+          lui-même : « à l'époque, il fallait remonter jusqu'au Régional ».
+
+          LE TYPE ACCOMPAGNE LE NOM : « SABOTSY NAMEHANA » seul ne dit pas si
+          c'est une paroisse ou un district — or c'est précisément ce qu'on
+          vient vérifier.
+        */}
+        {transfert.arbitre ? (
           <Donnee
             libelle="Arbitré au niveau de"
-            valeur={transfert.arbitre.nom}
-            secondaire="Plus petite entité couvrant l’origine et la destination"
+            valeur={`${ENTITY_LABELS[transfert.arbitre.type].singulier} ${transfert.arbitre.nom}`}
+            secondaire="Plus petite entité couvrant l’origine et la destination, telle qu’elle l’était au jour de la demande."
+          />
+        ) : (
+          /*
+            Les transferts antérieurs à RG-12 n'ont pas d'arbitre figé. On le
+            DIT plutôt que de masquer la ligne : une absence expliquée vaut
+            mieux qu'un champ qui disparaît sans qu'on sache pourquoi.
+          */
+          <Donnee
+            libelle="Arbitré au niveau de"
+            valeur="Non enregistré"
+            secondaire="Ce transfert est antérieur à la traçabilité de l’instance compétente."
           />
         )}
       </dl>
@@ -125,7 +172,7 @@ export function TransfertDetail({ transfert }: { transfert: TransfertListe }) {
       {transfert.motif && (
         <section className="space-y-2">
           <p className="eyebrow">Motif de la demande</p>
-          <p className="rounded-md bg-slate-50 p-4 text-sm text-muted-foreground">
+          <p className="text-muted-foreground rounded-md bg-slate-50 p-4 text-sm">
             « {transfert.motif} »
           </p>
         </section>
@@ -168,9 +215,9 @@ function Donnee({
 }) {
   return (
     <div className="space-y-1">
-      <dt className="text-xs text-muted-foreground">{libelle}</dt>
-      <dd className="text-sm font-medium text-foreground">{valeur}</dd>
-      {secondaire && <dd className="text-xs text-muted-foreground">{secondaire}</dd>}
+      <dt className="text-muted-foreground text-xs">{libelle}</dt>
+      <dd className="text-foreground text-sm font-medium">{valeur}</dd>
+      {secondaire && <dd className="text-muted-foreground text-xs">{secondaire}</dd>}
     </div>
   );
 }
