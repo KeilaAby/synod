@@ -156,10 +156,14 @@ export async function listerVisitesPastorales(): Promise<VisitePastorale[]> {
 
 export interface CroyantCandidatVisite {
   readonly id: string;
+  readonly nom: string;
+  readonly prenom: string;
   readonly nom_complet: string;
   readonly matricule: string;
   readonly grade: string;
+  readonly detail?: string;
   readonly photo_url: string | null;
+  readonly photo_key?: string | null;
 }
 
 interface CroyantCandidatPostgrest {
@@ -199,12 +203,17 @@ export async function listerCroyantsCandidats(): Promise<CroyantCandidatVisite[]
   return rawCroyants.map((c): CroyantCandidatVisite => {
     const photoKey = c.photo_key;
     const photoUrl = photoKey ? photosSignees.get(photoKey) || null : null;
+    const gradeLibelle = c.grade?.libelle || c.grade?.code || 'Membre';
     return {
       id: c.id,
+      nom: c.nom,
+      prenom: c.prenom || '',
       nom_complet: `${c.nom} ${c.prenom || ''}`.trim(),
       matricule: c.matricule || '',
-      grade: c.grade?.libelle || c.grade?.code || 'Membre',
+      grade: gradeLibelle,
+      detail: gradeLibelle,
       photo_url: photoUrl,
+      photo_key: photoUrl, // Directement l'URL résolue pour AvatarCroyant
     };
   });
 }

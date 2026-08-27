@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import { requireSession } from '@/lib/session';
+import { getArbrePerimetre } from '@/lib/data/entities';
+import { versOptions } from '@/lib/data/entity-options';
 import {
   listerVisitesPastorales,
-  listerEntitesDisponibles,
   listerCroyantsCandidats,
 } from '@/lib/data/visites-pastorales';
 import { getParametres } from '@/lib/data/settings';
@@ -16,17 +17,19 @@ export const metadata: Metadata = {
 export default async function VisitesPage() {
   const session = await requireSession();
 
-  const [visites, entites, croyantsCandidats, parametres] = await Promise.all([
+  const [visites, arbre, croyantsCandidats, parametres] = await Promise.all([
     listerVisitesPastorales(),
-    listerEntitesDisponibles(),
+    getArbrePerimetre(),
     listerCroyantsCandidats(),
     getParametres(),
   ]);
 
+  const optionsEntites = versOptions(arbre, arbre);
+
   return (
     <VisitesClient
       initialVisites={visites}
-      entites={entites}
+      entites={optionsEntites}
       croyantsCandidats={croyantsCandidats}
       currentEntityId={session.entityId}
       organisationNom={parametres.nom_organisation}

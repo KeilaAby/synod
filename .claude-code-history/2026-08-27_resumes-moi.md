@@ -17,11 +17,15 @@
   - Bouton discret `+` sur l'en-tête de chaque date pour planifier une visite à ce jour.
   - Bouton discret crayon `pencil` sur les cartes pour modifier les visites planifiées / confirmées.
   - Glisser-déposer (Drag & Drop) interactif pour reprogrammer les visites planifiées et confirmées (verrouillage des visites effectuées).
-- **Formulaire de Planification (`components/visites/visite-dialog.tsx`)** :
-  - Saisie libre pour le Type de Culte / Célébration.
-  - Saisie libre pour le Rôle de chaque missionnaire désigné dans la délégation.
-  - Sélecteur de serviteurs gradés avec photos de profil signées et recherche en temps réel.
-- **Ordre de Mission Pastoral A4 (`components/visites/imprimer-ordre-mission.ts` & `ordre-mission-dialog.tsx`)** :
+- **Formulaire de Planification & Dialogue Élargi (`components/visites/visite-dialog.tsx`)** :
+  - Largeur spacieuse et aérée (`max-w-4xl`) avec grille responsive.
+  - **Sélecteur hiérarchique officiel `EntityPicker`** : recherche rapide, regroupement par niveaux hiérarchiques (Sièges, Régionaux, Districts, Paroisses, Églises) pour l'entité organisatrice et l'église destinataire.
+  - **Sélecteur officiel `CroyantPicker`** : recherche instantanée, pastilles colorées d'initiales, portraits et grade affiché sous le nom.
+  - Saisie libre pour le Type de Culte / Célébration et pour le Rôle missionnaire de chaque gradé désigné.
+- **Cartes Interactives du Calendrier (`components/visites/calendrier-horizontal.tsx`)** :
+  - Clic direct sur la carte pour afficher immédiatement la modale d'Ordre de Mission et les détails de la visite pastorale.
+  - Icône crayon `pencil` dédiée à la modification des visites modifiables (`PLANIFIE` et `CONFIRME`).
+  - **EntityPicker** intégré dans la barre de filtres principale de `/visites`.
   - Document solennel A4 officiel avec en-tête ecclésial, portraits des missionnaires, références, verset biblique et blocs de signatures/sceaux.
 - **Table & Navigation (`components/visites/visites-table.tsx`, `components/layout/nav-items.ts`, `app/(app)/visites/`)** :
   - Vue liste tabulaire avec filtres avancés (par entité, par statut, recherche de personne en direct) et bascule Vue Calendrier / Vue Liste.

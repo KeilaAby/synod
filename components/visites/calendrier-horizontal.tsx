@@ -27,6 +27,7 @@ export interface CalendrierHorizontalProps {
   readonly visites: readonly VisitePastorale[];
   readonly onNouvelleVisiteDate: (date: string) => void;
   readonly onEditerVisite: (visite: VisitePastorale) => void;
+  readonly onAfficherVisite?: (visite: VisitePastorale) => void;
   readonly onImprimerVisite: (visite: VisitePastorale) => void;
 }
 
@@ -36,6 +37,7 @@ export function CalendrierHorizontal({
   visites,
   onNouvelleVisiteDate,
   onEditerVisite,
+  onAfficherVisite,
   onImprimerVisite,
 }: CalendrierHorizontalProps) {
   const [_isPending, startTransition] = useTransition();
@@ -278,9 +280,17 @@ export function CalendrierHorizontal({
                         key={v.id}
                         draggable={peutGlisser}
                         onDragStart={(e) => handleDragStart(e, v)}
-                        className={`group relative flex flex-col gap-2 p-2.5 rounded-md border border-l-4 bg-card shadow-sm hover:shadow-md transition-all ${bordureStatut} ${
-                          peutGlisser ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'
+                        onClick={() => {
+                          if (onAfficherVisite) {
+                            onAfficherVisite(v);
+                          } else {
+                            onImprimerVisite(v);
+                          }
+                        }}
+                        className={`group relative flex flex-col gap-2 p-2.5 rounded-md border border-l-4 bg-card shadow-sm hover:shadow-md hover:border-foreground/30 transition-all cursor-pointer ${bordureStatut} ${
+                          peutGlisser ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
                         } ${estEnCoursDeGlissement ? 'opacity-30 scale-95' : ''}`}
+                        title="Cliquer pour afficher l’Ordre de Mission et les détails"
                       >
                         {/* Barre supérieure : heure, statut et bouton crayon discret */}
                         <div className="flex items-center justify-between text-xs">

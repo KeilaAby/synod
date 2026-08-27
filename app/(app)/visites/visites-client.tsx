@@ -15,7 +15,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { VisitePastorale } from '@/lib/domain/visites-pastorales';
-import type { CroyantCandidatVisite, EntiteOptionVisite } from '@/lib/data/visites-pastorales';
+import type { CroyantCandidatVisite } from '@/lib/data/visites-pastorales';
+import { EntityPicker, type OptionEntite } from '@/components/structure/entity-picker';
 import { CalendrierHorizontal } from '@/components/visites/calendrier-horizontal';
 import { VisitesTable } from '@/components/visites/visites-table';
 import { VisiteDialog } from '@/components/visites/visite-dialog';
@@ -23,7 +24,7 @@ import { OrdreMissionDialog } from '@/components/visites/ordre-mission-dialog';
 
 export interface VisitesClientProps {
   readonly initialVisites: readonly VisitePastorale[];
-  readonly entites: readonly EntiteOptionVisite[];
+  readonly entites: readonly OptionEntite[];
   readonly croyantsCandidats: readonly CroyantCandidatVisite[];
   readonly currentEntityId: string;
   readonly organisationNom?: string;
@@ -45,7 +46,7 @@ export function VisitesClient({
   });
 
   // Filtres
-  const [filtreEntite, setFiltreEntite] = useState<string>('all');
+  const [filtreEntite, setFiltreEntite] = useState<string | null>(null);
   const [filtreStatut, setFiltreStatut] = useState<string>('all');
   const [recherchePersonne, setRecherchePersonne] = useState<string>('');
 
@@ -61,7 +62,7 @@ export function VisitesClient({
   const visitesFiltrees = useMemo(() => {
     return initialVisites.filter((v) => {
       const matchEntite =
-        filtreEntite === 'all' ||
+        !filtreEntite ||
         v.entite_initiatrice_id === filtreEntite ||
         v.entite_cible_id === filtreEntite;
 
@@ -114,7 +115,7 @@ export function VisitesClient({
     setOpenPlanDialog(true);
   };
 
-  const handleImprimerVisite = (visite: VisitePastorale) => {
+  const handleAfficherVisite = (visite: VisitePastorale) => {
     setVisiteAImprimer(visite);
     setOpenPrintDialog(true);
   };
@@ -141,7 +142,7 @@ export function VisitesClient({
             className="h-9 text-xs gap-1.5"
             onClick={() => {
               if (visitesFiltrees.length > 0) {
-                handleImprimerVisite(visitesFiltrees[0]);
+                handleAfficherVisite(visitesFiltrees[0]);
               }
             }}
           >
@@ -217,24 +218,21 @@ export function VisitesClient({
 
       {/* Barre de commandes et filtres */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl border bg-card shadow-sm">
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* 1. Filtre Entité */}
-          <select
-            className="h-9 rounded-md border border-input bg-background px-3 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            value={filtreEntite}
-            onChange={(e) => setFiltreEntite(e.target.value)}
-          >
-            <option value="all">Toutes les Entités</option>
-            {entites.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.nom} ({e.type})
-              </option>
-            ))}
-          </select>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* 1. Filtre Entité hiérarchique avec EntityPicker */}
+          <div className="w-72">
+            <EntityPicker
+              options={[...entites]}
+              value={filtreEntite}
+              onChange={(v) => setFiltreEntite(v)}
+              placeholder="Toutes les entités"
+              emptyMessage="Aucune entité trouvée"
+            />
+          </div>
 
           {/* 2. Filtre Statut */}
           <select
-            className="h-9 rounded-md border border-input bg-background px-3 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className="h-10 rounded-md border border-input bg-background px-3 text-xs font-medium shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             value={filtreStatut}
             onChange={(e) => setFiltreStatut(e.target.value)}
           >
@@ -247,12 +245,12 @@ export function VisitesClient({
 
           {/* 3. Recherche textuelle en direct */}
           <div className="relative">
-            <Search className="w-3.5 h-3.5 absolute left-2.5 top-3 text-muted-foreground" />
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-3.5 text-muted-foreground" />
             <Input
               placeholder="Rechercher une personne, église ou thème..."
               value={recherchePersonne}
               onChange={(e) => setRecherchePersonne(e.target.value)}
-              className="pl-8 h-9 text-xs w-64 bg-background"
+              className="pl-8 h-10 text-xs w-64 bg-background"
             />
           </div>
         </div>
@@ -263,7 +261,7 @@ export function VisitesClient({
             type="button"
             variant={vue === 'calendar' ? 'default' : 'ghost'}
             size="sm"
-            className="h-7 text-xs gap-1.5"
+            className="h-8 text-xs gap-1.5"
             onClick={() => setVue('calendar')}
           >
             <CalendarDays className="w-3.5 h-3.5" />
@@ -273,7 +271,7 @@ export function VisitesClient({
             type="button"
             variant={vue === 'list' ? 'default' : 'ghost'}
             size="sm"
-            className="h-7 text-xs gap-1.5"
+            className="h-8 text-xs gap-1.5"
             onClick={() => setVue('list')}
           >
             <List className="w-3.5 h-3.5" />
@@ -290,13 +288,14 @@ export function VisitesClient({
           visites={visitesFiltrees}
           onNouvelleVisiteDate={(date) => handleNouvelleVisite(date)}
           onEditerVisite={handleEditerVisite}
-          onImprimerVisite={handleImprimerVisite}
+          onAfficherVisite={handleAfficherVisite}
+          onImprimerVisite={handleAfficherVisite}
         />
       ) : (
         <VisitesTable
           visites={visitesFiltrees}
           onEditerVisite={handleEditerVisite}
-          onImprimerVisite={handleImprimerVisite}
+          onImprimerVisite={handleAfficherVisite}
         />
       )}
 
