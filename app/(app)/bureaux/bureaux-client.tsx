@@ -4,6 +4,7 @@ import {
   Briefcase,
   CircleCheck,
   CircleSlash,
+  FileText,
   List,
   MoreVertical,
   Network,
@@ -19,6 +20,7 @@ import { useDeferredValue, useMemo, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
 import { avertir } from '@/components/shared/messages';
+import { AvatarCroyant } from '@/components/croyants/avatar-croyant';
 import { BureauComposition } from '@/components/bureaux/bureau-composition';
 import type { CandidatOption } from '@/components/bureaux/designation-dialog';
 import {
@@ -583,26 +585,31 @@ export function BureauxClient({
                             niveau,
                           ),
                         );
+                        const membresActifs = bureau.membres.filter(
+                          (m) => m.date_fin === null && m.croyant,
+                        );
+                        const premierMembre = membresActifs[0]?.croyant;
+                        const resteMembres = membresActifs.length - 1;
 
                         return (
                           <Card
                             key={bureau.id}
                             className={
                               bureau.is_active
-                                ? 'transition-colors hover:border-slate-300'
-                                : 'opacity-70 transition-colors hover:border-slate-300'
+                                ? 'transition-colors hover:border-slate-300 shadow-sm'
+                                : 'opacity-70 transition-colors hover:border-slate-300 shadow-sm'
                             }
                           >
-                            <CardContent className="space-y-4 p-6">
+                            <CardContent className="p-4 pt-3 pb-3 space-y-2.5">
                               {/*
                       La carte n'est plus un bouton géant : le menu ⋮ en porte
                       un, et un bouton dans un bouton est un HTML invalide que
                       les lecteurs d'écran ne restituent pas. Seul le TITRE
                       ouvre la composition.
                     */}
-                              <div className="space-y-3">
+                              <div className="space-y-2.5">
                                 <div className="flex items-start justify-between gap-3">
-                                  <span className="min-w-0 space-y-1">
+                                  <span className="min-w-0 space-y-0.5">
                                     <button
                                       type="button"
                                       onClick={() => setOuvert(bureau)}
@@ -748,6 +755,53 @@ export function BureauxClient({
                                   {formatDate(bureau.date_debut)}
                                   {bureau.date_fin && ` → ${formatDate(bureau.date_fin)}`}
                                 </p>
+
+                                {/* Section empilée des membres (Avatar stack) */}
+                                <div className="pt-2 border-t border-dashed flex items-center justify-between gap-2">
+                                  {membresActifs.length > 0 ? (
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <div className="flex items-center -space-x-2 shrink-0">
+                                        {membresActifs.slice(0, 3).map((m) => (
+                                          <AvatarCroyant
+                                            key={m.id}
+                                            nom={m.croyant?.nom ?? ''}
+                                            prenom={m.croyant?.prenom ?? ''}
+                                            url={
+                                              m.croyant?.photo_key
+                                                ? photos[m.croyant.photo_key]
+                                                : null
+                                            }
+                                            taille="sm"
+                                            className="ring-2 ring-background border border-slate-200"
+                                          />
+                                        ))}
+                                      </div>
+                                      <span className="text-xs font-semibold text-foreground truncate">
+                                        {premierMembre
+                                          ? `${premierMembre.prenom} ${premierMembre.nom}`.trim()
+                                          : ''}
+                                        {resteMembres > 0 && (
+                                          <span className="text-muted-foreground font-bold ml-1 text-xs">
+                                            +{resteMembres}
+                                          </span>
+                                        )}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground italic">
+                                      Aucun membre désigné
+                                    </span>
+                                  )}
+
+                                  <button
+                                    type="button"
+                                    onClick={() => setOuvert(bureau)}
+                                    className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted transition-colors shrink-0"
+                                    title="Voir la composition du bureau"
+                                  >
+                                    <FileText className="size-4" aria-hidden />
+                                  </button>
+                                </div>
                               </div>
                             </CardContent>
                           </Card>
