@@ -32,7 +32,7 @@ const gabarit = (p: Partial<TransfertHistorique>): TransfertHistorique => ({
   date_demande: '2026-06-01T10:00:00Z',
   date_decision: '2026-06-02T10:00:00Z',
   date_effet: '2026-06-03',
-  origine: { nom: 'IAVOAMBONY' },
+  origine: { nom: 'IAVOAMBONY', type: 'EGLISE' as const },
   destination: { nom: 'AMBOHITRIMANJAKA' },
   celluleDestination: null,
   demandeur: { nom_complet: 'Christian' },
@@ -372,5 +372,83 @@ describe('L’ordre de la frise', () => {
   it('garde la création en tête même quand elle précède tout le reste', () => {
     const ancienne = { ...croyant, created_at: '1990-01-01T00:00:00Z' };
     expect(construireHistorique(ancienne, [])[0]?.cle).toBe('creation');
+  });
+});
+
+/**
+ * EF-CRO-06 — LA LIGNE « FICHE CREEE » PORTE L'EGLISE D'ORIGINE.
+ *
+ * LE DEFAUT, signale sur une fiche reelle le 27 aout 2026 : elle affichait le
+ * rattachement COURANT, donc changeait retroactivement apres un transfert. Une
+ * fiche creee a ANTSAHATSIRESY, transferee vers ALASORA, annoncait « Rattache a
+ * ALASORA » a sa date de creation — et le meme extrait laissait croire a une
+ * violation de RG-09, le croyant siegeant le jour meme au bureau d'une AUTRE
+ * eglise.
+ *
+ * Un historique qui se reecrit ne vaut pas mieux que pas d'historique.
+ */
+describe('L’église portée par la ligne de création', () => {
+  const creation = (frise: ReturnType<typeof construireHistorique>) =>
+    frise.find((e) => e.cle === 'creation');
+
+  it('EF-CRO-06 — porte l’église D’ORIGINE, pas celle d’aujourd’hui', () => {
+    // Le croyant est AUJOURD'HUI a AMBOHITRIMANJAKA ; il a ete cree a
+    // IAVOAMBONY, d'ou le transfert l'a fait partir.
+    const frise = construireHistorique(
+      { ...croyant, eglise: { nom: 'AMBOHITRIMANJAKA', type: 'EGLISE' } },
+      [gabarit({})],
+    );
+
+    expect(creation(frise)?.detail).toContain('IAVOAMBONY');
+    expect(creation(frise)?.detail).not.toContain('AMBOHITRIMANJAKA');
+  });
+
+  /**
+   * LE PLUS ANCIEN transfert donne l'origine : les suivants ne disent que des
+   * etapes intermediaires. Deux transferts, et c'est le premier qui compte.
+   */
+  it('remonte au PLUS ANCIEN transfert, pas au dernier', () => {
+    const frise = construireHistorique(croyant, [
+      gabarit({
+        id: 'recent',
+        date_effet: '2026-07-10',
+        origine: { nom: 'ETAPE', type: 'EGLISE' },
+      }),
+      gabarit({ id: 'ancien', date_effet: '2026-02-01' }),
+    ]);
+
+    expect(creation(frise)?.detail).toContain('IAVOAMBONY');
+    expect(creation(frise)?.detail).not.toContain('ETAPE');
+  });
+
+  /**
+   * UNE DEMANDE REFUSEE OU EN ATTENTE N'A DEPLACE PERSONNE : son origine est
+   * l'eglise ACTUELLE, pas une precedente. La prendre ferait dire a la frise
+   * que le croyant vient de la ou il est.
+   */
+  it.each(['REFUSE', 'DEMANDE', 'ANNULE'] as const)(
+    'IGNORE un transfert %s : il n’a déplacé personne',
+    (statut) => {
+      const frise = construireHistorique(
+        { ...croyant, eglise: { nom: 'ACTUELLE', type: 'EGLISE' } },
+        [gabarit({ statut, origine: { nom: 'ACTUELLE', type: 'EGLISE' } })],
+      );
+
+      expect(creation(frise)?.detail).toContain('ACTUELLE');
+    },
+  );
+
+  it('retombe sur l’église courante quand aucun transfert n’a eu lieu', () => {
+    const frise = construireHistorique(
+      { ...croyant, eglise: { nom: 'SEULE', type: 'EGLISE' } },
+      [],
+    );
+    expect(creation(frise)?.detail).toContain('SEULE');
+  });
+
+  /** Le TYPE accompagne le nom : « ALASORA » seul ne dit pas ce que c'est. */
+  it('nomme le type de l’entité, jamais le seul nom', () => {
+    const frise = construireHistorique(croyant, [gabarit({})]);
+    expect(creation(frise)?.detail).toMatch(/Église|Eglise/i);
   });
 });

@@ -607,7 +607,7 @@ export default async function FicheCroyantPage({ params }: Params) {
                     <div className="space-y-1">
                       <p className="eyebrow">Historique</p>
                       <p className="text-muted-foreground text-sm">
-                        Ce qui est arrivé au croyant, du plus récent au plus ancien. Les
+                        Ce qui est arrivé au croyant, du plus ancien au plus récent. Les
                         corrections de saisie relèvent du journal d&apos;audit, pas
                         d&apos;ici.
                       </p>

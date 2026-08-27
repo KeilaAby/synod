@@ -41,7 +41,7 @@ export interface TransfertHistorique {
   date_demande: string;
   date_decision: string | null;
   date_effet: string | null;
-  origine: { nom: string } | null;
+  origine: { nom: string; type: EntityType } | null;
   destination: { nom: string } | null;
   celluleDestination: { nom: string } | null;
   demandeur: { nom_complet: string } | null;
@@ -164,6 +164,50 @@ function jour(iso: string): string {
   });
 }
 
+/**
+ * L'EGLISE OU LA FICHE A ETE CREEE — EF-CRO-06, corrige le 27 aout 2026.
+ *
+ * LE DEFAUT, signale par l'utilisateur. La ligne « Fiche creee » affichait
+ * `croyant.eglise`, c'est-a-dire le rattachement COURANT. Apres un transfert,
+ * elle changeait donc retroactivement : une fiche creee a ANTSAHATSIRESY le
+ * 11 aout, transferee vers ALASORA le 21, annoncait « Rattache a l'Eglise
+ * ALASORA » au 11 aout.
+ *
+ * Ce n'est pas un detail d'affichage. La frise EST la trace : quelqu'un qui la
+ * lit conclut que le croyant a toujours ete la ou il est aujourd'hui — et le
+ * meme extrait laissait croire a une violation de RG-09, puisqu'il siegeait le
+ * jour meme au bureau d'une AUTRE eglise. Un historique qui se reecrit ne vaut
+ * pas mieux que pas d'historique.
+ *
+ * COMMENT ON LA RETROUVE, SANS COLONNE NOUVELLE. Le plus ancien transfert
+ * EFFECTUE porte, dans son origine, l'eglise d'ou le croyant venait — donc
+ * celle ou il a ete cree. Sans transfert, l'eglise courante est la bonne.
+ *
+ * SEULS LES TRANSFERTS EFFECTUES COMPTENT : une demande refusee ou en attente
+ * n'a deplace personne, et son origine est l'eglise ACTUELLE, pas une
+ * precedente. La prendre ferait dire a la frise que le croyant vient de la ou
+ * il est.
+ *
+ * LA RESERVE, ecrite ici pour qu'on la retrouve : cette deduction vaut tant que
+ * le TRANSFERT est le seul chemin qui change `eglise_id`. C'est le cas — le
+ * champ est verrouille dans les deux formulaires et exclu de la modification
+ * rapide (`champ-croyant.ts`). Une reprise de donnees qui ecrirait `eglise_id`
+ * directement rendrait cette ligne fausse, sans que rien ne le signale.
+ */
+function egliseDOrigine(
+  croyant: CroyantHistorique,
+  transferts: readonly TransfertHistorique[],
+): { nom: string; type: EntityType } | null {
+  const effectues = transferts
+    .filter((t) => t.statut === 'EFFECTUE' && t.origine)
+    .sort((a, b) => dateDeReference(a).localeCompare(dateDeReference(b)));
+
+  const premiere = effectues[0]?.origine;
+  if (premiere) return { nom: premiere.nom, type: premiere.type };
+
+  return croyant.eglise ?? null;
+}
+
 export function construireHistorique(
   croyant: CroyantHistorique,
   transferts: readonly TransfertHistorique[],
@@ -182,12 +226,19 @@ export function construireHistorique(
       titre: croyant.createur
         ? `Fiche creee par ${croyant.createur.nom_complet}`
         : 'Fiche creee',
-      // Le TYPE avec le nom : « ANTSAHATSIRESY » seul ne dit pas si c'est une
-      // eglise, une paroisse ou un district — or c'est justement ce que le
-      // rattachement d'un croyant designe (RG-04).
-      detail: croyant.eglise
-        ? `Rattache ${designerEntite(croyant.eglise.type, croyant.eglise.nom, 'a')}`
-        : undefined,
+      /**
+       * L'EGLISE D'ORIGINE, pas celle d'aujourd'hui — voir .
+       *
+       * Le TYPE accompagne le nom : « ANTSAHATSIRESY » seul ne dit pas si
+       * c'est une eglise, une paroisse ou un district — or c'est justement
+       * ce que le rattachement d'un croyant designe (RG-04).
+       */
+      detail: (() => {
+        const origine = egliseDOrigine(croyant, transferts);
+        return origine
+          ? `Rattache ${designerEntite(origine.type, origine.nom, 'a')}`
+          : undefined;
+      })(),
       enAttente: false,
     },
   ];
