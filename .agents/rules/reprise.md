@@ -64,6 +64,36 @@ le dossier au `PATH` **utilisateur** :
 corepack enable --install-directory "$LOCALAPPDATA/corepack-shims"
 ```
 
+**`node` repond mais `pnpm` echoue sur « Cannot find module … corepack/dist/
+pnpm.js »** — apres tout changement de version de Node, et notamment un passage
+a **nvm**.
+
+Le symptome est deroutant parce qu'il decrit mal sa cause : Node fonctionne, la
+version affichee est la bonne, et c'est `pnpm` qui tombe. Le shim n'est pas un
+programme mais un petit script qui pointe un CHEMIN ABSOLU vers le `corepack`
+de l'installation qui l'a cree. Deplacer Node — de `C:\Program Files\nodejs`
+vers `C:\nvm4w\nodejs`, par exemple — laisse ce chemin en place, donc faux.
+
+Le remede est de **refaire les shims**, avec la meme commande que ci-dessus :
+
+```bash
+corepack enable --install-directory "$LOCALAPPDATA/corepack-shims"
+```
+
+A refaire **a chaque changement de version** sous nvm. Et si `node` lui-meme
+reste introuvable, c'est que le `PATH` de la session est perime : `nvm` inscrit
+`%NVM_SYMLINK%` (typiquement `C:\nvm4w\nodejs`) dans le `PATH` **machine**, que
+seul un terminal ouvert APRES l'installation lit. Les deux variables se relisent
+sans redemarrer :
+
+```powershell
+[Environment]::GetEnvironmentVariable('NVM_SYMLINK','Machine')
+```
+
+*(Constate le 27 aout 2026 : Node est passe en 24.20.0 par nvm en cours de
+session, et toute la chaine — `pnpm`, donc `verify`, `lint`, `build` — s'est
+arretee jusqu'a ce que les shims soient refaits.)*
+
 **`.env.local` n'est pas dans le dépôt, et ne doit jamais y entrer** (ENF-SEC-09,
 `.gitignore`). Les valeurs se relisent dans le tableau de bord Supabase :
 *Project Settings → API*. Quatre comptent :
