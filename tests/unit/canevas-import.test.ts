@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  CANEVAS_BAPTEMES,
   CANEVAS_CROYANTS,
   CANEVAS_DIMES,
   type Canevas,
@@ -8,6 +9,10 @@ import {
   feuillesDuCanevas,
   nomDuCanevas,
 } from '@/lib/domain/canevas-import';
+import {
+  DESCRIPTION_BAPTEME,
+  devinerBapteme,
+} from '@/lib/domain/import-baptemes';
 import { DESCRIPTION_CHAMPS, deviner } from '@/lib/domain/import-croyants';
 import { DESCRIPTION_VERSEMENT, devinerVersement } from '@/lib/domain/import-dimes';
 
@@ -28,6 +33,7 @@ import { DESCRIPTION_VERSEMENT, devinerVersement } from '@/lib/domain/import-dim
 const CAS = [
   ['croyants', CANEVAS_CROYANTS, DESCRIPTION_CHAMPS] as const,
   ['dimes', CANEVAS_DIMES, DESCRIPTION_VERSEMENT] as const,
+  ['baptemes', CANEVAS_BAPTEMES, DESCRIPTION_BAPTEME] as const,
 ];
 
 describe.each(CAS)('Le canevas des %s dit ce que le domaine exige', (_nom, canevas, registre) => {
@@ -74,6 +80,12 @@ describe('EF-CRO-11, EF-FIN-34 — l’étoile ne gêne pas la reconnaissance', 
   it('reconnait les treize colonnes du canevas des croyants', () => {
     const devine = deviner(enTetes(CANEVAS_CROYANTS));
     const manquantes = DESCRIPTION_CHAMPS.filter((c) => devine[c.cle] == null);
+    expect(manquantes.map((c) => c.label)).toEqual([]);
+  });
+
+  it('reconnait les neuf colonnes du canevas des baptemes', () => {
+    const devine = devinerBapteme(enTetes(CANEVAS_BAPTEMES));
+    const manquantes = DESCRIPTION_BAPTEME.filter((c) => devine[c.cle] == null);
     expect(manquantes.map((c) => c.label)).toEqual([]);
   });
 
@@ -136,5 +148,47 @@ describe('La forme du classeur', () => {
   it('donne un nom de fichier sans accent ni espace', () => {
     expect(nomDuCanevas(CANEVAS_CROYANTS)).toBe('canevas-importer-des-croyants.xlsx');
     expect(nomDuCanevas(CANEVAS_DIMES)).toMatch(/^canevas-[a-z0-9-]+\.xlsx$/);
+  });
+});
+
+/**
+ * EF-BAP-07 — LA DATE DU BAPTEME N'EST PAS UNE COLONNE.
+ *
+ * Elle se choisit a l'ecran, avec le lieu, la session et les celebrants : ces
+ * informations valent pour toute la ceremonie. Les repeter sur trente lignes
+ * offrirait trente occasions de les contredire — et trois dates differentes
+ * dans un fichier, plus personne ne sait laquelle fait foi.
+ *
+ * C'est la SEULE difference notable avec le canevas des croyants, ou elle en
+ * est une : un croyant importe peut avoir ete baptise n'importe quand.
+ */
+describe('EF-BAP-07 — ce que le canevas des baptêmes ne porte PAS', () => {
+  it('n’a pas de colonne « date de baptême »', () => {
+    const entetes = CANEVAS_BAPTEMES.colonnes.map((c) => c.entete.toLowerCase());
+    expect(entetes.some((e) => e.includes('bapteme') || e.includes('baptême'))).toBe(
+      false,
+    );
+  });
+
+  /**
+   * LE GRADE NON PLUS : un nouveau baptise est « Croyant », et le serveur le
+   * resout. Le proposer offrirait une occasion de se tromper, trente fois de
+   * suite dans un lot.
+   */
+  it('n’a pas de colonne « grade »', () => {
+    const entetes = CANEVAS_BAPTEMES.colonnes.map((c) => c.entete.toLowerCase());
+    expect(entetes).not.toContain('grade');
+  });
+
+  /**
+   * LA NATIONALITE EST FACULTATIVE — c'est tout l'objet du changement du
+   * 27 aout 2026 : elle est passee de l'en-tete du lot a la ligne, et remplir
+   * trente cases identiques serait plus penible que le champ commun.
+   */
+  it('EF-BAP-07 — la nationalité est une colonne, et elle est FACULTATIVE', () => {
+    const nat = CANEVAS_BAPTEMES.colonnes.find((c) => c.entete === 'Nationalite');
+    expect(nat).toBeDefined();
+    expect(nat!.requis).toBe(false);
+    expect(nat!.aide).toContain('Malagasy');
   });
 });

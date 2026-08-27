@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 
 import { BaptemeDialog } from '@/components/baptemes/bapteme-dialog';
 import { BaptemeLotDialog } from '@/components/baptemes/bapteme-lot-dialog';
+import { ImportBaptemesDialog } from '@/components/baptemes/import-baptemes-dialog';
 import { PageHeader } from '@/components/shared/page-header';
 import { chargerBaptemes, listerCelebrants } from '@/lib/data/baptemes';
 import { getOptionsCroyant } from '@/lib/data/croyant-options';
@@ -57,6 +58,21 @@ export default async function BaptemesPage() {
           <div className="flex flex-wrap gap-2">
             {/* EF-BAP-07 — une cérémonie collective ne se saisit pas trente
                 fois de suite : le lot partage tout ce qui lui est commun. */}
+            {/*
+              EF-BAP-07 — UNE LISTE QUI EXISTE DEJA NE SE RESSAISIT PAS.
+
+              Une cérémonie de district arrive souvent sous forme de feuille,
+              tenue par celui qui a inscrit les candidats. La retaper ligne à
+              ligne dans la grille serait une occasion de la taper autrement —
+              et c'est exactement ce que l'import des croyants et celui des
+              dîmes évitent déjà.
+            */}
+            <ImportBaptemesDialog
+              eglises={options.eglises}
+              cellules={options.cellules}
+              nationalites={options.nationalites}
+              celebrants={celebrants}
+            />
             <BaptemeLotDialog
               eglises={options.eglises}
               cellules={options.cellules}

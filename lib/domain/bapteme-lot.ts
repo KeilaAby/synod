@@ -76,6 +76,48 @@ export function trouverGradeCroyant(
 }
 
 /**
+ * La nationalite PAR DEFAUT d'un baptise — EF-BAP-07.
+ *
+ * ELLE DESCEND DE L'EN-TETE VERS LA LIGNE, le 27 aout 2026. Elle valait pour
+ * tout le lot, au motif qu'« elle ne varie pratiquement jamais au sein d'une
+ * ceremonie ». C'etait vrai la plupart du temps et faux quand cela comptait :
+ * une ceremonie reunit des baptises de plusieurs nationalites, et le champ
+ * commun obligeait alors a corriger les fiches une par une apres coup.
+ *
+ * ELLE RESTE FACULTATIVE, et c'est ce qui rend le changement supportable :
+ * remplir trente cases identiques serait plus penible que l'ancien champ. Une
+ * ligne vide prend « Malagasy » — le cas courant, pose une fois pour toutes.
+ *
+ * LE DEFAUT SE RESOUT CONTRE LE REFERENTIEL, jamais en dur. « Malagasy » y est
+ * une ligne comme une autre : elle peut se renommer, et un identifiant ecrit
+ * dans le code ne survivrait pas a une base neuve.
+ *
+ * Rend `null` si le referentiel n'en contient aucune — l'appelant le DIT,
+ * plutot que de ranger tout un lot sous une nationalite prise au hasard. Meme
+ * raisonnement que `trouverGradeCroyant`.
+ */
+export function trouverNationaliteParDefaut(
+  nationalites: readonly { readonly id: string; readonly libelle: string }[],
+): string | null {
+  const propre = (v: string) =>
+    v
+      .trim()
+      .toLocaleLowerCase('fr')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+  /**
+   * DEUX ORTHOGRAPHES ACCEPTEES. « Malagasy » est la forme malgache, « Malgache »
+   * la forme francaise : les deux se rencontrent dans les referentiels reels, et
+   * n'en reconnaitre qu'une ferait echouer le defaut sur la moitie des bases.
+   */
+  return (
+    nationalites.find((n) => ['malagasy', 'malgache'].includes(propre(n.libelle)))?.id ??
+    null
+  );
+}
+
+/**
  * Les lignes qui repetent une personne DEJA presente dans le meme lot.
  *
  * Rendue par INDEX, et jamais la premiere occurrence : c'est la repetition

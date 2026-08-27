@@ -5,7 +5,11 @@ import { revalidatePath } from 'next/cache';
 import { chercherDoublons, chercherDoublonsLot } from '@/lib/data/croyants';
 import { getArbrePerimetre } from '@/lib/data/entities';
 import { listerReferentiel } from '@/lib/data/referentiels';
-import { doublonsInternes, trouverGradeCroyant } from '@/lib/domain/bapteme-lot';
+import {
+  doublonsInternes,
+  trouverGradeCroyant,
+  trouverNationaliteParDefaut,
+} from '@/lib/domain/bapteme-lot';
 import { cleDoublon, nomComplet } from '@/lib/domain/croyant';
 import { type ActionResult, ko, ok } from '@/lib/domain/result';
 import { auditer, requirePermission, requireSession } from '@/lib/session';
@@ -48,6 +52,24 @@ async function resoudreGradeCroyant(): Promise<string | null> {
 }
 
 /**
+ * La nationalite par defaut d'un baptise — EF-BAP-07.
+ *
+ * Elle est desormais une COLONNE de la grille, et FACULTATIVE : remplir
+ * trente cases identiques serait plus penible que le champ commun qu'elle
+ * remplace. Une ligne vide prend « Malagasy », resolue contre le referentiel
+ * et jamais ecrite en dur — cette ligne peut se renommer, et un identifiant
+ * fige ne survivrait pas a une base neuve.
+ */
+async function resoudreNationaliteParDefaut(): Promise<string | null> {
+  return trouverNationaliteParDefaut(
+    (await listerReferentiel('nationalites', false)) as {
+      id: string;
+      libelle: string;
+    }[],
+  );
+}
+
+/**
  * Le referentiel PEUT ne pas contenir « Croyant » — quelqu'un l'a renomme ou
  * desactive. On le dit et on s'arrete : ranger tout un lot sous un grade pris
  * au hasard serait pire qu'un refus, parce que personne ne le verrait.
@@ -55,6 +77,19 @@ async function resoudreGradeCroyant(): Promise<string | null> {
 const MESSAGE_GRADE_ABSENT =
   'Aucun grade « Croyant » actif dans le referentiel : c\'est celui que recoit ' +
   'tout nouveau baptise. Retablissez-le dans Referentiels > Grades, puis reessayez.';
+
+/**
+ * EF-BAP-07 — le refus quand la nationalite par defaut n'existe pas.
+ *
+ * Il ne se produit que si des lignes ONT ETE LAISSEES VIDES : un lot dont
+ * chaque ligne porte sa nationalite passe sans rien exiger du referentiel.
+ * Refuser dans tous les cas ferait dependre une saisie complete d'une valeur
+ * dont elle n'a pas besoin.
+ */
+const MESSAGE_NATIONALITE_ABSENTE =
+  'Certaines lignes n’ont pas de nationalite, et aucune nationalite malgache ' +
+  'n’existe dans le referentiel pour prendre le relais. Renseignez la colonne, ' +
+  'ou retablissez-la dans Referentiels > Nationalites.';
 
 function messageErreurSql(erreur: { code?: string; message?: string }): string {
   if (erreur.code === '23505') {
@@ -281,9 +316,10 @@ export async function saisirBaptisesEnLot(
 
     // Trois lectures INDEPENDANTES, donc simultanees : enchainees, elles
     // tripleraient l'attente avant meme la premiere ecriture (regle 28).
-    const [arbre, gradeId, dejaEnregistres] = await Promise.all([
+    const [arbre, gradeId, nationaliteDefaut, dejaEnregistres] = await Promise.all([
       getArbrePerimetre(),
       resoudreGradeCroyant(),
+      resoudreNationaliteParDefaut(),
       chercherDoublonsLot(
         data.lignes.map((l) => ({
           nom: l.nom,
@@ -301,6 +337,15 @@ export async function saisirBaptisesEnLot(
     }
 
     if (!gradeId) return ko(MESSAGE_GRADE_ABSENT);
+
+    /**
+     * ON REFUSE EN LE DISANT, plutot que de ranger tout un lot sous une
+     * nationalite prise au hasard. Le cas se produit sur une base dont le
+     * referentiel a ete vide ou renomme — et il se corrige en un ecran.
+     */
+    if (!nationaliteDefaut && data.lignes.some((l) => !l.nationaliteId)) {
+      return ko(MESSAGE_NATIONALITE_ABSENTE);
+    }
 
     const parId = new Map(arbre.map((e) => [e.id, e]));
     const eglisesPerimetre = arbre.filter((e) => e.type === 'EGLISE' && e.is_active);
@@ -420,7 +465,8 @@ export async function saisirBaptisesEnLot(
           cellule_id: ligne.celluleId ?? null,
           // Resolu par le SERVEUR : un nouveau baptise est « Croyant ».
           grade_id: gradeId,
-          nationalite_id: data.nationaliteId,
+          // La ligne decide ; a defaut, « Malagasy » resolu par le serveur.
+          nationalite_id: ligne.nationaliteId ?? nationaliteDefaut,
           saisi_par: session.profileId,
           saisi_depuis: session.entityId,
           // `matricule` omis : le trigger l'attribue, seule la base garantissant

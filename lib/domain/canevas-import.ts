@@ -192,7 +192,7 @@ export const CANEVAS_DIMES: Canevas = {
     {
       entete: 'Montant',
       requis: true,
-      aide: "LE SEUL CHAMP OBLIGATOIRE. « 1 500,50 » et « 1500.50 » sont acceptes. Zero et negatif sont refuses.",
+      aide: 'LE SEUL CHAMP OBLIGATOIRE. « 1 500,50 » et « 1500.50 » sont acceptes. Zero et negatif sont refuses.',
     },
     {
       entete: 'Nom',
@@ -246,6 +246,114 @@ export const CANEVAS_DIMES: Canevas = {
     'montant devenu texte ne se somme plus.',
     '',
     "SUPPRIMEZ LES QUATRE LIGNES D'EXEMPLE avant d'importer.",
+  ],
+};
+
+// -----------------------------------------------------------------------------
+// Baptêmes — EF-BAP-07
+// -----------------------------------------------------------------------------
+
+/**
+ * LE FICHIER NE PORTE QUE DES PERSONNES.
+ *
+ * La cérémonie — date, lieu, session, célébrants — se choisit à l'écran, une
+ * fois. Elle est commune à tout le lot par nature, et la répéter sur trente
+ * lignes offrirait trente occasions de la contredire : trois dates différentes
+ * dans un fichier, et plus personne ne sait laquelle fait foi.
+ *
+ * LA DATE DE BAPTÊME N'EST DONC PAS UNE COLONNE. C'est la seule différence
+ * notable avec le canevas des croyants, où elle en est une — parce qu'un
+ * croyant importé peut avoir été baptisé n'importe quand, et ailleurs.
+ */
+export const CANEVAS_BAPTEMES: Canevas = {
+  titre: 'Importer des baptisés',
+
+  colonnes: [
+    { entete: 'Nom', requis: true, aide: 'En majuscules ou non, peu importe.' },
+    { entete: 'Prenom', requis: true, aide: '' },
+    {
+      entete: 'Sexe',
+      requis: true,
+      aide: 'M ou F. « Homme » et « Femme » sont aussi acceptes.',
+    },
+    {
+      entete: 'Date de naissance',
+      requis: true,
+      aide: 'JJ/MM/AAAA — 04/07/1988. Elle doit preceder la date du bapteme.',
+    },
+    { entete: 'Adresse', requis: true, aide: 'Texte libre.' },
+    {
+      entete: 'Eglise',
+      requis: false,
+      aide: "Nom ou code. Inutile si votre perimetre ne compte qu'une seule eglise.",
+    },
+    {
+      entete: 'Nationalite',
+      requis: false,
+      aide: 'Libelle ou code ISO. Laissee vide, elle vaut « Malagasy ».',
+    },
+    {
+      entete: 'Cellule',
+      requis: false,
+      aide: "Nom ou code. Doit appartenir a l'eglise de la meme ligne.",
+    },
+    { entete: 'Telephone', requis: false, aide: 'Texte libre.' },
+  ],
+
+  exemples: [
+    [
+      'RAKOTO',
+      'Jean',
+      'M',
+      '04/07/1998',
+      'Lot II A 45 Ambohipo',
+      'Ambohipo',
+      '',
+      '',
+      '034 12 345 67',
+    ],
+    [
+      'KOFFI',
+      'Amos',
+      'M',
+      '19/11/2001',
+      'Lot III B 12 Analakely',
+      'Ambohipo',
+      'Ivoirienne',
+      'Cellule Nord',
+      '',
+    ],
+  ],
+
+  notes: [
+    "LA DATE DU BAPTEME N'EST PAS DANS LE FICHIER. Elle se choisit a l'ecran,",
+    'avec le lieu, la session et les celebrants : ces informations valent pour',
+    'toute la ceremonie, et les repeter sur chaque ligne offrirait autant',
+    'd\u2019occasions de les contredire.',
+    '',
+    'LE GRADE NON PLUS. Un nouveau baptise est « Croyant », et Synod le pose',
+    'lui-meme. Le rare cas particulier — un ancien responsable rebaptise — se',
+    'corrige ensuite sur sa fiche.',
+    '',
+    'LA NATIONALITE EST FACULTATIVE : laissee vide, elle vaut « Malagasy ». Mais',
+    'un libelle ECRIT ET INCONNU est refuse, et non ramene au defaut : une faute',
+    'de frappe passerait sinon pour un choix, sur une donnee que personne ne',
+    'relira.',
+    '',
+    "L'EGLISE EST FACULTATIVE si votre perimetre n'en compte qu'une — elle est",
+    'alors deduite. Des que vous en avez plusieurs, la colonne devient',
+    'indispensable, sinon Synod ne saurait pas ou rattacher la personne.',
+    '',
+    "LA CELLULE DOIT APPARTENIR A L'EGLISE DE LA MEME LIGNE. Une cellule d'une",
+    'autre eglise est refusee, avec son numero de ligne.',
+    '',
+    'CHAQUE BAPTISE DEVIENT UN CROYANT : la fiche est creee, le matricule',
+    'attribue par Synod. Il n\u2019y a pas de double saisie.',
+    '',
+    'UNE LIGNE FAUTIVE EST REJETEE, les autres passent — et le rapport dit',
+    'laquelle et pourquoi. Rien n\u2019est ecrit avant votre confirmation.',
+    '',
+    "SUPPRIMEZ LES DEUX LIGNES D'EXEMPLE avant d'importer.",
   ],
 };
 

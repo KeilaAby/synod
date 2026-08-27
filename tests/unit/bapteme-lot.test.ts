@@ -4,6 +4,7 @@ import {
   doublonsInternes,
   egliseImplicite,
   trouverGradeCroyant,
+  trouverNationaliteParDefaut,
 } from '@/lib/domain/bapteme-lot';
 import { LIGNES_LOT_MAX, saisirLotSchema } from '@/lib/validation/bapteme';
 
@@ -196,5 +197,68 @@ describe("Ce que le schema du lot exige et ce qu'il laisse vide", () => {
       lot({ celebrantIds: [UUID.eglise, UUID.eglise] }),
     );
     expect(analyse.data!.celebrantIds).toEqual([UUID.eglise]);
+  });
+});
+
+/**
+ * EF-BAP-07 — LA NATIONALITE PAR DEFAUT D'UN BAPTISE.
+ *
+ * Elle est passee de l'en-tete du lot a la LIGNE le 27 aout 2026 : une
+ * ceremonie reunit des baptises de plusieurs nationalites, et le champ commun
+ * obligeait a corriger les fiches une par une apres coup. Elle reste
+ * facultative — remplir trente cases identiques serait plus penible que le
+ * champ qu'elle remplace.
+ */
+describe('trouverNationaliteParDefaut', () => {
+  /**
+   * DEUX ORTHOGRAPHES : « Malagasy » est la forme malgache, « Malgache » la
+   * forme francaise. Les deux se rencontrent dans les referentiels reels, et
+   * n'en reconnaitre qu'une ferait echouer le defaut sur la moitie des bases.
+   */
+  it.each([
+    ['Malagasy', 'n1'],
+    ['Malgache', 'n1'],
+    ['MALAGASY', 'n1'],
+    ['  malgache  ', 'n1'],
+  ])('reconnaît « %s »', (libelle, attendu) => {
+    expect(trouverNationaliteParDefaut([{ id: 'n1', libelle }])).toBe(attendu);
+  });
+
+  it('ignore les accents, comme le reste du projet', () => {
+    expect(trouverNationaliteParDefaut([{ id: 'n1', libelle: 'Malgaché' }])).toBe('n1');
+  });
+
+  it('choisit la bonne parmi plusieurs nationalités', () => {
+    expect(
+      trouverNationaliteParDefaut([
+        { id: 'fr', libelle: 'Française' },
+        { id: 'mg', libelle: 'Malagasy' },
+        { id: 'us', libelle: 'Américaine' },
+      ]),
+    ).toBe('mg');
+  });
+
+  /**
+   * ON REND `null` PLUTOT QUE DE PRENDRE LA PREMIERE : ranger tout un lot sous
+   * une nationalite choisie au hasard serait pire qu'un refus, parce que
+   * personne ne le verrait. L'appelant le DIT — meme raisonnement que
+   * `trouverGradeCroyant`.
+   */
+  it('rend null quand aucune nationalité malgache n’existe', () => {
+    expect(
+      trouverNationaliteParDefaut([
+        { id: 'fr', libelle: 'Française' },
+        { id: 'us', libelle: 'Américaine' },
+      ]),
+    ).toBeNull();
+  });
+
+  it('rend null sur un référentiel vide', () => {
+    expect(trouverNationaliteParDefaut([])).toBeNull();
+  });
+
+  /** Un libelle approchant n'est pas la bonne : « Malawite » n'est pas malgache. */
+  it('ne se laisse pas prendre par un libellé approchant', () => {
+    expect(trouverNationaliteParDefaut([{ id: 'mw', libelle: 'Malawite' }])).toBeNull();
   });
 });

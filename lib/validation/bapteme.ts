@@ -126,6 +126,22 @@ export const ligneLotSchema = z.object({
   ),
   egliseId: optionnel(z.uuid()),
   celluleId: optionnel(z.uuid()),
+
+  /**
+   * EF-BAP-07 — LA NATIONALITE EST UNE COLONNE depuis le 27 aout 2026.
+   *
+   * Elle valait pour tout le lot, au motif qu'elle ne varie pratiquement
+   * jamais au sein d'une ceremonie. C'etait vrai la plupart du temps et faux
+   * quand cela comptait : une ceremonie reunit des baptises de plusieurs
+   * nationalites, et le champ commun obligeait a corriger les fiches une par
+   * une apres coup.
+   *
+   * FACULTATIVE, et c'est ce qui rend le changement supportable : remplir
+   * trente cases identiques serait plus penible que l'ancien champ. Une ligne
+   * vide prend « Malagasy », resolue par le serveur contre le referentiel
+   * (`trouverNationaliteParDefaut`).
+   */
+  nationaliteId: optionnel(z.uuid()),
 });
 
 export const saisirLotSchema = z
@@ -142,14 +158,11 @@ export const saisirLotSchema = z
       .transform((v) => [...new Set(v)]),
 
     /**
-     * La nationalite est commune au LOT, pas a la ligne : elle ne varie
-     * pratiquement jamais au sein d'une ceremonie, et une colonne de plus
-     * rendait la grille illisible. Le cas particulier se corrige ensuite sur
-     * la fiche — un ecran pour une personne plutot qu'une colonne pour toutes.
+     * LA NATIONALITE N'EST PLUS ICI — elle est passee sur la LIGNE.
      *
-     * Le GRADE, lui, ne se demande plus du tout : voir `trouverGradeCroyant`.
+     * Le GRADE, lui, ne se demande toujours pas : un nouveau baptise est
+     * « Croyant », et le serveur le resout (`trouverGradeCroyant`).
      */
-    nationaliteId: z.uuid('Selectionnez une nationalite.'),
 
     lignes: z
       .array(ligneLotSchema)

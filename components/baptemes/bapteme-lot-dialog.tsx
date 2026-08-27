@@ -45,10 +45,14 @@ import {
 } from '@/components/ui/table';
 import { type ResultatLot, saisirBaptisesEnLot } from '@/lib/actions/baptemes';
 import type { OptionCelebrant } from '@/lib/data/baptemes';
-import { egliseImplicite } from '@/lib/domain/bapteme-lot';
+import { egliseImplicite, trouverNationaliteParDefaut } from '@/lib/domain/bapteme-lot';
 import { LIBELLES_SEXE, SEXES } from '@/lib/domain/croyant';
 import { formatNombre } from '@/lib/utils/format';
-import { LIGNES_LOT_MAX, type SaisirLotInput, saisirLotSchema } from '@/lib/validation/bapteme';
+import {
+  LIGNES_LOT_MAX,
+  type SaisirLotInput,
+  saisirLotSchema,
+} from '@/lib/validation/bapteme';
 
 /**
  * Saisie d'un lot de baptisés — EF-BAP-07.
@@ -138,10 +142,27 @@ export function BaptemeLotDialog({
       lieu: '',
       sessionLibelle: '',
       celebrantIds: [],
-      nationaliteId: nationalites[0]?.id,
       lignes: [ligneVide(implicite)],
     } as Partial<SaisirLotInput> as SaisirLotInput,
   });
+
+  /**
+   * EF-BAP-07 — CE QUE PREND UNE LIGNE LAISSÉE VIDE.
+   *
+   * Calculé une fois pour toute la grille : trente lignes qui chercheraient
+   * chacune « Malagasy » dans le référentiel referaient trente fois le même
+   * parcours à chaque frappe.
+   *
+   * LES DEUX ORTHOGRAPHES SONT ACCEPTÉES — « Malagasy » est la forme malgache,
+   * « Malgache » la forme française, et les deux se rencontrent dans les
+   * référentiels réels. C'est la même règle que le serveur applique
+   * (`trouverNationaliteParDefaut`) : deux endroits, une seule définition, et
+   * un test qui les compare.
+   */
+  const nationaliteDefaut = useMemo(() => {
+    const id = trouverNationaliteParDefaut(nationalites);
+    return id ? (nationalites.find((n) => n.id === id) ?? null) : null;
+  }, [nationalites]);
 
   const { fields, append, remove } = useFieldArray({ control, name: 'lignes' });
   const lignes = useWatch({ control, name: 'lignes' });
@@ -240,9 +261,7 @@ export function BaptemeLotDialog({
             </DialogDescription>
           </DialogHeader>
 
-          {etape === 'rapport' && rapport && (
-            <RapportLot rapport={rapport} />
-          )}
+          {etape === 'rapport' && rapport && <RapportLot rapport={rapport} />}
 
           {etape === 'saisie' && ouvert && (
             /*
@@ -329,46 +348,12 @@ export function BaptemeLotDialog({
                       />
                     )}
                   </Field>
-
-                  {/* La nationalité vaut pour TOUT le lot : une colonne de plus
-                      rendait la grille illisible, et elle ne varie pratiquement
-                      jamais au sein d'une cérémonie. Le GRADE, lui, ne se
-                      demande pas — un nouveau baptisé est « Croyant ». */}
-                  <Field
-                    label="Nationalité"
-                    required
-                    error={errors.nationaliteId?.message}
-                    hint="Commune au lot — se corrige ensuite sur la fiche."
-                  >
-                    {(aria) => (
-                      <Controller
-                        control={control}
-                        name="nationaliteId"
-                        render={({ field }) => (
-                          <Select value={field.value ?? ''} onValueChange={field.onChange}>
-                            <SelectTrigger {...aria} className="h-10 w-full">
-                              <SelectValue placeholder="Choisir" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {nationalites.map((n) => (
-                                <SelectItem key={n.id} value={n.id}>
-                                  {n.libelle}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                    )}
-                  </Field>
                 </div>
 
                 {implicite && (
                   <p className="text-muted-foreground text-xs">
                     Tous les baptisés de ce lot sont rattachés à{' '}
-                    <span className="text-foreground font-medium">
-                      {eglises[0]?.nom}
-                    </span>{' '}
+                    <span className="text-foreground font-medium">{eglises[0]?.nom}</span>{' '}
                     — la seule église de votre périmètre.
                   </p>
                 )}
@@ -419,7 +404,9 @@ export function BaptemeLotDialog({
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-[3%]">#</TableHead>
-                        {!implicite && <TableHead className="w-[17%]">Église *</TableHead>}
+                        {!implicite && (
+                          <TableHead className="w-[17%]">Église *</TableHead>
+                        )}
                         <TableHead className={implicite ? 'w-[14%]' : 'w-[11%]'}>
                           Nom *
                         </TableHead>
@@ -435,10 +422,28 @@ export function BaptemeLotDialog({
                         <TableHead className={implicite ? 'w-[18%]' : 'w-[15%]'}>
                           Adresse *
                         </TableHead>
-                        <TableHead className={implicite ? 'w-[12%]' : 'w-[10%]'}>
+                        <TableHead className={implicite ? 'w-[10%]' : 'w-[9%]'}>
                           Téléphone
                         </TableHead>
-                        <TableHead className={implicite ? 'w-[13%]' : 'w-[10%]'}>
+                        {/*
+                          EF-BAP-07 — LA NATIONALITÉ EST UNE COLONNE, et elle
+                          est FACULTATIVE.
+
+                          Elle valait pour tout le lot, au motif qu'elle ne
+                          varie pratiquement jamais au sein d'une cérémonie.
+                          C'était vrai la plupart du temps et faux quand cela
+                          comptait : une cérémonie réunit des baptisés de
+                          plusieurs nationalités, et le champ commun obligeait
+                          à corriger les fiches une par une après coup.
+
+                          L'astérisque manque volontairement : une ligne vide
+                          prend « Malagasy ». Remplir trente cases identiques
+                          serait plus pénible que l'ancien champ.
+                        */}
+                        <TableHead className={implicite ? 'w-[13%]' : 'w-[11%]'}>
+                          Nationalité
+                        </TableHead>
+                        <TableHead className={implicite ? 'w-[10%]' : 'w-[8%]'}>
                           Cellule
                         </TableHead>
                         <TableHead className="w-[3%]" />
@@ -455,6 +460,9 @@ export function BaptemeLotDialog({
                           cellules={cellules}
                           eglises={eglises}
                           implicite={implicite}
+                          nationalites={nationalites}
+                          idNationaliteDefaut={nationaliteDefaut?.id ?? null}
+                          libelleNationaliteDefaut={nationaliteDefaut?.libelle ?? null}
                           erreurs={{
                             nom: messageLigne(index, 'nom'),
                             prenom: messageLigne(index, 'prenom'),
@@ -524,6 +532,9 @@ function LigneBaptise({
   implicite,
   erreurs,
   surRetirer,
+  nationalites,
+  idNationaliteDefaut,
+  libelleNationaliteDefaut,
 }: {
   index: number;
   control: ReturnType<typeof useForm<SaisirLotInput>>['control'];
@@ -533,6 +544,16 @@ function LigneBaptise({
   implicite: string | null;
   erreurs: Record<string, string | undefined>;
   surRetirer: (() => void) | null;
+  nationalites: OptionReferentiel[];
+  /**
+   * EF-BAP-07 — ce que prend une ligne laissée vide.
+   *
+   * Il est calculé UNE FOIS pour toute la grille : trente lignes qui
+   * chercheraient chacune « Malagasy » dans le référentiel feraient trente
+   * fois le même parcours à chaque frappe.
+   */
+  idNationaliteDefaut: string | null;
+  libelleNationaliteDefaut: string | null;
 }) {
   const egliseChoisie = useWatch({ control, name: `lignes.${index}.egliseId` });
   const eglise = (egliseChoisie as string | null) ?? implicite;
@@ -557,8 +578,7 @@ function LigneBaptise({
       ? 'Aucune cellule'
       : 'Aucune';
 
-  const bordure = (message?: string) =>
-    message ? 'h-9 border-destructive' : 'h-9';
+  const bordure = (message?: string) => (message ? 'h-9 border-destructive' : 'h-9');
 
   return (
     <TableRow>
@@ -681,6 +701,46 @@ function LigneBaptise({
         {erreurs.telephone && (
           <p className="text-destructive mt-1 text-xs">{erreurs.telephone}</p>
         )}
+      </TableCell>
+
+      {/*
+        EF-BAP-07 — LA NATIONALITÉ, ligne par ligne et FACULTATIVE.
+
+        « Malagasy » est proposé en tête sous son vrai nom, et non sous un
+        « Aucune » qui ferait croire à une absence : la valeur n'est pas vide,
+        elle est celle que le serveur posera. Dire « aucune » pour signifier
+        « la plus courante » aurait été un mensonge d'interface.
+      */}
+      <TableCell>
+        <Controller
+          control={control}
+          name={`lignes.${index}.nationaliteId`}
+          render={({ field }) => (
+            <Select
+              value={(field.value as string | null) ?? 'defaut'}
+              onValueChange={(v) => field.onChange(v === 'defaut' ? null : v)}
+            >
+              <SelectTrigger
+                className="h-9 w-full"
+                aria-label={`Nationalité, ligne ${index + 1}`}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="defaut">
+                  {libelleNationaliteDefaut ?? 'Par défaut'}
+                </SelectItem>
+                {nationalites
+                  .filter((n) => n.id !== idNationaliteDefaut)
+                  .map((n) => (
+                    <SelectItem key={n.id} value={n.id}>
+                      {n.libelle}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          )}
+        />
       </TableCell>
 
       <TableCell>
