@@ -22,6 +22,8 @@ import { type ActionResult, ko, ok } from './result';
 export const PERMISSION_GROUPS = [
   'Structure',
   'Croyants',
+  'Baptêmes',
+  'Visites Pastorales',
   'Bureaux',
   'Finances',
   'Rapports',
@@ -151,45 +153,47 @@ export const PERMISSIONS = {
     description:
       'Valider ou rejeter les propositions de promotion de grade soumises par les entités rattachées.',
   },
+
+  // --- Baptêmes --------------------------------------------------------------
   'bapteme.create': {
     label: 'Saisir un baptême',
-    group: 'Croyants',
+    group: 'Baptêmes',
     description: 'Enregistrer une cérémonie de baptême (crée automatiquement les fiches de croyants correspondantes).',
   },
 
   // --- Visites pastorales ----------------------------------------------------
   'visite.read': {
     label: 'Consulter les visites pastorales',
-    group: 'Croyants',
+    group: 'Visites Pastorales',
     description: 'Consulter le calendrier, la liste et les détails des visites pastorales du périmètre.',
   },
   'visite.create': {
     portee: 'PROPRE',
     label: 'Planifier une visite pastorale',
-    group: 'Croyants',
+    group: 'Visites Pastorales',
     description: 'Désigner des serviteurs gradés et planifier une visite pastorale pour son entité.',
   },
   'visite.update': {
     portee: 'PROPRE',
     label: 'Modifier une visite pastorale',
-    group: 'Croyants',
+    group: 'Visites Pastorales',
     description: 'Reprogrammer la date, le culte ou modifier la délégation d’une visite pastorale.',
   },
   'visite.validate': {
     portee: 'PROPRE',
     label: 'Valider et délivrer un ordre de mission',
-    group: 'Croyants',
+    group: 'Visites Pastorales',
     description: 'Confirmer la visite pastorale et valider l’ordre de mission officiel.',
   },
   'visite.print': {
     label: 'Imprimer l’ordre de mission',
-    group: 'Croyants',
+    group: 'Visites Pastorales',
     description: 'Éditer et imprimer l’ordre de mission pastoral officiel au format A4.',
   },
   'visite.delete': {
     portee: 'PROPRE',
     label: 'Annuler une visite pastorale',
-    group: 'Croyants',
+    group: 'Visites Pastorales',
     description: 'Annuler ou supprimer une visite pastorale planifiée.',
   },
 

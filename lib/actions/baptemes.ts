@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 
 import { chercherDoublons, chercherDoublonsLot } from '@/lib/data/croyants';
 import { getArbrePerimetre } from '@/lib/data/entities';
+import { getParametres } from '@/lib/data/settings';
 import { listerReferentiel } from '@/lib/data/referentiels';
 import {
   doublonsInternes,
@@ -316,18 +317,20 @@ export async function saisirBaptisesEnLot(
 
     // Trois lectures INDEPENDANTES, donc simultanees : enchainees, elles
     // tripleraient l'attente avant meme la premiere ecriture (regle 28).
-    const [arbre, gradeId, nationaliteDefaut, dejaEnregistres] = await Promise.all([
-      getArbrePerimetre(),
-      resoudreGradeCroyant(),
-      resoudreNationaliteParDefaut(),
-      chercherDoublonsLot(
-        data.lignes.map((l) => ({
-          nom: l.nom,
-          prenom: l.prenom,
-          dateNaissance: l.dateNaissance,
-        })),
-      ),
-    ]);
+    const [arbre, gradeId, nationaliteDefaut, parametres, dejaEnregistres] =
+      await Promise.all([
+        getArbrePerimetre(),
+        resoudreGradeCroyant(),
+        resoudreNationaliteParDefaut(),
+        getParametres(),
+        chercherDoublonsLot(
+          data.lignes.map((l) => ({
+            nom: l.nom,
+            prenom: l.prenom,
+            dateNaissance: l.dateNaissance,
+          })),
+        ),
+      ]);
 
     // Une absence de donnees n'est pas un refus de droit (regle 15).
     if (arbre.length === 0) {
@@ -337,6 +340,21 @@ export async function saisirBaptisesEnLot(
     }
 
     if (!gradeId) return ko(MESSAGE_GRADE_ABSENT);
+
+    /**
+     * EF-BAP-07 — LE PLAFOND SE RELIT A CHAQUE ECRITURE (regle 21).
+ *
+     * Un onglet ouvert avant un changement de reglage continuerait sinon de
+     * refuser ce qui est desormais autorise — ou pire, de laisser passer ce
+     * qui ne l'est plus.
+     */
+    if (data.lignes.length > parametres.plafond_lot_baptemes) {
+      return ko(
+        `Un lot porte sur ${parametres.plafond_lot_baptemes} baptises au plus : ` +
+          `celui-ci en compte ${data.lignes.length}. Le plafond se regle dans ` +
+          'Administration > Parametres generaux.',
+      );
+    }
 
     /**
      * ON REFUSE EN LE DISANT, plutot que de ranger tout un lot sous une

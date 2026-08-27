@@ -49,7 +49,6 @@ import { egliseImplicite, trouverNationaliteParDefaut } from '@/lib/domain/bapte
 import { LIBELLES_SEXE, SEXES } from '@/lib/domain/croyant';
 import { formatNombre } from '@/lib/utils/format';
 import {
-  LIGNES_LOT_MAX,
   type SaisirLotInput,
   saisirLotSchema,
 } from '@/lib/validation/bapteme';
@@ -104,12 +103,21 @@ export function BaptemeLotDialog({
   eglises,
   cellules,
   nationalites,
+  plafond,
   celebrants,
   photos,
 }: {
   eglises: OptionEntite[];
   cellules: CelluleOption[];
   nationalites: OptionReferentiel[];
+  /**
+   * EF-BAP-07 — le plafond REGLE dans Administration (migration `0079`).
+   *
+   * Simple HINT cote ecran : l'action relit le reglage a l'instant meme de
+   * l'ecriture et tranche pour de bon. Un onglet ouvert avant un changement
+   * de reglage ne doit pas decider a la place du serveur (regle 21).
+   */
+  plafond: number;
   celebrants: OptionCelebrant[];
   /** Clé de stockage -> URL signée (EF-CRO-09), signées en lot par la page. */
   photos: Record<string, string>;
@@ -371,7 +379,7 @@ export function BaptemeLotDialog({
                     variant="outline"
                     className="h-9"
                     onClick={ajouterLigne}
-                    disabled={fields.length >= LIGNES_LOT_MAX}
+                    disabled={fields.length >= plafond}
                   >
                     <Plus className="mr-2 size-4" aria-hidden />
                     Ajouter une ligne

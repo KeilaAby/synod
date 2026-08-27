@@ -9,7 +9,8 @@
   - Politiques RLS fines (lecture accordée à l'entité initiatrice et à l'église cible ; mutations réservées à l'entité initiatrice).
   - Portées propres `PROPRE` déclarées dans `fn_permissions_portee_propre()`.
 - **Habilitations Fines & Rôles (RG-24 / RG-25)** :
-  - Ajout des 6 permissions : `visite.read`, `visite.create`, `visite.update`, `visite.validate`, `visite.print`, `visite.delete`.
+  - Création de deux catégories dédiées distinctes dans le catalogue des permissions : **« Baptêmes »** (`Droplets`) et **« Visites Pastorales »** (`CalendarCheck2`), séparées de la catégorie **« Croyants »** (`Users`).
+  - Ajout des 6 permissions de visites : `visite.read`, `visite.create`, `visite.update`, `visite.validate`, `visite.print`, `visite.delete`.
   - Intégration dans `ROLE_TEMPLATES` (`SUPERADMIN`, `ENTITE_ADMIN`, `ENTITE_OPERATEUR`, `LECTEUR`) et `PROFILS_RACCOURCIS` (`RESPONSABLE`, `SECRETAIRE`, `CONSULTATION`).
 - **Calendrier Horizontal Fluide (`components/visites/calendrier-horizontal.tsx`)** :
   - Affichage horizontal sur 31 jours défilables (`overflow-x: auto`), sans blocage sur les jours passés.

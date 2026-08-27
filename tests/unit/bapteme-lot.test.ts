@@ -6,7 +6,7 @@ import {
   trouverGradeCroyant,
   trouverNationaliteParDefaut,
 } from '@/lib/domain/bapteme-lot';
-import { LIGNES_LOT_MAX, saisirLotSchema } from '@/lib/validation/bapteme';
+import { BORNE_TECHNIQUE_LOT, saisirLotSchema } from '@/lib/validation/bapteme';
 
 /**
  * EF-BAP-07 — saisie d'un lot de baptises d'une meme ceremonie.
@@ -160,7 +160,7 @@ describe("Ce que le schema du lot exige et ce qu'il laisse vide", () => {
   });
 
   it('borne le lot : au-dela, cela releve d un fichier', () => {
-    const trop = Array.from({ length: LIGNES_LOT_MAX + 1 }, (_, i) =>
+    const trop = Array.from({ length: BORNE_TECHNIQUE_LOT + 1 }, (_, i) =>
       ligne({ prenom: `Jean${i}` }),
     );
     expect(saisirLotSchema.safeParse(lot({ lignes: trop })).success).toBe(false);

@@ -4,6 +4,7 @@ import {
   ALL_PERMISSIONS,
   NON_DELEGABLES,
   PERMISSIONS,
+  PERMISSION_GROUPS,
   ROLE_TEMPLATES,
   type SessionUtilisateur,
   detient,
@@ -60,7 +61,7 @@ describe('Catalogue des habilitations', () => {
   });
 
   it('couvre chaque droit par exactement une categorie', () => {
-    const groupes = ['Structure', 'Croyants', 'Bureaux', 'Finances', 'Rapports', 'Pilotage', 'Administration'] as const;
+    const groupes = PERMISSION_GROUPS;
     const total = groupes.reduce((n, g) => n + permissionsDuGroupe(g).length, 0);
     expect(total).toBe(ALL_PERMISSIONS.length);
   });
@@ -499,9 +500,12 @@ describe('RG-25 — la portee est une propriete du DROIT', () => {
     const fichiers = (await readdir(dossier)).filter((f) => f.endsWith('.sql')).sort();
 
     let derniere: string | null = null;
-    for (const fichier of fichiers) {
+    for (const fichier of fichiers.slice().reverse()) {
       const contenu = await readFile(new URL(fichier, dossier), 'utf8');
-      if (contenu.includes('function fn_permissions_portee_propre')) derniere = contenu;
+      if (contenu.includes('function fn_permissions_portee_propre')) {
+        derniere = contenu;
+        break;
+      }
     }
 
     expect(derniere, 'aucune migration ne definit fn_permissions_portee_propre').not.toBeNull();

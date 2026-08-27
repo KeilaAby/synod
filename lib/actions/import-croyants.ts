@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { getArbrePerimetre } from '@/lib/data/entities';
+import { getParametres } from '@/lib/data/settings';
 import { listerReferentiel } from '@/lib/data/referentiels';
 import {
   type CroyantImporte,
@@ -33,7 +34,17 @@ import { executerAction } from './executer';
  */
 
 /** Au-dela, le fichier releve d'un traitement par lots, pas d'un formulaire. */
-const LIGNES_MAX = 5000;
+/**
+ * LA BORNE TECHNIQUE, ET NON LA REGLE METIER — depuis le 27 aout 2026.
+ *
+ * Le plafond REEL est un reglage
+ * (`organisation_settings.plafond_import_croyants`, migration `0079`), relu a
+ * CHAQUE import (regle 21) : un schema est construit au chargement du module
+ * et ne peut pas lire la base.
+ *
+ * Celle-ci ne protege plus que la memoire du serveur.
+ */
+const BORNE_TECHNIQUE_IMPORT = 20000;
 const TAILLE_TRANCHE = 50;
 
 const importSchema = z.object({
@@ -41,7 +52,10 @@ const importSchema = z.object({
   correspondance: z.record(z.string(), z.number().int().nullable()),
   lignes: z
     .array(z.array(z.string()))
-    .max(LIGNES_MAX, `Un import porte sur ${LIGNES_MAX} lignes au plus.`),
+    .max(
+      BORNE_TECHNIQUE_IMPORT,
+      `Un import ne peut pas depasser ${BORNE_TECHNIQUE_IMPORT} lignes.`,
+    ),
 });
 
 /**
@@ -118,6 +132,24 @@ export async function importerCroyants(
 
     const { lignes, correspondance } = analyse.data;
     if (lignes.length === 0) return ko('Le fichier ne contient aucune ligne.');
+
+    /**
+     * EF-CRO-11 — LE PLAFOND SE RELIT A CHAQUE IMPORT (regle 21).
+     *
+     * Il etait ecrit en dur a 5000. Le rendre reglable n'a d'interet que si on
+     * le lit au moment d'ecrire : lu au chargement de l'ecran, un onglet ouvert
+     * avant le changement continuerait de refuser ce qui est desormais
+     * autorise — et personne ne comprendrait pourquoi le meme fichier passe
+     * chez l'un et pas chez l'autre.
+     */
+    const parametres = await getParametres();
+    if (lignes.length > parametres.plafond_import_croyants) {
+      return ko(
+        `Un import porte sur ${parametres.plafond_import_croyants} lignes au plus : ` +
+          `ce fichier en compte ${lignes.length}. Le plafond se regle dans ` +
+          'Administration > Parametres generaux.',
+      );
+    }
 
     const referentiels = await construireReferentiels();
 

@@ -39,7 +39,7 @@ export function OrdreMissionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[92vh] w-[min(96vw,52rem)] overflow-y-auto sm:max-w-none">
         <DialogHeader>
           <DialogTitle className="text-lg font-bold">
             Document Officiel — Ordre de Mission Pastorale

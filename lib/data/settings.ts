@@ -30,6 +30,16 @@ export interface Parametres {
   finance_validation_active: boolean;
   /** EF-CRO-12 — la promotion de grade passe-t-elle par l entite superieure ? */
   promotion_grade_validation: boolean;
+  /**
+   * EF-BAP-07, EF-CRO-11 — les deux plafonds d'import (migration `0079`).
+   *
+   * DEUX REGLAGES ET NON UN : un lot de baptemes est UNE CEREMONIE, un
+   * import de croyants une REPRISE DE DONNEES. Les confondre ferait
+   * qu'elargir une reprise de dix mille fiches autoriserait aussi des
+   * ceremonies de dix mille baptises.
+   */
+  plafond_lot_baptemes: number;
+  plafond_import_croyants: number;
   separation_saisie_validation: boolean;
   /** ARB-4 / EF-TRF-05 — auto-approbation des transferts internes. */
   transfert_auto_approbation_interne: boolean;
@@ -76,6 +86,11 @@ const REPLI: Parametres = {
   // Ferme par defaut : une panne de lecture ne doit jamais OUVRIR un circuit
   // qui n existait pas, ni le fermer pour ceux qui l ont voulu.
   promotion_grade_validation: false,
+  // Les valeurs qui etaient en dur avant le reglage : un repli qui
+  // elargirait le plafond laisserait passer, en cas de panne de lecture, ce
+  // que personne n’a autorise.
+  plafond_lot_baptemes: 100,
+  plafond_import_croyants: 5000,
   separation_saisie_validation: true,
   transfert_auto_approbation_interne: false,
   /**
@@ -122,6 +137,7 @@ export const getParametres = cache(async (): Promise<Parametres> => {
         'finance_validation_active, separation_saisie_validation, ' +
         'transfert_auto_approbation_interne, rapport_composition_libre, ' +
         'promotion_grade_validation, ' +
+        'plafond_lot_baptemes, plafond_import_croyants, ' +
         'reinitialisation_par_email, couleur_primaire, toast_duree_ms, ' +
         'toast_bouton_fermer, toast_couleurs_vives, toast_position, ' +
         'jours_correction_saisie',

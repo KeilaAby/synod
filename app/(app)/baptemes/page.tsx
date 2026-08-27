@@ -71,12 +71,15 @@ export default async function BaptemesPage() {
               eglises={options.eglises}
               cellules={options.cellules}
               nationalites={options.nationalites}
+              plafond={parametres.plafond_lot_baptemes}
               celebrants={celebrants}
+              photos={Object.fromEntries(photos)}
             />
             <BaptemeLotDialog
               eglises={options.eglises}
               cellules={options.cellules}
               nationalites={options.nationalites}
+              plafond={parametres.plafond_lot_baptemes}
               celebrants={celebrants}
               photos={Object.fromEntries(photos)}
             />

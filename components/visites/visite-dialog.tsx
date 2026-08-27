@@ -447,7 +447,7 @@ export function VisiteDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto">
+      <DialogContent className="max-h-[92vh] w-[min(96vw,56rem)] overflow-y-auto sm:max-w-none">
         <DialogHeader>
           <DialogTitle className="text-xl font-extrabold tracking-tight">
             {visiteEnEdition ? 'Modifier la Visite Pastorale' : 'Planifier une Visite Pastorale'}

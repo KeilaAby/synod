@@ -95,11 +95,21 @@ export type SaisirBaptiseValide = z.output<typeof saisirBaptiseSchema>;
 // -----------------------------------------------------------------------------
 
 /**
- * Au-dela, la saisie n'est plus un formulaire : c'est un fichier, et l'import
- * de croyants (EF-CRO-11) le fait deja. Cent lignes tiennent dans une
- * ceremonie reelle, meme large.
+ * LA BORNE TECHNIQUE, ET NON LA REGLE METIER — depuis le 27 aout 2026.
+ *
+ * Le plafond REEL est un reglage (`organisation_settings.plafond_lot_baptemes`,
+ * migration `0079`) : une ceremonie de district peut depasser cent baptises, et
+ * l'ancienne constante obligeait alors a scinder le fichier a la main.
+ *
+ * CE NOMBRE-CI NE PROTEGE PLUS QU'UNE CHOSE : la memoire du serveur. Un schema
+ * ne peut pas lire la base — il est construit au chargement du module, une fois
+ * pour toutes — donc la regle metier ne peut pas vivre ici. Elle est verifiee
+ * par l'action, qui relit le reglage A CHAQUE ECRITURE (regle 21).
+ *
+ * On garde donc une borne large : elle refuse un envoi absurde sans jamais
+ * contredire un reglage legitime.
  */
-export const LIGNES_LOT_MAX = 100;
+export const BORNE_TECHNIQUE_LOT = 20000;
 
 /**
  * Une ligne du lot : ce qui DISTINGUE une personne.
@@ -167,7 +177,7 @@ export const saisirLotSchema = z
     lignes: z
       .array(ligneLotSchema)
       .min(1, 'Ajoutez au moins un baptise.')
-      .max(LIGNES_LOT_MAX, `Un lot porte sur ${LIGNES_LOT_MAX} baptises au plus.`),
+      .max(BORNE_TECHNIQUE_LOT, `Un lot ne peut pas depasser ${BORNE_TECHNIQUE_LOT} lignes.`),
   })
   // RG-28 — la date de ceremonie est commune, les naissances ne le sont pas :
   // la regle se verifie donc ligne a ligne, et le message se pose sur la ligne

@@ -12,11 +12,14 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
+import { AvatarCroyant } from '@/components/croyants/avatar-croyant';
 import { ChampDate } from '@/components/shared/champ-date';
 import { Field, TextField } from '@/components/shared/field';
 import { avertir } from '@/components/shared/messages';
+import { SelecteurMultiple } from '@/components/shared/selecteur-multiple';
 import { TelechargerCanevas } from '@/components/shared/telecharger-canevas';
 import type { OptionEntite } from '@/components/structure/entity-picker';
+import type { OptionCelebrant } from '@/lib/data/baptemes';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -55,7 +58,6 @@ import {
   devinerBapteme,
 } from '@/lib/domain/import-baptemes';
 import { normaliser } from '@/lib/domain/import-croyants';
-import { LIGNES_LOT_MAX } from '@/lib/validation/bapteme';
 import { formatNombre } from '@/lib/utils/format';
 
 import type {
@@ -89,12 +91,23 @@ export function ImportBaptemesDialog({
   eglises,
   cellules,
   nationalites,
+  plafond,
   celebrants,
+  photos,
 }: {
   eglises: OptionEntite[];
   cellules: CelluleOption[];
   nationalites: OptionReferentiel[];
-  celebrants: { id: string; nom: string; prenom: string; grade: string }[];
+  /**
+   * EF-BAP-07 — le plafond REGLE dans Administration (migration `0079`).
+   *
+   * Simple HINT : l'action relit le reglage a l'ecriture et tranche pour de
+   * bon (regle 21).
+   */
+  plafond: number;
+  celebrants: OptionCelebrant[];
+  /** URLs signees des portraits, indexees par cle relative (regle 11). */
+  photos: Record<string, string>;
 }) {
   const router = useRouter();
   const [ouvert, setOuvert] = useState(false);
@@ -115,6 +128,38 @@ export function ImportBaptemesDialog({
   const [celebrantIds, setCelebrantIds] = useState<string[]>([]);
 
   const implicite = useMemo(() => egliseImplicite(eglises), [eglises]);
+
+  /**
+   * EF-BAP-07 — LES CÉLÉBRANTS SE CHOISISSENT À PLUSIEURS.
+   *
+   * Ce champ n’en acceptait qu’un, alors que la saisie en lot et la fiche
+   * unitaire en acceptent plusieurs depuis le début : un baptême est souvent
+   * célébré à deux mains, et la ligne écrite en base porte un TABLEAU.
+   * N’en offrir qu’un ici, c’était perdre un nom au passage — sans rien
+   * dire, puisque l’enregistrement réussissait.
+   *
+   * Même composant, mêmes options, même tri que `BaptemeLotDialog`
+   * (règle 16) : deux façons de désigner le même célébrant finiraient par
+   * ne plus proposer les mêmes personnes.
+   */
+  const optionsCelebrants = useMemo(
+    () =>
+      [...celebrants]
+        .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'))
+        .map((c) => ({
+          id: c.id,
+          libelle: `${c.nom.toLocaleUpperCase('fr')} ${c.prenom}`,
+          detail: c.grade,
+          avatar: (
+            <AvatarCroyant
+              nom={c.nom}
+              prenom={c.prenom}
+              url={c.photoKey ? photos[c.photoKey] : null}
+            />
+          ),
+        })),
+    [celebrants, photos],
+  );
 
   /**
    * LES RÉFÉRENTIELS, INDEXÉS PAR NOM **ET** PAR CODE.
@@ -165,7 +210,7 @@ export function ImportBaptemesDialog({
     [donnees, correspondance, referentiels, dateBapteme, manquants.length],
   );
 
-  const tropDeLignes = analyse.valides.length > LIGNES_LOT_MAX;
+  const tropDeLignes = analyse.valides.length > plafond;
 
   function reinitialiser() {
     setEtape('depot');
@@ -405,26 +450,19 @@ export function ImportBaptemesDialog({
                     />
 
                     <Field
-                      label="Célébrant"
-                      hint="Facultatif — un seul ici ; la fiche en accepte plusieurs."
+                      label="Célébrants"
+                      hint="Communs à toute la cérémonie. Facultatif — et plusieurs sont acceptés."
                     >
                       {(aria) => (
-                        <Select
-                          value={celebrantIds[0] ?? 'aucun'}
-                          onValueChange={(v) => setCelebrantIds(v === 'aucun' ? [] : [v])}
-                        >
-                          <SelectTrigger {...aria} className="h-10 w-full">
-                            <SelectValue placeholder="Choisir" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="aucun">Aucun</SelectItem>
-                            {celebrants.map((c) => (
-                              <SelectItem key={c.id} value={c.id}>
-                                {c.nom} {c.prenom} — {c.grade}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <SelecteurMultiple
+                          {...aria}
+                          options={optionsCelebrants}
+                          valeurs={celebrantIds}
+                          onChange={setCelebrantIds}
+                          placeholder="Non renseigné"
+                          rechercheMessage="Rechercher par nom ou par grade…"
+                          emptyMessage="Aucun célébrant enregistré."
+                        />
                       )}
                     </Field>
                   </div>
@@ -516,7 +554,7 @@ export function ImportBaptemesDialog({
                     <AlertDescription>
                       {tropDeLignes ? (
                         <span className="text-destructive">
-                          Un lot porte sur {LIGNES_LOT_MAX} baptisés au plus — c’est une
+                          Un lot porte sur {plafond} baptisés au plus — c’est une
                           cérémonie, pas un registre. Scindez le fichier.
                         </span>
                       ) : (

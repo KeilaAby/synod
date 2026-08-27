@@ -123,6 +123,8 @@ export function ParametresClient({
       ? parametres.toast_position
       : POSITION_TOAST_DEFAUT,
     joursCorrectionSaisie: parametres.jours_correction_saisie,
+    plafondLotBaptemes: parametres.plafond_lot_baptemes,
+    plafondImportCroyants: parametres.plafond_import_croyants,
   });
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
@@ -279,6 +281,49 @@ export function ParametresClient({
             hint="En jours, depuis l’ENREGISTREMENT — pas depuis le début du mandat ou du grade. Passé ce délai, retirer un titulaire ou corriger un grade devient une décision motivée plutôt qu’un effacement."
             value={String(valeurs.joursCorrectionSaisie)}
             onChange={(e) => poser({ joursCorrectionSaisie: e.target.value })}
+          />
+        </Groupe>
+
+        {/*
+          EF-ADM-13 — LES PLAFONDS D'IMPORT, ETAIENT DEUX CONSTANTES.
+
+          Elles avaient ete choisies a l'estime, sans qu'aucune ceremonie ni
+          aucun fichier reel n'ait ete mesure. La premiere a ete atteinte :
+          une cérémonie de district peut dépasser cent baptisés, et l’import
+          refusait alors en demandant de scinder le fichier — un travail
+          manuel imposé par un nombre que personne ne pouvait changer.
+
+          DEUX RÉGLAGES ET NON UN : un lot de baptêmes est UNE CÉRÉMONIE, un
+          import de croyants une REPRISE DE DONNÉES. Les confondre ferait
+          qu’élargir une reprise de dix mille fiches autoriserait aussi des
+          cérémonies de dix mille baptisés.
+        */}
+        <Groupe
+          titre="Plafonds d’import"
+          description="Combien de lignes un même envoi peut porter. Le réglage est relu à chaque import : le modifier prend effet aussitôt, sans redémarrage."
+        >
+          <TextField
+            label="Baptisés par cérémonie"
+            required
+            type="number"
+            min={1}
+            max={20000}
+            className="tabular-nums"
+            hint="Vaut pour la saisie en lot ET pour l’import d’une liste. C’est une célébration, pas un registre : au-delà, mieux vaut deux cérémonies."
+            value={String(valeurs.plafondLotBaptemes)}
+            onChange={(e) => poser({ plafondLotBaptemes: e.target.value })}
+          />
+
+          <TextField
+            label="Lignes par import de croyants"
+            required
+            type="number"
+            min={1}
+            max={20000}
+            className="tabular-nums"
+            hint="Une reprise de données. Au-delà de vingt mille, ce n’est plus un import mais une restauration — voir Portabilité."
+            value={String(valeurs.plafondImportCroyants)}
+            onChange={(e) => poser({ plafondImportCroyants: e.target.value })}
           />
         </Groupe>
 

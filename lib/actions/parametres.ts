@@ -72,6 +72,8 @@ export async function reglerParametres(input: unknown): Promise<ActionResult<voi
       toast_couleurs_vives: valeurs.toastCouleursVives,
       toast_position: valeurs.toastPosition,
       jours_correction_saisie: valeurs.joursCorrectionSaisie,
+      plafond_lot_baptemes: valeurs.plafondLotBaptemes,
+      plafond_import_croyants: valeurs.plafondImportCroyants,
     });
 
     const sb = await createClient();

@@ -139,6 +139,32 @@ export const parametresSchema = z.object({
     .int('Un nombre entier de jours.')
     .min(1, 'Au moins un jour.')
     .max(365, 'Au-dela d’un an, ce n’est plus une correction de saisie.'),
+
+  /**
+   * EF-BAP-07, EF-CRO-11 — LES DEUX PLAFONDS D'IMPORT (migration `0079`).
+   *
+   * DEUX REGLAGES ET NON UN, parce que ce sont deux gestes de nature
+   * differente. Un lot de baptemes est UNE CEREMONIE : son plafond dit ce
+   * qu'une celebration peut raisonnablement compter. Un import de croyants
+   * est une REPRISE DE DONNEES : son plafond dit ce que le serveur peut
+   * avaler d'un coup. Les confondre ferait qu'elargir une reprise de dix
+   * mille fiches autoriserait aussi des ceremonies de dix mille baptises.
+   *
+   * UN PLAFOND NUL FERMERAIT L'IMPORT sans que rien ne le dise : la borne
+   * basse vaut 1, et la meme contrainte est posee en base — un reglage se
+   * modifie aussi par un appel direct a l'API (regle 26).
+   */
+  plafondLotBaptemes: z.coerce
+    .number()
+    .int('Un nombre entier de baptises.')
+    .min(1, 'Au moins un baptise, sinon l’import est ferme.')
+    .max(20000, 'Au-dela, ce n’est plus une cérémonie.'),
+
+  plafondImportCroyants: z.coerce
+    .number()
+    .int('Un nombre entier de lignes.')
+    .min(1, 'Au moins une ligne, sinon l’import est ferme.')
+    .max(20000, 'Au-dela, c’est une restauration : voir la portabilité.'),
 });
 
 export type ParametresInput = z.input<typeof parametresSchema>;

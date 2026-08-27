@@ -291,9 +291,12 @@ describe('EF-REF-02 — alignement du registre et de la fonction SQL', () => {
     const fichiers = (await readdir(dossier)).filter((f) => f.endsWith('.sql')).sort();
 
     let derniere: string | null = null;
-    for (const fichier of fichiers) {
+    for (const fichier of fichiers.slice().reverse()) {
       const contenu = await readFile(new URL(fichier, dossier), 'utf8');
-      if (contenu.includes('function fn_reordonner_referentiel')) derniere = contenu;
+      if (contenu.includes('function fn_reordonner_referentiel')) {
+        derniere = contenu;
+        break;
+      }
     }
 
     expect(derniere, 'aucune migration ne definit fn_reordonner_referentiel').not.toBeNull();

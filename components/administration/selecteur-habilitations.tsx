@@ -3,6 +3,8 @@
 import {
   BarChart3,
   Briefcase,
+  CalendarCheck2,
+  Droplets,
   Eye,
   FileText,
   Network,
@@ -55,6 +57,8 @@ import { cn } from '@/lib/utils';
 const ICONES_GROUPE: Record<PermissionGroup, LucideIcon> = {
   Structure: Network,
   Croyants: Users,
+  'Baptêmes': Droplets,
+  'Visites Pastorales': CalendarCheck2,
   Bureaux: Briefcase,
   Finances: Wallet,
   Rapports: FileText,
