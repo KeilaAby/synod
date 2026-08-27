@@ -22,6 +22,8 @@ import { VisitesTable } from '@/components/visites/visites-table';
 import { VisiteDialog } from '@/components/visites/visite-dialog';
 import { OrdreMissionDialog } from '@/components/visites/ordre-mission-dialog';
 
+import { PermissionGate } from '@/components/shared/permission-gate';
+
 export interface VisitesClientProps {
   readonly initialVisites: readonly VisitePastorale[];
   readonly entites: readonly OptionEntite[];
@@ -137,23 +139,27 @@ export function VisitesClient({
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            className="h-9 text-xs gap-1.5"
-            onClick={() => {
-              if (visitesFiltrees.length > 0) {
-                handleAfficherVisite(visitesFiltrees[0]);
-              }
-            }}
-          >
-            <Printer className="w-3.5 h-3.5" />
-            Ordres de Mission
-          </Button>
+          <PermissionGate perm="visite.print">
+            <Button
+              variant="outline"
+              className="h-9 text-xs gap-1.5"
+              onClick={() => {
+                if (visitesFiltrees.length > 0) {
+                  handleAfficherVisite(visitesFiltrees[0]);
+                }
+              }}
+            >
+              <Printer className="w-3.5 h-3.5" />
+              Ordres de Mission
+            </Button>
+          </PermissionGate>
 
-          <Button className="h-9 text-xs gap-1.5" onClick={() => handleNouvelleVisite()}>
-            <PlusCircle className="w-4 h-4" />
-            Planifier une Visite
-          </Button>
+          <PermissionGate perm="visite.create">
+            <Button className="h-9 text-xs gap-1.5" onClick={() => handleNouvelleVisite()}>
+              <PlusCircle className="w-4 h-4" />
+              Planifier une Visite
+            </Button>
+          </PermissionGate>
         </div>
       </div>
 

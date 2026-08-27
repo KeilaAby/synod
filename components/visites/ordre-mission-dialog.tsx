@@ -1,6 +1,7 @@
 'use client';
 
-import { Printer } from 'lucide-react';
+import { useTransition } from 'react';
+import { Printer, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -14,6 +15,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { formatDateLongue } from '@/lib/utils/format';
 import type { VisitePastorale } from '@/lib/domain/visites-pastorales';
 import { imprimerOrdreMission } from './imprimer-ordre-mission';
+import { validerVisitePastorale, annulerVisitePastorale } from '@/lib/actions/visites-pastorales';
+import { PermissionGate } from '@/components/shared/permission-gate';
+import { toast } from 'sonner';
+import { avertir } from '@/components/shared/messages';
 
 export interface OrdreMissionDialogProps {
   readonly open: boolean;
@@ -28,6 +33,8 @@ export function OrdreMissionDialog({
   visite,
   organisationNom,
 }: OrdreMissionDialogProps) {
+  const [isPending, startTransition] = useTransition();
+
   if (!visite) return null;
 
   const handlePrint = () => {
@@ -37,16 +44,60 @@ export function OrdreMissionDialog({
     });
   };
 
+  const handleValider = () => {
+    startTransition(async () => {
+      const res = await validerVisitePastorale(visite.id);
+      if (res.ok) {
+        toast.success('Visite pastorale confirmée et validée avec succès');
+        onOpenChange(false);
+      } else {
+        avertir(res.error || 'Erreur lors de la validation');
+      }
+    });
+  };
+
+  const handleAnnuler = () => {
+    if (!confirm('Êtes-vous sûr de vouloir annuler cette visite pastorale ?')) return;
+
+    startTransition(async () => {
+      const res = await annulerVisitePastorale(visite.id);
+      if (res.ok) {
+        toast.success('Visite pastorale annulée');
+        onOpenChange(false);
+      } else {
+        avertir(res.error || 'Erreur lors de l’annulation');
+      }
+    });
+  };
+
+  const estPlanifie = visite.statut === 'PLANIFIE';
+  const estConfirme = visite.statut === 'CONFIRME';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] w-[min(96vw,52rem)] overflow-y-auto sm:max-w-none">
         <DialogHeader>
-          <DialogTitle className="text-lg font-bold">
-            Document Officiel — Ordre de Mission Pastorale
-          </DialogTitle>
-          <DialogDescription className="text-xs text-muted-foreground">
-            Attestation solennelle et lettre de mission à remettre à l’église accueillante.
-          </DialogDescription>
+          <div className="flex items-center justify-between gap-2 pr-6">
+            <div>
+              <DialogTitle className="text-lg font-bold">
+                Document Officiel — Ordre de Mission Pastorale
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                Attestation solennelle et lettre de mission à remettre à l’église accueillante.
+              </DialogDescription>
+            </div>
+
+            {estPlanifie && (
+              <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full shrink-0">
+                Planifiée (En attente de validation)
+              </span>
+            )}
+            {estConfirme && (
+              <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full shrink-0">
+                <CheckCircle className="w-3.5 h-3.5" /> Validée & Confirmée
+              </span>
+            )}
+          </div>
         </DialogHeader>
 
         {/* Aperçu du document A4 */}
@@ -143,14 +194,69 @@ export function OrdreMissionDialog({
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Fermer
-          </Button>
-          <Button onClick={handlePrint} className="gap-1.5">
-            <Printer className="w-4 h-4" />
-            Lancer l’Impression A4
-          </Button>
+        <DialogFooter className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t">
+          <div className="flex items-center gap-2">
+            {(estPlanifie || estConfirme) && (
+              <PermissionGate perm="visite.delete">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAnnuler}
+                  disabled={isPending}
+                  className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 text-xs gap-1"
+                >
+                  <XCircle className="w-3.5 h-3.5" />
+                  Annuler la visite
+                </Button>
+              </PermissionGate>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+              disabled={isPending}
+              className="text-xs"
+            >
+              Fermer
+            </Button>
+
+            {estPlanifie && (
+              <PermissionGate perm="visite.validate">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleValider}
+                  disabled={isPending}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1.5 font-bold"
+                >
+                  {isPending ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <CheckCircle className="w-3.5 h-3.5" />
+                  )}
+                  Valider et délivrer l’Ordre de Mission
+                </Button>
+              </PermissionGate>
+            )}
+
+            <PermissionGate perm="visite.print">
+              <Button
+                type="button"
+                size="sm"
+                onClick={handlePrint}
+                disabled={isPending}
+                className="text-xs gap-1.5"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                Imprimer l’Ordre de Mission A4
+              </Button>
+            </PermissionGate>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

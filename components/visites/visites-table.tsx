@@ -1,11 +1,16 @@
 'use client';
 
-import { FileText, Pencil, CheckCircle, Clock } from 'lucide-react';
+import { useTransition } from 'react';
+import { FileText, Pencil, CheckCircle, Clock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { formatDateLongue } from '@/lib/utils/format';
 import type { VisitePastorale } from '@/lib/domain/visites-pastorales';
 import { peutDeplacerVisite } from '@/lib/domain/visites-pastorales';
+import { validerVisitePastorale } from '@/lib/actions/visites-pastorales';
+import { PermissionGate } from '@/components/shared/permission-gate';
+import { toast } from 'sonner';
+import { avertir } from '@/components/shared/messages';
 
 export interface VisitesTableProps {
   readonly visites: readonly VisitePastorale[];
@@ -18,6 +23,19 @@ export function VisitesTable({
   onEditerVisite,
   onImprimerVisite,
 }: VisitesTableProps) {
+  const [isPending, startTransition] = useTransition();
+
+  const handleValiderRapide = (id: string) => {
+    startTransition(async () => {
+      const res = await validerVisitePastorale(id);
+      if (res.ok) {
+        toast.success('Visite pastorale confirmée');
+      } else {
+        avertir(res.error || 'Erreur lors de la validation');
+      }
+    });
+  };
+
   if (visites.length === 0) {
     return (
       <div className="rounded-xl border bg-card p-12 text-center text-muted-foreground shadow-sm">
@@ -43,6 +61,7 @@ export function VisitesTable({
           <tbody className="divide-y text-xs">
             {visites.map((v) => {
               const peutModifier = peutDeplacerVisite(v.statut);
+              const estPlanifie = v.statut === 'PLANIFIE';
               const premier = v.delegues[0];
 
               return (
@@ -129,15 +148,37 @@ export function VisitesTable({
                   {/* Actions */}
                   <td className="p-3.5 pr-4 text-right">
                     <div className="flex items-center justify-end gap-1.5">
+                      {estPlanifie && (
+                        <PermissionGate perm="visite.validate">
+                          <Button
+                            variant="default"
+                            size="sm"
+                            disabled={isPending}
+                            className="h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                            onClick={() => handleValiderRapide(v.id)}
+                            title="Valider et confirmer la visite"
+                          >
+                            {isPending ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <CheckCircle className="w-3 h-3" />
+                            )}
+                            Valider
+                          </Button>
+                        </PermissionGate>
+                      )}
+
                       {peutModifier && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs gap-1"
-                          onClick={() => onEditerVisite(v)}
-                        >
-                          <Pencil className="w-3 h-3" /> Modifier
-                        </Button>
+                        <PermissionGate perm="visite.update">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs gap-1"
+                            onClick={() => onEditerVisite(v)}
+                          >
+                            <Pencil className="w-3 h-3" /> Modifier
+                          </Button>
+                        </PermissionGate>
                       )}
 
                       <Button

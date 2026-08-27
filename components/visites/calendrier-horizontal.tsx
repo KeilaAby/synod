@@ -20,6 +20,7 @@ import { avertir } from '@/components/shared/messages';
 import type { VisitePastorale } from '@/lib/domain/visites-pastorales';
 import { peutDeplacerVisite } from '@/lib/domain/visites-pastorales';
 import { reprogrammerVisitePastorale } from '@/lib/actions/visites-pastorales';
+import { PermissionGate } from '@/components/shared/permission-gate';
 
 export interface CalendrierHorizontalProps {
   readonly moisActif: string; // 'YYYY-MM'
@@ -247,14 +248,16 @@ export function CalendrierHorizontal({
                 </div>
 
                 {/* Bouton discret '+' pour créer une visite pour ce jour */}
-                <button
-                  type="button"
-                  onClick={() => onNouvelleVisiteDate(j.dateIso)}
-                  className="w-7 h-7 rounded-md border bg-background hover:bg-foreground hover:text-background text-muted-foreground flex items-center justify-center transition-colors"
-                  title={`Planifier une visite le ${j.numJour} ${nomMoisTexte}`}
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
+                <PermissionGate perm="visite.create">
+                  <button
+                    type="button"
+                    onClick={() => onNouvelleVisiteDate(j.dateIso)}
+                    className="w-7 h-7 rounded-md border bg-background hover:bg-foreground hover:text-background text-muted-foreground flex items-center justify-center transition-colors"
+                    title={`Planifier une visite le ${j.numJour} ${nomMoisTexte}`}
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </PermissionGate>
               </div>
 
               {/* Corps de la colonne de jour : Cartes de visites pastorales */}
