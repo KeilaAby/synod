@@ -6182,4 +6182,15 @@ Sept points traités et vérifiés :
 - Dialogue de planification `components/visites/visite-dialog.tsx` : sélection des entités organisatrices et cibles, date/heure, type de culte en saisie libre, sélecteur de croyants candidats avec photos et saisie libre du rôle missionnaire.
 - Modale et impression A4 `components/visites/ordre-mission-dialog.tsx` et `components/visites/imprimer-ordre-mission.ts`.
 
-`pnpm verify` : 54 suites de tests, 1056 tests unitaires passés, 0 erreur TypeScript, 0 problème ESLint, 0 secret, bundle `install.sql` et build Next.js validés.
+**5. Circuit de Validation & Habilitations Fines (`visite.validate`, `visite.delete`).**
+- Séparation des catégories d'habilitations fines : création des catégories distinctes **« Baptêmes »** (`Droplets`) et **« Visites Pastorales »** (`CalendarCheck2`), séparées de « Croyants » (`Users`).
+- Intégration du bouton vert de validation « Valider et délivrer l'Ordre de Mission » dans la modale d'ordre de mission (`OrdreMissionDialog`) et bouton d'action rapide dans le tableau (`VisitesTable`), protégés par `<PermissionGate perm="visite.validate">`.
+- Intégration du bouton d'annulation de visite sous `<PermissionGate perm="visite.delete">`.
+- Protection systématique par `PermissionGate` des boutons de création (`visite.create`), modification (`visite.update`) et impression (`visite.print`).
+
+**6. Cartes des Bureaux — Style empilé des membres (Avatar Stack) & Marges intérieures (`app/(app)/bureaux/bureaux-client.tsx`).**
+- Réduction de la marge intérieure haute (`p-4 pt-3 pb-3`) pour aérer et rééquilibrer les cartes de bureaux.
+- Affichage empilé en bas de carte (`pt-2 border-t border-dashed`) avec avatars circulaires chevauchants (`-space-x-2`), nom du premier membre actif et pastille de comptage `+N`.
+- Bouton discret d'ouverture directe de la composition du bureau (`FileText`).
+
+`pnpm verify` : 55 suites de tests, 1066 tests unitaires passés, 0 erreur TypeScript, 0 problème ESLint, 0 secret, bundle `install.sql` et build Next.js validés.

@@ -17,16 +17,20 @@ demande contredit `cdg.md`, signalez-le avant d'implémenter.
 
 ## État — 27 août 2026
 
-**Lots 0 à 8 livrés + Module Visites Pastorales.** Migrations `0001` à `0077` appliquées, migration `0078_visites_pastorales.sql` écrite (bundle `supabase/install.sql` régénéré).
-1056 tests unitaires, 54 fichiers. `pnpm verify` vert (secrets, lint, typecheck, tests, build).
+**Lots 0 à 8 livrés + Module Visites Pastorales + Cartes Bureaux avec Avatars empilés.** Migrations `0001` à `0077` appliquées, migration `0078_visites_pastorales.sql` écrite (bundle `supabase/install.sql` régénéré).
+1066 tests unitaires, 55 fichiers. `pnpm verify` vert (secrets, lint, typecheck, tests, build).
 
 **Dernières livraisons du 27 août 2026 :**
 1. **Module de Planification des Visites Pastorales & Ordres de Mission (`/visites`, `0078_visites_pastorales.sql`)** :
    - Base de données : tables `visites_pastorales` et `visites_pastorales_delegues`, triggers de numérotation séquentielle `OM-SYNOD-AAAA-MM/XXX`, RLS et portées propres dans `fn_permissions_portee_propre()`.
-   - Habilitations : 6 permissions fines (`visite.read`, `visite.create`, `visite.update`, `visite.validate`, `visite.print`, `visite.delete`) intégrées aux gabarits de rôles et profils d'habilitation.
-   - Calendrier horizontal fluide : défilement sur 31 jours (`scroll-x`, sans blocage sur les jours passés), bouton discret `+` par date, bouton discret crayon sur cartes actives, Drag & Drop interactif avec reprogrammation immédiate et sécurisée.
-   - Formulaire ergonomique : saisie libre du Type de Culte / Célébration, saisie libre du Rôle missionnaire de chaque gradé désigné, sélecteur de croyants candidats avec portraits signés.
+   - Habilitations : 6 permissions fines (`visite.read`, `visite.create`, `visite.update`, `visite.validate`, `visite.print`, `visite.delete`) séparées dans leur propre catégorie `Visites Pastorales` (avec `Baptêmes` également séparé de `Croyants`), intégrées aux gabarits de rôles et profils d'habilitation.
+   - Circuit de validation complet : bouton vert « Valider et délivrer l'Ordre de Mission » sous `visite.validate` (dans la modale et dans le tableau), bouton d'annulation sous `visite.delete`, gates sur toutes les actions.
+   - Formulaire & Dialog élargi : `EntityPicker` officiel hiérarchique avec recherche pour l'entité initiatrice et l'église cible, `CroyantPicker` avec portraits et initiales pour composer la délégation, saisie libre des cultes et des rôles missionnaires.
+   - Calendrier horizontal fluide : défilement sur 31 jours (`scroll-x`), bouton discret `+` par date, bouton discret crayon sur cartes actives, Drag & Drop interactif avec reprogrammation immédiate et sécurisée.
    - Ordre de mission solennel A4 : document officiel prêt à l'impression avec photos des membres, références, verset biblique et blocs de signatures/sceaux.
+2. **Cartes des Bureaux — Style empilé des membres (Avatar Stack) & Marges intérieures (`app/(app)/bureaux/bureaux-client.tsx`)** :
+   - Réduction du padding haut (`p-4 pt-3 pb-3`) pour aérer la carte et équilibrer l'espace bas.
+   - Pied de carte avec filet en pointillés (`border-t border-dashed`), avatars circulaires chevauchants (`-space-x-2`), nom du premier titulaire et compteur `+N`, bouton direct d'ouverture de la composition.
 
 **Livraisons précédentes (26 août 2026) :**
 1. **Évolution temporelle des effectifs & Courbe en aire (`0077_evolution_effectifs.sql`, `CourbeEffectifs`)** :

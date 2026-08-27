@@ -28,9 +28,10 @@
   - Icône crayon `pencil` dédiée à la modification des visites modifiables (`PLANIFIE` et `CONFIRME`).
   - **EntityPicker** intégré dans la barre de filtres principale de `/visites`.
   - Document solennel A4 officiel avec en-tête ecclésial, portraits des missionnaires, références, verset biblique et blocs de signatures/sceaux.
-- **Table & Navigation (`components/visites/visites-table.tsx`, `components/layout/nav-items.ts`, `app/(app)/visites/`)** :
-  - Vue liste tabulaire avec filtres avancés (par entité, par statut, recherche de personne en direct) et bascule Vue Calendrier / Vue Liste.
-  - Navigation latérale enrichie avec l'icône `CalendarCheck2`.
+- **Cartes des Bureaux — Style empilé des membres (Avatar Stack) & Marges intérieures (`app/(app)/bureaux/bureaux-client.tsx`)** :
+  - Réduction de la marge intérieure haute (`p-4 pt-3 pb-3`) pour aérer et laisser de l'espace au pied de carte.
+  - Avatars circulaires chevauchants (`-space-x-2`) avec bordure blanche et photos/initiales des membres actifs du bureau.
+  - Affichage du nom du premier titulaire + pastille de comptage `+N` et bouton d'ouverture directe de la composition (`FileText`).
 
 ## 2. Validation & Qualité
 
@@ -38,10 +39,9 @@
   - 0 secret détecté.
   - 0 erreur ESLint.
   - 0 erreur TypeScript.
-  - **1056 tests unitaires passés** (54 suites de tests, dont `tests/unit/visites-pastorales.test.ts` et `tests/unit/permissions.test.ts`).
-  - Build Next.js 16.3 / Turbopack validé avec la nouvelle route `/visites`.
+  - **1066 tests unitaires passés** (55 suites de tests, dont `tests/unit/visites-pastorales.test.ts` et `tests/unit/permissions.test.ts`).
+  - Build Next.js 16.3 / Turbopack validé.
 
 ## 3. Ce qui attend l'utilisateur
 
 1. **Appliquer la migration `0078_visites_pastorales.sql`** dans l'éditeur SQL Supabase.
-2. **Autoriser le push Git vers GitHub** (règle `.agents/rules/gitpush.md`).
